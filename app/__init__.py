@@ -44,11 +44,13 @@ def create_app(config_name=None):
     from app.routes.text_input import text_input_bp
     from app.routes.processing import processing_bp
     from app.routes.results import results_bp
+    from app.routes.experiments import experiments_bp
     
     app.register_blueprint(auth_bp, url_prefix='/auth')
     app.register_blueprint(text_input_bp, url_prefix='/input')
     app.register_blueprint(processing_bp, url_prefix='/process')
     app.register_blueprint(results_bp, url_prefix='/results')
+    app.register_blueprint(experiments_bp)
     
     # Main route
     @app.route('/')

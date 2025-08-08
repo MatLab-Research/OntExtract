@@ -8,12 +8,12 @@
     <div class="row mb-5">
         <div class="col-lg-8 mx-auto text-center">
             <h1 class="display-4 fw-bold mb-4">
-                <i class="fas fa-brain text-success me-3"></i>
-                Welcome to OntExtract
+                <i class="fas fa-project-diagram text-success me-3"></i>
+                OntExtract
             </h1>
             <p class="lead mb-4">
-                Advanced ontology-based text analysis and entity extraction platform. 
-                Upload documents or paste text to extract meaningful insights using AI and semantic technologies.
+                A research tool for ontology-based text analysis and entity extraction. 
+                Upload documents or paste text to analyze semantic relationships using computational linguistics methods.
             </p>
             
             {% if current_user.is_authenticated %}
@@ -41,10 +41,10 @@
         </div>
     </div>
 
-    <!-- Features Section -->
+    <!-- Methodology Section -->
     <div class="row mb-5">
         <div class="col-12">
-            <h2 class="text-center mb-5">Key Features</h2>
+            <h2 class="text-center mb-5">Research Methodology</h2>
         </div>
         
         <div class="col-lg-4 col-md-6 mb-4">
@@ -53,10 +53,10 @@
                     <div class="feature-icon">
                         <i class="fas fa-file-upload"></i>
                     </div>
-                    <h4>Multi-Format Support</h4>
+                    <h4>Document Processing</h4>
                     <p class="text-muted">
-                        Upload PDF, DOCX, TXT, HTML, and Markdown files. 
-                        Or paste text directly into the interface.
+                        Supports multiple document formats (PDF, DOCX, TXT, HTML, Markdown) 
+                        with automated text extraction and preprocessing.
                     </p>
                 </div>
             </div>
@@ -66,12 +66,12 @@
             <div class="card h-100 text-center">
                 <div class="card-body">
                     <div class="feature-icon">
-                        <i class="fas fa-robot"></i>
+                        <i class="fas fa-brain"></i>
                     </div>
-                    <h4>AI-Powered Analysis</h4>
+                    <h4>Computational Linguistics</h4>
                     <p class="text-muted">
-                        Leverage advanced LLMs and Google LangExtract for 
-                        intelligent entity extraction and text analysis.
+                        Employs large language models and Google LangExtract 
+                        for named entity recognition and linguistic analysis.
                     </p>
                 </div>
             </div>
@@ -83,10 +83,10 @@
                     <div class="feature-icon">
                         <i class="fas fa-project-diagram"></i>
                     </div>
-                    <h4>Ontology Mapping</h4>
+                    <h4>Ontological Modeling</h4>
                     <p class="text-muted">
-                        Map extracted entities to ontological concepts 
-                        for structured knowledge representation.
+                        Maps extracted entities to formal ontological structures 
+                        for semantic knowledge representation and reasoning.
                     </p>
                 </div>
             </div>
@@ -98,10 +98,10 @@
                     <div class="feature-icon">
                         <i class="fas fa-search"></i>
                     </div>
-                    <h4>Smart Extraction</h4>
+                    <h4>Entity Extraction</h4>
                     <p class="text-muted">
-                        Extract people, organizations, concepts, and relationships 
-                        with high accuracy and context awareness.
+                        Identifies and classifies entities (persons, organizations, concepts) 
+                        with contextual relationship analysis.
                     </p>
                 </div>
             </div>
@@ -111,12 +111,12 @@
             <div class="card h-100 text-center">
                 <div class="card-body">
                     <div class="feature-icon">
-                        <i class="fas fa-chart-line"></i>
+                        <i class="fas fa-chart-network"></i>
                     </div>
-                    <h4>Rich Analytics</h4>
+                    <h4>Graph-Based Analysis</h4>
                     <p class="text-muted">
-                        Comprehensive visualizations and analytics 
-                        to understand your text data better.
+                        Visualizes semantic relationships and entity networks 
+                        for qualitative and quantitative text analysis.
                     </p>
                 </div>
             </div>
@@ -128,10 +128,10 @@
                     <div class="feature-icon">
                         <i class="fas fa-download"></i>
                     </div>
-                    <h4>Export Results</h4>
+                    <h4>Data Export</h4>
                     <p class="text-muted">
-                        Export extracted entities and analysis results 
-                        in various formats for further use.
+                        Outputs structured data in standard formats (JSON, RDF, CSV) 
+                        for integration with research workflows.
                     </p>
                 </div>
             </div>
@@ -193,19 +193,19 @@
     </div>
     {% endif %}
 
-    <!-- Call to Action -->
+    <!-- Access Information -->
     {% if not current_user.is_authenticated %}
     <div class="row mt-5">
         <div class="col-lg-8 mx-auto text-center">
             <div class="card bg-gradient-primary text-white">
                 <div class="card-body p-5">
-                    <h3 class="mb-3">Ready to Get Started?</h3>
+                    <h3 class="mb-3">Research Access</h3>
                     <p class="mb-4">
-                        Create your free account and start analyzing text with 
-                        advanced AI-powered ontology extraction tools.
+                        Register for access to begin ontological text analysis 
+                        using computational linguistics and semantic extraction methods.
                     </p>
                     <a href="{{ url_for('auth.register') }}" class="btn btn-light btn-lg">
-                        <i class="fas fa-user-plus me-2"></i>Create Free Account
+                        <i class="fas fa-user-plus me-2"></i>Register for Access
                     </a>
                 </div>
             </div>

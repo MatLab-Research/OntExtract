@@ -1,0 +1,257 @@
+from flask import Blueprint, render_template, request, jsonify, flash, redirect, url_for
+from flask_login import login_required, current_user
+from app import db
+from app.models import Document, Experiment
+from datetime import datetime
+import json
+
+experiments_bp = Blueprint('experiments', __name__, url_prefix='/experiments')
+
+@experiments_bp.route('/')
+@login_required
+def index():
+    """List all experiments for the current user"""
+    experiments = Experiment.query.filter_by(user_id=current_user.id).order_by(Experiment.created_at.desc()).all()
+    return render_template('experiments/index.html', experiments=experiments)
+
+@experiments_bp.route('/new')
+@login_required
+def new():
+    """Create a new experiment"""
+    # Get all documents for the current user
+    documents = Document.query.filter_by(user_id=current_user.id).order_by(Document.created_at.desc()).all()
+    return render_template('experiments/new.html', documents=documents)
+
+@experiments_bp.route('/create', methods=['POST'])
+@login_required
+def create():
+    """Create a new experiment"""
+    try:
+        data = request.get_json()
+        
+        # Validate required fields
+        if not data.get('name'):
+            return jsonify({'error': 'Experiment name is required'}), 400
+        
+        if not data.get('experiment_type'):
+            return jsonify({'error': 'Experiment type is required'}), 400
+        
+        if not data.get('document_ids') or len(data['document_ids']) == 0:
+            return jsonify({'error': 'At least one document must be selected'}), 400
+        
+        # Create the experiment
+        experiment = Experiment(
+            name=data['name'],
+            description=data.get('description', ''),
+            experiment_type=data['experiment_type'],
+            user_id=current_user.id,
+            configuration=json.dumps(data.get('configuration', {}))
+        )
+        
+        # Add documents to the experiment
+        for doc_id in data['document_ids']:
+            document = Document.query.filter_by(id=doc_id, user_id=current_user.id).first()
+            if document:
+                experiment.add_document(document)
+        
+        db.session.add(experiment)
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': 'Experiment created successfully',
+            'experiment_id': experiment.id
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+@experiments_bp.route('/<int:experiment_id>')
+@login_required
+def view(experiment_id):
+    """View experiment details"""
+    experiment = Experiment.query.filter_by(id=experiment_id, user_id=current_user.id).first_or_404()
+    return render_template('experiments/view.html', experiment=experiment)
+
+@experiments_bp.route('/<int:experiment_id>/edit')
+@login_required
+def edit(experiment_id):
+    """Edit experiment"""
+    experiment = Experiment.query.filter_by(id=experiment_id, user_id=current_user.id).first_or_404()
+    
+    # Can only edit experiments that are not running
+    if experiment.status == 'running':
+        flash('Cannot edit an experiment that is currently running', 'error')
+        return redirect(url_for('experiments.view', experiment_id=experiment_id))
+    
+    # Get all documents for the current user
+    documents = Document.query.filter_by(user_id=current_user.id).order_by(Document.created_at.desc()).all()
+    
+    # Get IDs of documents already in the experiment
+    selected_doc_ids = [doc.id for doc in experiment.documents]
+    
+    return render_template('experiments/edit.html', 
+                         experiment=experiment, 
+                         documents=documents,
+                         selected_doc_ids=selected_doc_ids)
+
+@experiments_bp.route('/<int:experiment_id>/update', methods=['POST'])
+@login_required
+def update(experiment_id):
+    """Update experiment"""
+    try:
+        experiment = Experiment.query.filter_by(id=experiment_id, user_id=current_user.id).first_or_404()
+        
+        # Can only update experiments that are not running
+        if experiment.status == 'running':
+            return jsonify({'error': 'Cannot update an experiment that is currently running'}), 400
+        
+        data = request.get_json()
+        
+        # Update basic fields
+        if 'name' in data:
+            experiment.name = data['name']
+        if 'description' in data:
+            experiment.description = data['description']
+        if 'experiment_type' in data:
+            experiment.experiment_type = data['experiment_type']
+        if 'configuration' in data:
+            experiment.configuration = json.dumps(data['configuration'])
+        
+        # Update documents if provided
+        if 'document_ids' in data:
+            # Clear existing documents
+            experiment.documents = []
+            
+            # Add new documents
+            for doc_id in data['document_ids']:
+                document = Document.query.filter_by(id=doc_id, user_id=current_user.id).first()
+                if document:
+                    experiment.add_document(document)
+        
+        experiment.updated_at = datetime.utcnow()
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': 'Experiment updated successfully'
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+@experiments_bp.route('/<int:experiment_id>/delete', methods=['POST'])
+@login_required
+def delete(experiment_id):
+    """Delete experiment"""
+    try:
+        experiment = Experiment.query.filter_by(id=experiment_id, user_id=current_user.id).first_or_404()
+        
+        # Can only delete experiments that are not running
+        if experiment.status == 'running':
+            return jsonify({'error': 'Cannot delete an experiment that is currently running'}), 400
+        
+        db.session.delete(experiment)
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': 'Experiment deleted successfully'
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+@experiments_bp.route('/<int:experiment_id>/run', methods=['POST'])
+@login_required
+def run(experiment_id):
+    """Run an experiment"""
+    try:
+        experiment = Experiment.query.filter_by(id=experiment_id, user_id=current_user.id).first_or_404()
+        
+        if not experiment.can_run():
+            return jsonify({'error': 'Experiment cannot be run in its current state'}), 400
+        
+        # Update experiment status
+        experiment.status = 'running'
+        experiment.started_at = datetime.utcnow()
+        db.session.commit()
+        
+        # Here you would typically trigger the actual experiment processing
+        # For now, we'll simulate it with a placeholder
+        
+        # TODO: Implement actual experiment processing logic
+        # This could involve:
+        # - Temporal evolution analysis
+        # - Domain comparison analysis
+        # - Entity extraction and ontology mapping
+        # - Statistical analysis
+        
+        # Simulate completion (in production, this would be async)
+        experiment.status = 'completed'
+        experiment.completed_at = datetime.utcnow()
+        experiment.results_summary = f"Analyzed {experiment.get_document_count()} documents with {experiment.get_total_word_count()} total words."
+        
+        # Store some dummy results for demonstration
+        results = {
+            'document_count': experiment.get_document_count(),
+            'total_words': experiment.get_total_word_count(),
+            'experiment_type': experiment.experiment_type,
+            'timestamp': datetime.utcnow().isoformat()
+        }
+        experiment.results = json.dumps(results)
+        
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': 'Experiment completed successfully',
+            'results_summary': experiment.results_summary
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        experiment.status = 'error'
+        db.session.commit()
+        return jsonify({'error': str(e)}), 500
+
+@experiments_bp.route('/<int:experiment_id>/results')
+@login_required
+def results(experiment_id):
+    """View experiment results"""
+    experiment = Experiment.query.filter_by(id=experiment_id, user_id=current_user.id).first_or_404()
+    
+    if experiment.status != 'completed':
+        flash('Experiment has not been completed yet', 'warning')
+        return redirect(url_for('experiments.view', experiment_id=experiment_id))
+    
+    # Parse results if available
+    results_data = {}
+    if experiment.results:
+        try:
+            results_data = json.loads(experiment.results)
+        except:
+            results_data = {}
+    
+    return render_template('experiments/results.html', 
+                         experiment=experiment,
+                         results_data=results_data)
+
+@experiments_bp.route('/api/list')
+@login_required
+def api_list():
+    """API endpoint to list experiments"""
+    experiments = Experiment.query.filter_by(user_id=current_user.id).order_by(Experiment.created_at.desc()).all()
+    return jsonify({
+        'experiments': [exp.to_dict() for exp in experiments]
+    })
+
+@experiments_bp.route('/api/<int:experiment_id>')
+@login_required
+def api_get(experiment_id):
+    """API endpoint to get experiment details"""
+    experiment = Experiment.query.filter_by(id=experiment_id, user_id=current_user.id).first_or_404()
+    return jsonify(experiment.to_dict(include_documents=True))
