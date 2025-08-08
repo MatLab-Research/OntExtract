@@ -1,0 +1,216 @@
+{% extends "base.html" %}
+
+{% block title %}OntExtract - Home{% endblock %}
+
+{% block content %}
+<div class="container">
+    <!-- Hero Section -->
+    <div class="row mb-5">
+        <div class="col-lg-8 mx-auto text-center">
+            <h1 class="display-4 fw-bold mb-4">
+                <i class="fas fa-brain text-success me-3"></i>
+                Welcome to OntExtract
+            </h1>
+            <p class="lead mb-4">
+                Advanced ontology-based text analysis and entity extraction platform. 
+                Upload documents or paste text to extract meaningful insights using AI and semantic technologies.
+            </p>
+            
+            {% if current_user.is_authenticated %}
+                <div class="d-flex flex-wrap justify-content-center gap-3">
+                    <a href="{{ url_for('text_input.upload_form') }}" class="btn btn-primary btn-lg">
+                        <i class="fas fa-upload me-2"></i>Upload Files
+                    </a>
+                    <a href="{{ url_for('text_input.paste_form') }}" class="btn btn-success btn-lg">
+                        <i class="fas fa-paste me-2"></i>Paste Text
+                    </a>
+                    <a href="{{ url_for('text_input.document_list') }}" class="btn btn-outline-info btn-lg">
+                        <i class="fas fa-file-text me-2"></i>My Documents
+                    </a>
+                </div>
+            {% else %}
+                <div class="d-flex flex-wrap justify-content-center gap-3">
+                    <a href="{{ url_for('auth.register') }}" class="btn btn-primary btn-lg">
+                        <i class="fas fa-user-plus me-2"></i>Get Started
+                    </a>
+                    <a href="{{ url_for('auth.login') }}" class="btn btn-outline-light btn-lg">
+                        <i class="fas fa-sign-in-alt me-2"></i>Sign In
+                    </a>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Features Section -->
+    <div class="row mb-5">
+        <div class="col-12">
+            <h2 class="text-center mb-5">Key Features</h2>
+        </div>
+        
+        <div class="col-lg-4 col-md-6 mb-4">
+            <div class="card h-100 text-center">
+                <div class="card-body">
+                    <div class="feature-icon">
+                        <i class="fas fa-file-upload"></i>
+                    </div>
+                    <h4>Multi-Format Support</h4>
+                    <p class="text-muted">
+                        Upload PDF, DOCX, TXT, HTML, and Markdown files. 
+                        Or paste text directly into the interface.
+                    </p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-4 col-md-6 mb-4">
+            <div class="card h-100 text-center">
+                <div class="card-body">
+                    <div class="feature-icon">
+                        <i class="fas fa-robot"></i>
+                    </div>
+                    <h4>AI-Powered Analysis</h4>
+                    <p class="text-muted">
+                        Leverage advanced LLMs and Google LangExtract for 
+                        intelligent entity extraction and text analysis.
+                    </p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-4 col-md-6 mb-4">
+            <div class="card h-100 text-center">
+                <div class="card-body">
+                    <div class="feature-icon">
+                        <i class="fas fa-project-diagram"></i>
+                    </div>
+                    <h4>Ontology Mapping</h4>
+                    <p class="text-muted">
+                        Map extracted entities to ontological concepts 
+                        for structured knowledge representation.
+                    </p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-4 col-md-6 mb-4">
+            <div class="card h-100 text-center">
+                <div class="card-body">
+                    <div class="feature-icon">
+                        <i class="fas fa-search"></i>
+                    </div>
+                    <h4>Smart Extraction</h4>
+                    <p class="text-muted">
+                        Extract people, organizations, concepts, and relationships 
+                        with high accuracy and context awareness.
+                    </p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-4 col-md-6 mb-4">
+            <div class="card h-100 text-center">
+                <div class="card-body">
+                    <div class="feature-icon">
+                        <i class="fas fa-chart-line"></i>
+                    </div>
+                    <h4>Rich Analytics</h4>
+                    <p class="text-muted">
+                        Comprehensive visualizations and analytics 
+                        to understand your text data better.
+                    </p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-4 col-md-6 mb-4">
+            <div class="card h-100 text-center">
+                <div class="card-body">
+                    <div class="feature-icon">
+                        <i class="fas fa-download"></i>
+                    </div>
+                    <h4>Export Results</h4>
+                    <p class="text-muted">
+                        Export extracted entities and analysis results 
+                        in various formats for further use.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {% if current_user.is_authenticated %}
+    <!-- Quick Stats (if user is logged in) -->
+    <div class="row">
+        <div class="col-12">
+            <h3 class="text-center mb-4">Your Dashboard</h3>
+        </div>
+        
+        <div class="col-lg-3 col-md-6 mb-4">
+            <div class="card stats-card">
+                <div class="card-body text-center">
+                    <i class="fas fa-file-text fa-2x mb-3"></i>
+                    <h3 class="mb-1">{{ current_user.documents.count() }}</h3>
+                    <p class="mb-0">Documents</p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-3 col-md-6 mb-4">
+            <div class="card stats-card">
+                <div class="card-body text-center">
+                    <i class="fas fa-cogs fa-2x mb-3"></i>
+                    <h3 class="mb-1">{{ current_user.processing_jobs.count() }}</h3>
+                    <p class="mb-0">Processing Jobs</p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-3 col-md-6 mb-4">
+            <div class="card stats-card">
+                <div class="card-body text-center">
+                    <i class="fas fa-calendar fa-2x mb-3"></i>
+                    <h3 class="mb-1">{{ current_user.created_at.strftime('%b %Y') }}</h3>
+                    <p class="mb-0">Member Since</p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-3 col-md-6 mb-4">
+            <div class="card stats-card">
+                <div class="card-body text-center">
+                    <i class="fas fa-clock fa-2x mb-3"></i>
+                    <h3 class="mb-1">
+                        {% if current_user.last_login %}
+                            {{ current_user.last_login.strftime('%b %d') }}
+                        {% else %}
+                            Never
+                        {% endif %}
+                    </h3>
+                    <p class="mb-0">Last Login</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Call to Action -->
+    {% if not current_user.is_authenticated %}
+    <div class="row mt-5">
+        <div class="col-lg-8 mx-auto text-center">
+            <div class="card bg-gradient-primary text-white">
+                <div class="card-body p-5">
+                    <h3 class="mb-3">Ready to Get Started?</h3>
+                    <p class="mb-4">
+                        Create your free account and start analyzing text with 
+                        advanced AI-powered ontology extraction tools.
+                    </p>
+                    <a href="{{ url_for('auth.register') }}" class="btn btn-light btn-lg">
+                        <i class="fas fa-user-plus me-2"></i>Create Free Account
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

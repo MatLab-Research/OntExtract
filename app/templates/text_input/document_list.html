@@ -1,0 +1,215 @@
+{% extends "base.html" %}
+
+{% block title %}My Documents - OntExtract{% endblock %}
+
+{% block content %}
+<div class="container">
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="h3 mb-2">My Documents</h1>
+            <p class="text-muted mb-0">Manage your uploaded documents and text content</p>
+        </div>
+        <div>
+            <a href="{{ url_for('text_input.upload_form') }}" class="btn btn-primary me-2">
+                <i class="fas fa-upload me-2"></i>Upload File
+            </a>
+            <a href="{{ url_for('text_input.paste_form') }}" class="btn btn-success">
+                <i class="fas fa-paste me-2"></i>Paste Text
+            </a>
+        </div>
+    </div>
+
+    {% if documents.items %}
+        <!-- Documents List -->
+        <div class="row">
+            {% for document in documents.items %}
+            <div class="col-lg-6 col-xl-4 mb-4">
+                <div class="card h-100">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-start mb-3">
+                            <h6 class="card-title mb-0">
+                                <a href="{{ url_for('text_input.document_detail', document_id=document.id) }}" 
+                                   class="text-decoration-none">
+                                    {{ document.title[:50] + '...' if document.title|length > 50 else document.title }}
+                                </a>
+                            </h6>
+                            <div class="dropdown">
+                                <button class="btn btn-sm btn-outline-secondary" type="button" data-bs-toggle="dropdown">
+                                    <i class="fas fa-ellipsis-h"></i>
+                                </button>
+                                <ul class="dropdown-menu">
+                                    <li><a class="dropdown-item" href="{{ url_for('text_input.document_detail', document_id=document.id) }}">
+                                        <i class="fas fa-eye me-2"></i>View
+                                    </a></li>
+                                    <li><a class="dropdown-item" href="#">
+                                        <i class="fas fa-download me-2"></i>Export
+                                    </a></li>
+                                    <li><hr class="dropdown-divider"></li>
+                                    <li><a class="dropdown-item text-danger" href="#" onclick="deleteDocument({{ document.id }})">
+                                        <i class="fas fa-trash me-2"></i>Delete
+                                    </a></li>
+                                </ul>
+                            </div>
+                        </div>
+
+                        <!-- Document Info -->
+                        <div class="mb-3">
+                            <div class="d-flex align-items-center mb-2">
+                                {% if document.status == 'uploaded' %}
+                                    <span class="badge bg-primary me-2">Uploaded</span>
+                                {% elif document.status == 'processing' %}
+                                    <span class="badge bg-warning me-2">Processing</span>
+                                {% elif document.status == 'completed' %}
+                                    <span class="badge bg-success me-2">Completed</span>
+                                {% elif document.status == 'error' %}
+                                    <span class="badge bg-danger me-2">Error</span>
+                                {% endif %}
+
+                                {% if document.content_type == 'file' %}
+                                    <i class="fas fa-file me-1"></i>
+                                    <small class="text-muted">{{ document.file_type.upper() if document.file_type else 'FILE' }}</small>
+                                {% else %}
+                                    <i class="fas fa-align-left me-1"></i>
+                                    <small class="text-muted">TEXT</small>
+                                {% endif %}
+                            </div>
+                            
+                            {% if document.detected_language %}
+                            <small class="text-muted">
+                                <i class="fas fa-language me-1"></i>{{ document.detected_language.upper() }}
+                            </small>
+                            {% endif %}
+                        </div>
+
+                        <!-- Content Preview -->
+                        {% if document.content %}
+                        <p class="card-text text-muted small mb-3" style="height: 60px; overflow: hidden;">
+                            {{ document.content[:200] + '...' if document.content|length > 200 else document.content }}
+                        </p>
+                        {% endif %}
+
+                        <!-- Statistics -->
+                        <div class="row text-center small mb-3">
+                            <div class="col-4">
+                                <strong class="d-block">{{ document.content.split()|length if document.content else 0 }}</strong>
+                                <small class="text-muted">Words</small>
+                            </div>
+                            <div class="col-4">
+                                <strong class="d-block">{{ document.text_segments.count() }}</strong>
+                                <small class="text-muted">Segments</small>
+                            </div>
+                            <div class="col-4">
+                                <strong class="d-block">{{ document.processing_jobs.count() }}</strong>
+                                <small class="text-muted">Jobs</small>
+                            </div>
+                        </div>
+
+                        <!-- Actions -->
+                        <div class="d-grid gap-2">
+                            <a href="{{ url_for('text_input.document_detail', document_id=document.id) }}" 
+                               class="btn btn-outline-primary btn-sm">
+                                <i class="fas fa-eye me-2"></i>View Details
+                            </a>
+                        </div>
+                    </div>
+
+                    <div class="card-footer bg-transparent">
+                        <small class="text-muted">
+                            <i class="fas fa-calendar me-1"></i>
+                            {{ document.created_at.strftime('%b %d, %Y') }}
+                        </small>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+
+        <!-- Pagination -->
+        {% if documents.pages > 1 %}
+        <nav aria-label="Documents pagination">
+            <ul class="pagination justify-content-center">
+                {% if documents.has_prev %}
+                    <li class="page-item">
+                        <a class="page-link" href="{{ url_for('text_input.document_list', page=documents.prev_num) }}">
+                            <i class="fas fa-chevron-left"></i>
+                        </a>
+                    </li>
+                {% endif %}
+
+                {% for page_num in documents.iter_pages() %}
+                    {% if page_num %}
+                        {% if page_num != documents.page %}
+                            <li class="page-item">
+                                <a class="page-link" href="{{ url_for('text_input.document_list', page=page_num) }}">{{ page_num }}</a>
+                            </li>
+                        {% else %}
+                            <li class="page-item active">
+                                <span class="page-link">{{ page_num }}</span>
+                            </li>
+                        {% endif %}
+                    {% else %}
+                        <li class="page-item disabled">
+                            <span class="page-link">...</span>
+                        </li>
+                    {% endif %}
+                {% endfor %}
+
+                {% if documents.has_next %}
+                    <li class="page-item">
+                        <a class="page-link" href="{{ url_for('text_input.document_list', page=documents.next_num) }}">
+                            <i class="fas fa-chevron-right"></i>
+                        </a>
+                    </li>
+                {% endif %}
+            </ul>
+        </nav>
+        {% endif %}
+
+    {% else %}
+        <!-- Empty State -->
+        <div class="text-center py-5">
+            <i class="fas fa-file-text fa-4x text-muted mb-4"></i>
+            <h3>No Documents Yet</h3>
+            <p class="text-muted mb-4">
+                Upload your first document or paste some text to get started with AI-powered analysis.
+            </p>
+            <div>
+                <a href="{{ url_for('text_input.upload_form') }}" class="btn btn-primary me-3">
+                    <i class="fas fa-upload me-2"></i>Upload File
+                </a>
+                <a href="{{ url_for('text_input.paste_form') }}" class="btn btn-success">
+                    <i class="fas fa-paste me-2"></i>Paste Text
+                </a>
+            </div>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function deleteDocument(documentId) {
+    if (confirm('Are you sure you want to delete this document? This action cannot be undone.')) {
+        fetch('/document/' + documentId + '/delete', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                location.reload();
+            } else {
+                alert('Error deleting document: ' + (data.error || 'Unknown error'));
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error deleting document');
+        });
+    }
+}
+</script>
+{% endblock %}

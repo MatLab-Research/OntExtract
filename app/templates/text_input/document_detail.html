@@ -1,0 +1,290 @@
+{% extends "base.html" %}
+
+{% block title %}{{ document.title }} - OntExtract{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row">
+        <div class="col-lg-8">
+            <!-- Document Header -->
+            <div class="d-flex justify-content-between align-items-start mb-4">
+                <div>
+                    <h1 class="h3 mb-2">{{ document.title }}</h1>
+                    <div class="text-muted">
+                        <i class="fas fa-calendar me-2"></i>Created {{ document.created_at.strftime('%B %d, %Y at %I:%M %p') }}
+                        {% if document.content_type == 'file' %}
+                        <br><i class="fas fa-file me-2"></i>{{ document.original_filename }}
+                        ({{ "%.1f"|format(document.file_size / 1024) }} KB)
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="dropdown">
+                    <button class="btn btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                        <i class="fas fa-ellipsis-v"></i>
+                    </button>
+                    <ul class="dropdown-menu">
+                        <li><a class="dropdown-item" href="#">
+                            <i class="fas fa-edit me-2"></i>Edit Title
+                        </a></li>
+                        <li><a class="dropdown-item" href="#">
+                            <i class="fas fa-download me-2"></i>Export
+                        </a></li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li><a class="dropdown-item text-danger" href="#" onclick="deleteDocument({{ document.id }})">
+                            <i class="fas fa-trash me-2"></i>Delete
+                        </a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Status and Actions -->
+            <div class="row mb-4">
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-body">
+                            <h6 class="card-title">
+                                <i class="fas fa-info-circle me-2"></i>Document Status
+                            </h6>
+                            <div class="d-flex align-items-center">
+                                {% if document.status == 'uploaded' %}
+                                    <span class="badge bg-primary">Uploaded</span>
+                                {% elif document.status == 'processing' %}
+                                    <span class="badge bg-warning">Processing</span>
+                                {% elif document.status == 'completed' %}
+                                    <span class="badge bg-success">Completed</span>
+                                {% elif document.status == 'error' %}
+                                    <span class="badge bg-danger">Error</span>
+                                {% endif %}
+                                <span class="ms-2 text-muted">
+                                    {% if document.detected_language %}
+                                        • {{ document.detected_language.upper() }}
+                                        {% if document.language_confidence %}
+                                            ({{ "%.0f"|format(document.language_confidence * 100) }}% confidence)
+                                        {% endif %}
+                                    {% endif %}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-body">
+                            <h6 class="card-title">
+                                <i class="fas fa-cogs me-2"></i>Quick Actions
+                            </h6>
+                            <div class="btn-group-vertical d-grid">
+                                <a href="#" class="btn btn-outline-primary btn-sm">
+                                    <i class="fas fa-play me-2"></i>Start Processing
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Text Content -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-align-left me-2"></i>Content
+                        <span class="badge bg-secondary ms-2">
+                            {{ document.content|length|int|filesizeformat if document.content else '0 bytes' }}
+                        </span>
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% if document.content %}
+                        <div class="content-preview" style="max-height: 400px; overflow-y: auto;">
+                            <pre class="text-wrap">{{ document.content }}</pre>
+                        </div>
+                        <div class="text-center mt-3">
+                            <button class="btn btn-outline-secondary btn-sm" onclick="toggleFullContent()">
+                                <i class="fas fa-expand me-2"></i>Show Full Content
+                            </button>
+                        </div>
+                    {% else %}
+                        <p class="text-muted">No content available</p>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Text Segments (if any) -->
+            {% if document.text_segments.count() > 0 %}
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-puzzle-piece me-2"></i>Text Segments
+                        <span class="badge bg-info ms-2">{{ document.text_segments.count() }}</span>
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        {% for segment in document.text_segments.limit(5) %}
+                        <div class="col-12 mb-3">
+                            <div class="border rounded p-3">
+                                <div class="d-flex justify-content-between align-items-start mb-2">
+                                    <span class="badge bg-light text-dark">
+                                        {{ segment.segment_type.title() }} #{{ segment.segment_number }}
+                                    </span>
+                                    <small class="text-muted">
+                                        {{ segment.word_count }} words
+                                    </small>
+                                </div>
+                                <p class="mb-0 text-muted small">
+                                    {{ segment.get_preview(150) }}
+                                </p>
+                            </div>
+                        </div>
+                        {% endfor %}
+                        {% if document.text_segments.count() > 5 %}
+                        <div class="col-12 text-center">
+                            <button class="btn btn-outline-info btn-sm">
+                                <i class="fas fa-chevron-down me-2"></i>
+                                Show {{ document.text_segments.count() - 5 }} More Segments
+                            </button>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+
+        <div class="col-lg-4">
+            <!-- Document Statistics -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h6 class="mb-0">
+                        <i class="fas fa-chart-bar me-2"></i>Statistics
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="row text-center">
+                        <div class="col-6 mb-3">
+                            <div class="border-end">
+                                <h4 class="text-primary mb-1">
+                                    {{ document.content.split()|length if document.content else 0 }}
+                                </h4>
+                                <small class="text-muted">Words</small>
+                            </div>
+                        </div>
+                        <div class="col-6 mb-3">
+                            <h4 class="text-info mb-1">
+                                {{ document.content|length if document.content else 0 }}
+                            </h4>
+                            <small class="text-muted">Characters</small>
+                        </div>
+                        <div class="col-6">
+                            <div class="border-end">
+                                <h4 class="text-success mb-1">
+                                    {{ document.text_segments.count() }}
+                                </h4>
+                                <small class="text-muted">Segments</small>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <h4 class="text-warning mb-1">
+                                {{ document.processing_jobs.count() }}
+                            </h4>
+                            <small class="text-muted">Jobs</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Recent Processing Jobs -->
+            {% if processing_jobs %}
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h6 class="mb-0">
+                        <i class="fas fa-history me-2"></i>Recent Processing
+                    </h6>
+                </div>
+                <div class="card-body">
+                    {% for job in processing_jobs %}
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <div>
+                            <small class="fw-bold">{{ job.job_type.title() }}</small>
+                            <br>
+                            <small class="text-muted">
+                                {{ job.created_at.strftime('%m/%d %I:%M %p') }}
+                            </small>
+                        </div>
+                        <span class="badge 
+                            {% if job.status == 'completed' %}bg-success
+                            {% elif job.status == 'processing' %}bg-warning
+                            {% elif job.status == 'error' %}bg-danger
+                            {% else %}bg-secondary{% endif %}">
+                            {{ job.status.title() }}
+                        </span>
+                    </div>
+                    {% if not loop.last %}<hr>{% endif %}
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Navigation -->
+            <div class="card">
+                <div class="card-body">
+                    <h6 class="card-title">
+                        <i class="fas fa-compass me-2"></i>Navigation
+                    </h6>
+                    <div class="d-grid gap-2">
+                        <a href="{{ url_for('text_input.document_list') }}" class="btn btn-outline-secondary">
+                            <i class="fas fa-list me-2"></i>All Documents
+                        </a>
+                        <a href="{{ url_for('text_input.upload_form') }}" class="btn btn-outline-primary">
+                            <i class="fas fa-upload me-2"></i>Upload New
+                        </a>
+                        <a href="{{ url_for('text_input.paste_form') }}" class="btn btn-outline-success">
+                            <i class="fas fa-paste me-2"></i>Paste Text
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function toggleFullContent() {
+    const preview = document.querySelector('.content-preview');
+    const button = event.target;
+    
+    if (preview.style.maxHeight === '400px' || !preview.style.maxHeight) {
+        preview.style.maxHeight = 'none';
+        button.innerHTML = '<i class="fas fa-compress me-2"></i>Show Less';
+    } else {
+        preview.style.maxHeight = '400px';
+        button.innerHTML = '<i class="fas fa-expand me-2"></i>Show Full Content';
+    }
+}
+
+function deleteDocument(documentId) {
+    if (confirm('Are you sure you want to delete this document? This action cannot be undone.')) {
+        fetch(`/document/${documentId}/delete`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                window.location.href = "{{ url_for('text_input.document_list') }}";
+            } else {
+                alert('Error deleting document: ' + (data.error || 'Unknown error'));
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error deleting document');
+        });
+    }
+}
+</script>
+{% endblock %}

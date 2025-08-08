@@ -1,0 +1,119 @@
+{% extends "base.html" %}
+
+{% block title %}Register - OntExtract{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-md-6 col-lg-5">
+            <div class="text-center mb-4">
+                <h1 class="display-6 fw-bold">
+                    <i class="fas fa-user-plus text-success me-3"></i>
+                    Create Account
+                </h1>
+                <p class="text-muted">Join OntExtract to start analyzing text</p>
+            </div>
+
+            <div class="card">
+                <div class="card-body p-4">
+                    <form method="post" id="registerForm">
+                        <div class="mb-3">
+                            <label for="username" class="form-label">
+                                <i class="fas fa-user me-2"></i>Username
+                            </label>
+                            <input type="text" class="form-control" id="username" name="username" 
+                                   required autocomplete="username" minlength="3" maxlength="20">
+                            <div class="form-text">3-20 characters, letters, numbers, and underscores only</div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="email" class="form-label">
+                                <i class="fas fa-envelope me-2"></i>Email Address
+                            </label>
+                            <input type="email" class="form-control" id="email" name="email" 
+                                   required autocomplete="email">
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="password" class="form-label">
+                                <i class="fas fa-lock me-2"></i>Password
+                            </label>
+                            <input type="password" class="form-control" id="password" name="password" 
+                                   required autocomplete="new-password" minlength="6">
+                            <div class="form-text">At least 6 characters</div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="confirm_password" class="form-label">
+                                <i class="fas fa-lock me-2"></i>Confirm Password
+                            </label>
+                            <input type="password" class="form-control" id="confirm_password" name="confirm_password" 
+                                   required autocomplete="new-password">
+                            <div class="invalid-feedback" id="passwordMismatch" style="display: none;">
+                                Passwords do not match
+                            </div>
+                        </div>
+
+                        <button type="submit" class="btn btn-success btn-lg w-100 mb-3" id="submitBtn">
+                            <i class="fas fa-user-plus me-2"></i>Create Account
+                        </button>
+                    </form>
+
+                    <div class="text-center">
+                        <p class="mb-0">Already have an account? 
+                            <a href="{{ url_for('auth.login') }}" class="text-decoration-none">
+                                Sign in here
+                            </a>
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="text-center mt-4">
+                <a href="{{ url_for('index') }}" class="btn btn-outline-secondary">
+                    <i class="fas fa-arrow-left me-2"></i>Back to Home
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.getElementById('registerForm');
+    const password = document.getElementById('password');
+    const confirmPassword = document.getElementById('confirm_password');
+    const passwordMismatch = document.getElementById('passwordMismatch');
+    const submitBtn = document.getElementById('submitBtn');
+
+    // Password confirmation validation
+    function validatePasswords() {
+        if (confirmPassword.value && password.value !== confirmPassword.value) {
+            confirmPassword.classList.add('is-invalid');
+            passwordMismatch.style.display = 'block';
+            return false;
+        } else {
+            confirmPassword.classList.remove('is-invalid');
+            passwordMismatch.style.display = 'none';
+            return true;
+        }
+    }
+
+    confirmPassword.addEventListener('input', validatePasswords);
+    password.addEventListener('input', validatePasswords);
+
+    form.addEventListener('submit', function(event) {
+        if (!validatePasswords()) {
+            event.preventDefault();
+            return;
+        }
+
+        // Show loading
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Creating Account...';
+    });
+});
+</script>
+{% endblock %}
