@@ -7,6 +7,7 @@ from .processing_job import ProcessingJob
 from .extracted_entity import ExtractedEntity
 from .ontology_mapping import OntologyMapping
 from .text_segment import TextSegment
+from .experiment import Experiment
 
 __all__ = [
     'User', 
@@ -14,5 +15,6 @@ __all__ = [
     'ProcessingJob', 
     'ExtractedEntity', 
     'OntologyMapping', 
-    'TextSegment'
+    'TextSegment',
+    'Experiment'
 ]
