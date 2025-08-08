@@ -1,14 +1,50 @@
 import re
-from typing import List, Dict, Any
+import os
+import sys
+import logging
+from typing import List, Dict, Any, Optional
+
 from app import db
 from app.models.text_segment import TextSegment
 
+# Add shared services to path
+shared_services_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..', 'shared_services')
+if shared_services_path not in sys.path:
+    sys.path.insert(0, shared_services_path)
+
+try:
+    from shared_services.embedding.embedding_service import EmbeddingService
+    from shared_services.embedding.file_processor import FileProcessingService
+    from shared_services.ontology.entity_service import OntologyEntityService
+    from shared_services.llm.base_service import BaseLLMService
+    SHARED_SERVICES_AVAILABLE = True
+except ImportError as e:
+    logging.warning(f"Shared services not available: {e}")
+    SHARED_SERVICES_AVAILABLE = False
+
+logger = logging.getLogger(__name__)
+
 class TextProcessingService:
-    """Service for basic text processing and segmentation"""
+    """Enhanced service for text processing, segmentation, and analysis using shared services"""
     
     def __init__(self):
         self.sentence_endings = re.compile(r'[.!?]+')
         self.paragraph_separator = re.compile(r'\n\s*\n')
+        
+        # Initialize shared services if available
+        if SHARED_SERVICES_AVAILABLE:
+            try:
+                self.embedding_service = EmbeddingService()
+                self.file_processor = FileProcessingService()
+                self.ontology_service = OntologyEntityService()
+                self.llm_service = BaseLLMService()
+                self.enhanced_features_enabled = True
+                logger.info("Enhanced text processing features enabled")
+            except Exception as e:
+                logger.warning(f"Failed to initialize shared services: {e}")
+                self.enhanced_features_enabled = False
+        else:
+            self.enhanced_features_enabled = False
         
     def create_initial_segments(self, document):
         """Create basic paragraph-level segments for a document"""
@@ -196,3 +232,137 @@ class TextProcessingService:
         # This is a placeholder for more advanced segmentation
         # Could be enhanced to detect headers, sections, lists, etc.
         pass
+    
+    # Enhanced methods using shared services
+    
+    def process_file_content(self, file_path: str, file_type: str) -> str:
+        """Process file and extract text content using shared services"""
+        if not self.enhanced_features_enabled:
+            logger.warning("Enhanced features not available, falling back to basic processing")
+            return self._basic_file_processing(file_path, file_type)
+        
+        try:
+            return self.file_processor.process_file(file_path, file_type)
+        except Exception as e:
+            logger.error(f"Error processing file with shared services: {e}")
+            return self._basic_file_processing(file_path, file_type)
+    
+    def _basic_file_processing(self, file_path: str, file_type: str) -> str:
+        """Basic file processing fallback"""
+        if file_type.lower() in ['txt', 'text']:
+            try:
+                with open(file_path, 'r', encoding='utf-8') as f:
+                    return f.read()
+            except Exception as e:
+                logger.error(f"Error reading text file: {e}")
+                return ""
+        else:
+            logger.warning(f"File type {file_type} not supported in basic mode")
+            return ""
+    
+    def chunk_text_for_processing(self, text: str, chunk_size: int = 1000, chunk_overlap: int = 200) -> List[str]:
+        """Split text into chunks suitable for LLM processing"""
+        if self.enhanced_features_enabled:
+            return self.file_processor.split_text(text, chunk_size, chunk_overlap)
+        else:
+            # Basic chunking fallback
+            paragraphs = self.split_into_paragraphs(text)
+            chunks = []
+            current_chunk = ""
+            
+            for paragraph in paragraphs:
+                if len(current_chunk) + len(paragraph) > chunk_size and current_chunk:
+                    chunks.append(current_chunk.strip())
+                    current_chunk = paragraph
+                else:
+                    current_chunk = current_chunk + "\n\n" + paragraph if current_chunk else paragraph
+            
+            if current_chunk:
+                chunks.append(current_chunk.strip())
+            
+            return chunks
+    
+    def generate_embeddings(self, texts: List[str]) -> List[List[float]]:
+        """Generate embeddings for texts using shared embedding service"""
+        if not self.enhanced_features_enabled:
+            logger.warning("Enhanced features not available, cannot generate embeddings")
+            return []
+        
+        try:
+            return self.embedding_service.embed_documents(texts)
+        except Exception as e:
+            logger.error(f"Error generating embeddings: {e}")
+            return []
+    
+    def extract_ontology_entities(self, text: str, ontology_id: str = "engineering-ethics") -> List[Dict[str, Any]]:
+        """Extract entities from text using ontology knowledge"""
+        if not self.enhanced_features_enabled:
+            logger.warning("Enhanced features not available, falling back to basic keyword extraction")
+            keywords = self.extract_keywords(text)
+            return [{"text": kw, "type": "keyword", "confidence": 0.5} for kw in keywords[:10]]
+        
+        try:
+            # Get ontology entities for reference
+            ontology_entities = self.ontology_service.get_entities(ontology_id)
+            
+            # Use LLM to extract entities based on ontology knowledge
+            entity_types = list(ontology_entities.get("entities", {}).keys())
+            if entity_types:
+                return self.llm_service.extract_entities(text, entity_types)
+            else:
+                # Fallback to basic extraction
+                return self.llm_service.extract_entities(text)
+                
+        except Exception as e:
+            logger.error(f"Error extracting ontology entities: {e}")
+            return []
+    
+    def summarize_with_llm(self, text: str, max_length: int = 500) -> str:
+        """Generate summary using LLM service"""
+        if not self.enhanced_features_enabled:
+            logger.warning("Enhanced features not available, cannot generate LLM summary")
+            return text[:max_length] + "..." if len(text) > max_length else text
+        
+        try:
+            return self.llm_service.summarize_text(text, max_length)
+        except Exception as e:
+            logger.error(f"Error generating summary: {e}")
+            return text[:max_length] + "..." if len(text) > max_length else text
+    
+    def calculate_similarity(self, text1: str, text2: str) -> float:
+        """Calculate semantic similarity between two texts"""
+        if not self.enhanced_features_enabled:
+            # Basic word overlap similarity
+            words1 = set(text1.lower().split())
+            words2 = set(text2.lower().split())
+            if not words1 or not words2:
+                return 0.0
+            
+            intersection = words1.intersection(words2)
+            union = words1.union(words2)
+            return len(intersection) / len(union) if union else 0.0
+        
+        try:
+            embedding1 = self.embedding_service.get_embedding(text1)
+            embedding2 = self.embedding_service.get_embedding(text2)
+            return self.embedding_service.similarity(embedding1, embedding2)
+        except Exception as e:
+            logger.error(f"Error calculating similarity: {e}")
+            return 0.0
+    
+    def get_service_status(self) -> Dict[str, Any]:
+        """Get status of all shared services"""
+        status = {
+            "enhanced_features_enabled": self.enhanced_features_enabled,
+            "shared_services_available": SHARED_SERVICES_AVAILABLE
+        }
+        
+        if self.enhanced_features_enabled:
+            status.update({
+                "embedding_providers": self.embedding_service.get_provider_status(),
+                "llm_providers": self.llm_service.get_provider_status(),
+                "file_processor_types": self.file_processor.get_supported_types(),
+                "available_ontologies": len(self.ontology_service.list_ontologies())
+            })
+        
+        return status

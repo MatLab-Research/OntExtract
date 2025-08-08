@@ -1,69 +1,67 @@
 #!/usr/bin/env python3
 """
-OntExtract - Ontology-based Text Analysis Application
-Main application entry point
+OntExtract Application Runner
+
+This script starts the OntExtract Flask application with shared services enabled.
 """
 
 import os
-from flask.cli import FlaskGroup
-from app import create_app, db
+from app import create_app
 
-# Create Flask application
-app = create_app()
-cli = FlaskGroup(app)
-
-@app.cli.command()
-def init_db():
-    """Initialize the database"""
-    db.create_all()
-    print("Database initialized successfully!")
-
-@app.cli.command()
-def create_admin():
-    """Create an admin user"""
-    from app.models.user import User
+def main():
+    """Main entry point for the application."""
     
-    username = input("Enter admin username: ")
-    email = input("Enter admin email: ")
-    password = input("Enter admin password: ")
+    # Set environment variables if not already set
+    os.environ.setdefault('FLASK_ENV', 'development')
+    os.environ.setdefault('FLASK_DEBUG', '1')
     
-    # Check if user already exists
-    if User.query.filter_by(username=username).first():
-        print("User already exists!")
-        return
+    # Create the Flask app
+    app = create_app()
     
-    admin_user = User(
-        username=username,
-        email=email,
-        password=password,
-        is_admin=True
+    # Print startup information
+    print("=" * 60)
+    print("🚀 Starting OntExtract with Shared Services")
+    print("=" * 60)
+    
+    # Test shared services
+    try:
+        from app.services.text_processing import TextProcessingService
+        service = TextProcessingService()
+        status = service.get_service_status()
+        
+        print(f"📊 Enhanced Features: {'✅ Enabled' if status['enhanced_features_enabled'] else '❌ Disabled'}")
+        print(f"📚 Shared Services: {'✅ Available' if status['shared_services_available'] else '❌ Unavailable'}")
+        
+        if status.get('embedding_providers'):
+            available_embedding = [name for name, available in status['embedding_providers'].items() if available]
+            print(f"🧠 Embedding Providers: {', '.join(available_embedding) if available_embedding else 'None'}")
+        
+        if status.get('llm_providers'):
+            available_llm = [name for name, available in status['llm_providers'].items() if available]
+            print(f"🤖 LLM Providers: {', '.join(available_llm) if available_llm else 'None'}")
+        
+        if status.get('file_processor_types'):
+            print(f"📄 File Types: {', '.join(status['file_processor_types'])}")
+        
+        if status.get('available_ontologies') is not None:
+            print(f"🔗 Ontologies: {status['available_ontologies']} available")
+        
+    except Exception as e:
+        print(f"⚠️  Warning: Could not check service status: {e}")
+    
+    print("=" * 60)
+    print("🌐 Starting Flask development server...")
+    print("📍 Access the application at: http://localhost:8080")
+    print("🛑 Press Ctrl+C to stop the server")
+    print("=" * 60)
+    
+    # Run the Flask app
+    app.run(
+        host='0.0.0.0',
+        port=8080,
+        debug=True,
+        use_reloader=True
     )
-    
-    db.session.add(admin_user)
-    db.session.commit()
-    print(f"Admin user '{username}' created successfully!")
-
-@app.shell_context_processor
-def make_shell_context():
-    """Shell context for flask shell command"""
-    from app.models import User, Document, ProcessingJob, ExtractedEntity, OntologyMapping, TextSegment
-    
-    return {
-        'db': db,
-        'User': User,
-        'Document': Document,
-        'ProcessingJob': ProcessingJob,
-        'ExtractedEntity': ExtractedEntity,
-        'OntologyMapping': OntologyMapping,
-        'TextSegment': TextSegment
-    }
 
 if __name__ == '__main__':
-    # Set default environment variables if not set
-    if not os.environ.get('FLASK_ENV'):
-        os.environ['FLASK_ENV'] = 'development'
-    
-    if not os.environ.get('FLASK_APP'):
-        os.environ['FLASK_APP'] = 'run.py'
-    
-    app.run(debug=True, host='0.0.0.0', port=5000)
+    main()
