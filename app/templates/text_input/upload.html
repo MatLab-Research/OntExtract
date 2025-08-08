@@ -1,0 +1,289 @@
+{% extends "base.html" %}
+
+{% block title %}Upload Files - OntExtract{% endblock %}
+
+{% block extra_css %}
+<style>
+.file-input-wrapper {
+    position: relative;
+    display: inline-block;
+    width: 100%;
+}
+
+.file-input-wrapper input[type=file] {
+    position: absolute;
+    left: -9999px;
+}
+
+.file-input-label {
+    display: block;
+    width: 100%;
+    padding: 2rem;
+    border: 2px dashed #6c757d;
+    border-radius: 12px;
+    background: rgba(108, 117, 125, 0.05);
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.file-input-label:hover,
+.file-input-label.drag-over {
+    border-color: var(--primary-color);
+    background: rgba(55, 90, 127, 0.1);
+}
+
+.file-input-label.has-file {
+    border-color: var(--accent-color);
+    background: rgba(0, 188, 140, 0.1);
+}
+
+.file-preview {
+    display: none;
+    margin-top: 1rem;
+    padding: 1rem;
+    background: rgba(0, 188, 140, 0.1);
+    border-radius: 8px;
+    border: 1px solid var(--accent-color);
+}
+
+.file-preview.show {
+    display: block;
+}
+
+.allowed-formats {
+    font-size: 0.9rem;
+    color: #6c757d;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <!-- Header -->
+            <div class="text-center mb-5">
+                <h1 class="display-5 fw-bold">
+                    <i class="fas fa-upload text-primary me-3"></i>
+                    Upload Files
+                </h1>
+                <p class="lead text-muted">
+                    Upload documents for AI-powered analysis and entity extraction
+                </p>
+            </div>
+
+            <!-- Upload Form -->
+            <div class="card">
+                <div class="card-body p-4">
+                    <form id="uploadForm" action="{{ url_for('text_input.upload_file') }}" method="post" enctype="multipart/form-data">
+                        <!-- Title Field -->
+                        <div class="mb-4">
+                            <label for="title" class="form-label">
+                                <i class="fas fa-heading me-2"></i>Document Title (Optional)
+                            </label>
+                            <input type="text" class="form-control" id="title" name="title" 
+                                   placeholder="Enter a custom title or leave blank to use filename">
+                            <div class="form-text">
+                                If left blank, the filename will be used as the title.
+                            </div>
+                        </div>
+
+                        <!-- File Upload Area -->
+                        <div class="mb-4">
+                            <label class="form-label">
+                                <i class="fas fa-file me-2"></i>Select File
+                            </label>
+                            
+                            <div class="file-input-wrapper">
+                                <input type="file" id="fileInput" name="file" accept=".txt,.pdf,.docx,.html,.md">
+                                <label for="fileInput" class="file-input-label" id="fileLabel">
+                                    <div class="upload-content">
+                                        <i class="fas fa-cloud-upload-alt fa-3x text-muted mb-3"></i>
+                                        <h4>Choose a file or drag it here</h4>
+                                        <p class="text-muted mb-0">
+                                            Click to browse or drag and drop your file
+                                        </p>
+                                    </div>
+                                </label>
+                            </div>
+
+                            <!-- File Preview -->
+                            <div id="filePreview" class="file-preview">
+                                <div class="d-flex align-items-center">
+                                    <i class="fas fa-file-alt fa-2x text-success me-3"></i>
+                                    <div>
+                                        <div class="fw-bold" id="fileName"></div>
+                                        <div class="text-muted small" id="fileDetails"></div>
+                                    </div>
+                                    <button type="button" class="btn btn-sm btn-outline-danger ms-auto" id="removeFile">
+                                        <i class="fas fa-times"></i>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- Allowed Formats -->
+                            <div class="allowed-formats mt-2">
+                                <strong>Supported formats:</strong> 
+                                PDF (.pdf), Word Documents (.docx), Plain Text (.txt), HTML (.html), Markdown (.md)
+                                <br>
+                                <strong>Maximum file size:</strong> 16 MB
+                            </div>
+                        </div>
+
+                        <!-- Submit Button -->
+                        <div class="d-flex justify-content-between">
+                            <a href="{{ url_for('index') }}" class="btn btn-outline-secondary">
+                                <i class="fas fa-arrow-left me-2"></i>Back to Home
+                            </a>
+                            <button type="submit" class="btn btn-primary btn-lg" id="submitBtn" disabled>
+                                <i class="fas fa-upload me-2"></i>Upload and Analyze
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Quick Actions -->
+            <div class="row mt-4">
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-body text-center">
+                            <i class="fas fa-paste fa-2x text-success mb-3"></i>
+                            <h5>Paste Text Instead</h5>
+                            <p class="text-muted small">
+                                Have text to analyze? Paste it directly instead of uploading a file.
+                            </p>
+                            <a href="{{ url_for('text_input.paste_form') }}" class="btn btn-outline-success">
+                                <i class="fas fa-paste me-2"></i>Paste Text
+                            </a>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-body text-center">
+                            <i class="fas fa-history fa-2x text-info mb-3"></i>
+                            <h5>View Documents</h5>
+                            <p class="text-muted small">
+                                View and manage your previously uploaded documents.
+                            </p>
+                            <a href="{{ url_for('text_input.document_list') }}" class="btn btn-outline-info">
+                                <i class="fas fa-file-text me-2"></i>My Documents
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const fileInput = document.getElementById('fileInput');
+    const fileLabel = document.getElementById('fileLabel');
+    const filePreview = document.getElementById('filePreview');
+    const fileName = document.getElementById('fileName');
+    const fileDetails = document.getElementById('fileDetails');
+    const removeFileBtn = document.getElementById('removeFile');
+    const submitBtn = document.getElementById('submitBtn');
+    const uploadForm = document.getElementById('uploadForm');
+
+    // File input change handler
+    fileInput.addEventListener('change', handleFileSelect);
+    
+    // Drag and drop handlers
+    fileLabel.addEventListener('dragover', handleDragOver);
+    fileLabel.addEventListener('dragleave', handleDragLeave);
+    fileLabel.addEventListener('drop', handleFileDrop);
+    
+    // Remove file handler
+    removeFileBtn.addEventListener('click', clearFileInput);
+    
+    // Form submit handler
+    uploadForm.addEventListener('submit', handleFormSubmit);
+
+    function handleFileSelect(event) {
+        const file = event.target.files[0];
+        if (file) {
+            displayFilePreview(file);
+        }
+    }
+
+    function handleDragOver(event) {
+        event.preventDefault();
+        fileLabel.classList.add('drag-over');
+    }
+
+    function handleDragLeave(event) {
+        event.preventDefault();
+        fileLabel.classList.remove('drag-over');
+    }
+
+    function handleFileDrop(event) {
+        event.preventDefault();
+        fileLabel.classList.remove('drag-over');
+        
+        const files = event.dataTransfer.files;
+        if (files.length > 0) {
+            const file = files[0];
+            fileInput.files = files;
+            displayFilePreview(file);
+        }
+    }
+
+    function displayFilePreview(file) {
+        // Update file name and details
+        fileName.textContent = file.name;
+        fileDetails.textContent = `${formatFileSize(file.size)} • ${file.type || 'Unknown type'}`;
+        
+        // Show preview and update UI
+        filePreview.classList.add('show');
+        fileLabel.classList.add('has-file');
+        submitBtn.disabled = false;
+        
+        // Hide upload content
+        fileLabel.querySelector('.upload-content').style.display = 'none';
+    }
+
+    function clearFileInput() {
+        fileInput.value = '';
+        filePreview.classList.remove('show');
+        fileLabel.classList.remove('has-file');
+        submitBtn.disabled = true;
+        fileLabel.querySelector('.upload-content').style.display = 'block';
+    }
+
+    function formatFileSize(bytes) {
+        if (bytes === 0) return '0 Bytes';
+        const k = 1024;
+        const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    }
+
+    function handleFormSubmit(event) {
+        if (!fileInput.files.length) {
+            event.preventDefault();
+            alert('Please select a file to upload.');
+            return;
+        }
+
+        // Show loading spinner
+        showLoading('Uploading and analyzing your file...');
+        
+        // Disable submit button to prevent double submission
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Uploading...';
+    }
+
+    // Handle form submission errors
+    window.addEventListener('beforeunload', function() {
+        hideLoading();
+    });
+});
+</script>
+{% endblock %}

@@ -1,0 +1,305 @@
+{% extends "base.html" %}
+
+{% block title %}Paste Text - OntExtract{% endblock %}
+
+{% block extra_css %}
+<style>
+.text-area-wrapper {
+    position: relative;
+}
+
+.char-counter {
+    position: absolute;
+    bottom: 10px;
+    right: 15px;
+    font-size: 0.8rem;
+    color: #6c757d;
+    background: rgba(0, 0, 0, 0.5);
+    padding: 2px 8px;
+    border-radius: 4px;
+    pointer-events: none;
+}
+
+.text-preview {
+    max-height: 200px;
+    overflow-y: auto;
+    background: rgba(108, 117, 125, 0.1);
+    padding: 1rem;
+    border-radius: 8px;
+    border: 1px solid #6c757d;
+}
+
+.text-stats {
+    font-size: 0.9rem;
+    color: #6c757d;
+}
+
+.quick-actions {
+    display: none;
+}
+
+.quick-actions.show {
+    display: block;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <!-- Header -->
+            <div class="text-center mb-5">
+                <h1 class="display-5 fw-bold">
+                    <i class="fas fa-paste text-success me-3"></i>
+                    Paste Text
+                </h1>
+                <p class="lead text-muted">
+                    Paste your text content for AI-powered analysis and entity extraction
+                </p>
+            </div>
+
+            <!-- Paste Form -->
+            <div class="card">
+                <div class="card-body p-4">
+                    <form id="pasteForm" action="{{ url_for('text_input.submit_text') }}" method="post">
+                        <!-- Title Field -->
+                        <div class="mb-4">
+                            <label for="title" class="form-label">
+                                <i class="fas fa-heading me-2"></i>Document Title (Optional)
+                            </label>
+                            <input type="text" class="form-control" id="title" name="title" 
+                                   placeholder="Enter a title for your text">
+                            <div class="form-text">
+                                If left blank, a title will be auto-generated from the first line.
+                            </div>
+                        </div>
+
+                        <!-- Text Content Area -->
+                        <div class="mb-4">
+                            <label for="content" class="form-label">
+                                <i class="fas fa-align-left me-2"></i>Text Content
+                            </label>
+                            <div class="text-area-wrapper">
+                                <textarea class="form-control" id="content" name="content" 
+                                          rows="12" 
+                                          placeholder="Paste or type your text content here...
+                                          
+Examples:
+• Research papers and articles
+• Reports and documents  
+• Blog posts and essays
+• Meeting notes and transcripts
+• Any text you want to analyze
+
+The AI will extract entities, concepts, and relationships from your text."
+                                          maxlength="100000"></textarea>
+                                <div class="char-counter" id="charCounter">0 / 100,000</div>
+                            </div>
+                        </div>
+
+                        <!-- Text Statistics (shown when text is entered) -->
+                        <div id="textStats" class="text-stats mb-4" style="display: none;">
+                            <div class="row">
+                                <div class="col-sm-3">
+                                    <strong>Characters:</strong> <span id="charCount">0</span>
+                                </div>
+                                <div class="col-sm-3">
+                                    <strong>Words:</strong> <span id="wordCount">0</span>
+                                </div>
+                                <div class="col-sm-3">
+                                    <strong>Paragraphs:</strong> <span id="paragraphCount">0</span>
+                                </div>
+                                <div class="col-sm-3">
+                                    <strong>Lines:</strong> <span id="lineCount">0</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Submit Button -->
+                        <div class="d-flex justify-content-between">
+                            <a href="{{ url_for('index') }}" class="btn btn-outline-secondary">
+                                <i class="fas fa-arrow-left me-2"></i>Back to Home
+                            </a>
+                            <button type="submit" class="btn btn-success btn-lg" id="submitBtn" disabled>
+                                <i class="fas fa-paper-plane me-2"></i>Analyze Text
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Quick Actions -->
+            <div id="quickActions" class="quick-actions row mt-4">
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-body">
+                            <h6 class="card-title">
+                                <i class="fas fa-lightbulb me-2"></i>Quick Tips
+                            </h6>
+                            <ul class="mb-0 small text-muted">
+                                <li>Longer texts provide better analysis results</li>
+                                <li>The AI works best with coherent, well-structured text</li>
+                                <li>Multiple paragraphs help identify more entities</li>
+                                <li>Technical and academic texts often yield rich extractions</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-body">
+                            <h6 class="card-title">
+                                <i class="fas fa-upload me-2"></i>Have a File Instead?
+                            </h6>
+                            <p class="small text-muted mb-2">
+                                If you have a document file, you can upload it directly for better text extraction.
+                            </p>
+                            <a href="{{ url_for('text_input.upload_form') }}" class="btn btn-sm btn-outline-primary">
+                                <i class="fas fa-upload me-1"></i>Upload File
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Sample Text Button -->
+            <div class="text-center mt-4">
+                <button type="button" class="btn btn-outline-info" id="loadSampleBtn">
+                    <i class="fas fa-flask me-2"></i>Load Sample Text
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const contentTextarea = document.getElementById('content');
+    const charCounter = document.getElementById('charCounter');
+    const submitBtn = document.getElementById('submitBtn');
+    const pasteForm = document.getElementById('pasteForm');
+    const textStats = document.getElementById('textStats');
+    const quickActions = document.getElementById('quickActions');
+    const loadSampleBtn = document.getElementById('loadSampleBtn');
+    
+    // Stats elements
+    const charCount = document.getElementById('charCount');
+    const wordCount = document.getElementById('wordCount');
+    const paragraphCount = document.getElementById('paragraphCount');
+    const lineCount = document.getElementById('lineCount');
+
+    // Content change handler
+    contentTextarea.addEventListener('input', handleContentChange);
+    contentTextarea.addEventListener('paste', function() {
+        // Delay to allow paste to complete
+        setTimeout(handleContentChange, 10);
+    });
+    
+    // Form submit handler
+    pasteForm.addEventListener('submit', handleFormSubmit);
+    
+    // Sample text loader
+    loadSampleBtn.addEventListener('click', loadSampleText);
+
+    function handleContentChange() {
+        const content = contentTextarea.value;
+        const length = content.length;
+        
+        // Update character counter
+        charCounter.textContent = `${length.toLocaleString()} / 100,000`;
+        
+        if (length > 90000) {
+            charCounter.style.color = '#e74c3c';
+        } else if (length > 75000) {
+            charCounter.style.color = '#f39c12';
+        } else {
+            charCounter.style.color = '#6c757d';
+        }
+        
+        // Enable/disable submit button
+        submitBtn.disabled = length < 10;
+        
+        // Update statistics if there's content
+        if (length > 0) {
+            updateTextStats(content);
+            textStats.style.display = 'block';
+            quickActions.classList.add('show');
+        } else {
+            textStats.style.display = 'none';
+            quickActions.classList.remove('show');
+        }
+    }
+
+    function updateTextStats(content) {
+        // Character count
+        charCount.textContent = content.length.toLocaleString();
+        
+        // Word count
+        const words = content.trim().split(/\s+/).filter(word => word.length > 0);
+        wordCount.textContent = words.length.toLocaleString();
+        
+        // Paragraph count (double line breaks)
+        const paragraphs = content.split(/\n\s*\n/).filter(para => para.trim().length > 0);
+        paragraphCount.textContent = paragraphs.length.toLocaleString();
+        
+        // Line count
+        const lines = content.split('\n').filter(line => line.trim().length > 0);
+        lineCount.textContent = lines.length.toLocaleString();
+    }
+
+    function handleFormSubmit(event) {
+        const content = contentTextarea.value.trim();
+        
+        if (content.length < 10) {
+            event.preventDefault();
+            alert('Please enter at least 10 characters of text to analyze.');
+            return;
+        }
+
+        if (content.length > 100000) {
+            event.preventDefault();
+            alert('Text is too long. Please limit to 100,000 characters.');
+            return;
+        }
+
+        // Show loading spinner
+        showLoading('Analyzing your text...');
+        
+        // Disable submit button to prevent double submission
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Analyzing...';
+    }
+
+    function loadSampleText() {
+        const sampleText = `Artificial Intelligence and Machine Learning in Healthcare
+
+The integration of artificial intelligence (AI) and machine learning (ML) technologies into healthcare systems represents one of the most significant technological advances of the 21st century. These technologies are revolutionizing how medical professionals diagnose diseases, develop treatment plans, and manage patient care.
+
+Machine learning algorithms can analyze vast amounts of medical data, including electronic health records, medical imaging, and genomic sequences, to identify patterns that might be invisible to human observers. For example, deep learning models have shown remarkable success in medical image analysis, particularly in radiology and pathology, where they can detect anomalies with accuracy that often surpasses human experts.
+
+Dr. Sarah Johnson, a leading researcher at Stanford Medical Center, explains: "AI systems can process and analyze medical images in seconds, identifying potential issues that might take a radiologist hours to detect. This not only improves diagnostic accuracy but also significantly reduces the time to treatment."
+
+The pharmaceutical industry is also benefiting from AI applications. Drug discovery, traditionally a process that takes 10-15 years and costs billions of dollars, is being accelerated through machine learning models that can predict molecular behavior and identify promising drug candidates more efficiently.
+
+However, the implementation of AI in healthcare is not without challenges. Issues of data privacy, algorithmic bias, regulatory compliance, and the need for healthcare professionals to adapt to new technologies must all be carefully addressed. The FDA has begun developing frameworks for the approval and monitoring of AI-based medical devices, ensuring that these powerful tools meet the highest standards of safety and efficacy.
+
+Organizations like the American Medical Association and the World Health Organization are working to establish ethical guidelines for AI in healthcare, emphasizing the importance of transparency, accountability, and human oversight in AI-assisted medical decision-making.`;
+
+        contentTextarea.value = sampleText;
+        handleContentChange();
+        
+        // Scroll to show the loaded content
+        contentTextarea.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+
+    // Handle form submission errors
+    window.addEventListener('beforeunload', function() {
+        hideLoading();
+    });
+});
+</script>
+{% endblock %}
