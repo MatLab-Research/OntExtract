@@ -1,0 +1,332 @@
+{% extends "base.html" %}
+
+{% block title %}Results: {{ experiment.name }} - OntExtract{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4">
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h3 class="mb-0">Experiment Results: {{ experiment.name }}</h3>
+                    <span class="badge bg-success">Completed</span>
+                </div>
+                <div class="card-body">
+                    <!-- Experiment Summary -->
+                    <div class="row mb-4">
+                        <div class="col-md-3">
+                            <div class="card bg-light">
+                                <div class="card-body text-center">
+                                    <i class="fas fa-file-alt fa-2x text-primary mb-2"></i>
+                                    <h5>{{ experiment.get_document_count() }}</h5>
+                                    <small class="text-muted">Documents Analyzed</small>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card bg-light">
+                                <div class="card-body text-center">
+                                    <i class="fas fa-font fa-2x text-info mb-2"></i>
+                                    <h5>{{ experiment.get_total_word_count() | number_format }}</h5>
+                                    <small class="text-muted">Total Words</small>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card bg-light">
+                                <div class="card-body text-center">
+                                    <i class="fas fa-clock fa-2x text-warning mb-2"></i>
+                                    <h5>
+                                        {% if experiment.started_at and experiment.completed_at %}
+                                            {{ ((experiment.completed_at - experiment.started_at).total_seconds() / 60) | round(1) }} min
+                                        {% else %}
+                                            N/A
+                                        {% endif %}
+                                    </h5>
+                                    <small class="text-muted">Processing Time</small>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card bg-light">
+                                <div class="card-body text-center">
+                                    {% if experiment.experiment_type == 'temporal_evolution' %}
+                                        <i class="fas fa-chart-line fa-2x text-success mb-2"></i>
+                                        <h5>Temporal</h5>
+                                    {% else %}
+                                        <i class="fas fa-layer-group fa-2x text-success mb-2"></i>
+                                        <h5>Domain</h5>
+                                    {% endif %}
+                                    <small class="text-muted">Analysis Type</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Results Summary -->
+                    {% if experiment.results_summary %}
+                    <div class="alert alert-info mb-4">
+                        <h5><i class="fas fa-info-circle"></i> Summary</h5>
+                        <p>{{ experiment.results_summary }}</p>
+                    </div>
+                    {% endif %}
+                    
+                    <!-- Detailed Results -->
+                    <div class="mb-4">
+                        <h5>Analysis Results</h5>
+                        
+                        {% if experiment.experiment_type == 'temporal_evolution' %}
+                        <div class="card">
+                            <div class="card-header">
+                                <h6 class="mb-0">Temporal Evolution Analysis</h6>
+                            </div>
+                            <div class="card-body">
+                                <p class="text-muted">
+                                    This analysis tracks how concepts and terminology evolve over time across the selected documents.
+                                </p>
+                                
+                                {% if results_data %}
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <h6>Key Findings</h6>
+                                        <ul>
+                                            <li>Documents analyzed: {{ results_data.document_count }}</li>
+                                            <li>Total words processed: {{ results_data.total_words | number_format }}</li>
+                                            <li>Analysis completed: {{ results_data.timestamp }}</li>
+                                        </ul>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <h6>Configuration</h6>
+                                        {% if experiment.configuration %}
+                                        <pre class="bg-light p-2"><code>{{ experiment.configuration }}</code></pre>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                {% endif %}
+                                
+                                <div class="alert alert-warning mt-3">
+                                    <i class="fas fa-exclamation-triangle"></i> 
+                                    Full temporal analysis implementation is pending. This is a placeholder showing basic statistics.
+                                </div>
+                            </div>
+                        </div>
+                        
+                        {% elif experiment.experiment_type == 'domain_comparison' %}
+                        <div class="card">
+                            <div class="card-header">
+                                <h6 class="mb-0">Domain Comparison Analysis</h6>
+                            </div>
+                            <div class="card-body">
+                                <p class="text-muted">
+                                    This analysis compares terminology and concepts across different domains to identify domain-specific patterns.
+                                </p>
+                                
+                                {% if results_data %}
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <h6>Key Findings</h6>
+                                        <ul>
+                                            <li>Documents analyzed: {{ results_data.document_count }}</li>
+                                            <li>Total words processed: {{ results_data.total_words | number_format }}</li>
+                                            <li>Analysis completed: {{ results_data.timestamp }}</li>
+                                        </ul>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <h6>Configuration</h6>
+                                        {% if experiment.configuration %}
+                                        <pre class="bg-light p-2"><code>{{ experiment.configuration }}</code></pre>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                {% endif %}
+                                
+                                <div class="alert alert-warning mt-3">
+                                    <i class="fas fa-exclamation-triangle"></i> 
+                                    Full domain comparison implementation is pending. This is a placeholder showing basic statistics.
+                                </div>
+                            </div>
+                        </div>
+                        {% endif %}
+                    </div>
+                    
+                    <!-- Documents in Experiment -->
+                    <div class="mb-4">
+                        <h5>Documents Included in Analysis</h5>
+                        <div class="table-responsive">
+                            <table class="table table-sm">
+                                <thead>
+                                    <tr>
+                                        <th>Document</th>
+                                        <th>Type</th>
+                                        <th>Words</th>
+                                        <th>Uploaded</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for document in experiment.documents %}
+                                    <tr>
+                                        <td>
+                                            <a href="{{ url_for('text_input.document_detail', document_id=document.id) }}">
+                                                {{ document.get_display_name() }}
+                                            </a>
+                                        </td>
+                                        <td>
+                                            {% if document.file_type %}
+                                                <span class="badge bg-secondary">{{ document.file_type }}</span>
+                                            {% else %}
+                                                <span class="badge bg-secondary">{{ document.content_type }}</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>{{ document.word_count or 0 }}</td>
+                                        <td>{{ document.created_at.strftime('%Y-%m-%d') }}</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    
+                    <!-- Export Options -->
+                    <div class="mb-4">
+                        <h5>Export Results</h5>
+                        <div class="btn-group" role="group">
+                            <button class="btn btn-outline-primary" onclick="exportResults('json')">
+                                <i class="fas fa-file-code"></i> Export as JSON
+                            </button>
+                            <button class="btn btn-outline-primary" onclick="exportResults('csv')">
+                                <i class="fas fa-file-csv"></i> Export as CSV
+                            </button>
+                            <button class="btn btn-outline-primary" onclick="window.print()">
+                                <i class="fas fa-print"></i> Print Report
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- Navigation -->
+                    <div class="d-flex justify-content-between">
+                        <a href="{{ url_for('experiments.view', experiment_id=experiment.id) }}" class="btn btn-secondary">
+                            <i class="fas fa-arrow-left"></i> Back to Experiment
+                        </a>
+                        <a href="{{ url_for('experiments.index') }}" class="btn btn-secondary">
+                            <i class="fas fa-list"></i> All Experiments
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Store experiment data for JavaScript use
+const experimentData = {
+    id: {{ experiment.id }},
+    name: {{ experiment.name | tojson | safe }},
+    type: {{ experiment.experiment_type | tojson | safe }},
+    documentCount: {{ experiment.get_document_count() }},
+    totalWords: {{ experiment.get_total_word_count() }},
+    status: {{ experiment.status | tojson | safe }},
+    created: {{ experiment.created_at.isoformat() | tojson | safe }},
+    {% if experiment.completed_at %}
+    completed: {{ experiment.completed_at.isoformat() | tojson | safe }},
+    {% else %}
+    completed: null,
+    {% endif %}
+    {% if experiment.results_summary %}
+    summary: {{ experiment.results_summary | tojson | safe }},
+    {% else %}
+    summary: null,
+    {% endif %}
+    documents: [
+        {% for document in experiment.documents %}
+        {
+            name: {{ document.get_display_name() | tojson | safe }},
+            type: {{ (document.file_type or document.content_type) | tojson | safe }},
+            words: {{ document.word_count or 0 }},
+            uploaded: {{ document.created_at.strftime('%Y-%m-%d') | tojson | safe }}
+        }{% if not loop.last %},{% endif %}
+        {% endfor %}
+    ]
+};
+
+function exportResults(format) {
+    const experimentId = experimentData.id;
+    
+    if (format === 'json') {
+        // Fetch and download JSON results
+        fetch(`/experiments/api/${experimentId}`)
+            .then(response => response.json())
+            .then(data => {
+                const blob = new Blob([JSON.stringify(data, null, 2)], {type: 'application/json'});
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.style.display = 'none';
+                a.href = url;
+                a.download = `experiment_${experimentId}_results.json`;
+                document.body.appendChild(a);
+                a.click();
+                window.URL.revokeObjectURL(url);
+            })
+            .catch(error => {
+                alert('Error exporting results: ' + error.message);
+            });
+    } else if (format === 'csv') {
+        // Create CSV from results data
+        const csvContent = createCSVFromResults();
+        const blob = new Blob([csvContent], {type: 'text/csv'});
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.style.display = 'none';
+        a.href = url;
+        a.download = `experiment_${experimentId}_results.csv`;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+    }
+}
+
+function createCSVFromResults() {
+    // Create a simple CSV with experiment metadata
+    let csv = 'Field,Value\n';
+    csv += `"Experiment Name","${experimentData.name}"\n`;
+    csv += `"Type","${experimentData.type}"\n`;
+    csv += `"Documents","${experimentData.documentCount}"\n`;
+    csv += `"Total Words","${experimentData.totalWords}"\n`;
+    csv += `"Status","${experimentData.status}"\n`;
+    csv += `"Created","${experimentData.created}"\n`;
+    
+    if (experimentData.completed) {
+        csv += `"Completed","${experimentData.completed}"\n`;
+    }
+    
+    if (experimentData.summary) {
+        const cleanSummary = experimentData.summary.replace(/"/g, '""').replace(/\n/g, ' ');
+        csv += `"Summary","${cleanSummary}"\n`;
+    }
+    
+    // Add document list
+    csv += '\n\nDocuments\n';
+    csv += 'Name,Type,Words,Uploaded\n';
+    experimentData.documents.forEach(doc => {
+        const cleanName = doc.name.replace(/"/g, '""');
+        csv += `"${cleanName}","${doc.type}","${doc.words}","${doc.uploaded}"\n`;
+    });
+    
+    return csv;
+}
+</script>
+
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    @media print {
+        .btn-group, .navbar, .sidebar {
+            display: none !important;
+        }
+        .card {
+            border: 1px solid #dee2e6 !important;
+        }
+    }
+</style>
+{% endblock %}
