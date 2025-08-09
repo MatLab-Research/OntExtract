@@ -9,8 +9,8 @@ import os
 from dotenv import load_dotenv
 from app import create_app
 
-# Load environment variables from .env.local
-load_dotenv('.env.local')
+# Load environment variables from .env only (do not auto-overlay .env.local)
+load_dotenv()
 
 def main():
     """Main entry point for the application."""

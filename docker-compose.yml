@@ -2,7 +2,7 @@ version: '3.8'
 
 services:
   db:
-    image: pgvector/pgvector:pg15
+    image: pgvector/pgvector:pg17
     container_name: ontextract_db
     environment:
       POSTGRES_DB: ontextract_db
