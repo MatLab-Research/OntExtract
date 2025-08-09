@@ -136,7 +136,7 @@ def upload():
 def parse_oed_pdf():
     """Parse uploaded OED PDF and return structured data"""
     import tempfile
-    from app.services.oed_parser import OEDParser
+    from app.services.oed_parser_final import OEDParser
     from flask import current_app
     
     if 'file' not in request.files:
