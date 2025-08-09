@@ -6,7 +6,11 @@ This script starts the OntExtract Flask application with shared services enabled
 """
 
 import os
+from dotenv import load_dotenv
 from app import create_app
+
+# Load environment variables from .env.local
+load_dotenv('.env.local')
 
 def main():
     """Main entry point for the application."""

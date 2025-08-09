@@ -1,0 +1,86 @@
+FULL TEXT CAPTURED (3987 characters):
+==================================================
+Here is the cleaned dictionary entry, preserving all essential content while removing website elements:
+
+ONTOLOGY
+
+Etymology:
+A borrowing from Latin. From post-classical Latin ontologia (1613 in Greek characters in R. Goclenius Lexicon Philosophicum) < onto- comb. form + -logia -logy comb. form. Compare French ontologie (1692), German Ontologie (1764 or earlier). Compare later ontologic adj., ontological adj.
+
+Etymology Notes:
+J. Clauberg (Metaphysica, 1646) suggests post-classical Latin ontologia as an alternative to metaphysica, citing Aristotle's definition of the science at Metaphysics 1005a, where he describes it as the science or study of being, that which exists, ancient Greek ὄν (see onto- comb. form).
+
+Pronunciation:
+British English: /ɒnˈtɒlədʒi/ (on-TOL-uh-jee)
+U.S. English: /ɑnˈtɑlədʒi/ (ahn-TAH-luh-jee)
+
+Definitions:
+
+1.a. Philosophy. The science or study of being; that branch of metaphysics concerned with the nature or essence of being or existence.
+
+Historical quotations:
+1663 G. Harvey, Archelogia Philosophica Nova vol. I.ii. i. 18: "Metaphysics..is called also the first Philosophy, from its nearest approximation to Philosophy, its most proper Denomination is Ontology, or a Discourse of a Being."
+
+1721 N. Bailey, Universal Etymological English Dictionary: "Ontology, an Account of being in the Abstract."
+
+1776 A. Smith, Inquiry Wealth Nations vol. II.v. i. 354: "Subtleties and sophisms..composed the whole of this cobweb science of Ontology, which was likewise sometimes called Metaphysics."
+
+a1832 J. Bentham, Fragm. Ontol. in Works (1843) vol. VIII. 195: "The field of ontology, or as it may otherwise be termed, the field of supremely abstract entities, is a yet untrodden labyrinth."
+
+1865 Reader 8 July 301: "We cordially approve and admire,..not least, the signal demolition of Ontology, in the form of the noumenon, or unknowable substratum of matter and mind."
+
+1.b. As a count noun: a theory or conception relating to the nature of being. Also in extended use.
+
+Historical quotations:
+1855 A. Potter, Lect. Evidence Christianity 197: "[Rationalism] might do but little harm in..disporting itself with its own fanciful creations..respecting necessity and spontaneity.., quiddities and ontologies."
+
+1888 Mind vol. 13 64: "We are ready to admit all the hard things the Comte has said of the old Ontologies."
+
+1909 Philosophical Review vol. 18 490: "Even in the most nihilistic of ontologies the eternal is meant to be functional, not be merely the blank and irrelevant negation of temporality."
+
+1950 Science Monthly May 346/2: "Today we need new ontologies constructed in the light of what science now tells us about man."
+
+1995 Church Times 3 November 13/4: "In trying together prayer and ethics, Barth explores a moral ontology and a moral anthropology in which dependence is not diminishment and resolute action is not self-assertion."
+
+2. Logic. Chiefly with reference to the work of Stanislaw Leśniewski (1886–1939): a system similar in scope to modern predicate logic, which attempts to interpret quantifiers without assuming that anything exists beyond written expressions.
+
+Historical quotations:
+1938 Journal of Symbolic Logic vol. 3 169: "There is also included a sketch of Leśniewski's ontology or theory of classes."
+
+1955 A. N. Prior, Formal Logic iii. iii. 293: "The basis of Leśniewski's logic is the 'protothetic'..and on this he builds two further disciplines called 'ontology' and 'mereology'."
+
+1983 Journal of Symbolic Logic vol. 48 522: "The proposed Lesniewskian-type ontology for natural language is related via a translation to the Montague grammar of a traditional type."
+
+Related terms and compounds:
+- ontologist, n. (1727–) A student of or expert in ontology; a metaphysician.
+- ontologize, v. (1849–) intransitive. To apply or deal with ontology.
+- ontologism, n. (1850–) A mystical system based on the belief that God is directly and immediately apprehended by the mind as the first object of human intelligence.
+==================================================
+
+HISTORICAL QUOTATIONS:
+[1663] Metaphysics..is called also the first Philosophy, from its nearest approximation to Philosophy, its most proper Denomination is Ontology, or a Discourse of a Being.
+
+[1721] Ontology, an Account of being in the Abstract.
+
+[1776] Subtleties and sophisms..composed the whole of this cobweb science of Ontology, which was likewise sometimes called Metaphysics.
+
+[1832] The field of ontology, or as it may otherwise be termed, the field of supremely abstract entities, is a yet untrodden labyrinth.
+
+[1865] We cordially approve and admire,..not least, the signal demolition of Ontology, in the form of the noumenon, or unknowable substratum of matter and mind.
+
+[1855] [Rationalism] might do but little harm in..disporting itself with its own fanciful creations..respecting necessity and spontaneity.., quiddities and ontologies.
+
+[1888] We are ready to admit all the hard things the Comte has said of the old Ontologies.
+
+[1909] Even in the most nihilistic of ontologies the eternal is meant to be functional, not be merely the blank and irrelevant negation of temporality.
+
+[1950] Today we need new ontologies constructed in the light of what science now tells us about man.
+
+[1995] In trying together prayer and ethics, Barth explores a moral ontology and a moral anthropology in which dependence is not diminishment and resolute action is not self-assertion.
+
+[1938] There is also included a sketch of Leśniewski's ontology or theory of classes.
+
+[1955] The basis of Leśniewski's logic is the 'protothetic'..and on this he builds two further disciplines called 'ontology' and 'mereology'.
+
+[1983] The proposed Lesniewskian-type ontology for natural language is related via a translation to the Montague grammar of a traditional type.
+

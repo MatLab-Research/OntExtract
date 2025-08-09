@@ -1,0 +1,216 @@
+{% extends "base.html" %}
+
+{% block title %}Upload Reference - OntExtract{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-12">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="{{ url_for('index') }}">Home</a></li>
+                    <li class="breadcrumb-item"><a href="{{ url_for('references.index') }}">References</a></li>
+                    <li class="breadcrumb-item active">Upload</li>
+                </ol>
+            </nav>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-12">
+            <h1>Upload Reference Document</h1>
+            {% if experiment %}
+            <div class="alert alert-info">
+                <i class="fas fa-info-circle"></i> 
+                This reference will be linked to experiment: <strong>{{ experiment.name }}</strong>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <form method="POST" enctype="multipart/form-data">
+        {% if experiment %}
+        <input type="hidden" name="experiment_id" value="{{ experiment.id }}">
+        {% endif %}
+        
+        <div class="row mt-3">
+            <div class="col-lg-8">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">Document Upload</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <label for="file" class="form-label">Reference File <span class="text-danger">*</span></label>
+                            <input type="file" class="form-control" id="file" name="file" required
+                                   accept=".pdf,.docx,.doc,.txt,.md,.html,.htm">
+                            <div class="form-text">Accepted formats: PDF, Word, Text, Markdown, HTML</div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="title" class="form-label">Title <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="title" name="title" required
+                                   placeholder="e.g., Understanding Semantic Networks">
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="reference_subtype" class="form-label">Reference Type <span class="text-danger">*</span></label>
+                            <select class="form-select" id="reference_subtype" name="reference_subtype" required>
+                                <option value="">Select reference type...</option>
+                                <option value="academic">Academic Paper</option>
+                                <option value="standard">Standard/Specification</option>
+                                <option value="book">Book</option>
+                                <option value="patent">Patent</option>
+                                <option value="conference">Conference Proceeding</option>
+                                <option value="technical">Technical Report</option>
+                                <option value="whitepaper">White Paper</option>
+                                <option value="website">Web Resource</option>
+                                <option value="other">Other Reference</option>
+                            </select>
+                            <div class="form-text">Select the type that best describes this reference</div>
+                        </div>
+
+                        {% if experiment %}
+                        <div class="mb-3">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" 
+                                       id="include_in_analysis" name="include_in_analysis" value="true">
+                                <label class="form-check-label" for="include_in_analysis">
+                                    Include this reference in experiment analysis
+                                </label>
+                                <div class="form-text">
+                                    Check this if the reference should be used for term definitions during analysis
+                                </div>
+                            </div>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <div class="card mt-3">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">Source Metadata</h5>
+                        <small class="text-muted">Optional information about the publication</small>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <label for="authors" class="form-label">Authors</label>
+                            <input type="text" class="form-control" id="authors" name="authors"
+                                   placeholder="e.g., Smith, J., Doe, A. (comma-separated)">
+                            <div class="form-text">Separate multiple authors with commas</div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="publication_date" class="form-label">Publication Date</label>
+                                <input type="text" class="form-control" id="publication_date" name="publication_date"
+                                       placeholder="e.g., 2023, 2023-06, or 2023-06-15">
+                            </div>
+
+                            <div class="col-md-6 mb-3">
+                                <label for="journal" class="form-label">Journal/Publisher</label>
+                                <input type="text" class="form-control" id="journal" name="journal"
+                                       placeholder="e.g., Nature, IEEE">
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="doi" class="form-label">DOI</label>
+                                <input type="text" class="form-control" id="doi" name="doi"
+                                       placeholder="e.g., 10.1234/example.doi">
+                            </div>
+
+                            <div class="col-md-6 mb-3">
+                                <label for="isbn" class="form-label">ISBN</label>
+                                <input type="text" class="form-control" id="isbn" name="isbn"
+                                       placeholder="e.g., 978-3-16-148410-0">
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="url" class="form-label">Source URL</label>
+                            <input type="url" class="form-control" id="url" name="url"
+                                   placeholder="https://example.com/paper">
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="abstract" class="form-label">Abstract</label>
+                            <textarea class="form-control" id="abstract" name="abstract" rows="4"
+                                      placeholder="Brief summary of the reference document..."></textarea>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="citation" class="form-label">Full Citation</label>
+                            <textarea class="form-control" id="citation" name="citation" rows="2"
+                                      placeholder="Complete citation in your preferred format..."></textarea>
+                            <div class="form-text">If not provided, a basic citation will be generated</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-lg-4">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">About References</h5>
+                    </div>
+                    <div class="card-body">
+                        <p class="text-muted">
+                            Reference documents are used to establish canonical definitions for terms 
+                            and concepts in your experiments.
+                        </p>
+                        <hr>
+                        <h6>Key Features:</h6>
+                        <ul class="small text-muted">
+                            <li>Define standard terminology</li>
+                            <li>Provide authoritative sources</li>
+                            <li>Can be shared across experiments</li>
+                            <li>Include/exclude from analysis</li>
+                            <li>Full text processing like documents</li>
+                        </ul>
+                        <hr>
+                        <h6>Best Practices:</h6>
+                        <ul class="small text-muted">
+                            <li>Include complete metadata when available</li>
+                            <li>Use DOI for unique identification</li>
+                            <li>Add abstracts for quick reference</li>
+                            <li>Keep citations consistent</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row mt-3">
+            <div class="col-12">
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-upload"></i> Upload Reference
+                </button>
+                {% if experiment %}
+                <a href="{{ url_for('experiments.view', id=experiment.id) }}" class="btn btn-secondary">
+                    Cancel
+                </a>
+                {% else %}
+                <a href="{{ url_for('references.index') }}" class="btn btn-secondary">
+                    Cancel
+                </a>
+                {% endif %}
+            </div>
+        </div>
+    </form>
+</div>
+
+<script>
+// Auto-format DOI input
+document.getElementById('doi').addEventListener('blur', function() {
+    let doi = this.value.trim();
+    if (doi && !doi.startsWith('10.')) {
+        // Remove common prefixes
+        doi = doi.replace(/^(https?:\/\/)?(dx\.)?doi\.org\//i, '');
+        doi = doi.replace(/^doi:/i, '');
+        this.value = doi;
+    }
+});
+</script>
+{% endblock %}
