@@ -217,3 +217,7 @@ docs/*.pdf
 app/docs/**/*.pdf
 app/docs/*.pdf
 uploads/**/*.pdf
+
+# Deployment env files (local, not for version control)
+deploy.env
+deploy.env.example
