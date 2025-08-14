@@ -1,0 +1,459 @@
+{% extends "base.html" %}
+
+{% block title %}Upload Reference - OntExtract{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-12">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="{{ url_for('index') }}">Home</a></li>
+                    <li class="breadcrumb-item"><a href="{{ url_for('references.index') }}">References</a></li>
+                    <li class="breadcrumb-item active">Upload</li>
+                </ol>
+            </nav>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-12">
+            <h1>Add Reference</h1>
+            <p class="text-muted">Choose the type of reference you want to add</p>
+        </div>
+    </div>
+
+    <!-- Tabs for different reference types -->
+    <ul class="nav nav-tabs mt-3" id="referenceTypeTabs" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link active" id="general-tab" data-bs-toggle="tab" data-bs-target="#general" type="button" role="tab">
+                <i class="fas fa-file-alt"></i> General Reference
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="oed-tab" data-bs-toggle="tab" data-bs-target="#oed" type="button" role="tab">
+                <i class="fas fa-book"></i> OED Dictionary Entry
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="dictionary-tab" data-bs-toggle="tab" data-bs-target="#dictionary" type="button" role="tab">
+                <i class="fas fa-spell-check"></i> Other Dictionary
+            </button>
+        </li>
+    </ul>
+
+    <div class="tab-content" id="referenceTypeTabContent">
+        <!-- General Reference Tab -->
+        <div class="tab-pane fade show active" id="general" role="tabpanel">
+            <form method="POST" enctype="multipart/form-data" action="{{ url_for('references.upload') }}">
+                <div class="row mt-3">
+                    <div class="col-lg-8">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5 class="card-title mb-0">Document Upload</h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="mb-3">
+                                    <label for="file" class="form-label">Reference File <span class="text-danger">*</span></label>
+                                    <input type="file" class="form-control" id="file" name="file" required
+                                           accept=".pdf,.docx,.doc,.txt,.md,.html,.htm">
+                                    <div class="form-text">Accepted formats: PDF, Word, Text, Markdown, HTML</div>
+                                </div>
+
+                                <div class="mb-3">
+                                    <label for="title" class="form-label">Title <span class="text-danger">*</span></label>
+                                    <input type="text" class="form-control" id="title" name="title" required
+                                           placeholder="e.g., Understanding Semantic Networks">
+                                </div>
+
+                                <div class="mb-3">
+                                    <label for="reference_subtype" class="form-label">Reference Type <span class="text-danger">*</span></label>
+                                    <select class="form-select" id="reference_subtype" name="reference_subtype" required>
+                                        <option value="">Select reference type...</option>
+                                        <option value="academic">Academic Paper</option>
+                                        <option value="standard">Standard/Specification</option>
+                                        <option value="book">Book</option>
+                                        <option value="patent">Patent</option>
+                                        <option value="conference">Conference Proceeding</option>
+                                        <option value="technical">Technical Report</option>
+                                        <option value="whitepaper">White Paper</option>
+                                        <option value="website">Web Resource</option>
+                                        <option value="glossary">Glossary/Terminology</option>
+                                        <option value="encyclopedia">Encyclopedia Entry</option>
+                                        <option value="other">Other Reference</option>
+                                    </select>
+                                </div>
+
+                                <!-- Standard metadata fields -->
+                                <div class="mb-3">
+                                    <label for="authors" class="form-label">Authors</label>
+                                    <input type="text" class="form-control" name="authors"
+                                           placeholder="e.g., Smith, J., Doe, A. (comma-separated)">
+                                </div>
+
+                                <div class="row">
+                                    <div class="col-md-6 mb-3">
+                                        <label for="publication_date" class="form-label">Publication Date</label>
+                                        <input type="text" class="form-control" name="publication_date"
+                                               placeholder="e.g., 2023">
+                                    </div>
+                                    <div class="col-md-6 mb-3">
+                                        <label for="journal" class="form-label">Journal/Publisher</label>
+                                        <input type="text" class="form-control" name="journal"
+                                               placeholder="e.g., Nature, IEEE">
+                                    </div>
+                                </div>
+
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-upload"></i> Upload Reference
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </form>
+        </div>
+
+        <!-- OED Dictionary Entry Tab -->
+        <div class="tab-pane fade" id="oed" role="tabpanel">
+            <form method="POST" action="{{ url_for('references.upload_dictionary') }}">
+                <input type="hidden" name="reference_subtype" value="dictionary_oed">
+                <input type="hidden" name="content_type" value="text">
+                
+                <div class="row mt-3">
+                    <div class="col-lg-8">
+                        <div class="card">
+                            <div class="card-header bg-primary text-white">
+                                <h5 class="card-title mb-0">
+                                    <i class="fas fa-book"></i> Oxford English Dictionary Entry
+                                </h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="alert alert-info">
+                                    <i class="fas fa-info-circle"></i> 
+                                    Add OED dictionary entries for canonical term definitions. These will be used as authoritative sources for terminology.
+                                </div>
+
+                                <!-- PDF Upload Section -->
+                                <div class="card mb-4 bg-light">
+                                    <div class="card-body">
+                                        <h6 class="card-title">
+                                            <i class="fas fa-file-pdf text-danger"></i> Upload OED PDF (Optional)
+                                        </h6>
+                                        <p class="small text-muted">Upload a PDF of an OED entry to auto-populate the form fields</p>
+                                        <div class="row align-items-end">
+                                            <div class="col-md-8">
+                                                <input type="file" class="form-control" id="oed_pdf_file" accept=".pdf">
+                                            </div>
+                                            <div class="col-md-4">
+                                                <button type="button" class="btn btn-secondary w-100" onclick="parseOEDPDF()">
+                                                    <i class="fas fa-magic"></i> Parse PDF
+                                                </button>
+                                            </div>
+                                        </div>
+                                        <div id="oed_parse_status" class="mt-2"></div>
+                                    </div>
+                                </div>
+
+                                <div class="mb-3">
+                                    <label for="oed_term" class="form-label">Term/Headword <span class="text-danger">*</span></label>
+                                    <input type="text" class="form-control" id="oed_term" name="title" required
+                                           placeholder="e.g., ontology">
+                                    <div class="form-text">The main term being defined</div>
+                                </div>
+
+                                <div class="mb-3">
+                                    <label for="oed_full_text" class="form-label">Complete OED Entry Text <span class="text-danger">*</span></label>
+                                    <textarea class="form-control" id="oed_full_text" name="content" rows="12" required
+                                              placeholder="The complete text of the OED entry, including all definitions, senses, quotations, etymology, etc."></textarea>
+                                    <div class="form-text">This field captures the entire OED entry to ensure no information is lost</div>
+                                </div>
+
+                                <div class="mb-3">
+                                    <label for="oed_temporal_quotations" class="form-label">Historical Quotations (for temporal tracking)</label>
+                                    <textarea class="form-control" id="oed_temporal_quotations" name="examples" rows="6"
+                                              placeholder="[Year] Quotation text (Source)&#10;Automatically extracted dated examples will appear here..."></textarea>
+                                    <div class="form-text">Chronologically ordered quotations showing usage over time</div>
+                                </div>
+
+                                <div class="row">
+                                    <div class="col-md-4 mb-3">
+                                        <label for="oed_first_use" class="form-label">First Recorded Use</label>
+                                        <input type="text" class="form-control" id="oed_first_use" name="first_use"
+                                               placeholder="e.g., 1721">
+                                    </div>
+                                    <div class="col-md-8 mb-3">
+                                        <label for="oed_pdf_link" class="form-label">PDF Reference</label>
+                                        <input type="text" class="form-control" id="oed_pdf_link" name="pdf_link" readonly
+                                               placeholder="Link to uploaded PDF will appear here">
+                                        <div class="form-text">The uploaded PDF will be stored for reference</div>
+                                    </div>
+                                </div>
+
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-save"></i> Save OED Entry
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-lg-4">
+                        <div class="card">
+                            <div class="card-header">
+                                <h6 class="mb-0">About OED Entries</h6>
+                            </div>
+                            <div class="card-body">
+                                <p class="small text-muted">
+                                    Oxford English Dictionary entries provide authoritative definitions that can be used as canonical references for terminology in your experiments.
+                                </p>
+                                <hr>
+                                <h6 class="small">Entry Components:</h6>
+                                <ul class="small text-muted">
+                                    <li><strong>Headword:</strong> The main term</li>
+                                    <li><strong>Pronunciation:</strong> IPA notation</li>
+                                    <li><strong>Etymology:</strong> Word origin</li>
+                                    <li><strong>Definitions:</strong> Numbered senses</li>
+                                    <li><strong>Examples:</strong> Usage in context</li>
+                                    <li><strong>First use:</strong> Historical dating</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </form>
+        </div>
+
+        <!-- Other Dictionary Tab -->
+        <div class="tab-pane fade" id="dictionary" role="tabpanel">
+            <form method="POST" action="{{ url_for('references.upload_dictionary') }}">
+                <input type="hidden" name="reference_subtype" value="dictionary_general">
+                <input type="hidden" name="content_type" value="text">
+                
+                <div class="row mt-3">
+                    <div class="col-lg-8">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5 class="card-title mb-0">Dictionary/Glossary Entry</h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="mb-3">
+                                    <label for="dict_source" class="form-label">Dictionary Source <span class="text-danger">*</span></label>
+                                    <input type="text" class="form-control" id="dict_source" name="journal" required
+                                           placeholder="e.g., Merriam-Webster, Cambridge Dictionary, Domain-Specific Glossary">
+                                </div>
+
+                                <div class="mb-3">
+                                    <label for="dict_term" class="form-label">Term <span class="text-danger">*</span></label>
+                                    <input type="text" class="form-control" id="dict_term" name="title" required
+                                           placeholder="Enter the term being defined">
+                                </div>
+
+                                <div class="mb-3">
+                                    <label for="dict_definition" class="form-label">Definition <span class="text-danger">*</span></label>
+                                    <textarea class="form-control" id="dict_definition" name="content" rows="4" required
+                                              placeholder="Enter the complete definition..."></textarea>
+                                </div>
+
+                                <div class="mb-3">
+                                    <label for="dict_context" class="form-label">Context/Domain</label>
+                                    <input type="text" class="form-control" id="dict_context" name="context"
+                                           placeholder="e.g., Computer Science, Medicine, Legal">
+                                </div>
+
+                                <div class="mb-3">
+                                    <label for="dict_synonyms" class="form-label">Synonyms</label>
+                                    <input type="text" class="form-control" id="dict_synonyms" name="synonyms"
+                                           placeholder="Comma-separated list of synonyms">
+                                </div>
+
+                                <div class="mb-3">
+                                    <label for="dict_url" class="form-label">Source URL</label>
+                                    <input type="url" class="form-control" id="dict_url" name="url"
+                                           placeholder="Link to online dictionary entry">
+                                </div>
+
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-save"></i> Save Dictionary Entry
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+// Remember selected tab
+document.addEventListener('DOMContentLoaded', function() {
+    // Check if there's a saved tab preference
+    const savedTab = localStorage.getItem('referenceUploadTab');
+    if (savedTab) {
+        const tabButton = document.querySelector(`#${savedTab}-tab`);
+        if (tabButton) {
+            new bootstrap.Tab(tabButton).show();
+        }
+    }
+    
+    // Save tab preference when changed
+    document.querySelectorAll('#referenceTypeTabs button[data-bs-toggle="tab"]').forEach(tab => {
+        tab.addEventListener('shown.bs.tab', function (e) {
+            const tabId = e.target.id.replace('-tab', '');
+            localStorage.setItem('referenceUploadTab', tabId);
+        });
+    });
+});
+
+// Auto-format DOI input
+const doiInputs = document.querySelectorAll('input[name="doi"]');
+doiInputs.forEach(input => {
+    input.addEventListener('blur', function() {
+        let doi = this.value.trim();
+        if (doi && !doi.startsWith('10.')) {
+            doi = doi.replace(/^(https?:\/\/)?(dx\.)?doi\.org\//i, '');
+            doi = doi.replace(/^doi:/i, '');
+            this.value = doi;
+        }
+    });
+});
+
+// OED PDF Parser function
+function parseOEDPDF() {
+    const fileInput = document.getElementById('oed_pdf_file');
+    const statusDiv = document.getElementById('oed_parse_status');
+    const file = fileInput.files[0];
+    
+    if (!file) {
+        statusDiv.innerHTML = '<div class="alert alert-warning">Please select a PDF file</div>';
+        return;
+    }
+    
+    // Show loading state
+    statusDiv.innerHTML = '<div class="alert alert-info"><i class="fas fa-spinner fa-spin"></i> Parsing PDF... This may take a moment.</div>';
+    
+    const formData = new FormData();
+    formData.append('file', file);
+    
+    fetch('{{ url_for("references.parse_oed_pdf") }}', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(result => {
+        if (result.success) {
+            // Auto-populate form fields
+            populateOEDForm(result.data);
+            
+            // Show success message
+            statusDiv.innerHTML = `
+                <div class="alert alert-success">
+                    <i class="fas fa-check-circle"></i> Successfully parsed OED entry!
+                </div>
+            `;
+            
+            // Show temporal data if available
+            if (result.data.temporal_data) {
+                displayTemporalData(result.data.temporal_data);
+            }
+        } else {
+            statusDiv.innerHTML = `
+                <div class="alert alert-danger">
+                    <i class="fas fa-exclamation-circle"></i> Error parsing PDF: ${result.error || 'Unknown error'}
+                </div>
+            `;
+        }
+    })
+    .catch(error => {
+        statusDiv.innerHTML = `
+            <div class="alert alert-danger">
+                <i class="fas fa-exclamation-circle"></i> Error: ${error.message || 'Network error'}
+            </div>
+        `;
+    });
+}
+
+function populateOEDForm(data) {
+    // Populate headword/term
+    if (data.headword) {
+        document.getElementById('oed_term').value = data.headword;
+    }
+    
+    // MOST IMPORTANT: Populate the full text field with the complete PDF content
+    if (data.full_text) {
+        document.getElementById('oed_full_text').value = data.full_text;
+    }
+    
+    // Populate first recorded use
+    if (data.first_recorded_use) {
+        document.getElementById('oed_first_use').value = data.first_recorded_use;
+    } else if (data.temporal_data && data.temporal_data.first_use) {
+        document.getElementById('oed_first_use').value = data.temporal_data.first_use;
+    }
+    
+    // Populate historical quotations for temporal tracking
+    if (data.historical_quotations && data.historical_quotations.length > 0) {
+        let quotationsText = '';
+        
+        // Sort by year for chronological order
+        const sortedQuotes = [...data.historical_quotations].sort((a, b) => (a.year || 0) - (b.year || 0));
+        
+        sortedQuotes.forEach(quote => {
+            if (quote.text) {
+                const yearPrefix = quote.year ? `[${quote.year}] ` : '';
+                quotationsText += `${yearPrefix}${quote.text}\n\n`;
+            }
+        });
+        
+        document.getElementById('oed_temporal_quotations').value = quotationsText.trim();
+        
+        // Add century distribution info to the quotations field
+        if (data.temporal_data && data.temporal_data.century_distribution) {
+            let timelineText = '\n\n--- USAGE TIMELINE ---\n';
+            for (const [century, count] of Object.entries(data.temporal_data.century_distribution)) {
+                timelineText += `${century}: ${count} recorded usage${count > 1 ? 's' : ''}\n`;
+            }
+            document.getElementById('oed_temporal_quotations').value += timelineText;
+        }
+    }
+    
+    // Set the PDF reference link (we'll store the filename)
+    const fileInput = document.getElementById('oed_pdf_file');
+    if (fileInput.files[0]) {
+        document.getElementById('oed_pdf_link').value = fileInput.files[0].name;
+    }
+}
+
+function displayTemporalData(temporalData) {
+    // Create a small info box showing temporal analysis
+    const statusDiv = document.getElementById('oed_parse_status');
+    
+    if (temporalData && (temporalData.first_use || temporalData.century_distribution)) {
+        let temporalHTML = '<div class="alert alert-info mt-2"><h6>Temporal Analysis:</h6><ul class="small mb-0">';
+        
+        if (temporalData.first_use) {
+            temporalHTML += `<li>First recorded use: ${temporalData.first_use}</li>`;
+        }
+        
+        if (temporalData.century_distribution && Object.keys(temporalData.century_distribution).length > 0) {
+            temporalHTML += '<li>Usage distribution: ';
+            for (const [century, count] of Object.entries(temporalData.century_distribution)) {
+                temporalHTML += `${century} (${count}), `;
+            }
+            temporalHTML = temporalHTML.slice(0, -2) + '</li>';
+        }
+        
+        if (temporalData.semantic_shifts && temporalData.semantic_shifts.length > 0) {
+            temporalHTML += '<li>Semantic shifts detected in: ';
+            temporalData.semantic_shifts.forEach(shift => {
+                temporalHTML += `${shift.period}, `;
+            });
+            temporalHTML = temporalHTML.slice(0, -2) + '</li>';
+        }
+        
+        temporalHTML += '</ul></div>';
+        statusDiv.innerHTML += temporalHTML;
+    }
+}
+</script>
+{% endblock %}

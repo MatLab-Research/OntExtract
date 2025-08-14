@@ -1,0 +1,23 @@
+[
+  {
+    "extraction_class": "dictionary_entry",
+    "extraction_text": "ontology",
+    "attributes": {
+      "headword": "ontology",
+      "etymology": "A borrowing from Latin. Etymon: Latinontologia.",
+      "first_year": "1663",
+      "definitions": "[{\"number\": \"1\", \"text\": \"Philosophy. The science or study of being; that branch of metaphysics concerned with the nature or essence of being or existence.\"}]",
+      "quotations": "[{\"year\": \"1663\", \"author\": \"G. Harvey\", \"text\": \"Metaphysics..is called also the rst Philosophy, from its nearest approximation to Philosophy, its most proper Denomination is Ontology, or a Discourse of a Being.\"}, {\"year\": \"1721\", \"author\": \"N. Bailey\", \"text\": \"Ontology, an Account of being in the Abstract.\"}, {\"year\": \"1776\", \"author\": \"A. Smith\", \"text\": \"Subtleties and sophisms..composed the whole of this cobweb science of Ontology, which was likewise sometimes called Metaphysics.\"}, {\"year\": \"a1832\", \"author\": \"J. Bentham\", \"text\": \"The eld of ontology, or as it may otherwise be termed, the eld of supremely abstract entities, is a yet untrodden labyrinth.\"}, {\"year\": \"1865\", \"author\": \"Reader\", \"text\": \"We cordially approve and admire,..not least, the signal demolition of Ontology, in the form of the noumenon, or unknowable substratum of matter and mind.\"}]"
+    }
+  },
+  {
+    "extraction_class": "dictionary_entry",
+    "extraction_text": "ontology",
+    "attributes": {
+      "headword": "ontology",
+      "first_year": "1884",
+      "definitions": "[{\"number\": \"1.b\", \"text\": \"As a count noun: a theory or conception relating to the nature of being. Also in extended use.\"}, {\"number\": \"2\", \"text\": \"Logic. Chiey with reference to the work of Stanislaw Le \u015b niewski (1886\u20131939): a system similar in scope to modern predicate logic, which attempts to interpret quantiers without assuming that anything exists beyond written expressions. S. Le \u015b niewski rst developed this system of ontology in conjunction with the logical systems of mereology and protothetic. Cf. mereologyn., prototheticn.\"}]",
+      "quotations": "[{\"year\": \"1855\", \"author\": \"A. Potter\", \"text\": \"[Rationalism] might do but little harm in..disporting itself with its own fanciful creations..respecting necessity and spontaneity.., quiddities and ontologies.\"}, {\"year\": \"1884\", \"author\": null, \"text\": \"Ontology..as a doctrine of the being and relations of all reality, had precedence given to it over Cosmology and Psychology, the two branches of enquiry which follow the reality into its opposite distinctive forms.\"}, {\"year\": \"1903\", \"author\": null, \"text\": \"We are ready to admit all the hard things the Comte has said of the old Ontologies.\"}, {\"year\": \"1909\", \"author\": null, \"text\": \"Even in the most nihilistic of ontologies the eternal is meant to be functional, not be merely the blank and irrelevant negation of temporality.\"}, {\"year\": \"1960\", \"author\": null, \"text\": \"The eect of what Kant called the Copernican revolution in philosophy is that ontology, the theory of Reality, comes to be conditioned by epistemology, the theory of our knowledge.\"}, {\"year\": \"1988\", \"author\": null, \"text\": \"Comte had to..repudiate not only metaphysics but also ontology. Thus would he deprive science of any and every claim to deal with objective reality.\"}]"
+    }
+  }
+]

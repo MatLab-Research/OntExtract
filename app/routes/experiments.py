@@ -4,6 +4,8 @@ from app import db
 from app.models import Document, Experiment
 from datetime import datetime
 import json
+from app.services.text_processing import TextProcessingService
+from app.services.experiment_domain_comparison import DomainComparisonService
 
 experiments_bp = Blueprint('experiments', __name__, url_prefix='/experiments')
 
@@ -36,9 +38,13 @@ def create():
         if not data.get('experiment_type'):
             return jsonify({'error': 'Experiment type is required'}), 400
         
-        if not data.get('document_ids') or len(data['document_ids']) == 0:
+        # For most experiments, at least one document is required.
+        # Exception: domain_comparison can use references only when configuration.use_references is true.
+        config = data.get('configuration', {}) or {}
+        use_refs_only = data.get('experiment_type') == 'domain_comparison' and config.get('use_references')
+        if (not data.get('document_ids') or len(data['document_ids']) == 0) and not use_refs_only:
             return jsonify({'error': 'At least one document must be selected'}), 400
-        
+
         # Create the experiment
         experiment = Experiment(
             name=data['name'],
@@ -47,14 +53,16 @@ def create():
             user_id=current_user.id,
             configuration=json.dumps(data.get('configuration', {}))
         )
-        
+        # Important: Add to session before touching dynamic relationships
+        db.session.add(experiment)
+        db.session.flush()  # ensure experiment has identity for association table
+
         # Add documents to the experiment
-        for doc_id in data['document_ids']:
+        for doc_id in data.get('document_ids', []) or []:
             document = Document.query.filter_by(id=doc_id, user_id=current_user.id).first()
             if document:
                 experiment.add_document(document)
-        
-        db.session.add(experiment)
+
         db.session.commit()
         
         return jsonify({
@@ -180,28 +188,27 @@ def run(experiment_id):
         experiment.started_at = datetime.utcnow()
         db.session.commit()
         
-        # Here you would typically trigger the actual experiment processing
-        # For now, we'll simulate it with a placeholder
-        
-        # TODO: Implement actual experiment processing logic
-        # This could involve:
-        # - Temporal evolution analysis
-        # - Domain comparison analysis
-        # - Entity extraction and ontology mapping
-        # - Statistical analysis
-        
-        # Simulate completion (in production, this would be async)
+        # Run analysis based on experiment type
+        results = None
+        summary = None
+        if experiment.experiment_type == 'domain_comparison':
+            text_service = TextProcessingService()
+            service = DomainComparisonService()
+            results, summary = service.run(experiment, text_service)
+        else:
+            # Placeholder for other experiment types
+            results = {
+                'document_count': experiment.get_document_count(),
+                'total_words': experiment.get_total_word_count(),
+                'experiment_type': experiment.experiment_type,
+                'timestamp': datetime.utcnow().isoformat()
+            }
+            summary = f"Analyzed {experiment.get_document_count()} documents with {experiment.get_total_word_count()} total words."
+
+        # Save results
         experiment.status = 'completed'
         experiment.completed_at = datetime.utcnow()
-        experiment.results_summary = f"Analyzed {experiment.get_document_count()} documents with {experiment.get_total_word_count()} total words."
-        
-        # Store some dummy results for demonstration
-        results = {
-            'document_count': experiment.get_document_count(),
-            'total_words': experiment.get_total_word_count(),
-            'experiment_type': experiment.experiment_type,
-            'timestamp': datetime.utcnow().isoformat()
-        }
+        experiment.results_summary = summary
         experiment.results = json.dumps(results)
         
         db.session.commit()

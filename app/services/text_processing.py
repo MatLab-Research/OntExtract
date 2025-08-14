@@ -240,12 +240,40 @@ class TextProcessingService:
         if not self.enhanced_features_enabled:
             logger.warning("Enhanced features not available, falling back to basic processing")
             return self._basic_file_processing(file_path, file_type)
-        
         try:
             return self.file_processor.process_file(file_path, file_type)
         except Exception as e:
             logger.error(f"Error processing file with shared services: {e}")
             return self._basic_file_processing(file_path, file_type)
+
+    def process_document(self, document):
+        """Process a Document: extract content if file, create segments, and update stats.
+        This is a minimal synchronous pipeline used after uploads."""
+        try:
+            # Extract content for files
+            if document.content_type == 'file' and document.file_path and not document.content:
+                ext = document.file_type or 'txt'
+                content = self.process_file_content(document.file_path, ext)
+                document.content = content
+                document.content_preview = content[:500] + ('...' if len(content) > 500 else '') if content else None
+
+            # Update counts
+            if document.content:
+                document.character_count = len(document.content)
+                document.word_count = len(document.content.split())
+                document.status = 'completed'
+
+            db.session.commit()
+
+            # Create basic segments (optional for references)
+            try:
+                self.create_initial_segments(document)
+            except Exception:
+                # Non-fatal for now
+                db.session.rollback()
+        except Exception as e:
+            db.session.rollback()
+            raise e
     
     def _basic_file_processing(self, file_path: str, file_type: str) -> str:
         """Basic file processing fallback"""

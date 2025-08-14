@@ -1,0 +1,54 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Python: Run app (run.py)",
+      "type": "debugpy",
+      "request": "launch",
+      "python": "${workspaceFolder}/.venv/bin/python",
+      "program": "${workspaceFolder}/run.py",
+      "console": "integratedTerminal",
+      "justMyCode": true,
+      "envFile": "${workspaceFolder}/.env",
+      "env": {
+        "FLASK_ENV": "development",
+        "PYTHONPATH": "${workspaceFolder}"
+      },
+      "args": [],
+      "cwd": "${workspaceFolder}",
+      "purpose": ["debug-in-terminal"],
+      "jinja": true
+    },
+    {
+      "name": "Flask: Debug via module (-m flask)",
+      "type": "debugpy",
+      "request": "launch",
+      "python": "${workspaceFolder}/.venv/bin/python",
+      "module": "flask",
+      "envFile": "${workspaceFolder}/.env",
+      "env": {
+        "FLASK_APP": "run:app",
+        "FLASK_ENV": "development"
+      },
+      "args": [
+        "run",
+        "--no-debugger",
+        "--no-reload",
+        "--port",
+        "5000",
+        "--host",
+        "0.0.0.0"
+      ],
+      "jinja": true,
+      "cwd": "${workspaceFolder}"
+    },
+    {
+      "name": "Python: Unit tests (pytest)",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "pytest",
+      "console": "integratedTerminal",
+      "cwd": "${workspaceFolder}"
+    }
+  ]
+}

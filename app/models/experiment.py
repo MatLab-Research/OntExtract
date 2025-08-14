@@ -1,12 +1,22 @@
 from sqlalchemy import text
 from datetime import datetime
 from app import db
+from app.models.document import Document
 
 # Association table for many-to-many relationship between experiments and documents
 experiment_documents = db.Table('experiment_documents',
     db.Column('experiment_id', db.Integer, db.ForeignKey('experiments.id'), primary_key=True),
     db.Column('document_id', db.Integer, db.ForeignKey('documents.id'), primary_key=True),
     db.Column('added_at', db.DateTime, default=datetime.utcnow)
+)
+
+# Association table for many-to-many relationship between experiments and references
+experiment_references = db.Table('experiment_references',
+    db.Column('experiment_id', db.Integer, db.ForeignKey('experiments.id'), primary_key=True),
+    db.Column('reference_id', db.Integer, db.ForeignKey('documents.id'), primary_key=True),
+    db.Column('include_in_analysis', db.Boolean, default=False),
+    db.Column('added_at', db.DateTime, default=datetime.utcnow),
+    db.Column('notes', db.Text)
 )
 
 class Experiment(db.Model):
@@ -49,6 +59,12 @@ class Experiment(db.Model):
                               backref=db.backref('experiments', lazy='dynamic'),
                               lazy='dynamic')
     
+    references = db.relationship('Document', secondary=experiment_references,
+                                backref=db.backref('referenced_by_experiments', lazy='dynamic'),
+                                lazy='dynamic',
+                                primaryjoin='Experiment.id==experiment_references.c.experiment_id',
+                                secondaryjoin='and_(Document.id==experiment_references.c.reference_id, Document.document_type=="reference")')
+    
     def __init__(self, **kwargs):
         for key, value in kwargs.items():
             if hasattr(self, key):
@@ -80,9 +96,65 @@ class Experiment(db.Model):
                 total += doc.word_count
         return total
     
+    def add_reference(self, reference, include_in_analysis=False, notes=None):
+        """Add a reference to the experiment"""
+        if not self.is_reference_in_experiment(reference):
+            # Use raw SQL to insert with additional fields
+            stmt = experiment_references.insert().values(
+                experiment_id=self.id,
+                reference_id=reference.id,
+                include_in_analysis=include_in_analysis,
+                notes=notes
+            )
+            db.session.execute(stmt)
+            db.session.commit()
+    
+    def remove_reference(self, reference):
+        """Remove a reference from the experiment"""
+        if self.is_reference_in_experiment(reference):
+            stmt = experiment_references.delete().where(
+                (experiment_references.c.experiment_id == self.id) &
+                (experiment_references.c.reference_id == reference.id)
+            )
+            db.session.execute(stmt)
+            db.session.commit()
+    
+    def is_reference_in_experiment(self, reference):
+        """Check if a reference is already in the experiment"""
+        return self.references.filter(experiment_references.c.reference_id == reference.id).count() > 0
+    
+    def get_reference_count(self):
+        """Get the number of references in the experiment"""
+        return self.references.count()
+    
+    def get_included_references(self):
+        """Get references that are included in analysis"""
+        stmt = db.select(experiment_references).where(
+            (experiment_references.c.experiment_id == self.id) &
+            (experiment_references.c.include_in_analysis == True)
+        )
+        result = db.session.execute(stmt)
+        reference_ids = [row.reference_id for row in result]
+        return Document.query.filter(Document.id.in_(reference_ids)).all() if reference_ids else []
+    
+    def update_reference_inclusion(self, reference_id, include_in_analysis):
+        """Update whether a reference is included in analysis"""
+        stmt = experiment_references.update().where(
+            (experiment_references.c.experiment_id == self.id) &
+            (experiment_references.c.reference_id == reference_id)
+        ).values(include_in_analysis=include_in_analysis)
+        db.session.execute(stmt)
+        db.session.commit()
+    
     def can_run(self):
         """Check if experiment can be run"""
-        return self.get_document_count() > 0 and self.status in ['draft', 'completed', 'error']
+        if self.status not in ['draft', 'completed', 'error']:
+            return False
+        # For domain comparison, allow running if there are references
+        if self.experiment_type == 'domain_comparison':
+            return self.get_reference_count() > 0
+        # Default: require documents
+        return self.get_document_count() > 0
     
     def to_dict(self, include_documents=False):
         """Convert experiment to dictionary for API responses"""

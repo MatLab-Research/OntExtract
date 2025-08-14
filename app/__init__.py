@@ -1,4 +1,6 @@
 from flask import Flask
+from sqlalchemy import or_
+import click
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 from flask_login import LoginManager
@@ -8,7 +10,7 @@ import os
 # Initialize extensions
 db = SQLAlchemy()
 migrate = Migrate()
-login_manager = LoginManager()
+login_manager: LoginManager = LoginManager()
 cors = CORS()
 
 def create_app(config_name=None):
@@ -37,7 +39,8 @@ def create_app(config_name=None):
     @login_manager.user_loader
     def load_user(user_id):
         from app.models.user import User
-        return User.query.get(int(user_id))
+        # SQLAlchemy 2.0 style get via session
+        return db.session.get(User, int(user_id))
     
     # Register blueprints
     from app.routes.auth import auth_bp
@@ -45,13 +48,26 @@ def create_app(config_name=None):
     from app.routes.processing import processing_bp
     from app.routes.results import results_bp
     from app.routes.experiments import experiments_bp
+    from app.routes.references import references_bp
     
     app.register_blueprint(auth_bp, url_prefix='/auth')
     app.register_blueprint(text_input_bp, url_prefix='/input')
     app.register_blueprint(processing_bp, url_prefix='/process')
     app.register_blueprint(results_bp, url_prefix='/results')
     app.register_blueprint(experiments_bp)
+    app.register_blueprint(references_bp)
     
+    # Jinja filters
+    @app.template_filter('number_format')
+    def number_format(value):
+        try:
+            return f"{int(value):,}"
+        except (ValueError, TypeError):
+            try:
+                return f"{float(value):,.0f}"
+            except Exception:
+                return value
+
     # Main route
     @app.route('/')
     def index():
@@ -62,4 +78,40 @@ def create_app(config_name=None):
     os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
     os.makedirs('logs', exist_ok=True)
     
+    # Register CLI commands
+    register_cli(app)
+    
     return app
+
+
+def register_cli(app: Flask) -> None:
+    """Register Flask CLI commands."""
+
+    @app.cli.command("init-db")
+    def init_db_command():
+        """Initialize database tables from models."""
+        from app import db as _db
+        with app.app_context():
+            _db.create_all()
+        click.echo("Database initialized.")
+
+    @app.cli.command("create-admin")
+    @click.option("--username", prompt=True)
+    @click.option("--email", prompt=True)
+    @click.option("--password", prompt=True, hide_input=True, confirmation_prompt=True)
+    def create_admin_command(username: str, email: str, password: str):
+        """Create an admin user."""
+        from app import db as _db
+        from app.models.user import User
+        with app.app_context():
+            # Use session-based query to avoid class-level query property
+            existing = db.session.query(User).filter(
+                or_(getattr(User, "username") == username, getattr(User, "email") == email)
+            ).first()
+            if existing:
+                click.echo("User with that username or email already exists.")
+                return
+            user = User(username=username, email=email, password=password, is_admin=True)
+            _db.session.add(user)
+            _db.session.commit()
+            click.echo(f"Admin user '{username}' created.")

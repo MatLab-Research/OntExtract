@@ -128,7 +128,7 @@ In development mode, the entire source code is mounted as a volume for live relo
 ## Ports
 
 - **5000**: Flask application (web interface)
-- **5433**: PostgreSQL database (external access)
+- **5434**: PostgreSQL database (external access)
 
 ## Networking
 
@@ -146,7 +146,7 @@ Both services include health checks:
 
 ### Common Issues
 
-1. **Port conflicts**: Change ports in docker-compose.yml if 5000 or 5433 are in use
+1. **Port conflicts**: Change ports in docker-compose.yml if 5000 or 5434 are in use
 2. **Permission errors**: Ensure Docker daemon is running and user has permissions
 3. **Build failures**: Check Docker logs and ensure all dependencies are available
 

@@ -58,7 +58,8 @@ class LocalEmbeddingProvider(BaseEmbeddingProvider):
             os.environ["HF_HUB_OFFLINE"] = "1"
             os.environ["TRANSFORMERS_OFFLINE"] = "1"
             
-            self.model = SentenceTransformer(self.model_name, local_files_only=True)
+            # Initialize without unsupported kwargs; offline behavior controlled via env vars
+            self.model = SentenceTransformer(self.model_name)
             # Update dimension based on actual model
             test_embedding = self.model.encode("test")
             self._dimension = len(test_embedding)

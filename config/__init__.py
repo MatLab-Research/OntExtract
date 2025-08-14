@@ -1,8 +1,19 @@
 import os
-from dotenv import load_dotenv
+from dotenv import load_dotenv, find_dotenv
 
-# Load environment variables from .env file
-load_dotenv()
+# Load environment variables from .env and local overrides
+# Order: .env (base) -> .env.local (overrides) -> local.env (overrides)
+base_env = find_dotenv(filename=".env")
+if base_env:
+    load_dotenv(base_env, override=False)
+
+local_env = find_dotenv(filename=".env.local")
+if local_env:
+    load_dotenv(local_env, override=True)
+
+alt_local_env = find_dotenv(filename="local.env")
+if alt_local_env:
+    load_dotenv(alt_local_env, override=True)
 
 class Config:
     """Base configuration class"""
@@ -29,6 +40,20 @@ class Config:
     ANTHROPIC_API_KEY = os.environ.get('ANTHROPIC_API_KEY')
     OPENAI_API_KEY = os.environ.get('OPENAI_API_KEY')
     DEFAULT_LLM_PROVIDER = os.environ.get('DEFAULT_LLM_PROVIDER', 'anthropic')
+
+    # OED Researcher API Configuration (use env; do not commit secrets)
+    OED_USE_API = os.environ.get('OED_USE_API', 'False').lower() in {'true', '1', 'yes', 'on', 'y', 't'}
+    OED_APP_ID = os.environ.get('OED_APP_ID')  # set in .env.local
+    OED_ACCESS_KEY = os.environ.get('OED_ACCESS_KEY')  # set in .env.local
+    OED_API_BASE_URL = os.environ.get('OED_API_BASE_URL', '').rstrip('/')  # optional override
+    OED_API_TIMEOUT = float(os.environ.get('OED_API_TIMEOUT', '15'))
+
+    # Reference metadata enrichment flags
+    PREFILL_METADATA = os.environ.get('PREFILL_METADATA', 'True').lower() in {'true','1','yes','on','y','t'}
+    PREFILL_USE_LANGEXTRACT = os.environ.get('PREFILL_USE_LANGEXTRACT', 'False').lower() in {'true','1','yes','on','y','t'}
+    PREFILL_USE_ZOTERO = os.environ.get('PREFILL_USE_ZOTERO', 'False').lower() in {'true','1','yes','on','y','t'}
+    ZOTERO_API_KEY = os.environ.get('ZOTERO_API_KEY')
+    ZOTERO_USER_ID = os.environ.get('ZOTERO_USER_ID')
     
     # Google Cloud Configuration
     GOOGLE_APPLICATION_CREDENTIALS = os.environ.get('GOOGLE_APPLICATION_CREDENTIALS')

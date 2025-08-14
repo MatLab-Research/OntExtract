@@ -1,33 +1,32 @@
 # Shared Services Requirements
 # Core dependencies for embedding, ontology, LLM, and file processing services
+#
+# Notes:
+# - Flask and related web stack packages are intentionally omitted here to avoid
+#   version conflicts. They are provided by the main application requirements
+#   (see requirements.txt).
+# - To prevent downgrades, any packages that are also specified in the main app
+#   with higher versions have been removed here so they inherit the app's version.
 
-# Web Framework & Database
-Flask==2.3.3
-Flask-SQLAlchemy==3.0.5
-Flask-Migrate==4.0.5
-Flask-Login==0.6.3
-Flask-CORS==4.0.0
-SQLAlchemy==2.0.21
+# Web Framework & Database (inherited from main app)
+# Flask and Flask-* are removed to avoid duplicate/lower pins.
+# SQLAlchemy is also inherited via Flask-SQLAlchemy in the main app.
 
 # Text Processing & Embeddings
-sentence-transformers==2.2.2
-numpy==1.24.3
-scikit-learn==1.3.0
+# Inherit sentence-transformers, numpy, scikit-learn from main app (higher versions there).
 nltk==3.8.1
 
 # File Processing
+# Inherit python-docx, beautifulsoup4, lxml from main app (higher versions there).
 PyPDF2==3.0.1
-python-docx==0.8.11
-beautifulsoup4==4.12.2
-lxml==4.9.3
 
 # Ontology Processing (RDF/TTL)
 rdflib==7.0.0
 owlrl==6.0.2
 
 # HTTP Requests for APIs
+# Inherit urllib3 from main app (higher version there).
 requests==2.31.0
-urllib3==2.0.4
 
 # Environment & Configuration
 python-dotenv==1.0.0
@@ -39,13 +38,12 @@ pydantic==2.3.0
 # torch==2.0.1  # For local models
 
 # Testing & Development
-pytest==7.4.0
-pytest-flask==1.2.0
+# Inherit pytest and pytest-flask from main app (higher versions there).
 pytest-mock==3.11.1
 
 # Production & Deployment
+# Inherit redis from main app (higher version there).
 gunicorn==21.2.0
-redis==4.6.0  # For caching if needed
 
 # Utilities
 colorama==0.4.6

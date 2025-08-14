@@ -4,7 +4,6 @@ from werkzeug.utils import secure_filename
 import os
 import uuid
 from datetime import datetime
-import PyPDF2
 from docx import Document as DocxDocument
 from langdetect import detect
 
@@ -122,7 +121,8 @@ def upload_file():
         
         # Validate file type
         file_handler = FileHandler()
-        if not file_handler.allowed_file(file.filename):
+        fname = file.filename or ''
+        if not file_handler.allowed_file(fname):
             allowed = ', '.join(current_app.config['ALLOWED_EXTENSIONS'])
             error_msg = f'File type not allowed. Allowed types: {allowed}'
             if request.is_json:
@@ -131,8 +131,8 @@ def upload_file():
             return redirect(url_for('text_input.upload_form'))
         
         # Generate secure filename
-        original_filename = file.filename
-        filename = secure_filename(original_filename)
+        original_filename = fname
+        filename = secure_filename(original_filename or '')
         unique_filename = f"{uuid.uuid4().hex}_{filename}"
         
         # Save file
@@ -145,7 +145,7 @@ def upload_file():
         file_size = os.path.getsize(file_path)
         
         # Extract text content
-        content = file_handler.extract_text_from_file(file_path, original_filename)
+        content = file_handler.extract_text_from_file(file_path, original_filename or '')
         
         if not content:
             os.remove(file_path)  # Clean up file
@@ -157,7 +157,7 @@ def upload_file():
         
         # Auto-generate title if not provided
         if not title:
-            title = os.path.splitext(original_filename)[0]
+            title = os.path.splitext(original_filename or '')[0]
         
         # Detect language
         detected_language = None
@@ -170,7 +170,7 @@ def upload_file():
             language_confidence = 0.5
         
         # Get file extension
-        file_extension = file_handler.get_file_extension(original_filename)
+        file_extension = file_handler.get_file_extension(original_filename or '')
         
         # Create document record
         document = Document(

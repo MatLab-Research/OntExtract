@@ -1,0 +1,438 @@
+{% extends 'base.html' %}
+{% block content %}
+<h2>Add OED Reference</h2>
+
+<div class="alert alert-info py-2 small" role="alert">
+  To respect the OED Researcher API terms, this tool only stores non-copyright metadata
+  (entry_id, headword, and part of speech). Definitions, quotations, and other copyrighted
+  content are not persisted; the preview is fetched live for selection only.
+  Analysis features refer back to the entry_id at runtime.
+  Please ensure your use complies with the applicable license and fair use policies.
+  
+</div>
+
+{% if not config.OED_USE_API %}
+<div class="alert alert-warning" role="alert">
+  OED API is disabled. Set OED_USE_API=true and provide OED_APP_ID and OED_ACCESS_KEY in your environment.
+  You can still draft this entry_id, but Preview and add will fail until enabled.
+  
+</div>
+{% endif %}
+
+<form id="oed-form" method="post" action="{{ url_for('references.add_oed_reference') }}">
+  <input type="hidden" name="experiment_id" value="{{ experiment_id or '' }}" />
+  <div class="mb-3">
+    <label for="entry_id" class="form-label">OED Entry ID</label>
+    <input type="text" class="form-control" id="entry_id" name="entry_id" placeholder="e.g., orchestra_nn01" required>
+    <div class="d-flex align-items-center mt-2 gap-2">
+      <small class="text-muted">If unsure, try suggestions based on the headword.</small>
+  <button type="button" class="btn btn-sm btn-outline-primary" id="suggest-btn">Suggest IDs</button>
+  <button type="button" class="btn btn-sm btn-outline-primary" id="variants-btn" title="Load variants across parts of speech">Load POS Variants</button>
+    </div>
+    <div id="suggestions" class="mt-2"></div>
+    <div id="variants" class="mt-3"></div>
+  </div>
+
+  {% if experiment_id %}
+  <div class="mb-3 form-check">
+    <input type="checkbox" class="form-check-input" id="include_in_analysis" name="include_in_analysis" value="true">
+    <label class="form-check-label" for="include_in_analysis">Include in analysis</label>
+  </div>
+  {% endif %}
+
+  <div class="mb-3">
+    <button type="button" class="btn btn-outline-primary" id="preview-btn">Preview</button>
+    <button type="submit" class="btn btn-primary">Add Reference</button>
+    <a href="{{ url_for('references.index') }}" class="btn btn-link">Cancel</a>
+  </div>
+
+  <div id="preview" class="card d-none">
+    <div class="card-body">
+      <h5 class="card-title" id="preview-headword"></h5>
+      <h6 class="card-subtitle mb-2 text-muted" id="preview-pos"></h6>
+      <div class="d-flex justify-content-between align-items-center mb-2">
+        <div class="small text-muted" id="preview-sense-count"></div>
+        <div>
+          <button type="button" id="add-now-btn" class="btn btn-sm btn-success d-none">Add Reference Now</button>
+          <button type="button" id="toggle-raw-btn" class="btn btn-sm btn-outline-primary">Show Raw JSON</button>
+        </div>
+      </div>
+      <div id="preview-summary" class="mb-2 small"></div>
+      <div id="preview-senses"></div>
+      <pre class="mb-0 d-none" id="preview-raw" style="white-space: pre-wrap; max-height: 300px; overflow-y:auto;"></pre>
+    </div>
+  </div>
+</form>
+
+<script>
+  const btn = document.getElementById('preview-btn');
+  const suggestBtn = document.getElementById('suggest-btn');
+  const variantsBtn = document.getElementById('variants-btn');
+  const entryInput = document.getElementById('entry_id');
+  // Title input removed; backend generates a default title (OED: <headword>)
+  const preview = document.getElementById('preview');
+  const headwordEl = document.getElementById('preview-headword');
+  const posEl = document.getElementById('preview-pos');
+  const rawEl = document.getElementById('preview-raw');
+  const suggestionsBox = document.getElementById('suggestions');
+  const addNowBtn = document.getElementById('add-now-btn');
+  const toggleRawBtn = document.getElementById('toggle-raw-btn');
+  const previewSummary = document.getElementById('preview-summary');
+  const senseCountEl = document.getElementById('preview-sense-count');
+  // Persist variant selections across loads
+  let selectedVariantIds = new Set();
+  let selectedVariantStoreKey = null;
+
+
+  btn.addEventListener('click', async () => {
+    const id = entryInput.value.trim();
+    if (!id) return;
+    headwordEl.textContent = '';
+    posEl.textContent = '';
+    rawEl.textContent = 'Loading…';
+    preview.classList.remove('d-none');
+    const sensesDiv = document.getElementById('preview-senses');
+    if (sensesDiv) sensesDiv.innerHTML = '';
+
+    try {
+      const res = await fetch(`/references/api/oed/word/${encodeURIComponent(id)}`);
+      const json = await res.json();
+      if (!json.success) {
+        rawEl.textContent = `Error: ${json.error || 'unknown'}`;
+        return;
+      }
+      const data = json.data || {};
+      const headword = data.headword || data.word || id;
+      const pos = data.pos || data.part_of_speech || '';
+      headwordEl.textContent = headword;
+      posEl.textContent = pos ? `Part of speech: ${pos}` : '';
+  // Title is generated on the server; nothing to set here
+      // Senses UI (robust: flatten nested, show minimal info)
+      function flattenSenses(senses) {
+        let result = [];
+        for (const s of senses) {
+          const sid = s.sense_id || s.id || s.oid || '';
+          const label = s.label || '';
+          let definition = s.definition || '';
+          if (Array.isArray(definition)) definition = definition[0] || '';
+          let excerpt = '';
+          if (definition) {
+            const words = definition.split(/\s+/).slice(0, 20);
+            excerpt = words.join(' ');
+            if (excerpt.length > 200) excerpt = excerpt.slice(0, 200);
+          }
+          if (sid) {
+            result.push({ sid, label, excerpt });
+          }
+          for (const subfield of ['subsenses', 'children', 'senses']) {
+            if (Array.isArray(s[subfield])) {
+              result = result.concat(flattenSenses(s[subfield]));
+            }
+          }
+        }
+        return result;
+      }
+      // Combine top-level senses array with server-side extracted_senses for completeness
+      const rawPrimary = Array.isArray(data.senses) ? data.senses : [];
+      const rawExtracted = Array.isArray(data.extracted_senses) ? data.extracted_senses : [];
+      const senses = (function() {
+        // Normalize both lists into {sid,label,excerpt}
+        const out = [];
+        const pushUnique = (sid, label, excerpt) => {
+          if (!sid) return;
+          if (out.find(o => o.sid === sid)) return;
+            out.push({ sid, label: label || '', excerpt: excerpt || '' });
+        };
+        // From primary nested structure
+        flattenSenses(rawPrimary).forEach(s => pushUnique(s.sid, s.label, s.excerpt));
+        // From extracted_senses (already flattened in backend)
+        rawExtracted.forEach(es => {
+          const sid = es.sense_id || es.id || es.oid;
+          let excerpt = es.definition || '';
+          if (excerpt && excerpt.split) {
+            const words = excerpt.split(/\s+/).slice(0,20);
+            excerpt = words.join(' ');
+            if (excerpt.length > 200) excerpt = excerpt.slice(0,200);
+          }
+          pushUnique(sid, es.label, excerpt);
+        });
+        return out;
+      })();
+      if (sensesDiv && senses.length) {
+        sensesDiv.innerHTML = `<div class='mb-2'><strong>Senses</strong> <small class='text-muted'>(all included by default – uncheck to exclude)</small></div>` +
+          senses.map(s => {
+            return `<div class='form-check mb-1'>
+              <input class='form-check-input' type='checkbox' name='sense_id' value='${s.sid}' id='sense_${s.sid}' checked>
+              <label class='form-check-label' for='sense_${s.sid}'>
+                <strong>${s.sid}</strong>${s.label ? ' • ' + s.label : ''}${s.excerpt ? ' — ' + s.excerpt : ''}
+              </label>
+            </div>`;
+          }).join('') + `<div class='mt-2 small text-muted' id='senses-summary'></div>`;
+        const updateSenseSummary = () => {
+          const boxes = sensesDiv.querySelectorAll("input[name='sense_id']");
+            const checked = Array.from(boxes).filter(b => b.checked).map(b => b.value);
+            const summaryEl = sensesDiv.querySelector('#senses-summary');
+            if (summaryEl) {
+              summaryEl.textContent = checked.length ? `${checked.length} sense(s) selected: ${checked.slice(0,8).join(', ')}${checked.length>8?' …':''}` : 'No senses selected';
+            }
+        };
+        sensesDiv.querySelectorAll("input[name='sense_id']").forEach(cb => cb.addEventListener('change', updateSenseSummary));
+        updateSenseSummary();
+        addNowBtn.classList.remove('d-none');
+        senseCountEl.textContent = `${senses.length} total sense(s)`;
+        // Build compact summary list (IDs and optional labels)
+        const summaryLines = senses.slice(0, 30).map(s => `<span class='badge bg-light text-dark border me-1 mb-1'>${s.sid}${s.label?'<span class="text-muted">'+ (s.label.length>20?s.label.slice(0,20)+'…':s.label) +'</span>':''}</span>`).join('');
+        previewSummary.innerHTML = `<div class='small'>${summaryLines}${senses.length>30?'<span class="text-muted">…</span>':''}</div>`;
+      }
+      // Format JSON with syntax highlighting (hidden by default)
+      rawEl.innerHTML = syntaxHighlightJson(data);
+    } catch (e) {
+      rawEl.textContent = `Network error: ${e}`;
+    }
+
+  // Helper to pretty-print and colorize JSON
+  function syntaxHighlightJson(json) {
+    if (typeof json != 'string') {
+      json = JSON.stringify(json, null, 2);
+    }
+    json = json.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    return json.replace(/("(\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?)/g, function (match) {
+      let cls = 'text-dark';
+      if (/^"/.test(match)) {
+        if (/:$/.test(match)) {
+          cls = 'text-primary';
+        } else {
+          cls = 'text-success';
+        }
+      } else if (/true|false/.test(match)) {
+        cls = 'text-warning';
+      } else if (/null/.test(match)) {
+        cls = 'text-muted';
+      } else {
+        cls = 'text-danger';
+      }
+      return '<span class="' + cls + '">' + match + '</span>';
+    });
+  }
+  
+  });
+
+  suggestBtn.addEventListener('click', async () => {
+    const id = entryInput.value.trim();
+    const base = id.split('_')[0] || id; // allow typing headword or partial id
+    const q = base || prompt('Enter headword to suggest IDs:') || '';
+    if (!q.trim()) return;
+    suggestionsBox.innerHTML = '<small class="text-muted">Searching…</small>';
+    try {
+      const res = await fetch(`/references/api/oed/suggest?q=${encodeURIComponent(q.trim())}`);
+      const json = await res.json();
+      if (!json.success) {
+        suggestionsBox.innerHTML = `<div class="text-danger small">${json.error || 'No suggestions'}</div>`;
+        return;
+      }
+      const list = (json.suggestions || []);
+      if (!list.length) {
+        suggestionsBox.innerHTML = '<small class="text-muted">No suggestions found.</small>';
+        return;
+      }
+      const html = list.map(s => `<button type="button" class="btn btn-sm btn-outline-primary me-2 mb-2" data-entryid="${s.entry_id}">${s.entry_id}${s.headword?` • ${s.headword}`:''}</button>`).join('');
+      suggestionsBox.innerHTML = html;
+      suggestionsBox.querySelectorAll('button[data-entryid]').forEach(b => {
+        b.addEventListener('click', () => {
+          entryInput.value = b.dataset.entryid;
+          btn.click();
+        });
+      });
+    } catch (e) {
+      suggestionsBox.innerHTML = `<div class=\"text-danger small\">Network error: ${e}</div>`;
+    }
+  });
+
+  variantsBtn.addEventListener('click', async () => {
+    const raw = entryInput.value.trim();
+    const base = raw.split('_')[0] || raw;
+    if (!base) return;
+    const box = document.getElementById('variants');
+    box.innerHTML = '<small class="text-muted">Loading variants…</small>';
+    // Setup storage key per headword base
+    selectedVariantStoreKey = `oed-variants-${base.toLowerCase()}`;
+    try {
+      const stored = sessionStorage.getItem(selectedVariantStoreKey);
+      if (stored) {
+        const list = JSON.parse(stored);
+        selectedVariantIds = new Set(Array.isArray(list) ? list : []);
+      }
+    } catch {}
+    try {
+      const res = await fetch(`/references/api/oed/variants?q=${encodeURIComponent(base)}`);
+      const json = await res.json();
+      if (!json.success) {
+        box.innerHTML = `<div class='text-danger small'>${json.error || 'Failed to load variants'}</div>`;
+        return;
+      }
+      const variants = json.variants || [];
+      if (!variants.length) {
+        box.innerHTML = '<small class="text-muted">No variants found.</small>';
+        return;
+      }
+      const html = variants.map(v => {
+        const count = (v.extracted_senses || []).length;
+        const senses = (v.extracted_senses || []).slice(0,6).map(s => `<span class='badge bg-light text-dark border me-1 mb-1' title='${s.sense_id}'>${s.sense_id}</span>`).join('');
+        return `<div class='border rounded p-2 mb-2 variant-item'>
+          <div class='form-check d-flex align-items-start' title='${count} sense(s) available'>
+            <input class='form-check-input mt-1 variant-checkbox' type='checkbox' value='${v.entry_id}' id='variant_${v.entry_id}'>
+            <label class='form-check-label ms-2 w-100' for='variant_${v.entry_id}'>
+              <div class='d-flex justify-content-between align-items-center'>
+                <div>
+                  <strong>${v.entry_id}</strong> ${v.part_of_speech ? ' • ' + v.part_of_speech : ''}
+                  <span class='badge bg-secondary ms-2' title='${count} senses'>${count}</span>
+                </div>
+                <button type='button' class='btn btn-sm btn-outline-primary preview-variant' data-entryid='${v.entry_id}'>Preview</button>
+              </div>
+              <div class='mt-1 small text-muted'>Senses: ${senses || '—'}</div>
+            </label>
+          </div>
+        </div>`;
+      }).join('');
+  box.innerHTML = `<div class='mb-1 d-flex justify-content-between align-items-center'>
+          <strong>Variants (POS entries)</strong>
+          <div class='btn-group'>
+    <button type='button' class='btn btn-sm btn-outline-primary' id='select-all-variants'>Select all</button>
+    <button type='button' class='btn btn-sm btn-outline-primary' id='clear-all-variants'>Clear</button>
+          </div>
+        </div>` + html + `<div class='mt-2'><button type='button' class='btn btn-primary' id='add-selected-variants' disabled>Add Selected Variants</button></div>`;
+      box.querySelectorAll('button.preview-variant').forEach(btnEl => {
+        btnEl.addEventListener('click', () => {
+          entryInput.value = btnEl.dataset.entryid;
+          btn.click();
+          window.scrollTo({ top: preview.offsetTop - 40, behavior: 'smooth' });
+        });
+      });
+      const addSelectedBtn = document.getElementById('add-selected-variants');
+      const selectAllBtn = document.getElementById('select-all-variants');
+      const clearAllBtn = document.getElementById('clear-all-variants');
+
+      const checkboxes = Array.from(box.querySelectorAll('.variant-checkbox'));
+      // Initialize checked state from preserved selections; default to all checked if no prior selections
+      if (selectedVariantIds.size === 0) {
+        // default select all and populate
+        checkboxes.forEach(cb => { cb.checked = true; selectedVariantIds.add(cb.value); });
+      } else {
+        checkboxes.forEach(cb => { cb.checked = selectedVariantIds.has(cb.value); });
+      }
+      persistSelectedVariants();
+      updateAddButtonState();
+
+      checkboxes.forEach(cb => {
+        cb.addEventListener('change', () => {
+          if (cb.checked) selectedVariantIds.add(cb.value); else selectedVariantIds.delete(cb.value);
+          persistSelectedVariants();
+          updateAddButtonState();
+        });
+      });
+
+      selectAllBtn.addEventListener('click', () => {
+        checkboxes.forEach(cb => { cb.checked = true; selectedVariantIds.add(cb.value); });
+        persistSelectedVariants();
+        updateAddButtonState();
+      });
+      clearAllBtn.addEventListener('click', () => {
+        checkboxes.forEach(cb => { cb.checked = false; });
+        selectedVariantIds.clear();
+        persistSelectedVariants();
+        updateAddButtonState();
+      });
+
+      addSelectedBtn.addEventListener('click', () => {
+        const checked = Array.from(box.querySelectorAll('.variant-checkbox:checked')).map(cb => cb.value);
+        if (!checked.length) { alert('Select at least one variant.'); return; }
+        // Build and submit hidden form for batch add
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = '/references/oed/add_batch';
+        // experiment linkage
+        const expInput = document.querySelector("#oed-form input[name='experiment_id']");
+        if (expInput && expInput.value) {
+          const exHidden = document.createElement('input');
+          exHidden.type = 'hidden';
+          exHidden.name = 'experiment_id';
+          exHidden.value = expInput.value;
+          form.appendChild(exHidden);
+        }
+        checked.forEach(eid => {
+          const h = document.createElement('input');
+          h.type = 'hidden'; h.name = 'entry_id'; h.value = eid; form.appendChild(h);
+        });
+        document.body.appendChild(form);
+        form.submit();
+      });
+
+      function updateAddButtonState() {
+        addSelectedBtn.disabled = selectedVariantIds.size === 0;
+      }
+      function persistSelectedVariants() {
+        try {
+          if (selectedVariantStoreKey) {
+            sessionStorage.setItem(selectedVariantStoreKey, JSON.stringify(Array.from(selectedVariantIds)));
+          }
+        } catch {}
+      }
+      // end outer try for variants load
+    } catch (e) {
+      box.innerHTML = `<div class='text-danger small'>Network error: ${e}</div>`;
+    }
+  });
+
+  // Toggle raw JSON visibility
+  toggleRawBtn.addEventListener('click', () => {
+    rawEl.classList.toggle('d-none');
+    toggleRawBtn.textContent = rawEl.classList.contains('d-none') ? 'Show Raw JSON' : 'Hide Raw JSON';
+  });
+
+  // Add reference immediately with currently selected senses
+  addNowBtn.addEventListener('click', () => {
+    submitFormWithSelectedSenses();
+  });
+
+  function submitFormWithSelectedSenses() {
+    // Ensure at least one sense input exists; if none, just submit
+    const form = document.getElementById('oed-form');
+    form.submit();
+  }
+
+  async function quickAddEntry(entryId) {
+    // Fetch word data to get senses, then create hidden inputs and submit
+    try {
+      const res = await fetch(`/references/api/oed/word/${encodeURIComponent(entryId)}`);
+      const json = await res.json();
+      if (!json.success) {
+        alert('Failed to fetch entry: ' + (json.error || 'unknown'));
+        return;
+      }
+      entryInput.value = entryId;
+  // Title is generated server-side; no need to set a field
+      // Remove any existing dynamic hidden sense inputs
+      document.querySelectorAll('.dynamic-sense').forEach(el => el.remove());
+      const data = json.data || {};
+      const combined = [];
+      if (Array.isArray(data.extracted_senses)) combined.push(...data.extracted_senses);
+      if (Array.isArray(data.senses)) combined.push(...data.senses);
+      const ids = new Set();
+      combined.forEach(s => {
+        const sid = s.sense_id || s.id || s.oid;
+        if (!sid || ids.has(sid)) return;
+        ids.add(sid);
+        const input = document.createElement('input');
+        input.type = 'hidden';
+        input.name = 'sense_id';
+        input.value = sid;
+        input.classList.add('dynamic-sense');
+        document.getElementById('oed-form').appendChild(input);
+      });
+      document.getElementById('oed-form').submit();
+    } catch (e) {
+      alert('Network error while adding entry: ' + e);
+    }
+  }
+</script>
+{% endblock %}

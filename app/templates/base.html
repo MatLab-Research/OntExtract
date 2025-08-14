@@ -25,6 +25,12 @@
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
         }
         
+        /* Global content width control */
+        :root {
+            /* Change this to adjust max page width */
+            --content-max-width: 1200px;
+        }
+        
         .navbar-brand {
             font-weight: 600;
             font-size: 1.5rem;
@@ -66,6 +72,12 @@
             min-height: calc(100vh - 120px);
             padding-top: 2rem;
             padding-bottom: 2rem;
+        }
+        .main-inner {
+            max-width: var(--content-max-width);
+            margin: 0 auto;
+            padding-left: 1rem;
+            padding-right: 1rem;
         }
         
         .upload-area {
@@ -166,6 +178,11 @@
                         </a>
                     </li>
                     <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('references.index') }}">
+                            <i class="fas fa-book me-1"></i>References
+                        </a>
+                    </li>
+                    <li class="nav-item">
                         <a class="nav-link" href="{{ url_for('processing.processing_home') }}">
                             <i class="fas fa-cogs me-1"></i>Processing
                         </a>
@@ -233,7 +250,9 @@
 
     <!-- Main Content -->
     <main class="main-content">
-        {% block content %}{% endblock %}
+        <div class="main-inner">
+            {% block content %}{% endblock %}
+        </div>
     </main>
 
     <!-- Loading Spinner -->

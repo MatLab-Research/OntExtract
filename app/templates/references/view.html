@@ -1,0 +1,296 @@
+{% extends "base.html" %}
+
+{% block title %}{{ reference.title }} - References - OntExtract{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-12">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="{{ url_for('index') }}">Home</a></li>
+                    <li class="breadcrumb-item"><a href="{{ url_for('references.index') }}">References</a></li>
+                    <li class="breadcrumb-item active">{{ reference.title|truncate(50) }}</li>
+                </ol>
+            </nav>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col">
+                    <h1>{{ reference.title }}</h1>
+                    <span class="badge bg-info mb-2">{{ reference.get_reference_subtype_display() }}</span>
+                    {% if reference.source_metadata and reference.source_metadata.get('oed_entry_id') %}
+                    <span class="badge bg-secondary mb-2">OED</span>
+                    {% endif %}
+                                        {% if reference.source_metadata and reference.source_metadata.get('selected_senses') %}
+                                        <form method="post" action="{{ url_for('references.split_oed_reference', parent_id=reference.id) }}" class="d-inline">
+                                            <button type="submit" class="btn btn-sm btn-outline-secondary" title="Create individual entries for each sense">Split Senses</button>
+                                        </form>
+                                        {% endif %}
+                    {% if reference.get_citation() %}
+                    <p class="text-muted">{{ reference.get_citation() }}</p>
+                    {% endif %}
+        </div>
+        <div class="col-auto">
+            <div class="btn-group" role="group">
+                <a href="{{ url_for('references.edit', id=reference.id) }}" class="btn btn-outline-primary">
+                    <i class="fas fa-edit"></i> Edit
+                </a>
+                <form method="POST" action="{{ url_for('references.delete', id=reference.id) }}" 
+                      style="display: inline;"
+                      onsubmit="return confirm('Are you sure you want to delete this reference?');">
+                    <button type="submit" class="btn btn-outline-danger">
+                        <i class="fas fa-trash"></i> Delete
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="row mt-4">
+        <div class="col-lg-8">
+            <!-- Document Information -->
+            <div class="card mb-3">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Document Information</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <p><strong>File:</strong> {{ reference.original_filename or 'N/A' }}</p>
+                            <p><strong>Type:</strong> {{ reference.file_type|upper if reference.file_type else 'Text' }}</p>
+                            <p><strong>Size:</strong> 
+                                {% if reference.file_size %}
+                                    {{ (reference.file_size / 1024)|round(2) }} KB
+                                {% else %}
+                                    N/A
+                                {% endif %}
+                            </p>
+                        </div>
+                        <div class="col-md-6">
+                            <p><strong>Status:</strong>
+                                {% if reference.status == 'completed' %}
+                                <span class="badge bg-success">Processed</span>
+                                {% elif reference.status == 'processing' %}
+                                <span class="badge bg-info">Processing</span>
+                                {% elif reference.status == 'error' %}
+                                <span class="badge bg-danger">Error</span>
+                                {% else %}
+                                <span class="badge bg-secondary">{{ reference.status|title }}</span>
+                                {% endif %}
+                            </p>
+                            <p><strong>Word Count:</strong> {{ reference.word_count or 'N/A' }}</p>
+                            <p><strong>Uploaded:</strong> {{ reference.created_at.strftime('%Y-%m-%d %H:%M') }}</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Source Metadata -->
+            {% if reference.source_metadata %}
+            <div class="card mb-3">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Details</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        {% if reference.source_metadata.get('oed_entry_id') %}
+                                                <div class="col-12 mb-2">
+                                                        <strong>OED Entry ID:</strong> {{ reference.source_metadata.get('oed_entry_id') }}
+                                                </div>
+                                                {% if reference.source_metadata.get('selected_senses') %}
+                                                <div class="col-12 mb-2">
+                                                        <strong>Selected Senses:</strong>
+                                                                                <div class="mb-2">
+                                                                                    {% for sense in reference.source_metadata.selected_senses %}
+                                                                                        <div class="border rounded p-1 mb-1 small">
+                                                                                            <span class="badge bg-light text-dark border me-1">{{ sense.sense_id }}</span>
+                                                                                            {% if sense.label %}<span class="text-muted">{{ sense.label }}</span>{% endif %}
+                                                                                            {% if sense.definition %}<span class="text-muted"> — {{ sense.definition }}</span>{% endif %}
+                                                                                        </div>
+                                                                                    {% endfor %}
+                                                                                </div>
+                                                                                {% if reference.children.count() %}
+                                                                                <div class="small text-muted">{{ reference.children.count() }} sense reference(s) created.</div>
+                                                                                {% endif %}
+                                                </div>
+                                                {% endif %}
+                        {% if reference.source_metadata.get('oed_api_word_url') %}
+                        <div class="col-12 mb-2">
+                            <strong>OED API:</strong>
+                            <a href="{{ reference.source_metadata.get('oed_api_word_url') }}" target="_blank" rel="noopener">Open API resource</a>
+                        </div>
+                        {% endif %}
+                        {% if reference.source_metadata.get('oed_web_search_url') %}
+                        <div class="col-12 mb-2">
+                            <strong>OED Web:</strong>
+                            <a href="{{ reference.source_metadata.get('oed_web_search_url') }}" target="_blank" rel="noopener">Search on OED.com</a>
+                            <small class="text-muted"> (requires institutional or personal access)</small>
+                        </div>
+                        {% endif %}
+                        <hr/>
+                        {% endif %}
+                        {% if reference.source_metadata.get('authors') %}
+                        <div class="col-12 mb-2">
+                            <strong>Authors:</strong> {{ ', '.join(reference.source_metadata.get('authors', [])) }}
+                        </div>
+                        {% endif %}
+                        
+                        {% if reference.source_metadata.get('journal') %}
+                        <div class="col-md-6 mb-2">
+                            <strong>Journal/Publisher:</strong> {{ reference.source_metadata.get('journal') }}
+                        </div>
+                        {% endif %}
+                        
+                        {% if reference.source_metadata.get('publication_date') %}
+                        <div class="col-md-6 mb-2">
+                            <strong>Publication Date:</strong> {{ reference.source_metadata.get('publication_date') }}
+                        </div>
+                        {% endif %}
+                        
+                        {% if reference.source_metadata.get('doi') %}
+                        <div class="col-md-6 mb-2">
+                            <strong>DOI:</strong> 
+                            <a href="https://doi.org/{{ reference.source_metadata.get('doi') }}" target="_blank">
+                                {{ reference.source_metadata.get('doi') }}
+                            </a>
+                        </div>
+                        {% endif %}
+                        
+                        {% if reference.source_metadata.get('isbn') %}
+                        <div class="col-md-6 mb-2">
+                            <strong>ISBN:</strong> {{ reference.source_metadata.get('isbn') }}
+                        </div>
+                        {% endif %}
+                        
+                        {% if reference.source_metadata.get('url') %}
+                        <div class="col-12 mb-2">
+                            <strong>URL:</strong> 
+                            <a href="{{ reference.source_metadata.get('url') }}" target="_blank">
+                                {{ reference.source_metadata.get('url') }}
+                            </a>
+                        </div>
+                        {% endif %}
+                        
+                        {% if reference.source_metadata.get('abstract') %}
+                        <div class="col-12 mt-3">
+                            <strong>Abstract:</strong>
+                            <p class="mt-2">{{ reference.source_metadata.get('abstract') }}</p>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Full Content -->
+            {% if reference.content %}
+            <div class="card mb-3">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="card-title mb-0">Full Content</h5>
+                    <small class="text-muted">{{ reference.content|length }} characters</small>
+                </div>
+                <div class="card-body">
+                    <div id="full-content" style="max-height: 600px; overflow-y: auto;">
+                        <pre class="text-muted" style="white-space: pre-wrap; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; font-size: 0.95rem;">{{ reference.content }}</pre>
+                    </div>
+                    {% if reference.content|length > 2000 %}
+                    <div class="mt-3">
+                        <button class="btn btn-sm btn-outline-secondary" onclick="toggleFullContent()">
+                            <i class="fas fa-expand-alt"></i> <span id="toggle-text">Expand Full View</span>
+                        </button>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            {% elif reference.content_preview %}
+            <div class="card mb-3">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Content Preview</h5>
+                </div>
+                <div class="card-body">
+                    <pre class="text-muted" style="white-space: pre-wrap;">{{ reference.content_preview }}</pre>
+                    <p class="text-warning mt-2"><i class="fas fa-exclamation-triangle"></i> Full content not available</p>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+
+        <div class="col-lg-4">
+            <!-- Experiments Using This Reference -->
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Used in Experiments</h5>
+                </div>
+                <div class="card-body">
+                    {% if experiments_using %}
+                        <div class="list-group list-group-flush">
+                            {% for experiment in experiments_using %}
+                            <a href="{{ url_for('experiments.view', id=experiment.id) }}" 
+                               class="list-group-item list-group-item-action">
+                                <div class="d-flex w-100 justify-content-between">
+                                    <h6 class="mb-1">{{ experiment.name }}</h6>
+                                </div>
+                                <p class="mb-1 small">{{ experiment.experiment_type|replace('_', ' ')|title }}</p>
+                                <small>
+                                    {% if experiment.status == 'completed' %}
+                                    <span class="badge bg-success">Completed</span>
+                                    {% elif experiment.status == 'running' %}
+                                    <span class="badge bg-info">Running</span>
+                                    {% else %}
+                                    <span class="badge bg-secondary">{{ experiment.status|title }}</span>
+                                    {% endif %}
+                                </small>
+                            </a>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <p class="text-muted mb-0">This reference is not currently used in any experiments.</p>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Actions -->
+            <div class="card mt-3">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Actions</h5>
+                </div>
+                <div class="card-body">
+                    <div class="d-grid gap-2">
+                        <a href="{{ url_for('references.edit', id=reference.id) }}" class="btn btn-primary">
+                            <i class="fas fa-edit"></i> Edit Metadata
+                        </a>
+                        {% if reference.file_path %}
+                        <a href="{{ url_for('references.download', id=reference.id) }}" class="btn btn-outline-secondary">
+                            <i class="fas fa-download"></i> Download File
+                        </a>
+                        {% endif %}
+                        <button type="button" class="btn btn-outline-danger" 
+                                onclick="if(confirm('Are you sure you want to delete this reference?')) { document.getElementById('delete-form').submit(); }">
+                            <i class="fas fa-trash"></i> Delete Reference
+                        </button>
+                    </div>
+                    <form id="delete-form" method="POST" action="{{ url_for('references.delete', id=reference.id) }}" style="display: none;">
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function toggleFullContent() {
+    const contentDiv = document.getElementById('full-content');
+    const toggleBtn = document.getElementById('toggle-text');
+    
+    if (contentDiv.style.maxHeight === '600px' || contentDiv.style.maxHeight === '') {
+        contentDiv.style.maxHeight = 'none';
+        toggleBtn.textContent = 'Collapse View';
+    } else {
+        contentDiv.style.maxHeight = '600px';
+        toggleBtn.textContent = 'Expand Full View';
+    }
+}
+</script>
+{% endblock %}

@@ -108,7 +108,7 @@
                             <div class="alert alert-warning">
                                 <i class="fas fa-exclamation-triangle"></i> 
                                 No documents available. Please 
-                                <a href="{{ url_for('text_input.upload') }}">upload some documents</a> first.
+                                <a href="{{ url_for('text_input.upload_form') }}">upload some documents</a> first.
                             </div>
                             {% endif %}
                         </div>
@@ -140,6 +140,10 @@
                                     <input type="text" class="form-control" id="domain-focus" 
                                            placeholder="e.g., Engineering, Biology, Philosophy">
                                 </div>
+                                <div class="mb-3">
+                                    <label for="target-terms" class="form-label">Target Terms (comma-separated)</label>
+                                    <input type="text" class="form-control" id="target-terms" value="ontology, agent">
+                                </div>
                                 <div class="form-check">
                                     <input class="form-check-input" type="checkbox" id="extract-terminology">
                                     <label class="form-check-label" for="extract-terminology">
@@ -150,6 +154,12 @@
                                     <input class="form-check-input" type="checkbox" id="compare-ontologies">
                                     <label class="form-check-label" for="compare-ontologies">
                                         Compare against existing ontologies
+                                    </label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="use-references">
+                                    <label class="form-check-label" for="use-references">
+                                        Use linked references (ignore selected documents)
                                     </label>
                                 </div>
                             </div>
@@ -217,11 +227,17 @@ document.addEventListener('DOMContentLoaded', function() {
             if (existingConfig.domain_focus) {
                 document.getElementById('domain-focus').value = existingConfig.domain_focus;
             }
+            if (existingConfig.target_terms) {
+                document.getElementById('target-terms').value = existingConfig.target_terms.join(', ');
+            }
             if (existingConfig.extract_terminology !== undefined) {
                 document.getElementById('extract-terminology').checked = existingConfig.extract_terminology;
             }
             if (existingConfig.compare_ontologies !== undefined) {
                 document.getElementById('compare-ontologies').checked = existingConfig.compare_ontologies;
+            }
+            if (existingConfig.use_references !== undefined) {
+                document.getElementById('use-references').checked = existingConfig.use_references;
             }
         }
     }
@@ -320,6 +336,9 @@ document.addEventListener('DOMContentLoaded', function() {
             configuration.domain_focus = document.getElementById('domain-focus').value;
             configuration.extract_terminology = document.getElementById('extract-terminology').checked;
             configuration.compare_ontologies = document.getElementById('compare-ontologies').checked;
+            const targetTermsVal = document.getElementById('target-terms').value || '';
+            configuration.target_terms = targetTermsVal.split(',').map(t => t.trim()).filter(Boolean);
+            configuration.use_references = document.getElementById('use-references').checked;
         }
         
         try {

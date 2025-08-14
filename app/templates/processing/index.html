@@ -1,0 +1,119 @@
+{% extends 'base.html' %}
+{% block title %}Processing Dashboard - OntExtract{% endblock %}
+{% block content %}
+<div class="d-flex align-items-center mb-3">
+  <i class="fas fa-cogs me-2"></i>
+  <h2 class="mb-0">Processing Dashboard</h2>
+  <span class="badge bg-secondary ms-2">Placeholder</span>
+  <a href="{{ url_for('processing.job_list') }}" class="btn btn-outline-light btn-sm ms-auto"><i class="fas fa-list me-1"></i> All Jobs</a>
+  <a href="{{ url_for('text_input.document_list') }}" class="btn btn-outline-light btn-sm ms-2"><i class="fas fa-file me-1"></i> Documents</a>
+  <a href="{{ url_for('experiments.index') }}" class="btn btn-outline-light btn-sm ms-2"><i class="fas fa-flask me-1"></i> Experiments</a>
+  <a href="{{ url_for('results.results_home') }}" class="btn btn-outline-light btn-sm ms-2"><i class="fas fa-chart-bar me-1"></i> Results</a>
+  </div>
+
+<div class="row g-3">
+  <div class="col-md-6">
+    <div class="card">
+      <div class="card-body">
+        <h5 class="card-title"><i class="fas fa-file-alt me-2"></i>Documents</h5>
+        <div class="row text-center">
+          <div class="col">
+            <div class="h3 mb-0">{{ stats.documents.total | default(0) | number_format }}</div>
+            <small class="text-muted">Total</small>
+          </div>
+          <div class="col">
+            <div class="h3 mb-0 text-warning">{{ stats.documents.uploaded | default(0) | number_format }}</div>
+            <small class="text-muted">Uploaded</small>
+          </div>
+          <div class="col">
+            <div class="h3 mb-0 text-info">{{ stats.documents.processing | default(0) | number_format }}</div>
+            <small class="text-muted">Processing</small>
+          </div>
+          <div class="col">
+            <div class="h3 mb-0 text-success">{{ stats.documents.completed | default(0) | number_format }}</div>
+            <small class="text-muted">Completed</small>
+          </div>
+          <div class="col">
+            <div class="h3 mb-0 text-danger">{{ stats.documents.error | default(0) | number_format }}</div>
+            <small class="text-muted">Errors</small>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-6">
+    <div class="card">
+      <div class="card-body">
+        <h5 class="card-title"><i class="fas fa-tasks me-2"></i>Jobs</h5>
+        <div class="row text-center">
+          <div class="col">
+            <div class="h3 mb-0">{{ stats.jobs.total | default(0) | number_format }}</div>
+            <small class="text-muted">Total</small>
+          </div>
+          <div class="col">
+            <div class="h3 mb-0 text-warning">{{ stats.jobs.pending | default(0) | number_format }}</div>
+            <small class="text-muted">Pending</small>
+          </div>
+          <div class="col">
+            <div class="h3 mb-0 text-info">{{ stats.jobs.running | default(0) | number_format }}</div>
+            <small class="text-muted">Running</small>
+          </div>
+          <div class="col">
+            <div class="h3 mb-0 text-success">{{ stats.jobs.completed | default(0) | number_format }}</div>
+            <small class="text-muted">Completed</small>
+          </div>
+          <div class="col">
+            <div class="h3 mb-0 text-danger">{{ stats.jobs.failed | default(0) | number_format }}</div>
+            <small class="text-muted">Failed</small>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="row g-3 mt-1">
+  <div class="col-md-6">
+    <div class="card h-100">
+      <div class="card-body">
+        <h5 class="card-title d-flex align-items-center"><i class="fas fa-clock me-2"></i>Recent Documents</h5>
+        <ul class="list-group list-group-flush">
+          {% for doc in recent_documents %}
+          <li class="list-group-item d-flex justify-content-between align-items-center bg-transparent">
+            <span>
+              <i class="fas fa-file me-2 text-secondary"></i>
+              {{ doc.get_display_name() }}
+            </span>
+            <span class="badge bg-dark">{{ doc.status }}</span>
+          </li>
+          {% else %}
+          <li class="list-group-item bg-transparent text-muted">No documents yet.</li>
+          {% endfor %}
+        </ul>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-6">
+    <div class="card h-100">
+      <div class="card-body">
+        <h5 class="card-title d-flex align-items-center"><i class="fas fa-stream me-2"></i>Recent Jobs</h5>
+        <ul class="list-group list-group-flush">
+          {% for job in recent_jobs %}
+          <li class="list-group-item d-flex justify-content-between align-items-center bg-transparent">
+            <span>
+              <i class="fas fa-cog me-2 text-secondary"></i>
+              {{ job.job_type }}{% if job.job_name %} - {{ job.job_name }}{% endif %}
+            </span>
+            <span class="badge bg-dark">{{ job.status }}</span>
+          </li>
+          {% else %}
+          <li class="list-group-item bg-transparent text-muted">No jobs yet.</li>
+          {% endfor %}
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="alert alert-info mt-3"><i class="fas fa-info-circle me-2"></i>Processing is currently a placeholder. In future phases, this page will let you launch pipelines and see live progress.</div>
+{% endblock %}

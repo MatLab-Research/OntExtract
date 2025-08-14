@@ -144,6 +144,40 @@
                             </table>
                         </div>
                     </div>
+
+                    {% if experiment.get_reference_count() > 0 %}
+                    <div class="mb-4">
+                        <h5>References ({{ experiment.get_reference_count() }})</h5>
+                        <div class="table-responsive">
+                            <table class="table table-sm table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>Reference</th>
+                                        <th>Subtype</th>
+                                        <th>Source</th>
+                                        <th>Added</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for ref in experiment.references %}
+                                    <tr>
+                                        <td>{{ ref.title }}</td>
+                                        <td><span class="badge bg-secondary">{{ ref.get_reference_subtype_display() }}</span></td>
+                                        <td>{{ ref.get_source_info() or '—' }}</td>
+                                        <td>{{ ref.created_at.strftime('%Y-%m-%d') }}</td>
+                                        <td>
+                                            <a href="{{ url_for('references.view', id=ref.id) }}" class="btn btn-sm btn-outline-primary">
+                                                <i class="fas fa-eye"></i> View
+                                            </a>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    {% endif %}
                     
                     {% if experiment.results_summary %}
                     <div class="alert alert-info">

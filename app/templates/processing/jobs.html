@@ -1,0 +1,52 @@
+{% extends 'base.html' %}
+{% block title %}Processing Jobs - OntExtract{% endblock %}
+{% block content %}
+<div class="d-flex align-items-center mb-3">
+  <i class="fas fa-list me-2"></i>
+  <h2 class="mb-0">Processing Jobs</h2>
+  <span class="badge bg-secondary ms-2">Placeholder</span>
+</div>
+
+<div class="card">
+  <div class="card-body">
+    <div class="table-responsive">
+      <table class="table table-dark table-striped align-middle">
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Type</th>
+            <th>Name</th>
+            <th>Status</th>
+            <th>Progress</th>
+            <th>Document</th>
+            <th>Created</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for job in jobs %}
+          <tr>
+            <td>{{ job.id }}</td>
+            <td>{{ job.job_type }}</td>
+            <td>{{ job.job_name or '-' }}</td>
+            <td><span class="badge bg-dark">{{ job.status }}</span></td>
+            <td>
+        {% if job.progress_percent is not none %}
+                <div class="progress" style="height: 8px;">
+          <div class="progress-bar" role="progressbar" style="width: {{ (job.progress_percent or 0) }}%"></div>
+                </div>
+              {% else %}
+                -
+              {% endif %}
+            </td>
+            <td>#{{ job.document_id }}</td>
+            <td>{{ job.created_at.strftime('%Y-%m-%d %H:%M') if job.created_at else '-' }}</td>
+          </tr>
+          {% else %}
+          <tr><td colspan="7" class="text-muted">No jobs found.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}

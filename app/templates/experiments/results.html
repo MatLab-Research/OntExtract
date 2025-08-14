@@ -140,10 +140,75 @@
                                 </div>
                                 {% endif %}
                                 
+                                {% if results_data and results_data.similarity_matrices %}
+                                <div class="mt-3">
+                                    {% for term, matrix in results_data.similarity_matrices.items() %}
+                                    <div class="mb-4">
+                                        <h6>Similarity matrix for term: <code>{{ term }}</code></h6>
+                                        {% set disciplines = matrix.keys()|list %}
+                                        <div class="table-responsive">
+                                            <table class="table table-bordered table-sm align-middle">
+                                                <thead>
+                                                    <tr>
+                                                        <th>Discipline</th>
+                                                        {% for d in disciplines %}
+                                                        <th>{{ d }}</th>
+                                                        {% endfor %}
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {% for r in disciplines %}
+                                                    <tr>
+                                                        <th>{{ r }}</th>
+                                                        {% for c in disciplines %}
+                                                        {% set val = matrix[r][c] %}
+                                                        <td class="text-center">{{ (val * 100) | round(1) }}%</td>
+                                                        {% endfor %}
+                                                    </tr>
+                                                    {% endfor %}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                    {% endfor %}
+                                </div>
+
+                                {% if results_data.per_term_data %}
+                                <div class="mt-4">
+                                    <h6>Extracted snippets by discipline</h6>
+                                    {% for term, per_disc in results_data.per_term_data.items() %}
+                                        <div class="card mb-3">
+                                            <div class="card-header">Term: <code>{{ term }}</code></div>
+                                            <div class="card-body">
+                                                {% if per_disc %}
+                                                {% for disc, entries in per_disc.items() %}
+                                                <div class="mb-3">
+                                                    <h6 class="mb-2">{{ disc }}</h6>
+                                                    <ul class="list-unstyled">
+                                                        {% for e in entries %}
+                                                        <li class="mb-2">
+                                                            <strong>{{ e.title }}</strong>
+                                                            {% if e.source %}<span class="text-muted">— {{ e.source }}</span>{% endif %}
+                                                            <div class="small text-muted mt-1">{{ e.snippet }}</div>
+                                                        </li>
+                                                        {% endfor %}
+                                                    </ul>
+                                                </div>
+                                                {% endfor %}
+                                                {% else %}
+                                                <div class="text-muted">No snippets extracted.</div>
+                                                {% endif %}
+                                            </div>
+                                        </div>
+                                    {% endfor %}
+                                </div>
+                                {% endif %}
+                                {% else %}
                                 <div class="alert alert-warning mt-3">
                                     <i class="fas fa-exclamation-triangle"></i> 
-                                    Full domain comparison implementation is pending. This is a placeholder showing basic statistics.
+                                    No comparison results available.
                                 </div>
+                                {% endif %}
                             </div>
                         </div>
                         {% endif %}
@@ -218,36 +283,30 @@
 </div>
 
 <script>
-// Store experiment data for JavaScript use
-const experimentData = {
-    id: {{ experiment.id }},
-    name: {{ experiment.name | tojson | safe }},
-    type: {{ experiment.experiment_type | tojson | safe }},
-    documentCount: {{ experiment.get_document_count() }},
-    totalWords: {{ experiment.get_total_word_count() }},
-    status: {{ experiment.status | tojson | safe }},
-    created: {{ experiment.created_at.isoformat() | tojson | safe }},
-    {% if experiment.completed_at %}
-    completed: {{ experiment.completed_at.isoformat() | tojson | safe }},
-    {% else %}
-    completed: null,
-    {% endif %}
-    {% if experiment.results_summary %}
-    summary: {{ experiment.results_summary | tojson | safe }},
-    {% else %}
-    summary: null,
-    {% endif %}
-    documents: [
-        {% for document in experiment.documents %}
+// Embed experiment JSON for safe parsing
+</script>
+<script type="application/json" id="experiment-json">{{ {
+    'id': experiment.id,
+    'name': experiment.name,
+    'type': experiment.experiment_type,
+    'documentCount': experiment.get_document_count(),
+    'totalWords': experiment.get_total_word_count(),
+    'status': experiment.status,
+    'created': experiment.created_at.isoformat() if experiment.created_at else None,
+    'completed': experiment.completed_at.isoformat() if experiment.completed_at else None,
+    'summary': experiment.results_summary if experiment.results_summary else None,
+    'documents': [
         {
-            name: {{ document.get_display_name() | tojson | safe }},
-            type: {{ (document.file_type or document.content_type) | tojson | safe }},
-            words: {{ document.word_count or 0 }},
-            uploaded: {{ document.created_at.strftime('%Y-%m-%d') | tojson | safe }}
-        }{% if not loop.last %},{% endif %}
-        {% endfor %}
+            'name': document.get_display_name(),
+            'type': (document.file_type or document.content_type),
+            'words': (document.word_count or 0),
+            'uploaded': document.created_at.strftime('%Y-%m-%d') if document.created_at else None
+        } for document in experiment.documents
     ]
-};
+} | tojson | safe }}</script>
+<script>
+// Store experiment data for JavaScript use
+const experimentData = JSON.parse(document.getElementById('experiment-json').textContent);
 
 function exportResults(format) {
     const experimentId = experimentData.id;

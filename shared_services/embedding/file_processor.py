@@ -31,25 +31,25 @@ class BaseFileProcessor(ABC):
         pass
 
 class PDFProcessor(BaseFileProcessor):
-    """PDF file processor using PyPDF2."""
+    """PDF file processor using pypdf (successor of PyPDF2)."""
     
     def process(self, file_path: str) -> str:
         """Extract text from PDF file."""
         try:
-            from PyPDF2 import PdfReader
+            from pypdf import PdfReader
             
             with open(file_path, 'rb') as f:
                 reader = PdfReader(f)
                 text = ""
                 
                 for page in reader.pages:
-                    page_text = page.extract_text()
+                    page_text = page.extract_text() or ""
                     if page_text:
                         text += page_text + "\n\n"
                 
                 return text.strip()
         except ImportError:
-            raise ImportError("PyPDF2 is required for PDF processing. Install with 'pip install PyPDF2'")
+            raise ImportError("pypdf is required for PDF processing. Install with 'pip install pypdf'")
         except Exception as e:
             raise ValueError(f"Error processing PDF {file_path}: {str(e)}")
     

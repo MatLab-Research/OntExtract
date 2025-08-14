@@ -144,6 +144,11 @@ ENV/
 env.bak/
 venv.bak/
 
+# Local environment files (secrets)
+.env.local
+.env.*.local
+.env.*.example
+
 # Spyder project settings
 .spyderproject
 .spyproject
@@ -205,3 +210,10 @@ cython_debug/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
+
+# Ignore bulky PDFs and uploaded binaries
+docs/**/*.pdf
+docs/*.pdf
+app/docs/**/*.pdf
+app/docs/*.pdf
+uploads/**/*.pdf

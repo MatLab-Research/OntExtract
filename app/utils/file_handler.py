@@ -1,7 +1,7 @@
 import os
 from typing import Optional, Set
 from flask import current_app
-import PyPDF2
+import pypdf
 from docx import Document as DocxDocument
 import io
 
@@ -10,6 +10,33 @@ class FileHandler:
     
     def __init__(self):
         self.allowed_extensions = {'txt', 'pdf', 'docx', 'html', 'md'}
+
+    def save_file(self, file_storage, upload_folder: Optional[str] = None):
+        """Save an uploaded file to the uploads folder.
+
+        Returns (saved_path, file_size)
+        """
+        if upload_folder is None:
+            cfg_folder = current_app.config.get('UPLOAD_FOLDER')
+            upload_folder = cfg_folder if isinstance(cfg_folder, str) and cfg_folder else 'uploads'
+        os.makedirs(upload_folder, exist_ok=True)
+
+        filename = getattr(file_storage, 'filename', '') or ''
+        cleaned = self.clean_filename(filename)
+        if not cleaned:
+            cleaned = 'uploaded-file'
+        dest_path = os.path.join(upload_folder, cleaned)
+
+        # If file exists, add a numeric suffix
+        base, ext = os.path.splitext(dest_path)
+        counter = 1
+        while os.path.exists(dest_path):
+            dest_path = f"{base}-{counter}{ext}"
+            counter += 1
+
+        file_storage.save(dest_path)
+        size = os.path.getsize(dest_path)
+        return dest_path, size
     
     def allowed_file(self, filename: str) -> bool:
         """Check if file has an allowed extension"""
@@ -76,13 +103,13 @@ class FileHandler:
         with open(file_path, 'rb') as f:
             return f.read().decode('utf-8', errors='replace')
     
-    def _extract_from_pdf(self, file_path: str) -> str:
+    def _extract_from_pdf(self, file_path: str) -> Optional[str]:
         """Extract text from PDF file"""
         text_content = []
         
         try:
             with open(file_path, 'rb') as f:
-                pdf_reader = PyPDF2.PdfReader(f)
+                pdf_reader = pypdf.PdfReader(f)
                 
                 for page_num in range(len(pdf_reader.pages)):
                     page = pdf_reader.pages[page_num]
@@ -96,7 +123,7 @@ class FileHandler:
             current_app.logger.error(f"Error reading PDF {file_path}: {str(e)}")
             return None
     
-    def _extract_from_docx(self, file_path: str) -> str:
+    def _extract_from_docx(self, file_path: str) -> Optional[str]:
         """Extract text from DOCX file"""
         try:
             doc = DocxDocument(file_path)
@@ -112,7 +139,7 @@ class FileHandler:
             current_app.logger.error(f"Error reading DOCX {file_path}: {str(e)}")
             return None
     
-    def _extract_from_html(self, file_path: str) -> str:
+    def _extract_from_html(self, file_path: str) -> Optional[str]:
         """Extract text from HTML file"""
         try:
             from bs4 import BeautifulSoup
@@ -136,7 +163,7 @@ class FileHandler:
             current_app.logger.error(f"Error reading HTML {file_path}: {str(e)}")
             return None
     
-    def _extract_from_markdown(self, file_path: str) -> str:
+    def _extract_from_markdown(self, file_path: str) -> Optional[str]:
         """Extract text from Markdown file"""
         try:
             # For now, just read as plain text
