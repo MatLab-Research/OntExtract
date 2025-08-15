@@ -1,0 +1,161 @@
+{% extends "base.html" %}
+
+{% block title %}New Experiment Wizard - OntExtract{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4">
+  <div class="row mt-4">
+    <div class="col-12 col-lg-10 col-xl-9">
+      <div class="card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+          <h3 class="mb-0">New Experiment Wizard (Choi-inspired)</h3>
+          <a class="btn btn-outline-secondary" href="{{ url_for('experiments.index') }}">Back</a>
+        </div>
+        <div class="card-body">
+          <form id="wizard-form">
+            <div class="mb-3">
+              <label class="form-label">Name</label>
+              <input type="text" class="form-control" id="name" placeholder="e.g., Agent Domain Comparison" required />
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label">Type</label>
+              <select class="form-select" id="experiment_type">
+                <option value="domain_comparison" selected>Domain Comparison</option>
+                <option value="temporal_evolution">Temporal Evolution</option>
+              </select>
+            </div>
+
+            <div class="row">
+              <div class="col-md-6 mb-3">
+                <label class="form-label">Documents</label>
+                <div class="border rounded p-2" style="max-height:220px; overflow:auto;">
+                  {% for d in documents %}
+                    <div class="form-check">
+                      <input class="form-check-input" type="checkbox" value="{{ d.id }}" id="doc_{{ d.id }}"/>
+                      <label class="form-check-label" for="doc_{{ d.id }}">{{ d.title or ('Document #' ~ d.id) }}</label>
+                    </div>
+                  {% endfor %}
+                </div>
+              </div>
+              <div class="col-md-6 mb-3">
+                <label class="form-label">References</label>
+                <div class="border rounded p-2" style="max-height:220px; overflow:auto;">
+                  {% for r in references %}
+                    <div class="form-check">
+                      <input class="form-check-input" type="checkbox" value="{{ r.id }}" id="ref_{{ r.id }}"/>
+                      <label class="form-check-label" for="ref_{{ r.id }}">{{ r.title or ('Reference #' ~ r.id) }}</label>
+                    </div>
+                  {% endfor %}
+                </div>
+              </div>
+            </div>
+
+            <hr/>
+            <h5>Design (optional)</h5>
+            <p class="text-muted">Simple facets from the Choi design paper—fill what you need.</p>
+            <div class="row">
+              <div class="col-md-4 mb-3">
+                <label class="form-label">Design Type</label>
+                <select id="design_type" class="form-select">
+                  <option value="">(none)</option>
+                  <option value="experimental">Experimental</option>
+                  <option value="quasi-experimental">Quasi-experimental</option>
+                  <option value="survey">Survey</option>
+                  <option value="observational">Observational</option>
+                </select>
+              </div>
+              <div class="col-md-8 mb-3">
+                <label class="form-label">Independent Variable (name | levels comma-separated)</label>
+                <input type="text" class="form-control" id="iv_name" placeholder="definition_source" />
+                <small class="text-muted">e.g., OED, AI textbook</small>
+                <input type="text" class="form-control mt-2" id="iv_levels" placeholder="OED, AI textbook" />
+              </div>
+            </div>
+            <div class="row">
+              <div class="col-md-6 mb-3">
+                <label class="form-label">Groups (comma-separated)</label>
+                <input type="text" class="form-control" id="groups" placeholder="OED, AI" />
+              </div>
+              <div class="col-md-6 mb-3">
+                <label class="form-label">Target Terms (comma-separated)</label>
+                <input type="text" class="form-control" id="target_terms" placeholder="agent, agency" />
+              </div>
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label">Description (optional)</label>
+              <textarea class="form-control" id="description" rows="2"></textarea>
+            </div>
+
+            <div class="d-flex gap-2">
+              <button type="button" id="create-btn" class="btn btn-primary">Create Experiment</button>
+              <a href="{{ url_for('experiments.create_sample') }}" class="btn btn-outline-secondary">Create Sample</a>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+function buildConfig() {
+  const cfg = {};
+  const type = document.getElementById('experiment_type').value;
+  if (type === 'domain_comparison') {
+    cfg.use_references = true; // allow references-only runs
+  }
+  const tterms = (document.getElementById('target_terms').value || '').split(',').map(s => s.trim()).filter(Boolean);
+  if (tterms.length) cfg.target_terms = tterms;
+
+  const designType = document.getElementById('design_type').value;
+  const ivName = (document.getElementById('iv_name').value || '').trim();
+  const ivLevels = (document.getElementById('iv_levels').value || '').split(',').map(s => s.trim()).filter(Boolean);
+  const groups = (document.getElementById('groups').value || '').split(',').map(s => s.trim()).filter(Boolean);
+
+  const design = {};
+  if (designType) design.type = designType;
+  if (ivName && ivLevels.length) {
+    design.variables = { independent: [{ name: ivName, levels: ivLevels }] };
+  }
+  if (groups.length) {
+    design.groups = groups.map(g => ({ name: g }));
+  }
+  if (Object.keys(design).length) cfg.design = design;
+  return cfg;
+}
+
+document.getElementById('create-btn').addEventListener('click', async () => {
+  const name = document.getElementById('name').value.trim();
+  const experiment_type = document.getElementById('experiment_type').value;
+  const description = document.getElementById('description').value;
+
+  const document_ids = Array.from(document.querySelectorAll("input[id^='doc_']:checked")).map(x => parseInt(x.value));
+  const reference_ids = Array.from(document.querySelectorAll("input[id^='ref_']:checked")).map(x => parseInt(x.value));
+  const configuration = buildConfig();
+
+  if (!name) { alert('Name is required'); return; }
+  if ((!document_ids || document_ids.length === 0) && !(experiment_type === 'domain_comparison' && configuration.use_references && reference_ids.length > 0)) {
+    alert('Select at least one document, or select references for a domain comparison.');
+    return;
+  }
+
+  try {
+  const res = await fetch("{{ url_for('experiments.create') }}", {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, experiment_type, description, document_ids, reference_ids, configuration })
+    });
+    const data = await res.json();
+    if (res.ok && data.success) {
+      window.location.href = `/experiments/${data.experiment_id}`;
+    } else {
+      alert('Error: ' + (data.error || res.statusText));
+    }
+  } catch (e) {
+    alert('Failed to create experiment: ' + e.message);
+  }
+});
+</script>
+{% endblock %}

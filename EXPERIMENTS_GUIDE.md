@@ -71,6 +71,19 @@ The new experiment interface allows you to create, manage, and run ontology-base
 - Add authoritative references for each domain
 - Run analysis to identify domain-specific language patterns
 
+#### Design-aware experiments (experimental)
+- In your experiment configuration, you may add a `design` object to specify factors, groups, and timelines.
+- Example (JSON):
+  {
+    "design": {
+      "type": "experimental",
+      "variables": {"independent": [{"name": "definition_source", "levels": ["OED", "AI textbook"]}]},
+      "groups": [{"name": "OED"}, {"name": "AI"}],
+      "timeline": {"pre": false, "post": true}
+    }
+  }
+- When present, analysis services can compute between-group summaries and factor-wise comparisons.
+
 ## Database Schema
 
 ### Experiments Table

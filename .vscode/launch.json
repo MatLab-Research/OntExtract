@@ -2,7 +2,7 @@
   "version": "0.2.0",
   "configurations": [
     {
-      "name": "Python: Run app (run.py)",
+      "name": "Flask: Run OntExtract (run.py debug)",
       "type": "debugpy",
       "request": "launch",
       "python": "${workspaceFolder}/.venv/bin/python",
@@ -12,6 +12,7 @@
       "envFile": "${workspaceFolder}/.env",
       "env": {
         "FLASK_ENV": "development",
+        "FLASK_DEBUG": "1",
         "PYTHONPATH": "${workspaceFolder}"
       },
       "args": [],
@@ -28,7 +29,8 @@
       "envFile": "${workspaceFolder}/.env",
       "env": {
         "FLASK_APP": "run:app",
-        "FLASK_ENV": "development"
+        "FLASK_ENV": "development",
+        "FLASK_DEBUG": "1"
       },
       "args": [
         "run",
@@ -41,6 +43,27 @@
       ],
       "jinja": true,
       "cwd": "${workspaceFolder}"
+    },
+    {
+      "name": "Flask: Attach to running debugpy",
+      "type": "debugpy",
+      "request": "attach",
+      "connect": {
+        "host": "localhost",
+        "port": 5678
+      },
+      "justMyCode": true
+    },
+    {
+      "name": "Flask: Run in Docker (attach)",
+      "type": "debugpy",
+      "request": "attach",
+      "connect": {
+        "host": "localhost",
+        "port": 5678
+      },
+      "justMyCode": true,
+      "preLaunchTask": "Start web container with debugpy"
     },
     {
       "name": "Python: Unit tests (pytest)",

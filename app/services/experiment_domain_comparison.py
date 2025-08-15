@@ -14,11 +14,16 @@ class DomainComparisonService:
         {
           "target_terms": ["ontology", "agent"],
           "discipline_assignments": { "Philosophy": [docId, ...], "Engineering": [docId, ...] },
-          "discipline_fallback": "journal|context|none"
+          "discipline_fallback": "journal|context|none",
+          "design": {
+            "type": "experimental|quasi-experimental|survey|observational",
+            "variables": {"independent": [{"name": str, "levels": [str, ...]}]},
+            "groups": [{"name": str}]
+          }
         }
-      If missing, will default target_terms to ["ontology", "agent"], and infer disciplines from
-      reference.source_metadata.journal or .context where available, else "General".
-    - Scope: All experiment.references are considered (ignoring include_in_analysis flag for now).
+      Defaults: target_terms -> ["ontology", "agent"].
+      If no design grouping is provided, will group by disciplines inferred from metadata.
+    - Scope: All experiment.references are considered.
     - Output: (results_dict, human_summary)
     """
 
@@ -32,31 +37,74 @@ class DomainComparisonService:
         target_terms: List[str] = cfg.get("target_terms") or ["ontology", "agent"]
         discipline_assignments: Dict[str, List[int]] = cfg.get("discipline_assignments") or {}
         discipline_fallback: str = cfg.get("discipline_fallback") or "journal"
+        design: Dict[str, Any] = cfg.get("design") or {}
 
         # Gather references: use all references linked to the experiment
-        references: List[Document] = list(experiment.references) if hasattr(experiment, 'references') else []
+        references: List[Document] = list(experiment.references) if hasattr(experiment, "references") else []
 
-        # Build discipline buckets
-        discipline_docs: Dict[str, List[Document]] = defaultdict(list)
+        # Decide grouping mode: design-based groups/levels or discipline buckets
+        buckets: Dict[str, List[Document]] = defaultdict(list)
 
-        if discipline_assignments:
-            # Explicit mapping provided
-            ref_by_id = {ref.id: ref for ref in references}
-            for discipline, ids in discipline_assignments.items():
-                for _id in ids:
-                    if _id in ref_by_id:
-                        discipline_docs[discipline].append(ref_by_id[_id])
-        else:
-            # Infer from metadata
+        # Helper: map references to a best-fit bucket by simple metadata matching
+        def assign_by_name(names: List[str]) -> None:
+            name_lowers = [(n, n.lower()) for n in names if n]
             for ref in references:
-                discipline = self._infer_discipline(ref, fallback=discipline_fallback)
-                discipline_docs[discipline].append(ref)
+                meta = ref.source_metadata or {}
+                hay = " ".join([
+                    (meta.get("journal") or ""),
+                    (meta.get("context") or ""),
+                    (meta.get("url") or ""),
+                    (ref.title or ""),
+                ]).lower()
+                placed = False
+                for display, nl in name_lowers:
+                    if nl and nl in hay:
+                        buckets[display].append(ref)
+                        placed = True
+                        break
+                if not placed:
+                    buckets["Other"].append(ref)
 
-        # Extract term-specific definitions/snippets per discipline
+        # Normalize design groups and IV levels
+        design_groups: List[str] = [
+            str(g.get("name")) for g in (design.get("groups") or [])
+            if isinstance(g, dict) and g.get("name")
+        ]
+        iv_levels: List[str] = []
+        try:
+            ivs = (design.get("variables") or {}).get("independent") or []
+            if ivs and isinstance(ivs[0], dict):
+                levels = ivs[0].get("levels")
+                if isinstance(levels, list):
+                    iv_levels = [str(x) for x in levels if x is not None]
+        except Exception:
+            iv_levels = []
+
+        if design_groups:
+            assign_by_name(design_groups)
+            grouping_label = "groups"
+        elif iv_levels:
+            assign_by_name(iv_levels)
+            grouping_label = "iv_levels"
+        else:
+            # Build discipline buckets (explicit mapping wins)
+            if discipline_assignments:
+                ref_by_id = {ref.id: ref for ref in references}
+                for discipline, ids in discipline_assignments.items():
+                    for _id in ids:
+                        if _id in ref_by_id:
+                            buckets[discipline].append(ref_by_id[_id])
+            else:
+                for ref in references:
+                    discipline = self._infer_discipline(ref, fallback=discipline_fallback)
+                    buckets[discipline].append(ref)
+            grouping_label = "disciplines"
+
+        # Extract term-specific definitions/snippets per bucket
         per_term_data: Dict[str, Dict[str, List[Dict[str, Any]]]] = {}
         for term in target_terms:
             per_term_data[term] = {}
-            for discipline, docs in discipline_docs.items():
+            for bucket_name, docs in buckets.items():
                 entries: List[Dict[str, Any]] = []
                 for doc in docs:
                     snippet = self._extract_term_snippet(doc, term)
@@ -69,39 +117,42 @@ class DomainComparisonService:
                             "snippet": snippet
                         })
                 if entries:
-                    per_term_data[term][discipline] = entries
+                    per_term_data[term][bucket_name] = entries
 
-        # Compute similarity matrices per term across disciplines
+        # Compute similarity matrices per term across buckets
         similarity_matrices: Dict[str, Dict[str, Dict[str, float]]] = {}
-        for term, disc_entries in per_term_data.items():
-            disciplines = sorted(disc_entries.keys())
-            matrix: Dict[str, Dict[str, float]] = {d: {} for d in disciplines}
-            for i, d1 in enumerate(disciplines):
-                text1 = self._concat_snippets(disc_entries[d1])
-                for j, d2 in enumerate(disciplines):
+        for term, bucket_entries in per_term_data.items():
+            names = sorted(bucket_entries.keys())
+            matrix: Dict[str, Dict[str, float]] = {n: {} for n in names}
+            for i, n1 in enumerate(names):
+                text1 = self._concat_snippets(bucket_entries[n1])
+                for j, n2 in enumerate(names):
                     if j < i:
-                        # mirror
-                        matrix[d1][d2] = matrix[d2][d1]
+                        matrix[n1][n2] = matrix[n2][n1]
                         continue
-                    text2 = self._concat_snippets(disc_entries[d2])
-                    if d1 == d2:
+                    text2 = self._concat_snippets(bucket_entries[n2])
+                    if n1 == n2:
                         sim = 1.0
                     else:
                         sim = text_service.calculate_similarity(text1, text2)
-                    matrix[d1][d2] = float(sim)
+                    matrix[n1][n2] = float(sim)
             similarity_matrices[term] = matrix
 
         # Build human summary
-        discipline_count = len(discipline_docs)
-        ref_count = sum(len(docs) for docs in discipline_docs.values())
+        bucket_count = len(buckets)
+        ref_count = sum(len(docs) for docs in buckets.values())
         term_count = len(target_terms)
-        summary = f"Compared {term_count} terms across {discipline_count} disciplines using {ref_count} references."
+        summary = f"Compared {term_count} terms across {bucket_count} groups using {ref_count} references."
 
         # Assemble results
         results: Dict[str, Any] = {
             "experiment_type": "domain_comparison",
             "target_terms": target_terms,
-            "disciplines": sorted(discipline_docs.keys()),
+            # Backward-compatibility: include 'disciplines' when grouping by disciplines
+            "disciplines": sorted(buckets.keys()) if grouping_label == "disciplines" else [],
+            # Generic buckets for UI consumption
+            "buckets": sorted(buckets.keys()),
+            "grouping_label": grouping_label,
             "per_term_data": per_term_data,
             "similarity_matrices": similarity_matrices,
         }
@@ -111,9 +162,9 @@ class DomainComparisonService:
     def _infer_discipline(self, ref: Document, fallback: str = "journal") -> str:
         meta = ref.source_metadata or {}
         if fallback == "context" and meta.get("context"):
-            return meta.get("context")
+            return str(meta.get("context") or "Context")
         if fallback == "journal" and meta.get("journal"):
-            return meta.get("journal")
+            return str(meta.get("journal") or "Journal")
         # Try URL host as a last resort
         url = meta.get("url") or ""
         if "oed" in url.lower():

@@ -82,6 +82,13 @@ class ReferenceMetadataEnricher:
         if journal:
             self._maybe_set(meta, 'journal', journal, existing, allow_overwrite)
 
+        # Research design (experimental; Phase 1b)
+        design = self._extract_design(text_first_pages)
+        if design:
+            # Only set if not present or overwrite allowed
+            if allow_overwrite or not (existing.get('design')):
+                meta['design'] = design
+
         return meta
 
     # --- internals ---
@@ -148,6 +155,83 @@ class ReferenceMetadataEnricher:
             if re.search(r"Proceedings of|Journal of|Transactions of|ACM|IEEE|Springer|Elsevier|Wiley|Oxford|Cambridge", l, re.I):
                 return l[:200]
         return None
+
+    def _extract_design(self, text: str) -> Optional[Dict[str, Any]]:
+        """Heuristically extract research design facets from early PDF text.
+
+        Looks for common section headers and patterns (Method, Design, Participants, Measures, Hypotheses).
+        Returns a lightweight dict suitable for source_metadata.design.
+        """
+        if not text:
+            return None
+
+        lines = [ln.strip() for ln in text.splitlines() if ln.strip()]
+        blob = "\n".join(lines)
+
+        # Hypotheses: capture lines starting with H1:, H2-, etc.
+        hyps: List[str] = []
+        for ln in lines[:120]:
+            m = re.match(r"^(H\d+)\s*[:\-]\s*(.+)$", ln, re.I)
+            if m:
+                hyps.append(f"{m.group(1).upper()}: {m.group(2).strip()}")
+        # Variables: simple keyword heuristics
+        ivs: List[Dict[str, Any]] = []
+        dvs: List[Dict[str, Any]] = []
+        controls: List[str] = []
+        for ln in lines[:200]:
+            if re.search(r"independent variable|factor|manipulated", ln, re.I):
+                ivs.append({"name": ln[:120]})
+            if re.search(r"dependent variable|outcome|measured", ln, re.I):
+                dvs.append({"name": ln[:120]})
+            if re.search(r"control variable|covariate|held constant", ln, re.I):
+                controls.append(ln[:120])
+
+        # Design type guess
+        dtype = None
+        if re.search(r"random(ized|) (trial|experiment)|between\-subjects|within\-subjects", blob, re.I):
+            dtype = "experimental"
+        elif re.search(r"quasi\-experimental|natural experiment", blob, re.I):
+            dtype = "quasi-experimental"
+        elif re.search(r"survey|questionnaire|cross\-sectional|longitudinal", blob, re.I):
+            dtype = "survey"
+        elif re.search(r"observational|case study|ethnograph", blob, re.I):
+            dtype = "observational"
+
+        # Groups/conditions (very light): look for lines like Group A, Condition 1, Control, Treatment
+        groups: List[Dict[str, Any]] = []
+        for ln in lines[:200]:
+            if re.search(r"\b(group|condition)\s+[A-Za-z0-9]+\b|\b(control|treatment)\b", ln, re.I):
+                groups.append({"name": ln[:80]})
+                if len(groups) >= 6:
+                    break
+
+        # Timeline
+        timeline: Dict[str, Any] = {}
+        if re.search(r"pre\-?test|baseline", blob, re.I):
+            timeline["pre"] = True
+        if re.search(r"post\-?test|follow\-?up", blob, re.I):
+            timeline["post"] = True
+
+        out: Dict[str, Any] = {}
+        if dtype:
+            out["type"] = dtype
+        if hyps:
+            out["hypotheses"] = hyps[:10]
+        vars_obj: Dict[str, Any] = {}
+        if ivs:
+            vars_obj["independent"] = ivs[:5]
+        if dvs:
+            vars_obj["dependent"] = dvs[:5]
+        if controls:
+            vars_obj["control"] = controls[:8]
+        if vars_obj:
+            out["variables"] = vars_obj
+        if groups:
+            out["groups"] = groups
+        if timeline:
+            out["timeline"] = timeline
+
+        return out or None
 
     def _split_authors(self, s: str) -> List[str]:
         # Split on commas/and/semicolons; clean whitespace

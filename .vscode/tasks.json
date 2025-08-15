@@ -42,5 +42,17 @@
       "args": ["-lc", "set -a; [ -f .env ] && . ./.env; set +a; \nexport FLASK_APP=run:app; export FLASK_ENV=development; \npython -m flask init-db"],
       "problemMatcher": []
     }
+    ,
+    {
+      "label": "Start web container with debugpy",
+      "type": "shell",
+      "command": "bash",
+      "args": [
+        "-lc",
+        "docker compose -f docker-compose.dev.yml up -d web && docker compose exec -T web bash -lc 'python -m pip install -q debugpy || true; python -m debugpy --listen 0.0.0.0:5678 -m flask run --no-debugger --no-reload --host 0.0.0.0 --port 5000'"
+      ],
+      "isBackground": true,
+      "problemMatcher": []
+    }
   ]
 }

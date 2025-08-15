@@ -7,6 +7,9 @@ import json
 from app.services.text_processing import TextProcessingService
 from app.services.experiment_domain_comparison import DomainComparisonService
 
+# Note: experiments.configuration may include a `design` object per Phase 1b of metadata plan.
+# Analysis services should read optional design = config.get('design') to drive factor/group logic.
+
 experiments_bp = Blueprint('experiments', __name__, url_prefix='/experiments')
 
 @experiments_bp.route('/')
@@ -23,6 +26,14 @@ def new():
     # Get all documents for the current user
     documents = Document.query.filter_by(user_id=current_user.id).order_by(Document.created_at.desc()).all()
     return render_template('experiments/new.html', documents=documents)
+
+@experiments_bp.route('/wizard')
+@login_required
+def wizard():
+    """Guided wizard to create an experiment with design options (Choi-inspired)."""
+    documents = Document.query.filter_by(user_id=current_user.id, document_type='document').order_by(Document.created_at.desc()).all()
+    references = Document.query.filter_by(user_id=current_user.id, document_type='reference').order_by(Document.created_at.desc()).all()
+    return render_template('experiments/wizard.html', documents=documents, references=references)
 
 @experiments_bp.route('/create', methods=['POST'])
 @login_required
@@ -63,6 +74,12 @@ def create():
             if document:
                 experiment.add_document(document)
 
+        # Add references to the experiment (optional)
+        for ref_id in data.get('reference_ids', []) or []:
+            reference = Document.query.filter_by(id=ref_id, user_id=current_user.id, document_type='reference').first()
+            if reference:
+                experiment.add_reference(reference, include_in_analysis=True)
+
         db.session.commit()
         
         return jsonify({
@@ -74,6 +91,50 @@ def create():
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': str(e)}), 500
+
+@experiments_bp.route('/sample', methods=['POST', 'GET'])
+@login_required
+def create_sample():
+    """Create a sample domain comparison experiment using available references and a simple design."""
+    try:
+        # Pick up to 6 most recent references
+        refs = Document.query.filter_by(user_id=current_user.id, document_type='reference').order_by(Document.created_at.desc()).limit(6).all()
+        if not refs:
+            flash('No references found. Please upload reference PDFs first (References → Upload).', 'warning')
+            return redirect(url_for('experiments.index'))
+
+        config = {
+            "use_references": True,
+            "target_terms": ["agent", "agency"],
+            "design": {
+                "type": "experimental",
+                "variables": {
+                    "independent": [{"name": "definition_source", "levels": ["OED", "AI textbook"]}]
+                },
+                "groups": [{"name": "OED"}, {"name": "AI"}]
+            }
+        }
+
+        experiment = Experiment(
+            name='Sample: Agent Domain Comparison',
+            description='Auto-created sample comparing terminology across sources with a simple design.',
+            experiment_type='domain_comparison',
+            user_id=current_user.id,
+            configuration=json.dumps(config)
+        )
+        db.session.add(experiment)
+        db.session.flush()
+
+        for r in refs:
+            experiment.add_reference(r, include_in_analysis=True)
+
+        db.session.commit()
+        flash('Sample experiment created.', 'success')
+        return redirect(url_for('experiments.view', experiment_id=experiment.id))
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Error creating sample experiment: {e}', 'danger')
+        return redirect(url_for('experiments.index'))
 
 @experiments_bp.route('/<int:experiment_id>')
 @login_required
@@ -242,10 +303,18 @@ def results(experiment_id):
             results_data = json.loads(experiment.results)
         except:
             results_data = {}
+    # Parse configuration JSON for template convenience
+    config_data = {}
+    if experiment.configuration:
+        try:
+            config_data = json.loads(experiment.configuration)
+        except Exception:
+            config_data = {}
     
     return render_template('experiments/results.html', 
                          experiment=experiment,
-                         results_data=results_data)
+                         results_data=results_data,
+                         config_data=config_data)
 
 @experiments_bp.route('/api/list')
 @login_required

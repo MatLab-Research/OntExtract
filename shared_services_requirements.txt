@@ -17,8 +17,7 @@
 nltk==3.8.1
 
 # File Processing
-# Inherit python-docx, beautifulsoup4, lxml from main app (higher versions there).
-PyPDF2==3.0.1
+# Inherit python-docx, beautifulsoup4, lxml, pypdf from main app.
 
 # Ontology Processing (RDF/TTL)
 rdflib==7.0.0
