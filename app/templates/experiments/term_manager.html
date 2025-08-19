@@ -1,0 +1,696 @@
+{% extends "base.html" %}
+
+{% block title %}Manage Terms - {{ experiment.name }} - OntExtract{% endblock %}
+
+{% block content %}
+<style>
+    .term-card {
+        border: 1px solid #dee2e6;
+        border-radius: 8px;
+        padding: 20px;
+        margin-bottom: 20px;
+        background: white;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        transition: box-shadow 0.3s ease;
+    }
+    
+    .term-card:hover {
+        box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+    }
+    
+    .term-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 15px;
+        padding-bottom: 10px;
+        border-bottom: 2px solid #f0f0f0;
+    }
+    
+    .term-title {
+        font-size: 1.5rem;
+        font-weight: 600;
+        color: #2c3e50;
+    }
+    
+    .term-actions {
+        display: flex;
+        gap: 10px;
+    }
+    
+    .domain-columns {
+        display: grid;
+        gap: 15px;
+        margin-top: 15px;
+    }
+    
+    .domain-column {
+        padding: 15px;
+        background: #f8f9fa;
+        border-radius: 6px;
+        border-left: 4px solid;
+    }
+    
+    .domain-column:nth-child(1) { border-left-color: #007bff; }
+    .domain-column:nth-child(2) { border-left-color: #28a745; }
+    .domain-column:nth-child(3) { border-left-color: #ffc107; }
+    .domain-column:nth-child(4) { border-left-color: #dc3545; }
+    .domain-column:nth-child(5) { border-left-color: #6f42c1; }
+    .domain-column:nth-child(6) { border-left-color: #20c997; }
+    
+    .domain-label {
+        font-weight: 600;
+        color: #495057;
+        margin-bottom: 10px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    
+    .domain-definition {
+        margin-bottom: 10px;
+    }
+    
+    .definition-source {
+        font-size: 0.85rem;
+        color: #6c757d;
+        font-style: italic;
+        margin-top: 5px;
+    }
+    
+    .ontology-mapping {
+        margin-top: 10px;
+        padding-top: 10px;
+        border-top: 1px solid #dee2e6;
+    }
+    
+    .ontology-badge {
+        display: inline-block;
+        padding: 3px 8px;
+        background: #e7f3ff;
+        color: #0066cc;
+        border-radius: 4px;
+        font-size: 0.85rem;
+        margin-right: 5px;
+        margin-bottom: 5px;
+    }
+    
+    .add-term-card {
+        border: 2px dashed #dee2e6;
+        border-radius: 8px;
+        padding: 40px;
+        text-align: center;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        background: #fafafa;
+    }
+    
+    .add-term-card:hover {
+        border-color: #007bff;
+        background: #f0f8ff;
+    }
+    
+    .term-input-group {
+        display: none;
+        margin-top: 20px;
+    }
+    
+    .term-input-group.active {
+        display: block;
+    }
+    
+    .progress-indicator {
+        background: #f8f9fa;
+        border-radius: 8px;
+        padding: 15px;
+        margin-bottom: 20px;
+    }
+    
+    .progress-steps {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    
+    .progress-step {
+        flex: 1;
+        text-align: center;
+        position: relative;
+    }
+    
+    .progress-step:not(:last-child)::after {
+        content: '';
+        position: absolute;
+        top: 20px;
+        right: -50%;
+        width: 100%;
+        height: 2px;
+        background: #dee2e6;
+    }
+    
+    .progress-step.completed::after {
+        background: #28a745;
+    }
+    
+    .progress-step.active .step-circle {
+        background: #007bff;
+        color: white;
+    }
+    
+    .progress-step.completed .step-circle {
+        background: #28a745;
+        color: white;
+    }
+    
+    .step-circle {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        background: #dee2e6;
+        color: #6c757d;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 600;
+        margin-bottom: 5px;
+    }
+    
+    .step-label {
+        font-size: 0.9rem;
+        color: #495057;
+    }
+    
+    .definition-placeholder {
+        padding: 10px;
+        background: white;
+        border: 1px dashed #dee2e6;
+        border-radius: 4px;
+        color: #6c757d;
+        font-style: italic;
+    }
+    
+    .definition-content {
+        padding: 10px;
+        background: white;
+        border-radius: 4px;
+        line-height: 1.6;
+        color: #212529;  /* Ensure text is dark */
+    }
+    
+    .definition-text {
+        color: #212529;  /* Dark text color */
+        font-size: 0.95rem;
+    }
+    
+    .loading-spinner {
+        display: inline-block;
+        width: 16px;
+        height: 16px;
+        border: 2px solid #f3f3f3;
+        border-top: 2px solid #007bff;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+    }
+    
+    @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+</style>
+
+<div class="container-fluid px-4">
+    <!-- Progress Indicator -->
+    <div class="progress-indicator">
+        <div class="progress-steps">
+            <div class="progress-step completed">
+                <div class="step-circle">1</div>
+                <div class="step-label">Create Experiment</div>
+            </div>
+            <div class="progress-step active">
+                <div class="step-circle">2</div>
+                <div class="step-label">Manage Terms</div>
+            </div>
+            <div class="progress-step">
+                <div class="step-circle">3</div>
+                <div class="step-label">Run Analysis</div>
+            </div>
+            <div class="progress-step">
+                <div class="step-circle">4</div>
+                <div class="step-label">View Results</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Header -->
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                    <h2>{{ experiment.name }}</h2>
+                    <p class="text-muted mb-0">
+                        <i class="fas fa-exchange-alt"></i> Domain Comparison Experiment
+                        <span class="ms-3">
+                            <i class="fas fa-layer-group"></i> 
+                            <span id="domain-count">{{ domains|length }}</span> Domains
+                        </span>
+                        <span class="ms-3">
+                            <i class="fas fa-tags"></i> 
+                            <span id="term-count">{{ terms|length }}</span> Terms
+                        </span>
+                    </p>
+                </div>
+                <div>
+                    <button class="btn btn-outline-secondary me-2" onclick="saveTerms()">
+                        <i class="fas fa-save"></i> Save Progress
+                    </button>
+                    <button class="btn btn-primary" onclick="proceedToAnalysis()">
+                        Continue to Analysis <i class="fas fa-arrow-right"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Domain Headers -->
+    <div class="row mb-3">
+        <div class="col-12">
+            <div class="alert alert-info">
+                <i class="fas fa-info-circle"></i> 
+                <strong>Domains:</strong> 
+                {% for domain in domains %}
+                    <span class="badge bg-primary ms-2">{{ domain }}</span>
+                {% endfor %}
+                <button class="btn btn-sm btn-outline-primary float-end" onclick="editDomains()">
+                    <i class="fas fa-edit"></i> Edit Domains
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Term Cards -->
+    <div id="terms-container">
+        {% for term in terms %}
+        <div class="term-card" data-term="{{ term }}">
+            <div class="term-header">
+                <div class="term-title">
+                    <i class="fas fa-tag text-primary"></i> {{ term }}
+                </div>
+                <div class="term-actions">
+                    <button class="btn btn-sm btn-outline-primary" onclick="fetchDefinitions('{{ term }}')">
+                        <i class="fas fa-sync"></i> Fetch Definitions
+                    </button>
+                    <button class="btn btn-sm btn-outline-secondary" onclick="editTerm('{{ term }}')">
+                        <i class="fas fa-edit"></i> Edit
+                    </button>
+                    <button class="btn btn-sm btn-outline-danger" onclick="removeTerm('{{ term }}')">
+                        <i class="fas fa-trash"></i> Remove
+                    </button>
+                </div>
+            </div>
+            
+            <div class="domain-columns" style="grid-template-columns: repeat({{ domains|length }}, 1fr);">
+                {% for domain in domains %}
+                <div class="domain-column" data-domain="{{ domain }}">
+                    <div class="domain-label">
+                        <i class="fas fa-book"></i> {{ domain }}
+                    </div>
+                    <div class="definition-content" id="def-{{ term }}-{{ domain|replace(' ', '_') }}">
+                        <div class="definition-placeholder">
+                            Click "Fetch Definitions" to load definitions from references
+                        </div>
+                    </div>
+                    
+                    <!-- Ontology Mapping Section -->
+                    <div class="ontology-mapping">
+                        <small class="text-muted">Ontology Concepts:</small>
+                        <div class="ontology-concepts" id="onto-{{ term }}-{{ domain|replace(' ', '_') }}">
+                            <!-- Ontology mappings will be loaded here -->
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endfor %}
+        
+        <!-- Add New Term Card -->
+        <div class="add-term-card" onclick="showAddTermForm()">
+            <i class="fas fa-plus-circle fa-3x text-primary mb-3"></i>
+            <h5>Add New Term</h5>
+            <p class="text-muted mb-0">Click to add another term for comparison</p>
+        </div>
+        
+        <!-- Add Term Form (Hidden by default) -->
+        <div class="term-input-group" id="add-term-form">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">Add New Term</h5>
+                    <div class="row">
+                        <div class="col-md-8">
+                            <input type="text" class="form-control" id="new-term-input" 
+                                   placeholder="Enter term (e.g., algorithm, agent, ontology)">
+                        </div>
+                        <div class="col-md-4">
+                            <button class="btn btn-primary" onclick="addNewTerm()">
+                                <i class="fas fa-plus"></i> Add Term
+                            </button>
+                            <button class="btn btn-secondary" onclick="hideAddTermForm()">
+                                Cancel
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Global variables
+let experimentId = {{ experiment.id }};
+let currentTerms = {{ terms|tojson|safe }};
+let currentDomains = {{ domains|tojson|safe }};
+let termDefinitions = {};
+
+// Initialize
+document.addEventListener('DOMContentLoaded', function() {
+    // Load any saved term definitions
+    loadSavedDefinitions();
+});
+
+// Show/hide add term form
+function showAddTermForm() {
+    document.getElementById('add-term-form').classList.add('active');
+    document.getElementById('new-term-input').focus();
+}
+
+function hideAddTermForm() {
+    document.getElementById('add-term-form').classList.remove('active');
+    document.getElementById('new-term-input').value = '';
+}
+
+// Add new term
+function addNewTerm() {
+    const input = document.getElementById('new-term-input');
+    const term = input.value.trim();
+    
+    if (!term) {
+        alert('Please enter a term');
+        return;
+    }
+    
+    if (currentTerms.includes(term)) {
+        alert('This term already exists');
+        return;
+    }
+    
+    // Add term to list
+    currentTerms.push(term);
+    
+    // Create new term card
+    createTermCard(term);
+    
+    // Update count
+    document.getElementById('term-count').textContent = currentTerms.length;
+    
+    // Hide form
+    hideAddTermForm();
+    
+    // Save to backend
+    saveTerms();
+}
+
+// Create term card dynamically
+function createTermCard(term) {
+    const container = document.getElementById('terms-container');
+    const addCard = container.querySelector('.add-term-card');
+    
+    const termCard = document.createElement('div');
+    termCard.className = 'term-card';
+    termCard.dataset.term = term;
+    
+    let domainColumns = '';
+    currentDomains.forEach(domain => {
+        const domainId = domain.replace(/\s+/g, '_');
+        domainColumns += `
+            <div class="domain-column" data-domain="${domain}">
+                <div class="domain-label">
+                    <i class="fas fa-book"></i> ${domain}
+                </div>
+                <div class="definition-content" id="def-${term}-${domainId}">
+                    <div class="definition-placeholder">
+                        Click "Fetch Definitions" to load definitions from references
+                    </div>
+                </div>
+                <div class="ontology-mapping">
+                    <small class="text-muted">Ontology Concepts:</small>
+                    <div class="ontology-concepts" id="onto-${term}-${domainId}">
+                        <!-- Ontology mappings will be loaded here -->
+                    </div>
+                </div>
+            </div>
+        `;
+    });
+    
+    termCard.innerHTML = `
+        <div class="term-header">
+            <div class="term-title">
+                <i class="fas fa-tag text-primary"></i> ${term}
+            </div>
+            <div class="term-actions">
+                <button class="btn btn-sm btn-outline-primary" onclick="fetchDefinitions('${term}')">
+                    <i class="fas fa-sync"></i> Fetch Definitions
+                </button>
+                <button class="btn btn-sm btn-outline-secondary" onclick="editTerm('${term}')">
+                    <i class="fas fa-edit"></i> Edit
+                </button>
+                <button class="btn btn-sm btn-outline-danger" onclick="removeTerm('${term}')">
+                    <i class="fas fa-trash"></i> Remove
+                </button>
+            </div>
+        </div>
+        <div class="domain-columns" style="grid-template-columns: repeat(${currentDomains.length}, 1fr);">
+            ${domainColumns}
+        </div>
+    `;
+    
+    container.insertBefore(termCard, addCard);
+}
+
+// Remove term
+function removeTerm(term) {
+    if (!confirm(`Are you sure you want to remove the term "${term}"?`)) {
+        return;
+    }
+    
+    // Remove from array
+    currentTerms = currentTerms.filter(t => t !== term);
+    
+    // Remove card
+    const card = document.querySelector(`.term-card[data-term="${term}"]`);
+    if (card) {
+        card.remove();
+    }
+    
+    // Update count
+    document.getElementById('term-count').textContent = currentTerms.length;
+    
+    // Save to backend
+    saveTerms();
+}
+
+// Edit term
+function editTerm(oldTerm) {
+    const newTerm = prompt(`Edit term:`, oldTerm);
+    if (!newTerm || newTerm === oldTerm) {
+        return;
+    }
+    
+    if (currentTerms.includes(newTerm)) {
+        alert('This term already exists');
+        return;
+    }
+    
+    // Update in array
+    const index = currentTerms.indexOf(oldTerm);
+    currentTerms[index] = newTerm;
+    
+    // Update card
+    const card = document.querySelector(`.term-card[data-term="${oldTerm}"]`);
+    if (card) {
+        card.dataset.term = newTerm;
+        card.querySelector('.term-title').innerHTML = `<i class="fas fa-tag text-primary"></i> ${newTerm}`;
+        
+        // Update all IDs
+        card.querySelectorAll('[id*="' + oldTerm + '"]').forEach(elem => {
+            elem.id = elem.id.replace(oldTerm, newTerm);
+        });
+    }
+    
+    // Save to backend
+    saveTerms();
+}
+
+// Fetch definitions for a term
+async function fetchDefinitions(term) {
+    const card = document.querySelector(`.term-card[data-term="${term}"]`);
+    const button = card.querySelector('.btn-outline-primary');
+    
+    // Show loading state
+    button.innerHTML = '<span class="loading-spinner"></span> Fetching...';
+    button.disabled = true;
+    
+    try {
+        const response = await fetch(`/experiments/${experimentId}/fetch_definitions`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                term: term,
+                domains: currentDomains
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            // Update definitions in UI
+            displayDefinitions(term, data.definitions);
+            
+            // Load ontology mappings
+            loadOntologyMappings(term, data.ontology_mappings);
+        } else {
+            alert('Error fetching definitions: ' + data.error);
+        }
+    } catch (error) {
+        alert('Error fetching definitions: ' + error.message);
+    } finally {
+        button.innerHTML = '<i class="fas fa-sync"></i> Fetch Definitions';
+        button.disabled = false;
+    }
+}
+
+// Display fetched definitions
+function displayDefinitions(term, definitions) {
+    currentDomains.forEach(domain => {
+        const domainId = domain.replace(/\s+/g, '_');
+        const contentDiv = document.getElementById(`def-${term}-${domainId}`);
+        
+        if (contentDiv) {
+            const def = definitions[domain];
+            if (def) {
+                contentDiv.innerHTML = `
+                    <div class="definition-text">${def.text || 'No definition found'}</div>
+                    ${def.source ? `<div class="definition-source">Source: ${def.source}</div>` : ''}
+                `;
+            } else {
+                contentDiv.innerHTML = `
+                    <div class="definition-placeholder">No definition found for this domain</div>
+                `;
+            }
+        }
+    });
+}
+
+// Load ontology mappings
+function loadOntologyMappings(term, mappings) {
+    if (!mappings) return;
+    
+    currentDomains.forEach(domain => {
+        const domainId = domain.replace(/\s+/g, '_');
+        const conceptsDiv = document.getElementById(`onto-${term}-${domainId}`);
+        
+        if (conceptsDiv && mappings[domain]) {
+            const concepts = mappings[domain];
+            let html = '';
+            
+            concepts.forEach(concept => {
+                html += `<span class="ontology-badge" title="${concept.description || ''}">${concept.label}</span>`;
+            });
+            
+            conceptsDiv.innerHTML = html || '<span class="text-muted">No mappings found</span>';
+        }
+    });
+}
+
+// Edit domains
+function editDomains() {
+    const newDomains = prompt('Edit domains (comma-separated):', currentDomains.join(', '));
+    if (!newDomains) return;
+    
+    const domains = newDomains.split(',').map(d => d.trim()).filter(Boolean);
+    if (domains.length === 0) {
+        alert('Please enter at least one domain');
+        return;
+    }
+    
+    // Update domains and refresh the page
+    currentDomains = domains;
+    saveTerms(() => {
+        window.location.reload();
+    });
+}
+
+// Save terms to backend
+async function saveTerms(callback) {
+    try {
+        const response = await fetch(`/experiments/${experimentId}/update_terms`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                terms: currentTerms,
+                domains: currentDomains,
+                definitions: termDefinitions
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            if (callback) callback();
+        } else {
+            alert('Error saving terms: ' + data.error);
+        }
+    } catch (error) {
+        alert('Error saving terms: ' + error.message);
+    }
+}
+
+// Load saved definitions
+async function loadSavedDefinitions() {
+    try {
+        const response = await fetch(`/experiments/${experimentId}/get_terms`);
+        const data = await response.json();
+        
+        if (data.success && data.definitions) {
+            termDefinitions = data.definitions;
+            
+            // Display any saved definitions
+            Object.keys(termDefinitions).forEach(term => {
+                if (termDefinitions[term]) {
+                    displayDefinitions(term, termDefinitions[term]);
+                }
+            });
+        }
+    } catch (error) {
+        console.error('Error loading saved definitions:', error);
+    }
+}
+
+// Proceed to analysis
+function proceedToAnalysis() {
+    if (currentTerms.length === 0) {
+        alert('Please add at least one term before proceeding');
+        return;
+    }
+    
+    // Save and redirect to run analysis
+    saveTerms(() => {
+        window.location.href = `/experiments/${experimentId}`;
+    });
+}
+</script>
+{% endblock %}

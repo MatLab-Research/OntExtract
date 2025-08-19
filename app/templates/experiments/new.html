@@ -170,19 +170,50 @@
                         <div id="configuration-options" class="mb-4" style="display: none;">
                             <h5>Configuration Options</h5>
                             <div id="temporal-config" style="display: none;">
+                                <div class="row">
+                                    <div class="col-md-4">
+                                        <div class="mb-3">
+                                            <label for="start-year" class="form-label">Start Year</label>
+                                            <input type="number" class="form-control" id="start-year" 
+                                                   placeholder="e.g., 1990" min="1800" max="2030" value="2000">
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="mb-3">
+                                            <label for="end-year" class="form-label">End Year</label>
+                                            <input type="number" class="form-control" id="end-year" 
+                                                   placeholder="e.g., 2020" min="1800" max="2030" value="2020">
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="mb-3">
+                                            <label for="time-period" class="form-label">Period</label>
+                                            <select class="form-select" id="time-period">
+                                                <option value="1">Every Year</option>
+                                                <option value="2">Every 2 Years</option>
+                                                <option value="5" selected>Every 5 Years</option>
+                                                <option value="10">Every 10 Years</option>
+                                                <option value="20">Every 20 Years</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                </div>
                                 <div class="mb-3">
-                                    <label for="time-window" class="form-label">Time Window</label>
-                                    <select class="form-select" id="time-window">
-                                        <option value="monthly">Monthly</option>
-                                        <option value="quarterly">Quarterly</option>
-                                        <option value="yearly">Yearly</option>
-                                        <option value="custom">Custom</option>
-                                    </select>
+                                    <label for="temporal-terms" class="form-label">Terms to Track (comma-separated) *</label>
+                                    <input type="text" class="form-control" id="temporal-terms" 
+                                           placeholder="e.g., technology, artificial intelligence, computer, algorithm" required>
+                                    <small class="text-muted">We'll track how these terms evolve over the specified time periods. At least one term is required.</small>
                                 </div>
                                 <div class="form-check">
-                                    <input class="form-check-input" type="checkbox" id="track-entities">
+                                    <input class="form-check-input" type="checkbox" id="track-entities" checked>
                                     <label class="form-check-label" for="track-entities">
-                                        Track entity evolution over time
+                                        Track entity evolution and context changes
+                                    </label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="track-frequency" checked>
+                                    <label class="form-check-label" for="track-frequency">
+                                        Track term frequency over time
                                     </label>
                                 </div>
                             </div>
@@ -401,8 +432,35 @@ document.addEventListener('DOMContentLoaded', function() {
         // Build configuration based on type
         const configuration = {};
         if (type === 'temporal_evolution') {
-            configuration.time_window = document.getElementById('time-window').value;
+            const startYear = parseInt(document.getElementById('start-year').value);
+            const endYear = parseInt(document.getElementById('end-year').value);
+            const period = parseInt(document.getElementById('time-period').value);
+            
+            // Calculate time periods
+            const periods = [];
+            for (let year = startYear; year <= endYear; year += period) {
+                periods.push(year);
+            }
+            if (periods[periods.length - 1] !== endYear) {
+                periods.push(endYear);
+            }
+            
+            configuration.start_year = startYear;
+            configuration.end_year = endYear;
+            configuration.period = period;
+            configuration.time_periods = periods;
             configuration.track_entities = document.getElementById('track-entities').checked;
+            configuration.track_frequency = document.getElementById('track-frequency').checked;
+            
+            const temporalTermsVal = document.getElementById('temporal-terms').value || '';
+            configuration.target_terms = temporalTermsVal.split(',').map(t => t.trim()).filter(Boolean);
+            
+            // Validate that at least one term is provided
+            if (configuration.target_terms.length === 0) {
+                alert('Please enter at least one term to track for temporal evolution');
+                document.getElementById('temporal-terms').focus();
+                return;
+            }
         } else if (type === 'domain_comparison') {
             const domainFocusVal = document.getElementById('domain-focus').value || '';
             const domains = domainFocusVal.split(',').map(d => d.trim()).filter(Boolean);
@@ -434,7 +492,12 @@ document.addEventListener('DOMContentLoaded', function() {
             
             const data = await response.json();
             if (data.success) {
-                window.location.href = `/experiments/${data.experiment_id}`;
+                // Check if we should redirect to term manager
+                if (data.redirect) {
+                    window.location.href = data.redirect;
+                } else {
+                    window.location.href = `/experiments/${data.experiment_id}`;
+                }
             } else {
                 alert('Error: ' + data.error);
             }
