@@ -136,9 +136,9 @@ class OpenAIEmbeddingProvider(BaseEmbeddingProvider):
 class ClaudeEmbeddingProvider(BaseEmbeddingProvider):
     """Claude API embedding provider (experimental)."""
     
-    def __init__(self, api_key: str = None, model: str = "claude-3-embedding"):
+    def __init__(self, api_key: str = None, model: str = None):
         self.api_key = api_key or os.environ.get("ANTHROPIC_API_KEY")
-        self.model = model
+        self.model = model or os.environ.get("CLAUDE_EMBEDDING_MODEL", "claude-3-embedding")
         self.api_base = os.environ.get("ANTHROPIC_API_BASE", "https://api.anthropic.com/v1")
         self._dimension = 1024  # Estimated for Claude
     
@@ -150,7 +150,7 @@ class ClaudeEmbeddingProvider(BaseEmbeddingProvider):
         headers = {
             "Content-Type": "application/json",
             "x-api-key": self.api_key,
-            "anthropic-version": "2023-06-01"
+            "anthropic-version": os.environ.get("CLAUDE_API_VERSION", "2023-06-01")
         }
         
         data = {

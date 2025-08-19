@@ -222,11 +222,11 @@ def upload_file():
 @text_input_bp.route('/documents')
 @login_required
 def document_list():
-    """List user's documents"""
+    """List user's source documents"""
     page = request.args.get('page', 1, type=int)
     per_page = 10
     
-    documents = Document.query.filter_by(user_id=current_user.id)\
+    documents = Document.query.filter_by(user_id=current_user.id, document_type='document')\
         .order_by(Document.created_at.desc())\
         .paginate(page=page, per_page=per_page, error_out=False)
     

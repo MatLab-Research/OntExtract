@@ -8,7 +8,7 @@
     <div class="col-12 col-lg-10 col-xl-9">
       <div class="card">
         <div class="card-header d-flex justify-content-between align-items-center">
-          <h3 class="mb-0">New Experiment Wizard (Choi-inspired)</h3>
+          <h3 class="mb-0">New Experiment Wizard</h3>
           <a class="btn btn-outline-secondary" href="{{ url_for('experiments.index') }}">Back</a>
         </div>
         <div class="card-body">
@@ -28,25 +28,68 @@
 
             <div class="row">
               <div class="col-md-6 mb-3">
-                <label class="form-label">Documents</label>
+                <label class="form-label">
+                  <i class="fas fa-file-text text-primary"></i> Source Documents
+                </label>
+                <small class="text-muted d-block mb-2">Primary documents to analyze</small>
                 <div class="border rounded p-2" style="max-height:220px; overflow:auto;">
-                  {% for d in documents %}
-                    <div class="form-check">
-                      <input class="form-check-input" type="checkbox" value="{{ d.id }}" id="doc_{{ d.id }}"/>
-                      <label class="form-check-label" for="doc_{{ d.id }}">{{ d.title or ('Document #' ~ d.id) }}</label>
+                  {% if documents %}
+                    {% for d in documents %}
+                      <div class="form-check mb-2">
+                        <input class="form-check-input" type="checkbox" value="{{ d.id }}" id="doc_{{ d.id }}"/>
+                        <label class="form-check-label" for="doc_{{ d.id }}">
+                          <span class="badge bg-primary badge-sm me-2">DOC</span>
+                          <strong>{{ d.title or d.get_display_name() }}</strong>
+                          {% if d.word_count %}
+                          <span class="text-muted">({{ d.word_count }} words)</span>
+                          {% endif %}
+                          {% if d.created_at %}
+                          <small class="text-muted d-block">
+                            Uploaded: {{ d.created_at.strftime('%Y-%m-%d') }}
+                          </small>
+                          {% endif %}
+                        </label>
+                      </div>
+                    {% endfor %}
+                  {% else %}
+                    <div class="text-muted">
+                      <i class="fas fa-info-circle"></i> No source documents available.
+                      <a href="{{ url_for('text_input.upload_form') }}">Upload documents</a> first.
                     </div>
-                  {% endfor %}
+                  {% endif %}
                 </div>
               </div>
               <div class="col-md-6 mb-3">
-                <label class="form-label">References</label>
+                <label class="form-label">
+                  <i class="fas fa-book text-success"></i> References
+                </label>
+                <small class="text-muted d-block mb-2">Dictionary entries, papers, standards</small>
                 <div class="border rounded p-2" style="max-height:220px; overflow:auto;">
-                  {% for r in references %}
-                    <div class="form-check">
-                      <input class="form-check-input" type="checkbox" value="{{ r.id }}" id="ref_{{ r.id }}"/>
-                      <label class="form-check-label" for="ref_{{ r.id }}">{{ r.title or ('Reference #' ~ r.id) }}</label>
+                  {% if references %}
+                    {% for r in references %}
+                      <div class="form-check mb-2">
+                        <input class="form-check-input" type="checkbox" value="{{ r.id }}" id="ref_{{ r.id }}"/>
+                        <label class="form-check-label" for="ref_{{ r.id }}">
+                          <span class="badge bg-success badge-sm me-2">REF</span>
+                          <strong>{{ r.title or r.get_display_name() }}</strong>
+                          {% if r.reference_subtype %}
+                          <small class="badge bg-secondary badge-sm">{{ r.get_reference_subtype_display() }}</small>
+                          {% endif %}
+                          {% if r.word_count %}
+                          <span class="text-muted">({{ r.word_count }} words)</span>
+                          {% endif %}
+                          {% if r.get_source_info() %}
+                          <small class="text-muted d-block">{{ r.get_source_info() }}</small>
+                          {% endif %}
+                        </label>
+                      </div>
+                    {% endfor %}
+                  {% else %}
+                    <div class="text-muted">
+                      <i class="fas fa-info-circle"></i> No references available.
+                      You can add references from the <a href="{{ url_for('references.index') }}">references section</a>.
                     </div>
-                  {% endfor %}
+                  {% endif %}
                 </div>
               </div>
             </div>

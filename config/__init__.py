@@ -40,6 +40,11 @@ class Config:
     ANTHROPIC_API_KEY = os.environ.get('ANTHROPIC_API_KEY')
     OPENAI_API_KEY = os.environ.get('OPENAI_API_KEY')
     DEFAULT_LLM_PROVIDER = os.environ.get('DEFAULT_LLM_PROVIDER', 'anthropic')
+    
+    # Claude Model Configuration
+    CLAUDE_DEFAULT_MODEL = os.environ.get('CLAUDE_DEFAULT_MODEL', 'claude-3-5-sonnet-20241022')
+    CLAUDE_API_VERSION = os.environ.get('CLAUDE_API_VERSION', '2023-06-01')
+    CLAUDE_EMBEDDING_MODEL = os.environ.get('CLAUDE_EMBEDDING_MODEL', 'claude-3-embedding')
 
     # OED Researcher API Configuration (use env; do not commit secrets)
     OED_USE_API = os.environ.get('OED_USE_API', 'False').lower() in {'true', '1', 'yes', 'on', 'y', 't'}

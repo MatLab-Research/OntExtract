@@ -120,7 +120,7 @@ class OEDParser:
         try:
             # First pass: Clean the text
             clean_message = self.client.messages.create(  # type: ignore[attr-defined]
-                model="claude-3-5-sonnet-20241022",
+                model=os.environ.get("CLAUDE_DEFAULT_MODEL", "claude-3-5-sonnet-20241022"),
                 max_tokens=8000,
                 temperature=0.1,
                 messages=[
@@ -153,7 +153,7 @@ class OEDParser:
         
             # Extract structured data
             extract_message = self.client.messages.create(  # type: ignore[attr-defined]
-                model="claude-3-5-sonnet-20241022",
+                model=os.environ.get("CLAUDE_DEFAULT_MODEL", "claude-3-5-sonnet-20241022"),
                 max_tokens=4000,
                 temperature=0.2,
                 messages=[

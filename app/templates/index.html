@@ -25,7 +25,7 @@
                         <i class="fas fa-paste me-2"></i>Paste Text
                     </a>
                     <a href="{{ url_for('text_input.document_list') }}" class="btn btn-outline-info btn-lg">
-                        <i class="fas fa-file-text me-2"></i>My Documents
+                        <i class="fas fa-file-text me-2"></i>Source Documents
                     </a>
                 </div>
             {% else %}
@@ -150,7 +150,7 @@
                 <div class="card-body text-center">
                     <i class="fas fa-file-text fa-2x mb-3"></i>
                     <h3 class="mb-1">{{ current_user.documents.count() }}</h3>
-                    <p class="mb-0">Documents</p>
+                    <p class="mb-0">Source Documents</p>
                 </div>
             </div>
         </div>

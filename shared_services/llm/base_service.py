@@ -101,10 +101,10 @@ class ClaudeLLMProvider(BaseLLMProvider):
     
     def __init__(self, 
                  api_key: str = None, 
-                 model: str = "claude-3-sonnet-20240229",
+                 model: str = None,
                  api_base: str = None):
         self.api_key = api_key or os.environ.get("ANTHROPIC_API_KEY")
-        self.model = model
+        self.model = model or os.environ.get("CLAUDE_DEFAULT_MODEL", "claude-3-5-sonnet-20241022")
         self.api_base = api_base or os.environ.get("ANTHROPIC_API_BASE", "https://api.anthropic.com/v1")
     
     def generate_text(self, 
@@ -119,7 +119,7 @@ class ClaudeLLMProvider(BaseLLMProvider):
         headers = {
             "Content-Type": "application/json",
             "x-api-key": self.api_key,
-            "anthropic-version": "2023-06-01"
+            "anthropic-version": os.environ.get("CLAUDE_API_VERSION", "2023-06-01")
         }
         
         data = {

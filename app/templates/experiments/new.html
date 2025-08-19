@@ -39,70 +39,129 @@
                         </div>
                         
                         <div class="mb-4">
-                            <label class="form-label">Select Documents *</label>
+                            <label class="form-label">Select Content for Analysis *</label>
                             <div class="alert alert-info">
                                 <i class="fas fa-info-circle"></i> 
-                                Select one or more documents to include in this experiment.
+                                Select source documents and/or references to include in this experiment.
                                 <span id="type-description"></span>
                             </div>
                             
-                            {% if documents %}
-                            <div class="document-selection">
-                                <div class="row">
-                                    <div class="col-md-6">
+                            <div class="row">
+                                <!-- Source Documents -->
+                                <div class="col-md-6">
+                                    <h6><i class="fas fa-file-text text-primary"></i> Source Documents</h6>
+                                    <small class="text-muted mb-3 d-block">Primary documents to analyze</small>
+                                    
+                                    {% if documents %}
+                                    <div class="document-selection">
                                         <input type="text" class="form-control mb-3" id="document-search" 
-                                               placeholder="Search documents...">
+                                               placeholder="Search source documents...">
+                                        
+                                        <div class="document-list border rounded p-3" style="max-height: 300px; overflow-y: auto;">
+                                            {% for document in documents %}
+                                            <div class="form-check document-item mb-2">
+                                                <input class="form-check-input document-checkbox" type="checkbox" 
+                                                       value="{{ document.id }}" id="doc-{{ document.id }}"
+                                                       data-title="{{ document.get_display_name() }}"
+                                                       data-words="{{ document.word_count or 0 }}">
+                                                <label class="form-check-label" for="doc-{{ document.id }}">
+                                                    <span class="badge bg-primary badge-sm me-2">DOC</span>
+                                                    <strong>{{ document.get_display_name() }}</strong>
+                                                    <span class="text-muted">
+                                                        ({{ document.word_count or 0 }} words)
+                                                    </span>
+                                                    {% if document.created_at %}
+                                                    <small class="text-muted d-block">
+                                                        Uploaded: {{ document.created_at.strftime('%Y-%m-%d %H:%M') }}
+                                                    </small>
+                                                    {% endif %}
+                                                </label>
+                                            </div>
+                                            {% endfor %}
+                                        </div>
                                     </div>
-                                    <div class="col-md-6 text-end">
-                                        <button type="button" class="btn btn-sm btn-outline-primary" id="select-all">
-                                            Select All
-                                        </button>
-                                        <button type="button" class="btn btn-sm btn-outline-secondary" id="deselect-all">
-                                            Deselect All
-                                        </button>
+                                    {% else %}
+                                    <div class="alert alert-warning">
+                                        <i class="fas fa-exclamation-triangle"></i> 
+                                        No source documents available. Please 
+                                        <a href="{{ url_for('text_input.upload_form') }}">upload some documents</a> first.
                                     </div>
+                                    {% endif %}
                                 </div>
                                 
-                                <div class="document-list border rounded p-3" style="max-height: 400px; overflow-y: auto;">
-                                    {% for document in documents %}
-                                    <div class="form-check document-item mb-2">
-                                        <input class="form-check-input document-checkbox" type="checkbox" 
-                                               value="{{ document.id }}" id="doc-{{ document.id }}"
-                                               data-title="{{ document.get_display_name() }}"
-                                               data-words="{{ document.word_count or 0 }}">
-                                        <label class="form-check-label" for="doc-{{ document.id }}">
-                                            <strong>{{ document.get_display_name() }}</strong>
-                                            <span class="text-muted">
-                                                ({{ document.word_count or 0 }} words)
-                                            </span>
-                                            {% if document.created_at %}
-                                            <small class="text-muted d-block">
-                                                Uploaded: {{ document.created_at.strftime('%Y-%m-%d %H:%M') }}
-                                            </small>
-                                            {% endif %}
-                                            {% if document.content_preview %}
-                                            <small class="text-muted d-block">
-                                                {{ document.content_preview[:100] }}...
-                                            </small>
-                                            {% endif %}
-                                        </label>
+                                <!-- References -->
+                                <div class="col-md-6">
+                                    <h6><i class="fas fa-book text-success"></i> References</h6>
+                                    <small class="text-muted mb-3 d-block">Dictionary entries, papers, standards</small>
+                                    
+                                    {% if references %}
+                                    <div class="reference-selection">
+                                        <input type="text" class="form-control mb-3" id="reference-search" 
+                                               placeholder="Search references...">
+                                        
+                                        <div class="reference-list border rounded p-3" style="max-height: 300px; overflow-y: auto;">
+                                            {% for reference in references %}
+                                            <div class="form-check reference-item mb-2">
+                                                <input class="form-check-input reference-checkbox" type="checkbox" 
+                                                       value="{{ reference.id }}" id="ref-{{ reference.id }}"
+                                                       data-title="{{ reference.get_display_name() }}"
+                                                       data-words="{{ reference.word_count or 0 }}">
+                                                <label class="form-check-label" for="ref-{{ reference.id }}">
+                                                    <span class="badge bg-success badge-sm me-2">REF</span>
+                                                    <strong>{{ reference.get_display_name() }}</strong>
+                                                    {% if reference.reference_subtype %}
+                                                    <small class="badge bg-secondary badge-sm">{{ reference.get_reference_subtype_display() }}</small>
+                                                    {% endif %}
+                                                    <span class="text-muted">
+                                                        ({{ reference.word_count or 0 }} words)
+                                                    </span>
+                                                    {% if reference.get_source_info() %}
+                                                    <small class="text-muted d-block">
+                                                        {{ reference.get_source_info() }}
+                                                    </small>
+                                                    {% endif %}
+                                                </label>
+                                            </div>
+                                            {% endfor %}
+                                        </div>
                                     </div>
-                                    {% endfor %}
+                                    {% else %}
+                                    <div class="alert alert-info">
+                                        <i class="fas fa-info-circle"></i> 
+                                        No references available. You can add references from the 
+                                        <a href="{{ url_for('references.index') }}">references section</a>.
+                                    </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            
+                            <div class="row mt-3">
+                                <div class="col-md-6 text-end">
+                                    <button type="button" class="btn btn-sm btn-outline-primary" id="select-all-docs">
+                                        Select All Documents
+                                    </button>
+                                    <button type="button" class="btn btn-sm btn-outline-secondary" id="deselect-all-docs">
+                                        Deselect All Documents
+                                    </button>
+                                </div>
+                                <div class="col-md-6 text-end">
+                                    <button type="button" class="btn btn-sm btn-outline-success" id="select-all-refs">
+                                        Select All References
+                                    </button>
+                                    <button type="button" class="btn btn-sm btn-outline-secondary" id="deselect-all-refs">
+                                        Deselect All References
+                                    </button>
                                 </div>
                             </div>
                             
                             <div class="mt-3">
                                 <strong>Selected: </strong>
-                                <span id="selected-count">0</span> documents
+                                <span id="selected-count">0</span> items
                                 (<span id="total-words">0</span> total words)
+                                <small class="text-muted ms-3">
+                                    <span id="doc-count">0</span> documents, <span id="ref-count">0</span> references
+                                </small>
                             </div>
-                            {% else %}
-                            <div class="alert alert-warning">
-                                <i class="fas fa-exclamation-triangle"></i> 
-                                No documents available. Please 
-                                <a href="{{ url_for('text_input.upload_form') }}">upload some documents</a> first.
-                            </div>
-                            {% endif %}
                         </div>
                         
                         <!-- Configuration options based on experiment type -->
@@ -208,8 +267,9 @@ document.addEventListener('DOMContentLoaded', function() {
     });
     
     // Document search
-    if (searchInput) {
-        searchInput.addEventListener('input', function() {
+    const documentSearchInput = document.getElementById('document-search');
+    if (documentSearchInput) {
+        documentSearchInput.addEventListener('input', function() {
             const searchTerm = this.value.toLowerCase();
             const documentItems = document.querySelectorAll('.document-item');
             
@@ -226,9 +286,29 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     
-    // Select/Deselect all
-    document.getElementById('select-all')?.addEventListener('click', function() {
-        document.querySelectorAll('.document-checkbox:not([style*="display: none"])').forEach(cb => {
+    // Reference search
+    const referenceSearchInput = document.getElementById('reference-search');
+    if (referenceSearchInput) {
+        referenceSearchInput.addEventListener('input', function() {
+            const searchTerm = this.value.toLowerCase();
+            const referenceItems = document.querySelectorAll('.reference-item');
+            
+            referenceItems.forEach(item => {
+                const title = item.querySelector('.reference-checkbox').dataset.title.toLowerCase();
+                const label = item.querySelector('label').textContent.toLowerCase();
+                
+                if (title.includes(searchTerm) || label.includes(searchTerm)) {
+                    item.style.display = 'block';
+                } else {
+                    item.style.display = 'none';
+                }
+            });
+        });
+    }
+    
+    // Select/Deselect all documents
+    document.getElementById('select-all-docs')?.addEventListener('click', function() {
+        document.querySelectorAll('.document-checkbox').forEach(cb => {
             if (cb.closest('.document-item').style.display !== 'none') {
                 cb.checked = true;
             }
@@ -236,26 +316,51 @@ document.addEventListener('DOMContentLoaded', function() {
         updateSelectedCount();
     });
     
-    document.getElementById('deselect-all')?.addEventListener('click', function() {
+    document.getElementById('deselect-all-docs')?.addEventListener('click', function() {
         document.querySelectorAll('.document-checkbox').forEach(cb => cb.checked = false);
+        updateSelectedCount();
+    });
+    
+    // Select/Deselect all references
+    document.getElementById('select-all-refs')?.addEventListener('click', function() {
+        document.querySelectorAll('.reference-checkbox').forEach(cb => {
+            if (cb.closest('.reference-item').style.display !== 'none') {
+                cb.checked = true;
+            }
+        });
+        updateSelectedCount();
+    });
+    
+    document.getElementById('deselect-all-refs')?.addEventListener('click', function() {
+        document.querySelectorAll('.reference-checkbox').forEach(cb => cb.checked = false);
         updateSelectedCount();
     });
     
     // Update selected count
     function updateSelectedCount() {
-        const selected = document.querySelectorAll('.document-checkbox:checked');
+        const selectedDocs = document.querySelectorAll('.document-checkbox:checked');
+        const selectedRefs = document.querySelectorAll('.reference-checkbox:checked');
         let totalWordCount = 0;
         
-        selected.forEach(cb => {
+        selectedDocs.forEach(cb => {
             totalWordCount += parseInt(cb.dataset.words) || 0;
         });
         
-        selectedCount.textContent = selected.length;
+        selectedRefs.forEach(cb => {
+            totalWordCount += parseInt(cb.dataset.words) || 0;
+        });
+        
+        const totalSelected = selectedDocs.length + selectedRefs.length;
+        selectedCount.textContent = totalSelected;
         totalWords.textContent = totalWordCount.toLocaleString();
+        
+        // Update individual counts
+        document.getElementById('doc-count').textContent = selectedDocs.length;
+        document.getElementById('ref-count').textContent = selectedRefs.length;
     }
     
     // Listen for checkbox changes
-    document.querySelectorAll('.document-checkbox').forEach(cb => {
+    document.querySelectorAll('.document-checkbox, .reference-checkbox').forEach(cb => {
         cb.addEventListener('change', updateSelectedCount);
     });
     
@@ -269,6 +374,8 @@ document.addEventListener('DOMContentLoaded', function() {
         
         const selectedDocs = Array.from(document.querySelectorAll('.document-checkbox:checked'))
             .map(cb => parseInt(cb.value));
+        const selectedRefs = Array.from(document.querySelectorAll('.reference-checkbox:checked'))
+            .map(cb => parseInt(cb.value));
         
         if (!name) {
             alert('Please enter an experiment name');
@@ -280,8 +387,8 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
         
-        if (selectedDocs.length === 0) {
-            alert('Please select at least one document');
+        if (selectedDocs.length === 0 && selectedRefs.length === 0) {
+            alert('Please select at least one document or reference');
             return;
         }
         
@@ -310,6 +417,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     description: description,
                     experiment_type: type,
                     document_ids: selectedDocs,
+                    reference_ids: selectedRefs,
                     configuration: configuration
                 })
             });

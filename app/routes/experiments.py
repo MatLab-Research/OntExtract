@@ -23,9 +23,10 @@ def index():
 @login_required
 def new():
     """Create a new experiment"""
-    # Get all documents for the current user
-    documents = Document.query.filter_by(user_id=current_user.id).order_by(Document.created_at.desc()).all()
-    return render_template('experiments/new.html', documents=documents)
+    # Get documents and references separately for the current user
+    documents = Document.query.filter_by(user_id=current_user.id, document_type='document').order_by(Document.created_at.desc()).all()
+    references = Document.query.filter_by(user_id=current_user.id, document_type='reference').order_by(Document.created_at.desc()).all()
+    return render_template('experiments/new.html', documents=documents, references=references)
 
 @experiments_bp.route('/wizard')
 @login_required

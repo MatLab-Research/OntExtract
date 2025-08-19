@@ -314,7 +314,17 @@
 <script>
 // Embed experiment JSON for safe parsing
 </script>
-<script type="application/json" id="experiment-json">{{ {
+<script type="application/json" id="experiment-json">
+{% set document_list = [] %}
+{% for document in experiment.documents %}
+  {% set _ = document_list.append({
+    'name': document.get_display_name(),
+    'type': (document.file_type or document.content_type),
+    'words': (document.word_count or 0),
+    'uploaded': document.created_at.strftime('%Y-%m-%d') if document.created_at else None
+  }) %}
+{% endfor %}
+{{ {
     'id': experiment.id,
     'name': experiment.name,
     'type': experiment.experiment_type,
@@ -324,15 +334,9 @@
     'created': experiment.created_at.isoformat() if experiment.created_at else None,
     'completed': experiment.completed_at.isoformat() if experiment.completed_at else None,
     'summary': experiment.results_summary if experiment.results_summary else None,
-    'documents': [
-        {
-            'name': document.get_display_name(),
-            'type': (document.file_type or document.content_type),
-            'words': (document.word_count or 0),
-            'uploaded': document.created_at.strftime('%Y-%m-%d') if document.created_at else None
-        } for document in experiment.documents
-    ]
-} | tojson | safe }}</script>
+    'documents': document_list
+} | tojson | safe }}
+</script>
 <script>
 // Store experiment data for JavaScript use
 const experimentData = JSON.parse(document.getElementById('experiment-json').textContent);
