@@ -1,0 +1,12 @@
+{
+  "source": "https://www.w3.org/ns/prov.ttl",
+  "name": "W3C Provenance Ontology (PROV-O)",
+  "description": "The PROV Ontology (PROV-O) provides a set of classes, properties, and restrictions for representing provenance information",
+  "class_count": "59",
+  "property_count": "69",
+  "ontology_id": "prov-o",
+  "source_url": "https://www.w3.org/ns/prov.ttl",
+  "import_date": "2025-08-19T14:03:09.137106",
+  "format": "turtle",
+  "triple_count": 1664
+}

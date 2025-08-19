@@ -1,0 +1,867 @@
+{% extends "base.html" %}
+
+{% block title %}Track Terms Over Time - {{ experiment.name }} - OntExtract{% endblock %}
+
+{% block content %}
+<style>
+    .term-card {
+        border: 1px solid #dee2e6;
+        border-radius: 8px;
+        padding: 20px;
+        margin-bottom: 20px;
+        background: white;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        transition: box-shadow 0.3s ease;
+    }
+    
+    .term-card:hover {
+        box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+    }
+    
+    .term-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 15px;
+        padding-bottom: 10px;
+        border-bottom: 2px solid #f0f0f0;
+    }
+    
+    .term-title {
+        font-size: 1.5rem;
+        font-weight: 600;
+        color: #2c3e50;
+    }
+    
+    .term-actions {
+        display: flex;
+        gap: 10px;
+    }
+    
+    .timeline-container {
+        display: flex;
+        overflow-x: auto;
+        gap: 15px;
+        padding: 10px 0;
+        margin-top: 15px;
+    }
+    
+    .time-period-column {
+        min-width: 200px;
+        padding: 15px;
+        background: #f8f9fa;
+        border-radius: 6px;
+        border-top: 4px solid;
+        position: relative;
+    }
+    
+    /* Color gradient for time periods */
+    .time-period-column:nth-child(1) { border-top-color: #007bff; background: linear-gradient(180deg, #e7f3ff 0%, #f8f9fa 100%); }
+    .time-period-column:nth-child(2) { border-top-color: #0056b3; background: linear-gradient(180deg, #d1e7ff 0%, #f8f9fa 100%); }
+    .time-period-column:nth-child(3) { border-top-color: #004085; background: linear-gradient(180deg, #b8daff 0%, #f8f9fa 100%); }
+    .time-period-column:nth-child(4) { border-top-color: #002752; background: linear-gradient(180deg, #9ec5fe 0%, #f8f9fa 100%); }
+    .time-period-column:nth-child(5) { border-top-color: #001a3d; background: linear-gradient(180deg, #84b6fc 0%, #f8f9fa 100%); }
+    .time-period-column:nth-child(6) { border-top-color: #000d1f; background: linear-gradient(180deg, #6ea8fe 0%, #f8f9fa 100%); }
+    
+    .period-label {
+        font-weight: 700;
+        color: #495057;
+        margin-bottom: 10px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 1.1rem;
+    }
+    
+    .period-year {
+        background: white;
+        padding: 2px 8px;
+        border-radius: 4px;
+        font-size: 0.9rem;
+    }
+    
+    .definition-content {
+        padding: 10px;
+        background: white;
+        border-radius: 4px;
+        line-height: 1.6;
+        color: #212529;
+        margin-bottom: 10px;
+        min-height: 100px;
+    }
+    
+    .definition-text {
+        color: #212529;
+        font-size: 0.95rem;
+    }
+    
+    .definition-source {
+        font-size: 0.85rem;
+        color: #6c757d;
+        font-style: italic;
+        margin-top: 5px;
+    }
+    
+    .frequency-indicator {
+        margin-top: 10px;
+        padding: 8px;
+        background: white;
+        border-radius: 4px;
+        border-left: 3px solid #28a745;
+    }
+    
+    .frequency-bar {
+        height: 20px;
+        background: linear-gradient(90deg, #28a745 0%, #20c997 100%);
+        border-radius: 3px;
+        margin-top: 5px;
+        transition: width 0.3s ease;
+    }
+    
+    .context-changes {
+        margin-top: 10px;
+        padding-top: 10px;
+        border-top: 1px solid #dee2e6;
+    }
+    
+    .context-badge {
+        display: inline-block;
+        padding: 3px 8px;
+        background: #fff3cd;
+        color: #856404;
+        border-radius: 4px;
+        font-size: 0.85rem;
+        margin-right: 5px;
+        margin-bottom: 5px;
+    }
+    
+    .add-term-card {
+        border: 2px dashed #dee2e6;
+        border-radius: 8px;
+        padding: 40px;
+        text-align: center;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        background: #fafafa;
+    }
+    
+    .add-term-card:hover {
+        border-color: #007bff;
+        background: #f0f8ff;
+    }
+    
+    .term-input-group {
+        display: none;
+        margin-top: 20px;
+    }
+    
+    .term-input-group.active {
+        display: block;
+    }
+    
+    .progress-indicator {
+        background: #f8f9fa;
+        border-radius: 8px;
+        padding: 15px;
+        margin-bottom: 20px;
+    }
+    
+    .progress-steps {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    
+    .progress-step {
+        flex: 1;
+        text-align: center;
+        position: relative;
+    }
+    
+    .progress-step:not(:last-child)::after {
+        content: '';
+        position: absolute;
+        top: 20px;
+        right: -50%;
+        width: 100%;
+        height: 2px;
+        background: #dee2e6;
+    }
+    
+    .progress-step.completed::after {
+        background: #28a745;
+    }
+    
+    .progress-step.active .step-circle {
+        background: #007bff;
+        color: white;
+    }
+    
+    .progress-step.completed .step-circle {
+        background: #28a745;
+        color: white;
+    }
+    
+    .step-circle {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        background: #dee2e6;
+        color: #6c757d;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 600;
+        margin-bottom: 5px;
+    }
+    
+    .step-label {
+        font-size: 0.9rem;
+        color: #495057;
+    }
+    
+    .definition-placeholder {
+        padding: 10px;
+        background: white;
+        border: 1px dashed #dee2e6;
+        border-radius: 4px;
+        color: #6c757d;
+        font-style: italic;
+    }
+    
+    .loading-spinner {
+        display: inline-block;
+        width: 16px;
+        height: 16px;
+        border: 2px solid #f3f3f3;
+        border-top: 2px solid #007bff;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+    }
+    
+    @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+    
+    .timeline-arrow {
+        position: absolute;
+        right: -7px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: #6c757d;
+        font-size: 1.2rem;
+    }
+    
+    .evolution-indicator {
+        display: inline-block;
+        padding: 2px 6px;
+        border-radius: 3px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        margin-left: 5px;
+    }
+    
+    .evolution-new { background: #d4edda; color: #155724; }
+    .evolution-changed { background: #fff3cd; color: #856404; }
+    .evolution-stable { background: #d1ecf1; color: #0c5460; }
+    .evolution-declining { background: #f8d7da; color: #721c24; }
+</style>
+
+<div class="container-fluid px-4">
+    <!-- Progress Indicator -->
+    <div class="progress-indicator">
+        <div class="progress-steps">
+            <div class="progress-step completed">
+                <div class="step-circle">1</div>
+                <div class="step-label">Create Experiment</div>
+            </div>
+            <div class="progress-step active">
+                <div class="step-circle">2</div>
+                <div class="step-label">Track Terms</div>
+            </div>
+            <div class="progress-step">
+                <div class="step-circle">3</div>
+                <div class="step-label">Run Analysis</div>
+            </div>
+            <div class="progress-step">
+                <div class="step-circle">4</div>
+                <div class="step-label">View Results</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Header -->
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                    <h2>{{ experiment.name }}</h2>
+                    <p class="text-muted mb-0">
+                        <i class="fas fa-clock"></i> Temporal Evolution Experiment
+                        <span class="ms-3">
+                            <i class="fas fa-calendar-alt"></i> 
+                            {{ start_year }} - {{ end_year }}
+                            <span class="badge bg-secondary ms-1">{{ time_periods|length }} periods</span>
+                        </span>
+                        <span class="ms-3">
+                            <i class="fas fa-tags"></i> 
+                            <span id="term-count">{{ terms|length }}</span> Terms
+                        </span>
+                    </p>
+                </div>
+                <div>
+                    <button class="btn btn-outline-secondary me-2" onclick="saveTerms()">
+                        <i class="fas fa-save"></i> Save Progress
+                    </button>
+                    <button class="btn btn-primary" onclick="proceedToAnalysis()">
+                        Continue to Analysis <i class="fas fa-arrow-right"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Time Period Headers -->
+    <div class="row mb-3">
+        <div class="col-12">
+            <div class="alert alert-info">
+                <i class="fas fa-info-circle"></i> 
+                <strong>Time Periods:</strong> 
+                {% for period in time_periods %}
+                    <span class="badge bg-primary ms-2">{{ period }}</span>
+                    {% if not loop.last %}→{% endif %}
+                {% endfor %}
+                <button class="btn btn-sm btn-outline-primary float-end" onclick="editTimePeriods()">
+                    <i class="fas fa-edit"></i> Edit Periods
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Term Cards -->
+    <div id="terms-container">
+        {% for term in terms %}
+        <div class="term-card" data-term="{{ term }}">
+            <div class="term-header">
+                <div class="term-title">
+                    <i class="fas fa-tag text-primary"></i> {{ term }}
+                </div>
+                <div class="term-actions">
+                    <button class="btn btn-sm btn-outline-primary" onclick="fetchTemporalData('{{ term }}')">
+                        <i class="fas fa-sync"></i> Fetch Historical Data
+                    </button>
+                    <button class="btn btn-sm btn-outline-success" onclick="fetchTemporalData('{{ term }}', true)" title="Fetch OED data and suggest time periods">
+                        <i class="fas fa-book"></i> Use OED Periods
+                    </button>
+                    <button class="btn btn-sm btn-outline-info" onclick="analyzeEvolution('{{ term }}')">
+                        <i class="fas fa-chart-line"></i> Analyze Evolution
+                    </button>
+                    <button class="btn btn-sm btn-outline-secondary" onclick="editTerm('{{ term }}')">
+                        <i class="fas fa-edit"></i> Edit
+                    </button>
+                    <button class="btn btn-sm btn-outline-danger" onclick="removeTerm('{{ term }}')">
+                        <i class="fas fa-trash"></i> Remove
+                    </button>
+                </div>
+            </div>
+            
+            <div class="timeline-container">
+                {% for period in time_periods %}
+                <div class="time-period-column" data-period="{{ period }}">
+                    <div class="period-label">
+                        <i class="fas fa-calendar"></i>
+                        <span class="period-year">{{ period }}</span>
+                    </div>
+                    
+                    <div class="definition-content" id="def-{{ term }}-{{ period }}">
+                        <div class="definition-placeholder">
+                            Click "Fetch Historical Data" to load definitions from this period
+                        </div>
+                    </div>
+                    
+                    <!-- Frequency Indicator -->
+                    <div class="frequency-indicator" id="freq-{{ term }}-{{ period }}" style="display: none;">
+                        <small class="text-muted">Term Frequency:</small>
+                        <div class="frequency-bar" style="width: 0%"></div>
+                        <small class="frequency-value">0 occurrences</small>
+                    </div>
+                    
+                    <!-- Context Changes -->
+                    <div class="context-changes">
+                        <small class="text-muted">Context & Usage:</small>
+                        <div class="context-badges" id="context-{{ term }}-{{ period }}">
+                            <!-- Context badges will be loaded here -->
+                        </div>
+                    </div>
+                    
+                    {% if not loop.last %}
+                    <span class="timeline-arrow">→</span>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endfor %}
+        
+        <!-- Add New Term Card -->
+        <div class="add-term-card" onclick="showAddTermForm()">
+            <i class="fas fa-plus-circle fa-3x text-primary mb-3"></i>
+            <h5>Add New Term to Track</h5>
+            <p class="text-muted mb-0">Click to add another term for temporal analysis</p>
+        </div>
+        
+        <!-- Add Term Form (Hidden by default) -->
+        <div class="term-input-group" id="add-term-form">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">Add New Term</h5>
+                    <div class="row">
+                        <div class="col-md-8">
+                            <input type="text" class="form-control" id="new-term-input" 
+                                   placeholder="Enter term to track over time (e.g., technology, artificial intelligence)">
+                        </div>
+                        <div class="col-md-4">
+                            <button class="btn btn-primary" onclick="addNewTerm()">
+                                <i class="fas fa-plus"></i> Add Term
+                            </button>
+                            <button class="btn btn-secondary" onclick="hideAddTermForm()">
+                                Cancel
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Global variables
+let experimentId = {{ experiment.id }};
+let currentTerms = {{ terms|tojson|safe }};
+let timePeriods = {{ time_periods|tojson|safe }};
+let termData = {};
+
+// Initialize
+document.addEventListener('DOMContentLoaded', function() {
+    // Load any saved temporal data
+    loadSavedTemporalData();
+});
+
+// Show/hide add term form
+function showAddTermForm() {
+    document.getElementById('add-term-form').classList.add('active');
+    document.getElementById('new-term-input').focus();
+}
+
+function hideAddTermForm() {
+    document.getElementById('add-term-form').classList.remove('active');
+    document.getElementById('new-term-input').value = '';
+}
+
+// Add new term
+function addNewTerm() {
+    const input = document.getElementById('new-term-input');
+    const term = input.value.trim();
+    
+    if (!term) {
+        alert('Please enter a term');
+        return;
+    }
+    
+    if (currentTerms.includes(term)) {
+        alert('This term already exists');
+        return;
+    }
+    
+    // Add term to list
+    currentTerms.push(term);
+    
+    // Create new term card
+    createTermCard(term);
+    
+    // Update count
+    document.getElementById('term-count').textContent = currentTerms.length;
+    
+    // Hide form
+    hideAddTermForm();
+    
+    // Save to backend
+    saveTerms();
+}
+
+// Create term card dynamically
+function createTermCard(term) {
+    const container = document.getElementById('terms-container');
+    const addCard = container.querySelector('.add-term-card');
+    
+    const termCard = document.createElement('div');
+    termCard.className = 'term-card';
+    termCard.dataset.term = term;
+    
+    let timelineColumns = '';
+    timePeriods.forEach((period, index) => {
+        timelineColumns += `
+            <div class="time-period-column" data-period="${period}">
+                <div class="period-label">
+                    <i class="fas fa-calendar"></i>
+                    <span class="period-year">${period}</span>
+                </div>
+                
+                <div class="definition-content" id="def-${term}-${period}">
+                    <div class="definition-placeholder">
+                        Click "Fetch Historical Data" to load definitions from this period
+                    </div>
+                </div>
+                
+                <div class="frequency-indicator" id="freq-${term}-${period}" style="display: none;">
+                    <small class="text-muted">Term Frequency:</small>
+                    <div class="frequency-bar" style="width: 0%"></div>
+                    <small class="frequency-value">0 occurrences</small>
+                </div>
+                
+                <div class="context-changes">
+                    <small class="text-muted">Context & Usage:</small>
+                    <div class="context-badges" id="context-${term}-${period}">
+                        <!-- Context badges will be loaded here -->
+                    </div>
+                </div>
+                
+                ${index < timePeriods.length - 1 ? '<span class="timeline-arrow">→</span>' : ''}
+            </div>
+        `;
+    });
+    
+    termCard.innerHTML = `
+        <div class="term-header">
+            <div class="term-title">
+                <i class="fas fa-tag text-primary"></i> ${term}
+            </div>
+            <div class="term-actions">
+                <button class="btn btn-sm btn-outline-primary" onclick="fetchTemporalData('${term}')">
+                    <i class="fas fa-sync"></i> Fetch Historical Data
+                </button>
+                <button class="btn btn-sm btn-outline-success" onclick="fetchTemporalData('${term}', true)" title="Fetch OED data and suggest time periods">
+                    <i class="fas fa-book"></i> Use OED Periods
+                </button>
+                <button class="btn btn-sm btn-outline-info" onclick="analyzeEvolution('${term}')">
+                    <i class="fas fa-chart-line"></i> Analyze Evolution
+                </button>
+                <button class="btn btn-sm btn-outline-secondary" onclick="editTerm('${term}')">
+                    <i class="fas fa-edit"></i> Edit
+                </button>
+                <button class="btn btn-sm btn-outline-danger" onclick="removeTerm('${term}')">
+                    <i class="fas fa-trash"></i> Remove
+                </button>
+            </div>
+        </div>
+        <div class="timeline-container">
+            ${timelineColumns}
+        </div>
+    `;
+    
+    container.insertBefore(termCard, addCard);
+}
+
+// Remove term
+function removeTerm(term) {
+    if (!confirm(`Are you sure you want to remove the term "${term}"?`)) {
+        return;
+    }
+    
+    // Remove from array
+    currentTerms = currentTerms.filter(t => t !== term);
+    
+    // Remove card
+    const card = document.querySelector(`.term-card[data-term="${term}"]`);
+    if (card) {
+        card.remove();
+    }
+    
+    // Update count
+    document.getElementById('term-count').textContent = currentTerms.length;
+    
+    // Save to backend
+    saveTerms();
+}
+
+// Edit term
+function editTerm(oldTerm) {
+    const newTerm = prompt(`Edit term:`, oldTerm);
+    if (!newTerm || newTerm === oldTerm) {
+        return;
+    }
+    
+    if (currentTerms.includes(newTerm)) {
+        alert('This term already exists');
+        return;
+    }
+    
+    // Update in array
+    const index = currentTerms.indexOf(oldTerm);
+    currentTerms[index] = newTerm;
+    
+    // Update card
+    const card = document.querySelector(`.term-card[data-term="${oldTerm}"]`);
+    if (card) {
+        card.dataset.term = newTerm;
+        card.querySelector('.term-title').innerHTML = `<i class="fas fa-tag text-primary"></i> ${newTerm}`;
+        
+        // Update all IDs
+        card.querySelectorAll('[id*="' + oldTerm + '"]').forEach(elem => {
+            elem.id = elem.id.replace(oldTerm, newTerm);
+        });
+    }
+    
+    // Save to backend
+    saveTerms();
+}
+
+// Fetch temporal data for a term
+async function fetchTemporalData(term, useOED = false) {
+    const card = document.querySelector(`.term-card[data-term="${term}"]`);
+    const button = useOED ? card.querySelector('.btn-outline-success') : card.querySelector('.btn-outline-primary');
+    
+    // Show loading state
+    const originalHTML = button.innerHTML;
+    button.innerHTML = '<span class="loading-spinner"></span> Fetching...';
+    button.disabled = true;
+    
+    try {
+        const response = await fetch(`/experiments/${experimentId}/fetch_temporal_data`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                term: term,
+                periods: timePeriods,
+                use_oed: useOED
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            // If OED data is available, offer to update periods
+            if (data.oed_data) {
+                const oedData = data.oed_data;
+                const message = `OED data found for "${term}":\n` +
+                    `Date range: ${oedData.min_year} - ${oedData.max_year}\n` +
+                    `Suggested periods: ${oedData.suggested_periods.join(', ')}\n\n` +
+                    `Would you like to update the time periods based on OED data?`;
+                
+                if (confirm(message)) {
+                    // Update time periods globally
+                    timePeriods = oedData.suggested_periods;
+                    
+                    // Refresh the UI with new periods
+                    await refreshTimePeriodsUI();
+                    
+                    // Re-fetch data with new periods
+                    await fetchTemporalData(term, false);
+                    return;
+                }
+            } else if (useOED) {
+                // OED was requested but no data found
+                alert(`No OED historical data found for "${term}".\n\nThis could be because:\n- The term is not in the OED database\n- OED API credentials are not configured\n- The term needs a different spelling or form\n\nUsing default time periods instead.`);
+            }
+            
+            // Update definitions and frequency data
+            displayTemporalData(term, data.temporal_data);
+            
+            // Show frequency indicators if enabled
+            if (data.frequency_data) {
+                displayFrequencyData(term, data.frequency_data);
+            }
+            
+            // Update periods if they changed
+            if (data.periods_used && data.periods_used.length > 0) {
+                timePeriods = data.periods_used;
+            }
+        } else {
+            alert('Error fetching temporal data: ' + data.error);
+        }
+    } catch (error) {
+        alert('Error fetching temporal data: ' + error.message);
+    } finally {
+        button.innerHTML = originalHTML;
+        button.disabled = false;
+    }
+}
+
+// Refresh the UI with new time periods
+async function refreshTimePeriodsUI() {
+    // Update the period badges in the header
+    const periodBadges = document.querySelector('.alert.alert-info');
+    if (periodBadges) {
+        let badgeHTML = '<i class="fas fa-info-circle"></i> <strong>Time Periods:</strong> ';
+        timePeriods.forEach((period, index) => {
+            badgeHTML += `<span class="badge bg-primary ms-2">${period}</span>`;
+            if (index < timePeriods.length - 1) badgeHTML += '→';
+        });
+        badgeHTML += `<button class="btn btn-sm btn-outline-primary float-end" onclick="editTimePeriods()">
+                        <i class="fas fa-edit"></i> Edit Periods
+                      </button>`;
+        periodBadges.innerHTML = badgeHTML;
+    }
+    
+    // Recreate all term cards with new periods
+    const container = document.getElementById('terms-container');
+    const termCards = container.querySelectorAll('.term-card');
+    
+    termCards.forEach(card => {
+        const term = card.dataset.term;
+        card.remove();
+        createTermCard(term);
+    });
+    
+    // Save the new periods
+    await saveTerms();
+}
+
+// Display temporal data
+function displayTemporalData(term, temporalData) {
+    timePeriods.forEach(period => {
+        const contentDiv = document.getElementById(`def-${term}-${period}`);
+        
+        if (contentDiv) {
+            const data = temporalData[period];
+            if (data) {
+                contentDiv.innerHTML = `
+                    <div class="definition-text">${data.definition || 'No definition found for this period'}</div>
+                    ${data.source ? `<div class="definition-source">Source: ${data.source}</div>` : ''}
+                    ${data.evolution ? `<span class="evolution-indicator evolution-${data.evolution}">${data.evolution}</span>` : ''}
+                `;
+                
+                // Add context badges
+                const contextDiv = document.getElementById(`context-${term}-${period}`);
+                if (contextDiv && data.contexts) {
+                    let badges = '';
+                    data.contexts.forEach(context => {
+                        badges += `<span class="context-badge">${context}</span>`;
+                    });
+                    contextDiv.innerHTML = badges || '<span class="text-muted">No context data</span>';
+                }
+            } else {
+                contentDiv.innerHTML = `
+                    <div class="definition-placeholder">No data available for this period</div>
+                `;
+            }
+        }
+    });
+}
+
+// Display frequency data
+function displayFrequencyData(term, frequencyData) {
+    const maxFreq = Math.max(...Object.values(frequencyData));
+    
+    timePeriods.forEach(period => {
+        const freqDiv = document.getElementById(`freq-${term}-${period}`);
+        
+        if (freqDiv && frequencyData[period] !== undefined) {
+            const freq = frequencyData[period];
+            const percentage = maxFreq > 0 ? (freq / maxFreq) * 100 : 0;
+            
+            freqDiv.style.display = 'block';
+            freqDiv.querySelector('.frequency-bar').style.width = percentage + '%';
+            freqDiv.querySelector('.frequency-value').textContent = `${freq} occurrences`;
+        }
+    });
+}
+
+// Analyze evolution of a term
+async function analyzeEvolution(term) {
+    try {
+        const response = await fetch(`/experiments/${experimentId}/analyze_evolution`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                term: term,
+                periods: timePeriods
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            // Display evolution analysis
+            alert(`Evolution Analysis for "${term}":\n\n${data.analysis}`);
+        } else {
+            alert('Error analyzing evolution: ' + data.error);
+        }
+    } catch (error) {
+        alert('Error analyzing evolution: ' + error.message);
+    }
+}
+
+// Edit time periods
+function editTimePeriods() {
+    alert('Time period editing would require reconfiguring the experiment. Please create a new experiment with different time periods.');
+}
+
+// Save terms to backend
+async function saveTerms(callback) {
+    try {
+        const response = await fetch(`/experiments/${experimentId}/update_temporal_terms`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                terms: currentTerms,
+                periods: timePeriods,
+                temporal_data: termData
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            if (callback) callback();
+        } else {
+            alert('Error saving terms: ' + data.error);
+        }
+    } catch (error) {
+        alert('Error saving terms: ' + error.message);
+    }
+}
+
+// Load saved temporal data
+async function loadSavedTemporalData() {
+    try {
+        const response = await fetch(`/experiments/${experimentId}/get_temporal_terms`);
+        const data = await response.json();
+        
+        if (data.success && data.temporal_data) {
+            termData = data.temporal_data;
+            
+            // Display any saved data
+            Object.keys(termData).forEach(term => {
+                if (termData[term]) {
+                    displayTemporalData(term, termData[term]);
+                }
+            });
+        }
+    } catch (error) {
+        console.error('Error loading saved temporal data:', error);
+    }
+}
+
+// Proceed to analysis
+function proceedToAnalysis() {
+    if (currentTerms.length === 0) {
+        alert('Please add at least one term before proceeding');
+        return;
+    }
+    
+    // Save and redirect to run analysis
+    saveTerms(() => {
+        window.location.href = `/experiments/${experimentId}`;
+    });
+}
+</script>
+{% endblock %}

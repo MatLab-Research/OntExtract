@@ -4,6 +4,7 @@ from app import db
 from app.models import Document, Experiment
 from datetime import datetime
 import json
+from typing import List, Optional
 from app.services.text_processing import TextProcessingService
 from app.services.experiment_domain_comparison import DomainComparisonService
 
@@ -82,6 +83,22 @@ def create():
                 experiment.add_reference(reference, include_in_analysis=True)
 
         db.session.commit()
+        
+        # Redirect to appropriate term manager based on experiment type
+        if data['experiment_type'] == 'domain_comparison':
+            return jsonify({
+                'success': True,
+                'message': 'Experiment created successfully',
+                'experiment_id': experiment.id,
+                'redirect': url_for('experiments.manage_terms', experiment_id=experiment.id)
+            })
+        elif data['experiment_type'] == 'temporal_evolution':
+            return jsonify({
+                'success': True,
+                'message': 'Experiment created successfully',
+                'experiment_id': experiment.id,
+                'redirect': url_for('experiments.manage_temporal_terms', experiment_id=experiment.id)
+            })
         
         return jsonify({
             'success': True,
@@ -332,3 +349,521 @@ def api_get(experiment_id):
     """API endpoint to get experiment details"""
     experiment = Experiment.query.filter_by(id=experiment_id, user_id=current_user.id).first_or_404()
     return jsonify(experiment.to_dict(include_documents=True))
+
+@experiments_bp.route('/<int:experiment_id>/manage_terms')
+@login_required
+def manage_terms(experiment_id):
+    """Manage terms for domain comparison experiment"""
+    experiment = Experiment.query.filter_by(id=experiment_id, user_id=current_user.id).first_or_404()
+    
+    # Only for domain comparison experiments
+    if experiment.experiment_type != 'domain_comparison':
+        flash('Term management is only available for domain comparison experiments', 'warning')
+        return redirect(url_for('experiments.view', experiment_id=experiment_id))
+    
+    # Parse configuration to get domains and terms
+    config = json.loads(experiment.configuration) if experiment.configuration else {}
+    domains = config.get('domains', [])
+    terms = config.get('target_terms', [])
+    
+    # If no domains specified, use default
+    if not domains:
+        domains = ['Computer Science', 'Philosophy', 'Law']
+    
+    return render_template('experiments/term_manager.html', 
+                         experiment=experiment,
+                         domains=domains,
+                         terms=terms)
+
+@experiments_bp.route('/<int:experiment_id>/update_terms', methods=['POST'])
+@login_required
+def update_terms(experiment_id):
+    """Update terms and domains for an experiment"""
+    try:
+        experiment = Experiment.query.filter_by(id=experiment_id, user_id=current_user.id).first_or_404()
+        
+        data = request.get_json()
+        terms = data.get('terms', [])
+        domains = data.get('domains', [])
+        definitions = data.get('definitions', {})
+        
+        # Update configuration
+        config = json.loads(experiment.configuration) if experiment.configuration else {}
+        config['target_terms'] = terms
+        config['domains'] = domains
+        config['term_definitions'] = definitions
+        
+        experiment.configuration = json.dumps(config)
+        experiment.updated_at = datetime.utcnow()
+        db.session.commit()
+        
+        return jsonify({'success': True, 'message': 'Terms updated successfully'})
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+@experiments_bp.route('/<int:experiment_id>/get_terms')
+@login_required
+def get_terms(experiment_id):
+    """Get saved terms and definitions for an experiment"""
+    try:
+        experiment = Experiment.query.filter_by(id=experiment_id, user_id=current_user.id).first_or_404()
+        
+        config = json.loads(experiment.configuration) if experiment.configuration else {}
+        
+        return jsonify({
+            'success': True,
+            'terms': config.get('target_terms', []),
+            'domains': config.get('domains', []),
+            'definitions': config.get('term_definitions', {})
+        })
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@experiments_bp.route('/<int:experiment_id>/fetch_definitions', methods=['POST'])
+@login_required
+def fetch_definitions(experiment_id):
+    """Fetch definitions for a term from references and ontologies"""
+    try:
+        experiment = Experiment.query.filter_by(id=experiment_id, user_id=current_user.id).first_or_404()
+        
+        data = request.get_json()
+        term = data.get('term')
+        domains = data.get('domains', [])
+        
+        # Initialize services
+        from app.services.text_processing import TextProcessingService
+        from shared_services.ontology.ontology_importer import OntologyImporter
+        
+        text_service = TextProcessingService()
+        ontology_importer = OntologyImporter()
+        
+        definitions = {}
+        ontology_mappings = {}
+        
+        # For each domain, try to find definitions from references
+        for domain in domains:
+            # Search in experiment references for this domain
+            domain_definitions = []
+            
+            for ref in experiment.references:
+                # Check if reference matches domain (simple heuristic)
+                ref_content = ref.content or ''
+                if term.lower() in ref_content.lower():
+                    # Extract definition context
+                    lines = ref_content.split('\n')
+                    for i, line in enumerate(lines):
+                        if term.lower() in line.lower():
+                            # Get surrounding context
+                            start = max(0, i - 2)
+                            end = min(len(lines), i + 3)
+                            context = '\n'.join(lines[start:end])
+                            
+                            domain_definitions.append({
+                                'text': context[:500],  # Limit length
+                                'source': ref.get_display_name()
+                            })
+                            break
+            
+            # Use the first definition found for this domain
+            if domain_definitions:
+                definitions[domain] = domain_definitions[0]
+            else:
+                definitions[domain] = {
+                    'text': f'No definition found for "{term}" in {domain} references',
+                    'source': None
+                }
+            
+            # Try to map to ontology concepts (using PROV-O as example)
+            ontology_mappings[domain] = []
+            
+            # Simple mapping based on common terms
+            if term.lower() in ['agent', 'actor', 'person', 'user']:
+                ontology_mappings[domain].append({
+                    'label': 'prov:Agent',
+                    'description': 'An agent is something that bears some form of responsibility for an activity taking place'
+                })
+            elif term.lower() in ['activity', 'process', 'action', 'task']:
+                ontology_mappings[domain].append({
+                    'label': 'prov:Activity',
+                    'description': 'An activity is something that occurs over a period of time and acts upon or with entities'
+                })
+            elif term.lower() in ['entity', 'object', 'data', 'document']:
+                ontology_mappings[domain].append({
+                    'label': 'prov:Entity',
+                    'description': 'An entity is a physical, digital, conceptual, or other kind of thing'
+                })
+        
+        return jsonify({
+            'success': True,
+            'definitions': definitions,
+            'ontology_mappings': ontology_mappings
+        })
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@experiments_bp.route('/<int:experiment_id>/manage_temporal_terms')
+@login_required
+def manage_temporal_terms(experiment_id):
+    """Manage terms for temporal evolution experiment"""
+    experiment = Experiment.query.filter_by(id=experiment_id, user_id=current_user.id).first_or_404()
+    
+    # Only for temporal evolution experiments
+    if experiment.experiment_type != 'temporal_evolution':
+        flash('Temporal term management is only available for temporal evolution experiments', 'warning')
+        return redirect(url_for('experiments.view', experiment_id=experiment_id))
+    
+    # Parse configuration to get time periods and terms
+    config = json.loads(experiment.configuration) if experiment.configuration else {}
+    time_periods = config.get('time_periods', [])
+    terms = config.get('target_terms', [])
+    start_year = config.get('start_year', 2000)
+    end_year = config.get('end_year', 2020)
+    
+    # If no time periods specified, generate default
+    if not time_periods or len(time_periods) == 0:
+        # Generate periods with 5-year intervals
+        time_periods = []
+        current_year = start_year
+        while current_year <= end_year:
+            time_periods.append(current_year)
+            current_year += 5
+        # Ensure end year is included if not already
+        if time_periods and time_periods[-1] < end_year:
+            time_periods.append(end_year)
+        # If still empty, create a basic set
+        if not time_periods:
+            time_periods = [2000, 2005, 2010, 2015, 2020]
+    
+    return render_template('experiments/temporal_term_manager.html', 
+                         experiment=experiment,
+                         time_periods=time_periods,
+                         terms=terms,
+                         start_year=start_year,
+                         end_year=end_year)
+
+@experiments_bp.route('/<int:experiment_id>/update_temporal_terms', methods=['POST'])
+@login_required
+def update_temporal_terms(experiment_id):
+    """Update terms and periods for a temporal evolution experiment"""
+    try:
+        experiment = Experiment.query.filter_by(id=experiment_id, user_id=current_user.id).first_or_404()
+        
+        data = request.get_json()
+        terms = data.get('terms', [])
+        periods = data.get('periods', [])
+        temporal_data = data.get('temporal_data', {})
+        
+        # Update configuration
+        config = json.loads(experiment.configuration) if experiment.configuration else {}
+        config['target_terms'] = terms
+        config['time_periods'] = periods
+        config['temporal_data'] = temporal_data
+        
+        experiment.configuration = json.dumps(config)
+        experiment.updated_at = datetime.utcnow()
+        db.session.commit()
+        
+        return jsonify({'success': True, 'message': 'Temporal terms updated successfully'})
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+@experiments_bp.route('/<int:experiment_id>/get_temporal_terms')
+@login_required
+def get_temporal_terms(experiment_id):
+    """Get saved temporal terms and data for an experiment"""
+    try:
+        experiment = Experiment.query.filter_by(id=experiment_id, user_id=current_user.id).first_or_404()
+        
+        config = json.loads(experiment.configuration) if experiment.configuration else {}
+        
+        return jsonify({
+            'success': True,
+            'terms': config.get('target_terms', []),
+            'periods': config.get('time_periods', []),
+            'temporal_data': config.get('temporal_data', {})
+        })
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@experiments_bp.route('/<int:experiment_id>/fetch_temporal_data', methods=['POST'])
+@login_required
+def fetch_temporal_data(experiment_id):
+    """Fetch temporal data for a term across time periods using advanced temporal analysis"""
+    try:
+        experiment = Experiment.query.filter_by(id=experiment_id, user_id=current_user.id).first_or_404()
+        
+        data = request.get_json()
+        term = data.get('term')
+        periods = data.get('periods', [])
+        use_oed = data.get('use_oed', False)
+        
+        # Import temporal analysis service
+        from shared_services.temporal import TemporalAnalysisService
+        from shared_services.ontology.ontology_importer import OntologyImporter
+        
+        # Initialize services
+        ontology_importer = OntologyImporter()
+        temporal_service = TemporalAnalysisService(ontology_importer)
+        
+        # Get all documents from the experiment
+        all_documents = list(experiment.documents) + list(experiment.references)
+        
+        # If OED integration requested, enhance with OED data
+        oed_periods = []
+        temporal_data_oed = None
+        if use_oed:
+            try:
+                from app.services.oed_service import OEDService
+                oed_service = OEDService()
+                
+                # Try to get OED quotations for the term
+                suggestions = oed_service.suggest_ids(term, limit=3)
+                if not suggestions:
+                    print(f"OED: No suggestions returned for term '{term}'")
+                elif not suggestions.get('success'):
+                    print(f"OED: Failed to get suggestions - {suggestions.get('error', 'Unknown error')}")
+                elif suggestions.get('suggestions'):
+                    suggestion_list = suggestions.get('suggestions', [])
+                    if not isinstance(suggestion_list, list):
+                        print(f"OED: Unexpected suggestions format: {type(suggestion_list)}")
+                    else:
+                        for suggestion in suggestion_list[:1]:  # Use first match
+                            if not suggestion or not isinstance(suggestion, dict):
+                                continue
+                            entry_id = suggestion.get('entry_id')
+                            if not entry_id:
+                                continue
+                            
+                            print(f"OED: Fetching quotations for entry_id: {entry_id}")
+                            quotations_result = oed_service.get_quotations(entry_id, limit=100)
+                            
+                            if not quotations_result:
+                                print(f"OED: No quotations result returned")
+                                continue
+                            elif not quotations_result.get('success'):
+                                print(f"OED: Failed to get quotations - {quotations_result.get('error', 'Unknown error')}")
+                                continue
+                            
+                            quotations_data = quotations_result.get('data')
+                            if not quotations_data or not isinstance(quotations_data, dict):
+                                print(f"OED: No valid quotations data")
+                                continue
+                            
+                            # Extract years from quotations
+                            years = []
+                            
+                            # The OED API returns quotations under the 'data' key
+                            results = quotations_data.get('data', [])
+                            
+                            if not results or not isinstance(results, list):
+                                # Try alternative keys if 'data' doesn't work
+                                for key in ['results', 'quotations', 'items']:
+                                    if key in quotations_data:
+                                        results = quotations_data[key]
+                                        if results:
+                                            print(f"OED: Found quotations under key '{key}'")
+                                            break
+                                
+                                if not results or not isinstance(results, list):
+                                    print(f"OED: No valid quotations list found in data")
+                                    continue
+                            else:
+                                print(f"OED: Found {len(results)} quotations under 'data' key")
+                            
+                            for quotation in results:
+                                if not quotation or not isinstance(quotation, dict):
+                                    continue
+                                # The OED API returns year directly as 'year' field
+                                year_value = quotation.get('year')
+                                if year_value:
+                                    try:
+                                        years.append(int(year_value))
+                                    except (ValueError, TypeError):
+                                        # If year is not a valid integer, try extracting from string
+                                        import re
+                                        year_match = re.search(r'\b(1[0-9]{3}|20[0-9]{2})\b', str(year_value))
+                                        if year_match:
+                                            years.append(int(year_match.group()))
+                            
+                            if years:
+                                # Generate periods based on OED date range
+                                min_year = min(years)
+                                max_year = max(years)
+                                oed_periods = generate_time_periods(min_year, max_year)
+                                
+                                print(f"OED: Found {len(years)} quotation years, range {min_year}-{max_year}")
+                                
+                                # Add OED quotation years to response
+                                temporal_data_oed = {
+                                    'min_year': min_year,
+                                    'max_year': max_year,
+                                    'suggested_periods': oed_periods,
+                                    'quotation_years': sorted(list(set(years)))
+                                }
+                                break  # Found data, exit loop
+                            else:
+                                print(f"OED: No years extracted from {len(results)} quotations")
+                else:
+                    print(f"OED: No suggestions found for term '{term}'")
+                    
+            except Exception as oed_error:
+                # Log the error but continue with normal processing
+                import traceback
+                print(f"OED integration error: {str(oed_error)}")
+                print(f"Error type: {type(oed_error).__name__}")
+                print(traceback.format_exc())
+        
+        # Use OED periods if available, otherwise use provided periods
+        analysis_periods = oed_periods if oed_periods else periods
+        
+        # Extract temporal data using the service
+        temporal_data = temporal_service.extract_temporal_data(all_documents, term, analysis_periods)
+        
+        # Extract frequency data for visualization
+        frequency_data = {}
+        for period in analysis_periods:
+            period_str = str(period)
+            if period_str in temporal_data:
+                frequency_data[period] = temporal_data[period_str].get('frequency', 0)
+        
+        # Analyze semantic drift
+        drift_analysis = temporal_service.analyze_semantic_drift(all_documents, term, analysis_periods)
+        
+        # Generate evolution narrative
+        narrative = temporal_service.generate_evolution_narrative(temporal_data, term, analysis_periods)
+        
+        response = {
+            'success': True,
+            'temporal_data': temporal_data,
+            'frequency_data': frequency_data,
+            'drift_analysis': drift_analysis,
+            'narrative': narrative,
+            'periods_used': analysis_periods
+        }
+        
+        # Add OED data if available
+        if use_oed and temporal_data_oed:
+            response['oed_data'] = temporal_data_oed
+        
+        return jsonify(response)
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+def generate_time_periods(start_year: int, end_year: int, interval: Optional[int] = None) -> List[int]:
+    """Generate time periods based on start and end years."""
+    if interval is None:
+        # Auto-determine interval based on range
+        year_range = end_year - start_year
+        if year_range <= 50:
+            interval = 10
+        elif year_range <= 100:
+            interval = 20
+        elif year_range <= 200:
+            interval = 25
+        else:
+            interval = 50
+    
+    periods = []
+    current = start_year
+    while current <= end_year:
+        periods.append(current)
+        current += interval
+    
+    # Ensure end year is included
+    if periods[-1] != end_year:
+        periods.append(end_year)
+    
+    return periods
+
+@experiments_bp.route('/<int:experiment_id>/analyze_evolution', methods=['POST'])
+@login_required
+def analyze_evolution(experiment_id):
+    """Analyze the evolution of a term over time with detailed semantic drift analysis"""
+    try:
+        experiment = Experiment.query.filter_by(id=experiment_id, user_id=current_user.id).first_or_404()
+        
+        data = request.get_json()
+        term = data.get('term')
+        periods = data.get('periods', [])
+        
+        # Import temporal analysis service
+        from shared_services.temporal import TemporalAnalysisService
+        from shared_services.ontology.ontology_importer import OntologyImporter
+        
+        # Initialize services
+        ontology_importer = OntologyImporter()
+        temporal_service = TemporalAnalysisService(ontology_importer)
+        
+        # Get all documents
+        all_documents = list(experiment.documents) + list(experiment.references)
+        
+        # Extract temporal data
+        temporal_data = temporal_service.extract_temporal_data(all_documents, term, periods)
+        
+        # Analyze semantic drift
+        drift_analysis = temporal_service.analyze_semantic_drift(all_documents, term, periods)
+        
+        # Generate comprehensive narrative
+        narrative = temporal_service.generate_evolution_narrative(temporal_data, term, periods)
+        
+        # Build detailed analysis
+        analysis_parts = [narrative, "\n\n--- Semantic Drift Analysis ---\n"]
+        
+        if drift_analysis.get('average_drift') is not None:
+            analysis_parts.append(f"Average Semantic Drift: {drift_analysis['average_drift']:.2%}\n")
+        
+        if drift_analysis.get('stable_terms'):
+            analysis_parts.append(f"Stable Associated Terms: {', '.join(drift_analysis['stable_terms'][:5])}\n")
+        
+        # Add period-by-period drift details
+        if drift_analysis.get('periods'):
+            analysis_parts.append("\nPeriod-by-Period Changes:\n")
+            for period_range, period_data in drift_analysis['periods'].items():
+                analysis_parts.append(f"\n{period_range}:")
+                analysis_parts.append(f"  - Drift Score: {period_data['drift_score']:.2%}")
+                if period_data.get('new_terms'):
+                    analysis_parts.append(f"  - New Terms: {', '.join(period_data['new_terms'][:3])}")
+                if period_data.get('lost_terms'):
+                    analysis_parts.append(f"  - Lost Terms: {', '.join(period_data['lost_terms'][:3])}")
+        
+        # Add ontology mapping insights if available
+        if temporal_service.ontology_importer:
+            analysis_parts.append("\n\n--- Ontology Mapping Insights ---\n")
+            # Try to map the term to PROV-O concepts
+            prov_mappings = {
+                'agent': 'prov:Agent - An entity that bears responsibility',
+                'activity': 'prov:Activity - Something that occurs over time',
+                'entity': 'prov:Entity - A physical, digital, or conceptual thing',
+                'process': 'prov:Activity - A series of actions or operations',
+                'artifact': 'prov:Entity - A thing produced or used',
+                'actor': 'prov:Agent - One who performs actions'
+            }
+            
+            term_lower = term.lower()
+            if term_lower in prov_mappings:
+                analysis_parts.append(f"PROV-O Mapping: {prov_mappings[term_lower]}")
+            else:
+                analysis_parts.append(f"No direct PROV-O mapping found for '{term}'")
+        
+        analysis = '\n'.join(analysis_parts)
+        
+        return jsonify({
+            'success': True,
+            'analysis': analysis,
+            'drift_metrics': {
+                'average_drift': drift_analysis.get('average_drift', 0),
+                'total_drift': drift_analysis.get('total_drift', 0),
+                'stable_term_count': len(drift_analysis.get('stable_terms', []))
+            }
+        })
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500

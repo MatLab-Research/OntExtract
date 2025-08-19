@@ -1,0 +1,14 @@
+{
+  "source": "/home/chris/onto/OntExtract/ontologies/bfo.ttl",
+  "name": "Basic Formal Ontology",
+  "description": "BFO is a top-level ontology designed for use in supporting information retrieval, analysis and integration in scientific and other domains.",
+  "title": "BFO 2020",
+  "license": "https://creativecommons.org/licenses/by/4.0/",
+  "class_count": "84",
+  "property_count": "40",
+  "ontology_id": "bfo",
+  "source_file": "/home/chris/onto/OntExtract/ontologies/bfo.ttl",
+  "import_date": "2025-08-19T14:03:09.208252",
+  "format": "turtle",
+  "triple_count": 1014
+}
