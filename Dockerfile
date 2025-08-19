@@ -45,11 +45,11 @@ RUN chown -R ontextract:ontextract /app
 USER ontextract
 
 # Expose port
-EXPOSE 5000
+EXPOSE 8765
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
-    CMD curl -f http://localhost:5000/ || exit 1
+    CMD curl -f http://localhost:8765/ || exit 1
 
 # Use startup script as entrypoint
 ENTRYPOINT ["/usr/local/bin/startup.sh"]

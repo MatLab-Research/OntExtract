@@ -82,7 +82,7 @@ start_application() {
         echo "Starting in production mode..."
         # Use gunicorn for production
         if command -v gunicorn &> /dev/null; then
-            gunicorn --bind 0.0.0.0:5000 --workers 4 --timeout 120 run:app
+            gunicorn --bind 0.0.0.0:8765 --workers 4 --timeout 120 run:app
         else
             echo "Gunicorn not available, using Flask dev server..."
             python run.py

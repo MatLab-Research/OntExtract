@@ -58,7 +58,7 @@ def main():
     
     print("=" * 60)
     print("🌐 Starting Flask development server...")
-    print("📍 Access the application at: http://localhost:5000")
+    print("📍 Access the application at: http://localhost:8765")
     print("🛑 Press Ctrl+C to stop the server")
     print("=" * 60)
     
@@ -74,7 +74,7 @@ def main():
     # Run the Flask app
     app.run(
         host='0.0.0.0',
-        port=5000,
+        port=8765,
         debug=True,
         use_reloader=True
     )
