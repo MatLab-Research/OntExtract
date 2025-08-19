@@ -726,18 +726,39 @@ def fetch_temporal_data(experiment_id):
         # Extract temporal data using the service
         temporal_data = temporal_service.extract_temporal_data(all_documents, term, analysis_periods)
         
+        # Ensure temporal_data is not None
+        if temporal_data is None:
+            temporal_data = {}
+            # Initialize empty data for each period
+            for period in analysis_periods:
+                temporal_data[str(period)] = {
+                    'frequency': 0,
+                    'contexts': [],
+                    'co_occurring_terms': []
+                }
+        
         # Extract frequency data for visualization
         frequency_data = {}
         for period in analysis_periods:
             period_str = str(period)
-            if period_str in temporal_data:
+            if period_str in temporal_data and temporal_data[period_str] is not None:
                 frequency_data[period] = temporal_data[period_str].get('frequency', 0)
+            else:
+                frequency_data[period] = 0
         
         # Analyze semantic drift
         drift_analysis = temporal_service.analyze_semantic_drift(all_documents, term, analysis_periods)
+        if drift_analysis is None:
+            drift_analysis = {
+                'average_drift': 0,
+                'stable_terms': [],
+                'periods': {}
+            }
         
         # Generate evolution narrative
         narrative = temporal_service.generate_evolution_narrative(temporal_data, term, analysis_periods)
+        if narrative is None:
+            narrative = f"Analysis of '{term}' across {len(analysis_periods)} time periods."
         
         response = {
             'success': True,
