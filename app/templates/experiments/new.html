@@ -55,7 +55,8 @@
                                     {% if documents %}
                                     <div class="document-selection">
                                         <input type="text" class="form-control mb-3" id="document-search" 
-                                               placeholder="Search source documents...">
+                                               placeholder="🔍 Filter documents by name or content...">
+                                        <small class="text-muted d-block mb-2"><i class="fas fa-info-circle"></i> Type to filter the list of documents below</small>
                                         
                                         <div class="document-list border rounded p-3" style="max-height: 300px; overflow-y: auto;">
                                             {% for document in documents %}
@@ -97,7 +98,8 @@
                                     {% if references %}
                                     <div class="reference-selection">
                                         <input type="text" class="form-control mb-3" id="reference-search" 
-                                               placeholder="Search references...">
+                                               placeholder="🔍 Filter references by title, author, or type...">
+                                        <small class="text-muted d-block mb-2"><i class="fas fa-info-circle"></i> Type to filter the list of references below</small>
                                         
                                         <div class="reference-list border rounded p-3" style="max-height: 300px; overflow-y: auto;">
                                             {% for reference in references %}
@@ -189,12 +191,16 @@
                                 <div class="mb-3">
                                     <label for="domain-focus" class="form-label">Domain Focus</label>
                                     <input type="text" class="form-control" id="domain-focus" 
-                                           placeholder="e.g., Engineering, Biology, Philosophy">
+                                           placeholder="e.g., Computer Science, Philosophy, Law, Medicine, Economics">
+                                    <small class="text-muted">
+                                        <i class="fas fa-lightbulb"></i> Enter academic disciplines or professional domains to compare terminology across fields
+                                    </small>
                                 </div>
                                 <div class="mb-3">
                                     <label for="target-terms" class="form-label">Target Terms (comma-separated)</label>
-                                    <input type="text" class="form-control" id="target-terms" value="ontology, agent">
-                                    <small class="text-muted">We'll compare these terms across disciplines and references.</small>
+                                    <input type="text" class="form-control" id="target-terms" 
+                                           placeholder="e.g., agent, ontology, algorithm">
+                                    <small class="text-muted">We'll compare these terms across the domains you specified above.</small>
                                 </div>
                                 <div class="form-check">
                                     <input class="form-check-input" type="checkbox" id="extract-terminology">
@@ -398,7 +404,11 @@ document.addEventListener('DOMContentLoaded', function() {
             configuration.time_window = document.getElementById('time-window').value;
             configuration.track_entities = document.getElementById('track-entities').checked;
         } else if (type === 'domain_comparison') {
-            configuration.domain_focus = document.getElementById('domain-focus').value;
+            const domainFocusVal = document.getElementById('domain-focus').value || '';
+            const domains = domainFocusVal.split(',').map(d => d.trim()).filter(Boolean);
+            
+            configuration.domain_focus = domainFocusVal;
+            configuration.domains = domains; // Parsed array of domains
             configuration.extract_terminology = document.getElementById('extract-terminology').checked;
             configuration.compare_ontologies = document.getElementById('compare-ontologies').checked;
             const targetTermsVal = document.getElementById('target-terms').value || '';

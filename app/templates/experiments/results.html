@@ -90,9 +90,9 @@
                                     <div class="col-md-6">
                                         <h6>Key Findings</h6>
                                         <ul>
-                                            <li>Documents analyzed: {{ results_data.document_count }}</li>
-                                            <li>Total words processed: {{ results_data.total_words | number_format }}</li>
-                                            <li>Analysis completed: {{ results_data.timestamp }}</li>
+                                            <li>Documents analyzed: {{ results_data.document_count or 'N/A' }}</li>
+                                            <li>Total words processed: {{ (results_data.total_words or 0) | number_format }}</li>
+                                            <li>Analysis completed: {{ results_data.timestamp or 'N/A' }}</li>
                                         </ul>
                                     </div>
                                     <div class="col-md-6">
@@ -140,15 +140,39 @@
                                     <div class="col-md-6">
                                         <h6>Key Findings</h6>
                                         <ul>
-                                            <li>Documents analyzed: {{ results_data.document_count }}</li>
-                                            <li>Total words processed: {{ results_data.total_words | number_format }}</li>
-                                            <li>Analysis completed: {{ results_data.timestamp }}</li>
+                                            <li>Documents analyzed: {{ results_data.document_count or 'N/A' }}</li>
+                                            <li>Total words processed: {{ (results_data.total_words or 0) | number_format }}</li>
+                                            <li>Analysis completed: {{ results_data.timestamp or 'N/A' }}</li>
                                         </ul>
+                                        
+                                        {% if config_data and config_data.domains %}
+                                        <h6 class="mt-3">Domain Analysis</h6>
+                                        <div class="alert alert-info">
+                                            <i class="fas fa-graduation-cap"></i> 
+                                            <strong>Comparing across {{ config_data.domains|length }} domains:</strong>
+                                            <div class="mt-2">
+                                                {% for domain in config_data.domains %}
+                                                <span class="badge bg-primary me-1">{{ domain }}</span>
+                                                {% endfor %}
+                                            </div>
+                                        </div>
+                                        {% endif %}
                                     </div>
                                     <div class="col-md-6">
                                         <h6>Configuration</h6>
+                                        {% if config_data and config_data.target_terms %}
+                                        <div class="mb-2">
+                                            <strong>Target Terms:</strong>
+                                            {% for term in config_data.target_terms %}
+                                            <span class="badge bg-success me-1">{{ term }}</span>
+                                            {% endfor %}
+                                        </div>
+                                        {% endif %}
                                         {% if experiment.configuration %}
-                                        <pre class="bg-light p-2"><code>{{ experiment.configuration }}</code></pre>
+                                        <details class="mt-2">
+                                            <summary class="text-muted small">View raw configuration</summary>
+                                            <pre class="bg-light p-2 small mt-2"><code>{{ experiment.configuration }}</code></pre>
+                                        </details>
                                         {% endif %}
                                         {% if config_data and config_data.design %}
                                         <div class="mt-3">
@@ -204,28 +228,40 @@
 
                                 {% if results_data.per_term_data %}
                                 <div class="mt-4">
-                                    <h6>Extracted snippets by group</h6>
-                                    {% for term, per_disc in results_data.per_term_data.items() %}
-                                        <div class="card mb-3">
-                                            <div class="card-header">Term: <code>{{ term }}</code></div>
+                                    <h6>Term Analysis by Domain</h6>
+                                    <p class="text-muted small">How each target term is used across different domains</p>
+                                    {% for term, per_domain in results_data.per_term_data.items() %}
+                                        <div class="card mb-4">
+                                            <div class="card-header d-flex align-items-center">
+                                                <i class="fas fa-search me-2"></i>
+                                                <strong>Term: <code>{{ term }}</code></strong>
+                                            </div>
                                             <div class="card-body">
-                                                {% if per_disc %}
-                                                {% for disc, entries in per_disc.items() %}
-                                                <div class="mb-3">
-                                                    <h6 class="mb-2">{{ disc }}</h6>
-                                                    <ul class="list-unstyled">
-                                                        {% for e in entries %}
-                                                        <li class="mb-2">
-                                                            <strong>{{ e.title }}</strong>
-                                                            {% if e.source %}<span class="text-muted">— {{ e.source }}</span>{% endif %}
-                                                            <div class="small text-muted mt-1">{{ e.snippet }}</div>
-                                                        </li>
-                                                        {% endfor %}
-                                                    </ul>
+                                                {% if per_domain %}
+                                                <div class="row">
+                                                    {% for domain, entries in per_domain.items() %}
+                                                    <div class="col-md-4 mb-3">
+                                                        <h6 class="mb-2">
+                                                            <span class="badge bg-primary">{{ domain }}</span>
+                                                        </h6>
+                                                        {% if entries %}
+                                                        <ul class="list-unstyled">
+                                                            {% for e in entries %}
+                                                            <li class="mb-2 p-2 border-start border-primary border-2">
+                                                                <strong>{{ e.title }}</strong>
+                                                                {% if e.source %}<span class="text-muted">— {{ e.source }}</span>{% endif %}
+                                                                <div class="small text-muted mt-1">{{ e.snippet }}</div>
+                                                            </li>
+                                                            {% endfor %}
+                                                        </ul>
+                                                        {% else %}
+                                                        <div class="text-muted small">No examples found</div>
+                                                        {% endif %}
+                                                    </div>
+                                                    {% endfor %}
                                                 </div>
-                                                {% endfor %}
                                                 {% else %}
-                                                <div class="text-muted">No snippets extracted.</div>
+                                                <div class="text-muted">No domain-specific data extracted for this term.</div>
                                                 {% endif %}
                                             </div>
                                         </div>
