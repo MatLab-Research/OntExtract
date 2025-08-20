@@ -170,34 +170,72 @@
                         <div id="configuration-options" class="mb-4" style="display: none;">
                             <h5>Configuration Options</h5>
                             <div id="temporal-config" style="display: none;">
-                                <div class="row">
-                                    <div class="col-md-4">
-                                        <div class="mb-3">
-                                            <label for="start-year" class="form-label">Start Year</label>
-                                            <input type="number" class="form-control" id="start-year" 
-                                                   placeholder="e.g., 1990" min="1800" max="2030" value="2000">
-                                        </div>
+                                <!-- Period Generation Method Selection -->
+                                <div class="mb-4">
+                                    <label class="form-label d-block">Time Period Generation Method</label>
+                                    <div class="btn-group" role="group" aria-label="Period generation method">
+                                        <input type="radio" class="btn-check" name="period-method" id="manual-periods" value="manual" checked>
+                                        <label class="btn btn-outline-primary" for="manual-periods">
+                                            <i class="fas fa-calendar"></i> Manual Time Periods
+                                        </label>
+                                        
+                                        <input type="radio" class="btn-check" name="period-method" id="oed-periods" value="oed">
+                                        <label class="btn btn-outline-primary" for="oed-periods">
+                                            <i class="fas fa-book"></i> Generate from OED Data
+                                        </label>
                                     </div>
-                                    <div class="col-md-4">
-                                        <div class="mb-3">
-                                            <label for="end-year" class="form-label">End Year</label>
-                                            <input type="number" class="form-control" id="end-year" 
-                                                   placeholder="e.g., 2020" min="1800" max="2030" value="2020">
+                                    <small class="text-muted d-block mt-2" id="period-method-description">
+                                        <i class="fas fa-info-circle"></i> Manually specify the time range and interval for analysis.
+                                    </small>
+                                </div>
+                                
+                                <!-- Manual Period Configuration -->
+                                <div id="manual-period-config">
+                                    <div class="row">
+                                        <div class="col-md-4">
+                                            <div class="mb-3">
+                                                <label for="start-year" class="form-label">Start Year</label>
+                                                <input type="number" class="form-control" id="start-year" 
+                                                       placeholder="e.g., 1990" min="1800" max="2030" value="2000">
+                                            </div>
                                         </div>
-                                    </div>
-                                    <div class="col-md-4">
-                                        <div class="mb-3">
-                                            <label for="time-period" class="form-label">Period</label>
-                                            <select class="form-select" id="time-period">
-                                                <option value="1">Every Year</option>
-                                                <option value="2">Every 2 Years</option>
-                                                <option value="5" selected>Every 5 Years</option>
-                                                <option value="10">Every 10 Years</option>
-                                                <option value="20">Every 20 Years</option>
-                                            </select>
+                                        <div class="col-md-4">
+                                            <div class="mb-3">
+                                                <label for="end-year" class="form-label">End Year</label>
+                                                <input type="number" class="form-control" id="end-year" 
+                                                       placeholder="e.g., 2020" min="1800" max="2030" value="2020">
+                                            </div>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <div class="mb-3">
+                                                <label for="time-period" class="form-label">Period</label>
+                                                <select class="form-select" id="time-period">
+                                                    <option value="1">Every Year</option>
+                                                    <option value="2">Every 2 Years</option>
+                                                    <option value="5" selected>Every 5 Years</option>
+                                                    <option value="10">Every 10 Years</option>
+                                                    <option value="20">Every 20 Years</option>
+                                                </select>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
+                                
+                                <!-- OED Period Configuration -->
+                                <div id="oed-period-config" style="display: none;">
+                                    <div class="alert alert-info">
+                                        <i class="fas fa-magic"></i> <strong>Automatic Period Generation</strong>
+                                        <p class="mb-1">Time periods will be automatically generated based on the historical range of your terms in the Oxford English Dictionary.</p>
+                                        <small>The system will:</small>
+                                        <ul class="small mb-0">
+                                            <li>Query OED for each term's historical quotations</li>
+                                            <li>Determine the overall date range across all terms</li>
+                                            <li>Generate appropriate intervals based on the time span</li>
+                                            <li>Show term-specific coverage for each period</li>
+                                        </ul>
+                                    </div>
+                                </div>
+                                
                                 <div class="mb-3">
                                     <label for="temporal-terms" class="form-label">Terms to Track (comma-separated) *</label>
                                     <input type="text" class="form-control" id="temporal-terms" 
@@ -401,6 +439,25 @@ document.addEventListener('DOMContentLoaded', function() {
         cb.addEventListener('change', updateSelectedCount);
     });
     
+    // Handle period method toggle for temporal experiments
+    const manualPeriodConfig = document.getElementById('manual-period-config');
+    const oedPeriodConfig = document.getElementById('oed-period-config');
+    const periodMethodDescription = document.getElementById('period-method-description');
+    
+    document.querySelectorAll('input[name="period-method"]').forEach(radio => {
+        radio.addEventListener('change', function() {
+            if (this.value === 'manual') {
+                manualPeriodConfig.style.display = 'block';
+                oedPeriodConfig.style.display = 'none';
+                periodMethodDescription.innerHTML = '<i class="fas fa-info-circle"></i> Manually specify the time range and interval for analysis.';
+            } else if (this.value === 'oed') {
+                manualPeriodConfig.style.display = 'none';
+                oedPeriodConfig.style.display = 'block';
+                periodMethodDescription.innerHTML = '<i class="fas fa-info-circle"></i> Time periods will be automatically generated based on OED historical data.';
+            }
+        });
+    });
+    
     // Form submission
     form.addEventListener('submit', async function(e) {
         e.preventDefault();
@@ -432,23 +489,35 @@ document.addEventListener('DOMContentLoaded', function() {
         // Build configuration based on type
         const configuration = {};
         if (type === 'temporal_evolution') {
-            const startYear = parseInt(document.getElementById('start-year').value);
-            const endYear = parseInt(document.getElementById('end-year').value);
-            const period = parseInt(document.getElementById('time-period').value);
+            // Check period generation method
+            const periodMethod = document.querySelector('input[name="period-method"]:checked').value;
+            configuration.period_generation_method = periodMethod;
             
-            // Calculate time periods
-            const periods = [];
-            for (let year = startYear; year <= endYear; year += period) {
-                periods.push(year);
-            }
-            if (periods[periods.length - 1] !== endYear) {
-                periods.push(endYear);
+            if (periodMethod === 'manual') {
+                const startYear = parseInt(document.getElementById('start-year').value);
+                const endYear = parseInt(document.getElementById('end-year').value);
+                const period = parseInt(document.getElementById('time-period').value);
+                
+                // Calculate time periods
+                const periods = [];
+                for (let year = startYear; year <= endYear; year += period) {
+                    periods.push(year);
+                }
+                if (periods[periods.length - 1] !== endYear) {
+                    periods.push(endYear);
+                }
+                
+                configuration.start_year = startYear;
+                configuration.end_year = endYear;
+                configuration.period = period;
+                configuration.time_periods = periods;
+            } else if (periodMethod === 'oed') {
+                // For OED-based periods, we'll generate them on the backend
+                configuration.use_oed_periods = true;
+                // Time periods will be generated after fetching OED data for all terms
+                configuration.time_periods = []; // Will be populated by backend
             }
             
-            configuration.start_year = startYear;
-            configuration.end_year = endYear;
-            configuration.period = period;
-            configuration.time_periods = periods;
             configuration.track_entities = document.getElementById('track-entities').checked;
             configuration.track_frequency = document.getElementById('track-frequency').checked;
             

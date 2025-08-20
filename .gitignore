@@ -221,3 +221,8 @@ uploads/**/*.pdf
 # Deployment env files (local, not for version control)
 deploy.env
 deploy.env.example
+
+# Private scripts (not for version control)
+*.private
+setup_admin.sh.private
+create_admin_wook.py
