@@ -522,9 +522,79 @@ def manage_temporal_terms(experiment_id):
     terms = config.get('target_terms', [])
     start_year = config.get('start_year', 2000)
     end_year = config.get('end_year', 2020)
+    use_oed_periods = config.get('use_oed_periods', False)
     
-    # If no time periods specified, generate default
-    if not time_periods or len(time_periods) == 0:
+    # If using OED periods and periods haven't been generated yet
+    if use_oed_periods and (not time_periods or len(time_periods) == 0) and terms:
+        # Fetch OED data for all terms to generate unified periods
+        from app.services.oed_service import OEDService
+        oed_service = OEDService()
+        
+        all_years = []
+        oed_period_data = {}
+        
+        for term in terms:
+            try:
+                # Get OED quotations for the term
+                suggestions = oed_service.suggest_ids(term, limit=3)
+                if suggestions and suggestions.get('success') and suggestions.get('suggestions'):
+                    for suggestion in suggestions['suggestions'][:1]:  # Use first match
+                        entry_id = suggestion.get('entry_id')
+                        if entry_id:
+                            quotations_result = oed_service.get_quotations(entry_id, limit=100)
+                            if quotations_result and quotations_result.get('success'):
+                                quotations_data = quotations_result.get('data', {})
+                                results = quotations_data.get('data', [])
+                                
+                                term_years = []
+                                for quotation in results:
+                                    year_value = quotation.get('year')
+                                    if year_value:
+                                        try:
+                                            term_years.append(int(year_value))
+                                        except (ValueError, TypeError):
+                                            pass
+                                
+                                if term_years:
+                                    all_years.extend(term_years)
+                                    oed_period_data[term] = {
+                                        'min_year': min(term_years),
+                                        'max_year': max(term_years),
+                                        'quotation_years': sorted(list(set(term_years)))
+                                    }
+                                    print(f"OED data for '{term}': {len(term_years)} quotations, {min(term_years)}-{max(term_years)}")
+                            break
+            except Exception as e:
+                print(f"Error fetching OED data for term '{term}': {str(e)}")
+                continue
+        
+        # Generate unified periods based on all terms' date ranges
+        if all_years:
+            min_year = min(all_years)
+            max_year = max(all_years)
+            time_periods = generate_time_periods(min_year, max_year)
+            
+            # Update configuration with OED data and generated periods
+            config['time_periods'] = time_periods
+            config['oed_period_data'] = oed_period_data
+            config['start_year'] = min_year
+            config['end_year'] = max_year
+            
+            # Save updated configuration
+            experiment.configuration = json.dumps(config)
+            db.session.commit()
+            
+            start_year = min_year
+            end_year = max_year
+            
+            flash(f'Generated time periods from OED data: {min_year} to {max_year}', 'success')
+        else:
+            flash('Unable to fetch OED data. Using default periods.', 'warning')
+            # Fall back to default periods
+            time_periods = [2000, 2005, 2010, 2015, 2020]
+    
+    # If no time periods specified and not using OED, generate default
+    elif not time_periods or len(time_periods) == 0:
         # Generate periods with 5-year intervals
         time_periods = []
         current_year = start_year
@@ -543,7 +613,9 @@ def manage_temporal_terms(experiment_id):
                          time_periods=time_periods,
                          terms=terms,
                          start_year=start_year,
-                         end_year=end_year)
+                         end_year=end_year,
+                         use_oed_periods=use_oed_periods,
+                         oed_period_data=config.get('oed_period_data', {}))
 
 @experiments_bp.route('/<int:experiment_id>/update_temporal_terms', methods=['POST'])
 @login_required
@@ -600,9 +672,17 @@ def fetch_temporal_data(experiment_id):
         experiment = Experiment.query.filter_by(id=experiment_id, user_id=current_user.id).first_or_404()
         
         data = request.get_json()
+        if not data:
+            return jsonify({'success': False, 'error': 'No data provided'}), 400
+            
         term = data.get('term')
         periods = data.get('periods', [])
         use_oed = data.get('use_oed', False)
+        
+        if not term:
+            return jsonify({'success': False, 'error': 'Term is required'}), 400
+        if not periods:
+            return jsonify({'success': False, 'error': 'Periods are required'}), 400
         
         # Import temporal analysis service
         from shared_services.temporal import TemporalAnalysisService
@@ -723,26 +803,94 @@ def fetch_temporal_data(experiment_id):
         # Use OED periods if available, otherwise use provided periods
         analysis_periods = oed_periods if oed_periods else periods
         
-        # Extract temporal data using the service
-        temporal_data = temporal_service.extract_temporal_data(all_documents, term, analysis_periods)
-        
-        # Ensure temporal_data is not None
-        if temporal_data is None:
+        # If using OED data, create hybrid analysis
+        if use_oed and temporal_data_oed:
+            # Create temporal data from OED quotations
             temporal_data = {}
-            # Initialize empty data for each period
+            quotation_years = temporal_data_oed.get('quotation_years', [])
+            
+            # Group quotations by period
+            period_quotations = {}
             for period in analysis_periods:
-                temporal_data[str(period)] = {
-                    'frequency': 0,
-                    'contexts': [],
-                    'co_occurring_terms': []
-                }
+                period_quotations[period] = []
+                for year in quotation_years:
+                    # Include quotations within 5 years of the period
+                    if abs(year - period) <= 5:
+                        period_quotations[period].append(year)
+            
+            # For each period, create appropriate data
+            for period in analysis_periods:
+                period_str = str(period)
+                
+                # First check if we have OED data for this period
+                oed_count = len(period_quotations.get(period, []))
+                
+                # Try to get document data if period is recent enough
+                doc_based_data = None
+                if period >= 1900:  # Only try document analysis for modern periods
+                    try:
+                        # Try to get document-based analysis
+                        temp_data = temporal_service.extract_temporal_data(all_documents, term, [period])
+                        if temp_data and str(period) in temp_data:
+                            doc_based_data = temp_data[str(period)]
+                    except Exception as e:
+                        print(f"Error extracting temporal data for period {period}: {str(e)}")
+                        pass  # If it fails, we'll use OED data
+                
+                # Use document data if available and has content
+                if doc_based_data and doc_based_data.get('frequency', 0) > 0:
+                    temporal_data[period_str] = doc_based_data
+                    # Add OED note if we also have OED data
+                    if oed_count > 0:
+                        temporal_data[period_str]['oed_note'] = f'Also found {oed_count} OED quotation(s)'
+                # Otherwise use OED data
+                elif oed_count > 0:
+                    temporal_data[period_str] = {
+                        'frequency': oed_count,
+                        'contexts': [f'OED: {oed_count} historical quotation(s) from this period'],
+                        'co_occurring_terms': [],
+                        'evolution': 'historical',
+                        'source': 'Oxford English Dictionary',
+                        'definition': f'Historical usage documented in OED with {oed_count} quotation(s)',
+                        'is_oed_data': True
+                    }
+                else:
+                    # No data from either source
+                    temporal_data[period_str] = {
+                        'frequency': 0,
+                        'contexts': [],
+                        'co_occurring_terms': [],
+                        'evolution': 'absent',
+                        'definition': f'No usage found for "{term}" in {period}',
+                        'is_oed_data': True
+                    }
+        else:
+            # Normal document-based analysis
+            temporal_data = temporal_service.extract_temporal_data(all_documents, term, analysis_periods)
+            
+            # Ensure temporal_data is not None
+            if temporal_data is None:
+                temporal_data = {}
+                # Initialize empty data for each period
+                for period in analysis_periods:
+                    temporal_data[str(period)] = {
+                        'frequency': 0,
+                        'contexts': [],
+                        'co_occurring_terms': [],
+                        'evolution': 'absent'
+                    }
         
         # Extract frequency data for visualization
         frequency_data = {}
         for period in analysis_periods:
             period_str = str(period)
             if period_str in temporal_data and temporal_data[period_str] is not None:
-                frequency_data[period] = temporal_data[period_str].get('frequency', 0)
+                # Scale OED frequencies for better visualization
+                freq = temporal_data[period_str].get('frequency', 0)
+                if temporal_data[period_str].get('is_oed_data'):
+                    # Scale OED quotation counts to be comparable with document frequencies
+                    freq = freq * 10  # Each OED quotation represents significant usage
+                frequency_data[period] = freq
             else:
                 frequency_data[period] = 0
         
@@ -776,7 +924,13 @@ def fetch_temporal_data(experiment_id):
         return jsonify(response)
         
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        import traceback
+        print(f"Error in fetch_temporal_data: {str(e)}")
+        print(traceback.format_exc())
+        return jsonify({
+            'success': False,
+            'error': f'Server error: {str(e)}'
+        }), 500
 
 def generate_time_periods(start_year: int, end_year: int, interval: Optional[int] = None) -> List[int]:
     """Generate time periods based on start and end years."""

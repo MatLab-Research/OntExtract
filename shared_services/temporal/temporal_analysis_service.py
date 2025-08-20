@@ -156,7 +156,7 @@ class TemporalAnalysisService:
                                 return int(year_match.group())
         
         # Try to extract from content
-        if hasattr(document, 'content'):
+        if hasattr(document, 'content') and document.content is not None:
             content = document.content[:1000]  # Check first 1000 chars
             year_matches = re.findall(r'\b(19|20)\d{2}\b', content)
             if year_matches:
@@ -191,7 +191,7 @@ class TemporalAnalysisService:
         ]
         
         for doc in documents:
-            if not hasattr(doc, 'content'):
+            if not hasattr(doc, 'content') or doc.content is None:
                 continue
                 
             content = doc.content
@@ -248,7 +248,7 @@ class TemporalAnalysisService:
         term_lower = term.lower()
         
         for doc in documents:
-            if not hasattr(doc, 'content'):
+            if not hasattr(doc, 'content') or doc.content is None:
                 continue
                 
             # Find sentences containing the term
@@ -321,7 +321,7 @@ class TemporalAnalysisService:
         term_lower = term.lower()
         
         for doc in documents:
-            if hasattr(doc, 'content'):
+            if hasattr(doc, 'content') and doc.content is not None:
                 # Count occurrences (case-insensitive)
                 frequency += doc.content.lower().count(term_lower)
         
@@ -342,7 +342,7 @@ class TemporalAnalysisService:
         term_lower = term.lower()
         
         for doc in documents:
-            if not hasattr(doc, 'content'):
+            if not hasattr(doc, 'content') or doc.content is None:
                 continue
             
             # Find sentences containing the term

@@ -322,9 +322,27 @@
         </div>
     </div>
 
-    <!-- Time Period Headers -->
+    <!-- Time Period Information -->
     <div class="row mb-3">
         <div class="col-12">
+            {% if use_oed_periods and oed_period_data %}
+            <div class="alert alert-info mb-3">
+                <i class="fas fa-book"></i> <strong>OED-Generated Periods</strong>
+                <p class="mb-2">Time periods automatically generated from Oxford English Dictionary historical data.</p>
+                
+                {% if oed_period_data %}
+                <div class="mb-2">
+                    <strong>Term Coverage:</strong>
+                    <ul class="mb-0">
+                    {% for term, data in oed_period_data.items() %}
+                        <li><strong>{{ term }}</strong>: {{ data.min_year }}-{{ data.max_year }} ({{ data.quotation_years|length }} quotations)</li>
+                    {% endfor %}
+                    </ul>
+                </div>
+                {% endif %}
+            </div>
+            {% endif %}
+            
             <div class="alert alert-info">
                 <i class="fas fa-info-circle"></i> 
                 <strong>Time Periods:</strong> 
@@ -419,7 +437,7 @@
                     <div class="row">
                         <div class="col-md-8">
                             <input type="text" class="form-control" id="new-term-input" 
-                                   placeholder="Enter term to track over time (e.g., technology, artificial intelligence)">
+                                   placeholder="Enter term to track (e.g., 'algorithm', 'artificial intelligence')">
                         </div>
                         <div class="col-md-4">
                             <button class="btn btn-primary" onclick="addNewTerm()">

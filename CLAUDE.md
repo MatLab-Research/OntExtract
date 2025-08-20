@@ -127,6 +127,7 @@ Key environment variables are configured in `.env`:
    - Implemented `temporal_analysis_service.py` for tracking term evolution over time periods
    - Created dedicated temporal experiments UI at `/experiments/temporal`
    - Added period-based filtering and comparison capabilities
+   - Fixed NoneType errors in temporal analysis service with proper null checks
 
 2. **Ontology Import Service**:
    - Built robust ontology importer supporting Turtle and JSON-LD formats
@@ -137,11 +138,14 @@ Key environment variables are configured in `.env`:
    - Created interactive term manager for experiments
    - Added temporal term manager variant for evolution analysis
    - Implemented term suggestion and validation features
+   - Standardized button styling (btn-secondary for wizard and non-primary actions)
 
 4. **OED Integration Foundation**:
    - Developed multiple OED parser implementations
    - Created LangExtract-based parser for better accuracy
    - Added layout detection capabilities for dictionary entries
+   - Successfully integrated "Use OED Periods" functionality in temporal experiments
+   - Fixed hybrid analysis combining OED historical quotations with modern documents
 
 ### Test Files Organization (January 19, 2025)
 All experimental test files have been moved from root to `scratch/` directory:
@@ -176,6 +180,72 @@ All experimental test files have been moved from root to `scratch/` directory:
 - Use existing OED service infrastructure from `app/services/oed_service.py`
 - Leverage the LangExtract parser for better definition extraction
 
+## Docker Deployment & Maintenance
+
+### Installation System
+The project includes a complete Docker-based installation system for easy deployment:
+
+#### Key Files to Maintain
+1. **`install.sh`** - One-command installation script
+   - Checks Docker prerequisites
+   - Builds containers
+   - Initializes database
+   - **Review periodically for updates**
+
+2. **`update.sh`** - User update script  
+   - **Already created and available for users!**
+   - Pulls latest changes from GitHub
+   - Rebuilds containers only if needed
+   - Preserves all user data (database, uploads, logs)
+   - Users can run `./update.sh` anytime to get latest updates
+
+3. **`Dockerfile`** - Container configuration
+   - **Check periodically for security updates**
+   - Update base image versions
+   - Review Python and system dependencies
+
+4. **`docker-compose.yml`** - Service orchestration
+   - **Monitor for best practices changes**
+   - Update service versions (PostgreSQL, etc.)
+
+5. **`.env.production`** - Environment template
+   - Keep synchronized with new environment variables
+   - Document any new API keys or settings
+
+### Development Workflow
+- **Local Development**: Work on `dev` branch
+- **Production Updates**: Merge to `main` when stable
+- **User Updates**: Users run `./update.sh` to pull from `main`
+
+### Periodic Maintenance Tasks
+**Weekly/Monthly Checks**:
+- [ ] Review Dockerfile for security updates
+- [ ] Update base image versions if needed
+- [ ] Check docker-compose.yml for service updates
+- [ ] Verify install.sh and update.sh still work correctly
+- [ ] Test the update process from user perspective
+- [ ] Update INSTALL.md if process changes
+
+**Before Major Releases**:
+- [ ] Test full installation process from scratch
+- [ ] Verify update.sh handles all migration cases
+- [ ] Update version numbers and documentation
+- [ ] Test data persistence across updates
+
+### How Users Update Their Installation
+Users who have installed via Docker can easily update:
+```bash
+# Simple one-command update
+./update.sh
+
+# This script will:
+# - Pull latest code from GitHub main branch
+# - Rebuild containers if Dockerfile changed
+# - Run any database migrations
+# - Preserve all user data
+# - Restart services
+```
+
 ## Notes for Claude
 
 When working on this project:
@@ -186,8 +256,11 @@ When working on this project:
 5. Remember Flask runs on port 8765, database on port 5434
 6. Check for existing similar code before creating new files
 7. Run lint and type checks before marking tasks complete
+8. **Docker Maintenance**: Periodically review Dockerfile, docker-compose.yml, and installation scripts
+9. **Update Process**: Remember users have `./update.sh` for easy updates
 
 ### Current Focus Areas
 - **OED Integration**: The OED test files in `scratch/` contain working code for API interaction and parsing
 - **Temporal Analysis**: Core functionality is complete, now needs UI integration
 - **Term Evolution**: Focus on connecting historical dictionary data with temporal tracking
+- **Deployment**: Maintain Docker installation system for easy user deployment and updates
