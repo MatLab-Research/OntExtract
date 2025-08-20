@@ -42,6 +42,33 @@
                                 <tr>
                                     <td>
                                         <a href="{{ url_for('references.view', id=reference.id) }}" class="text-decoration-none">
+                                            {% if reference.reference_type == 'oed_entry' or (reference.reference_subtype and 'oed' in reference.reference_subtype.lower()) %}
+                                                <i class="fas fa-external-link-alt text-info me-2" title="OED Entry (External)"></i>
+                                            {% elif (reference.original_filename and reference.original_filename.lower().endswith('.pdf')) or reference.file_type == 'pdf' %}
+                                                <i class="fas fa-file-pdf text-danger me-2" title="PDF Reference"></i>
+                                            {% elif reference.reference_subtype == 'academic' %}
+                                                <i class="fas fa-graduation-cap text-success me-2" title="Academic Paper"></i>
+                                            {% elif reference.reference_subtype == 'standard' %}
+                                                <i class="fas fa-certificate text-warning me-2" title="Standard Document"></i>
+                                            {% elif reference.reference_subtype == 'book' %}
+                                                <i class="fas fa-book text-primary me-2" title="Book"></i>
+                                            {% elif reference.reference_subtype == 'conference' %}
+                                                <i class="fas fa-users text-info me-2" title="Conference Proceeding"></i>
+                                            {% elif reference.reference_subtype == 'patent' %}
+                                                <i class="fas fa-lightbulb text-warning me-2" title="Patent"></i>
+                                            {% elif reference.reference_subtype == 'technical' %}
+                                                <i class="fas fa-file-code text-secondary me-2" title="Technical Report"></i>
+                                            {% elif reference.reference_subtype == 'whitepaper' %}
+                                                <i class="fas fa-file-alt text-secondary me-2" title="White Paper"></i>
+                                            {% elif reference.reference_subtype == 'website' %}
+                                                <i class="fas fa-globe text-info me-2" title="Web Resource"></i>
+                                            {% elif reference.reference_subtype == 'glossary' %}
+                                                <i class="fas fa-list text-secondary me-2" title="Glossary"></i>
+                                            {% elif reference.reference_subtype == 'encyclopedia' %}
+                                                <i class="fas fa-book-open text-primary me-2" title="Encyclopedia Entry"></i>
+                                            {% else %}
+                                                <i class="fas fa-bookmark text-secondary me-2" title="Reference"></i>
+                                            {% endif %}
                                             <strong>{{ reference.title }}</strong>
                                         </a>
                                         {% if reference.source_metadata and reference.source_metadata.get('doi') %}

@@ -1,266 +1,153 @@
-# Claude Development Guidelines for OntExtract
+# OntExtract Development Notes
 
-## Project Organization
+## Project Overview
+OntExtract is a system for ontology extraction and temporal linguistic analysis from historical texts.
 
-### Directory Structure
-- **`tests/`** - Formal test files that are part of the test suite. Use pytest naming conventions.
-- **`scratch/`** - Temporary test files, experiments, and quick prototypes (e.g., `test_oed_full_capture.py`).
-- **`docs/`** - All documentation files go here. Keep documentation organized and out of root.
-- **`archive/`** - Old code, deprecated features, or files to be retained for reference.
-- **`pending_delete/`** - Files marked for deletion but requiring review before permanent removal.
+## Temporal Linguistic Analysis Pipeline
 
-### Clean Repository Practices
-1. **No Root Clutter**: Avoid creating new files in the root directory unless absolutely necessary (e.g., config files like `.env`, `requirements.txt`)
-2. **Test Organization**: 
-   - **Formal tests**: Place in `tests/` folder following pytest conventions
-   - **Temporary/experimental tests**: Place in `scratch/` folder for quick experiments
-3. **Documentation**: New documentation should be created in `docs/` with clear, descriptive names
-4. **Temporary Files**: Use `pending_delete/` for files that might be removed, allowing for review before deletion
-5. **Legacy Code**: Move outdated but potentially useful code to `archive/` with date stamps
-6. **Scratch Work**: Use `scratch/` for temporary test files, data output, and experimental code
+### Core Objective
+Track linguistic evolution through historical texts (newspapers, period books) to analyze how word usage and meanings change over time, with entity-level PROV-O provenance tracking.
 
-## Application Configuration
+### Key Components
 
-### Ports
-- **Flask Web Server**: Port `8765` (changed from default 5000)
-- **PostgreSQL Database**: Port `5434` (via Docker container `ontextract_db`)
-- **Note**: ProEthica application uses PostgreSQL on port `5433` (separate container)
+#### 1. Historical Document Processing (`shared_services/preprocessing/historical_processor.py`)
+- **Temporal Metadata Extraction**: Extract publication dates, historical periods, confidence scores
+- **Historical Spelling Normalization**: Convert archaic spellings (thou→you, hath→has, etc.)
+- **Semantic Unit Extraction**: Identify articles in newspapers, chapters in books
+- **OCR Error Correction**: Handle common OCR errors in historical texts
 
-### Database Connection
-- **Development**: `postgresql://postgres:PASS@localhost:5434/ontextract_db`
-- **Docker Internal**: `postgresql://postgres:PASS@db:5432/ontextract_db`
-- The database container maps external port 5434 to internal port 5432
+#### 2. Temporal Word Usage Extraction (To be implemented: `temporal_extractor.py`)
+- **Usage Context Extraction**: Capture surrounding text windows
+- **Collocation Analysis**: Track words appearing together
+- **Syntactic Role Identification**: Analyze grammatical functions
+- **Semantic Field Classification**: Group related concepts
 
-### Docker Containers
-- `ontextract_db` - PostgreSQL database (port 5434)
-- `ontextract_web` - Flask application (port 8765)
-- `ontextract_db_init` - Database initialization (runs once)
+#### 3. Semantic Evolution Tracking (To be implemented: `semantic_tracker.py`)
+- **Semantic Drift Metrics**: Measure meaning changes over time
+- **Meaning Clusters**: Identify different word senses by period
+- **Emergent Meanings**: Detect new meanings appearing over time
+- **Domain Migration**: Track shifts between usage domains
 
-## Development Commands
+#### 4. Entity-Level PROV-O Tracking (To be implemented: `provenance_tracker.py`)
+- **Entity Provenance**: Track extraction source and method
+- **Temporal Context**: Document period and publication date
+- **Confidence Scoring**: Quality metrics for extractions
+- **Attribution Chain**: Full audit trail from source to result
 
-### Starting the Application
-```bash
-# Start database only
-docker start ontextract_db
+#### 5. Pre-computed Comparison Features (To be implemented: `comparison_preprocessor.py`)
+- **Vocabulary Profiles**: Unique terms, frequencies, archaic/modern ratio
+- **Syntactic Patterns**: Sentence and phrase structures
+- **Semantic Profiles**: Topic distributions, sentiment timelines
+- **Temporal Markers**: Period indicators, anachronisms
 
-# Start full application with Docker Compose
-docker-compose up
+#### 6. Google Services Integration (To be implemented: `google_integration.py`)
+- **Document AI**: OCR, layout detection, table/form extraction
+- **Natural Language API**: NER, sentiment, syntax analysis
+- **Custom Historical NER**: Period-specific entity recognition
 
-# Start Flask development server (requires database running)
-python run.py
+### Implementation Status
+
+✅ **Completed**:
+- Basic project structure and Docker deployment
+- Admin account management system
+- File type icon differentiation in UI
+- Historical document processor core class
+
+🔄 **In Progress**:
+- Temporal word usage extractor
+- Semantic evolution tracker
+- Entity provenance tracker
+
+📋 **Pending**:
+- Google services integration
+- Comparison preprocessor
+- Visualization layer for temporal evolution
+
+### Technical Architecture
+
+```
+Input Documents (PDFs, scanned texts)
+    ↓
+Historical Document Processor
+    ├── OCR & Layout Analysis
+    ├── Temporal Metadata Extraction
+    └── Historical Normalization
+    ↓
+Temporal Word Usage Extractor
+    ├── Context Windows
+    ├── Collocation Analysis
+    └── Syntactic Analysis
+    ↓
+Semantic Evolution Tracker
+    ├── Semantic Drift Calculation
+    ├── Meaning Clustering
+    └── Domain Migration Analysis
+    ↓
+PROV-O Provenance Layer
+    ├── Entity-level tracking
+    ├── Attribution chains
+    └── Quality metrics
+    ↓
+Pre-computed Features
+    ├── Embeddings
+    ├── Statistical profiles
+    └── Comparison vectors
+    ↓
+Storage & Analysis
 ```
 
-### Database Management
-```bash
-# Check database status
-docker ps | grep ontextract_db
+### Key Design Decisions
 
-# View database logs
-docker logs ontextract_db
+1. **Entity-Level Provenance**: Each extracted term has full PROV-O tracking for scholarly attribution
+2. **Historical Normalization**: Dual storage of original and normalized forms for accuracy
+3. **Semantic Units**: Process documents at article/chapter level for better context
+4. **Period-Aware Processing**: Different processing rules for different historical periods
+5. **Hybrid NER**: Combine Google NLP with custom historical entity recognition
 
-# Connect to database
-psql -h localhost -p 5434 -U postgres -d ontextract_db
-```
+### Google Cloud Requirements
 
-### Testing
-```bash
-# Run tests (from project root)
-pytest tests/
+- Document AI API for OCR and layout analysis
+- Natural Language API for modern NER and syntax
+- Custom models for historical text processing
+- Storage for large document collections
 
-# Run specific test file
-pytest tests/test_specific_feature.py
-```
+### Database Schema Considerations
 
-## Code Quality Standards
+- Temporal metadata tables for period classification
+- Word usage tables with context and collocations
+- Provenance tracking tables following PROV-O
+- Pre-computed feature storage for fast comparison
+- Semantic evolution metrics over time
 
-### UI/UX Conventions
+### Deployment Notes
 
-#### Button Styling Guidelines
-- **Primary Actions** (`btn-primary`): Main call-to-action buttons
-  - Examples: "Create Experiment", "Submit", "Save"
-- **Secondary Actions** (`btn-secondary`): Active but non-primary buttons
-  - Examples: "Wizard", "Cancel", "Back", "Create Sample"
-  - This is the default style for buttons that perform actions but aren't the main focus
-- **Outline Buttons** (`btn-outline-*`): Used for small utility actions or icon-only buttons
-  - Examples: Action buttons in tables (view, edit, delete)
-  - Small utility buttons like "Select All" when space is limited
-- **Danger Actions** (`btn-danger`): Destructive actions
-  - Examples: "Delete", "Remove"
+- Docker-based deployment with persistent volumes
+- Admin account: Username "Wook", Password "ontology" (private, not in repo)
+- Update mechanism preserves user data
+- File type icons distinguish local files from external references (OED)
 
-### Before Committing
-1. **Lint Check**: Run linting if configured (`npm run lint`, `ruff`, `flake8`, etc.)
-2. **Type Check**: Run type checking if available (`npm run typecheck`, `mypy`, etc.)
-3. **Tests**: Ensure all tests pass
-4. **Clean Up**: Move any temporary files to appropriate folders
+### Next Development Steps
 
-### File Naming Conventions
-- Test files: `test_*.py`
-- Documentation: Use descriptive names with underscores (e.g., `api_reference.md`)
-- Archive files: Include date stamp (e.g., `old_parser_20240819.py`)
+1. Complete temporal_extractor.py implementation
+2. Implement semantic evolution tracking algorithms
+3. Create PROV-O entity tracking system
+4. Integrate Google Cloud services
+5. Build visualization layer for temporal analysis
+6. Add batch processing for large document collections
 
-## Environment Variables
+### Research Applications
 
-Key environment variables are configured in `.env`:
-- `DATABASE_URL` - PostgreSQL connection string
-- `SECRET_KEY` - Flask secret key
-- `FLASK_ENV` - Development/production mode
-- `ANTHROPIC_API_KEY` - For Claude API
-- `OPENAI_API_KEY` - For OpenAI API
-- `OED_*` - Oxford English Dictionary API credentials
+- Track semantic drift in historical texts
+- Analyze domain-specific language evolution
+- Study emergence of new word meanings
+- Compare language use across different periods
+- Create temporal word usage databases
+- Support digital humanities research
 
-## Git Workflow
+### Important Files
 
-### Branch Strategy
-- `main` - Production-ready code
-- `dev` - Development branch (current)
-- Feature branches - Create from `dev` for new features
-
-### Commit Messages
-- Be descriptive and concise
-- Reference issue numbers when applicable
-- Use conventional commits if team adopts them
-
-## Recent Progress (January 2025)
-
-### Completed Features
-1. **Temporal Evolution Analysis**: 
-   - Implemented `temporal_analysis_service.py` for tracking term evolution over time periods
-   - Created dedicated temporal experiments UI at `/experiments/temporal`
-   - Added period-based filtering and comparison capabilities
-   - Fixed NoneType errors in temporal analysis service with proper null checks
-
-2. **Ontology Import Service**:
-   - Built robust ontology importer supporting Turtle and JSON-LD formats
-   - Implemented caching mechanism for better performance
-   - Added support for BFO and PROV-O ontologies
-
-3. **Term Management Interface**:
-   - Created interactive term manager for experiments
-   - Added temporal term manager variant for evolution analysis
-   - Implemented term suggestion and validation features
-   - Standardized button styling (btn-secondary for wizard and non-primary actions)
-
-4. **OED Integration Foundation**:
-   - Developed multiple OED parser implementations
-   - Created LangExtract-based parser for better accuracy
-   - Added layout detection capabilities for dictionary entries
-   - Successfully integrated "Use OED Periods" functionality in temporal experiments
-   - Fixed hybrid analysis combining OED historical quotations with modern documents
-
-### Test Files Organization (January 19, 2025)
-All experimental test files have been moved from root to `scratch/` directory:
-- **OED-related tests** (now in `scratch/`):
-  - `test_oed_fix.py` - OED API fixes and improvements
-  - `test_oed_integration.py` - Integration testing with OED service
-  - `test_oed_layout_detection.py` - Dictionary entry layout parsing
-  - `test_oed_full_capture.py` - Full OED data capture testing
-  - `test_oed_parser.py` - Core OED parser testing
-  - `test_langextract_simple.py` - LangExtract parser testing
-  
-- **Other experimental tests** (now in `scratch/`):
-  - `test_ontology_import.py` - Ontology import testing
-  - `test_temporal_analysis.py` - Temporal analysis service testing
-  - `test_time_periods.py` - Time period handling testing
-
-### Next Goals
-
-#### Priority 1: OED Lookup in Temporal Experiments
-**Objective**: Integrate OED lookup functionality into the temporal experiments page to provide historical dictionary definitions for tracked terms.
-
-**Implementation Plan**:
-1. Add OED lookup button/interface to temporal term manager
-2. Display historical definitions alongside temporal evolution data
-3. Cache OED responses to minimize API calls
-4. Show etymology and historical usage examples
-5. Link definitions to specific time periods in the analysis
-
-**Technical Requirements**:
-- Modify `app/templates/experiments/temporal_term_manager.html` to include OED lookup UI
-- Extend `app/routes/experiments.py` with OED lookup endpoints
-- Use existing OED service infrastructure from `app/services/oed_service.py`
-- Leverage the LangExtract parser for better definition extraction
-
-## Docker Deployment & Maintenance
-
-### Installation System
-The project includes a complete Docker-based installation system for easy deployment:
-
-#### Key Files to Maintain
-1. **`install.sh`** - One-command installation script
-   - Checks Docker prerequisites
-   - Builds containers
-   - Initializes database
-   - **Review periodically for updates**
-
-2. **`update.sh`** - User update script  
-   - **Already created and available for users!**
-   - Pulls latest changes from GitHub
-   - Rebuilds containers only if needed
-   - Preserves all user data (database, uploads, logs)
-   - Users can run `./update.sh` anytime to get latest updates
-
-3. **`Dockerfile`** - Container configuration
-   - **Check periodically for security updates**
-   - Update base image versions
-   - Review Python and system dependencies
-
-4. **`docker-compose.yml`** - Service orchestration
-   - **Monitor for best practices changes**
-   - Update service versions (PostgreSQL, etc.)
-
-5. **`.env.production`** - Environment template
-   - Keep synchronized with new environment variables
-   - Document any new API keys or settings
-
-### Development Workflow
-- **Local Development**: Work on `dev` branch
-- **Production Updates**: Merge to `main` when stable
-- **User Updates**: Users run `./update.sh` to pull from `main`
-
-### Periodic Maintenance Tasks
-**Weekly/Monthly Checks**:
-- [ ] Review Dockerfile for security updates
-- [ ] Update base image versions if needed
-- [ ] Check docker-compose.yml for service updates
-- [ ] Verify install.sh and update.sh still work correctly
-- [ ] Test the update process from user perspective
-- [ ] Update INSTALL.md if process changes
-
-**Before Major Releases**:
-- [ ] Test full installation process from scratch
-- [ ] Verify update.sh handles all migration cases
-- [ ] Update version numbers and documentation
-- [ ] Test data persistence across updates
-
-### How Users Update Their Installation
-Users who have installed via Docker can easily update:
-```bash
-# Simple one-command update
-./update.sh
-
-# This script will:
-# - Pull latest code from GitHub main branch
-# - Rebuild containers if Dockerfile changed
-# - Run any database migrations
-# - Preserve all user data
-# - Restart services
-```
-
-## Notes for Claude
-
-When working on this project:
-1. **Formal tests**: Place in `tests/` folder
-2. **Experimental/temporary tests**: Place in `scratch/` folder
-3. Always place documentation in `docs/`
-4. Use `archive/` and `pending_delete/` for file organization
-5. Remember Flask runs on port 8765, database on port 5434
-6. Check for existing similar code before creating new files
-7. Run lint and type checks before marking tasks complete
-8. **Docker Maintenance**: Periodically review Dockerfile, docker-compose.yml, and installation scripts
-9. **Update Process**: Remember users have `./update.sh` for easy updates
-
-### Current Focus Areas
-- **OED Integration**: The OED test files in `scratch/` contain working code for API interaction and parsing
-- **Temporal Analysis**: Core functionality is complete, now needs UI integration
-- **Term Evolution**: Focus on connecting historical dictionary data with temporal tracking
-- **Deployment**: Maintain Docker installation system for easy user deployment and updates
+- `shared_services/preprocessing/historical_processor.py` - Core historical text processor
+- `shared_services/temporal/temporal_analysis_service.py` - Temporal analysis utilities
+- `setup_admin.sh.private` - Private admin creation script (not in repo)
+- `install.sh` - One-command Docker installation
+- `update.sh` - Git-based update mechanism
