@@ -360,6 +360,7 @@
     <!-- Term Cards -->
     <div id="terms-container">
         {% for term in terms %}
+        {% set term_period_list = term_periods.get(term, time_periods) if term_periods else time_periods %}
         <div class="term-card" data-term="{{ term }}">
             <div class="term-header">
                 <div class="term-title">
@@ -385,7 +386,7 @@
             </div>
             
             <div class="timeline-container">
-                {% for period in time_periods %}
+                {% for period in term_period_list %}
                 <div class="time-period-column" data-period="{{ period }}">
                     <div class="period-label">
                         <i class="fas fa-calendar"></i>
@@ -459,6 +460,11 @@
 let experimentId = {{ experiment.id }};
 let currentTerms = {{ terms|tojson|safe }};
 let timePeriods = {{ time_periods|tojson|safe }};
+{% if term_periods %}
+let termPeriods = {{ term_periods|tojson|safe }};  // Term-specific periods from OED
+{% else %}
+let termPeriods = {};  // Term-specific periods from OED
+{% endif %}
 let termData = {};
 
 // Initialize
@@ -518,8 +524,11 @@ function createTermCard(term) {
     termCard.className = 'term-card';
     termCard.dataset.term = term;
     
+    // Use term-specific periods if available, otherwise use global periods
+    const periodsToUse = (termPeriods[term] && termPeriods[term].length > 0) ? termPeriods[term] : timePeriods;
+    
     let timelineColumns = '';
-    timePeriods.forEach((period, index) => {
+    periodsToUse.forEach((period, index) => {
         timelineColumns += `
             <div class="time-period-column" data-period="${period}">
                 <div class="period-label">
@@ -546,7 +555,7 @@ function createTermCard(term) {
                     </div>
                 </div>
                 
-                ${index < timePeriods.length - 1 ? '<span class="timeline-arrow">→</span>' : ''}
+                ${index < periodsToUse.length - 1 ? '<span class="timeline-arrow">→</span>' : ''}
             </div>
         `;
     });

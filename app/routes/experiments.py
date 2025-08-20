@@ -526,12 +526,14 @@ def manage_temporal_terms(experiment_id):
     
     # If using OED periods and periods haven't been generated yet
     if use_oed_periods and (not time_periods or len(time_periods) == 0) and terms:
-        # Fetch OED data for all terms to generate unified periods
+        # Fetch OED data for each term to generate individual periods
         from app.services.oed_service import OEDService
         oed_service = OEDService()
         
-        all_years = []
         oed_period_data = {}
+        term_periods = {}  # Store individual periods for each term
+        overall_min_year = None
+        overall_max_year = None
         
         for term in terms:
             try:
@@ -556,40 +558,57 @@ def manage_temporal_terms(experiment_id):
                                             pass
                                 
                                 if term_years:
-                                    all_years.extend(term_years)
+                                    min_year = min(term_years)
+                                    max_year = max(term_years)
+                                    
+                                    # Generate periods for this specific term
+                                    periods_for_term = generate_time_periods(min_year, max_year)
+                                    term_periods[term] = periods_for_term
+                                    
+                                    # Track overall range for display
+                                    if overall_min_year is None or min_year < overall_min_year:
+                                        overall_min_year = min_year
+                                    if overall_max_year is None or max_year > overall_max_year:
+                                        overall_max_year = max_year
+                                    
                                     oed_period_data[term] = {
-                                        'min_year': min(term_years),
-                                        'max_year': max(term_years),
-                                        'quotation_years': sorted(list(set(term_years)))
+                                        'min_year': min_year,
+                                        'max_year': max_year,
+                                        'quotation_years': sorted(list(set(term_years))),
+                                        'periods': periods_for_term  # Store term-specific periods
                                     }
-                                    print(f"OED data for '{term}': {len(term_years)} quotations, {min(term_years)}-{max(term_years)}")
+                                    print(f"OED data for '{term}': {len(term_years)} quotations, {min_year}-{max_year}")
+                                else:
+                                    print(f"No years found in OED data for '{term}'")
+                                    term_periods[term] = []  # Empty periods for terms without OED data
                             break
             except Exception as e:
                 print(f"Error fetching OED data for term '{term}': {str(e)}")
+                term_periods[term] = []  # Empty periods for terms with errors
                 continue
         
-        # Generate unified periods based on all terms' date ranges
-        if all_years:
-            min_year = min(all_years)
-            max_year = max(all_years)
-            time_periods = generate_time_periods(min_year, max_year)
+        # If we have any OED data, update configuration
+        if overall_min_year and overall_max_year:
+            # For display purposes, use the overall range
+            time_periods = generate_time_periods(overall_min_year, overall_max_year)
             
-            # Update configuration with OED data and generated periods
-            config['time_periods'] = time_periods
+            # Update configuration with OED data and term-specific periods
+            config['time_periods'] = time_periods  # Overall periods for display
             config['oed_period_data'] = oed_period_data
-            config['start_year'] = min_year
-            config['end_year'] = max_year
+            config['term_periods'] = term_periods  # Individual periods for each term
+            config['start_year'] = overall_min_year
+            config['end_year'] = overall_max_year
             
             # Save updated configuration
             experiment.configuration = json.dumps(config)
             db.session.commit()
             
-            start_year = min_year
-            end_year = max_year
+            start_year = overall_min_year
+            end_year = overall_max_year
             
-            flash(f'Generated time periods from OED data: {min_year} to {max_year}', 'success')
+            flash(f'Generated OED time periods for {len([t for t in term_periods if term_periods[t]])} term(s): overall range {overall_min_year} to {overall_max_year}', 'success')
         else:
-            flash('Unable to fetch OED data. Using default periods.', 'warning')
+            flash('Unable to fetch OED data for any terms. Using default periods.', 'warning')
             # Fall back to default periods
             time_periods = [2000, 2005, 2010, 2015, 2020]
     
@@ -615,7 +634,8 @@ def manage_temporal_terms(experiment_id):
                          start_year=start_year,
                          end_year=end_year,
                          use_oed_periods=use_oed_periods,
-                         oed_period_data=config.get('oed_period_data', {}))
+                         oed_period_data=config.get('oed_period_data', {}),
+                         term_periods=config.get('term_periods', {}))
 
 @experiments_bp.route('/<int:experiment_id>/update_temporal_terms', methods=['POST'])
 @login_required
@@ -681,7 +701,16 @@ def fetch_temporal_data(experiment_id):
         
         if not term:
             return jsonify({'success': False, 'error': 'Term is required'}), 400
-        if not periods:
+        
+        # Check if we have term-specific periods from OED
+        config = json.loads(experiment.configuration) if experiment.configuration else {}
+        term_periods = config.get('term_periods', {})
+        
+        # If using OED and we have term-specific periods, use those
+        if use_oed and term in term_periods and term_periods[term]:
+            periods = term_periods[term]
+            print(f"Using term-specific periods for '{term}': {periods}")
+        elif not periods:
             return jsonify({'success': False, 'error': 'Periods are required'}), 400
         
         # Import temporal analysis service
