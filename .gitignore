@@ -226,3 +226,4 @@ deploy.env.example
 *.private
 setup_admin.sh.private
 create_admin_wook.py
+SHARING_GUIDE.md
