@@ -26,12 +26,7 @@
     <ul class="nav nav-tabs mt-3" id="uploadTypeTabs" role="tablist">
         <li class="nav-item" role="presentation">
             <button class="nav-link active" id="document-tab" data-bs-toggle="tab" data-bs-target="#document" type="button" role="tab">
-                <i class="fas fa-file-alt"></i> Document for Analysis
-            </button>
-        </li>
-        <li class="nav-item" role="presentation">
-            <button class="nav-link" id="reference-tab" data-bs-toggle="tab" data-bs-target="#reference" type="button" role="tab">
-                <i class="fas fa-book"></i> Reference/Citation
+                <i class="fas fa-file-alt"></i> Documents
             </button>
         </li>
         <li class="nav-item" role="presentation">
@@ -47,7 +42,7 @@
     </ul>
 
     <div class="tab-content" id="uploadTypeTabContent">
-        <!-- Document Upload Tab -->
+        <!-- Unified Documents Tab -->
         <div class="tab-pane fade show active" id="document" role="tabpanel">
             <form method="POST" enctype="multipart/form-data" id="documentUploadForm">
                 <input type="hidden" name="upload_type" value="document">
@@ -56,12 +51,13 @@
                     <div class="col-lg-8">
                         <div class="card">
                             <div class="card-header">
-                                <h5 class="card-title mb-0">Upload Document for Analysis</h5>
+                                <h5 class="card-title mb-0">Upload Document</h5>
                             </div>
                             <div class="card-body">
                                 <div class="alert alert-info">
                                     <i class="fas fa-info-circle"></i> 
-                                    Upload documents to extract entities, analyze content, and perform ontology mapping.
+                                    Upload any document for analysis, reference, or archival. 
+                                    <strong>Metadata will be automatically extracted from your Zotero library if available (PDF files).</strong>
                                 </div>
 
                                 <div class="mb-3">
@@ -77,9 +73,29 @@
                                            placeholder="Optional - will use filename if not provided">
                                 </div>
 
+                                <!-- Document Type using PROV-O -->
+                                <div class="mb-3">
+                                    <label for="document_prov_type" class="form-label">Document Type (PROV-O)</label>
+                                    <select class="form-select" id="document_prov_type" name="prov_type">
+                                        <option value="prov:Entity">General Document (prov:Entity)</option>
+                                        <option value="prov:Entity/SourceDocument">Source Document for Analysis</option>
+                                        <option value="prov:Entity/Reference">Reference/Citation</option>
+                                        <option value="prov:Entity/Standard">Standard/Specification</option>
+                                        <option value="prov:Entity/AcademicPaper">Academic Paper</option>
+                                        <option value="prov:Entity/TechnicalReport">Technical Report</option>
+                                        <option value="prov:Entity/Book">Book</option>
+                                        <option value="prov:Entity/Patent">Patent</option>
+                                        <option value="prov:Entity/WebResource">Web Resource</option>
+                                        <option value="prov:Entity/Glossary">Glossary/Terminology</option>
+                                        <option value="prov:Entity/Dictionary">Dictionary Entry</option>
+                                        <option value="prov:Entity/Other">Other</option>
+                                    </select>
+                                    <div class="form-text">Using PROV-O ontology for document classification</div>
+                                </div>
+
                                 <!-- Language detection info -->
                                 <div class="form-check mb-3">
-                                    <input class="form-check-input" type="checkbox" id="auto_detect_language" checked>
+                                    <input class="form-check-input" type="checkbox" id="auto_detect_language" name="auto_detect_language" checked>
                                     <label class="form-check-label" for="auto_detect_language">
                                         Automatically detect document language
                                     </label>
@@ -90,105 +106,30 @@
                                     <div class="card-body">
                                         <h6 class="card-title">Processing Options</h6>
                                         <div class="form-check">
-                                            <input class="form-check-input" type="checkbox" id="create_segments" checked>
+                                            <input class="form-check-input" type="checkbox" id="check_zotero" name="check_zotero" checked>
+                                            <label class="form-check-label" for="check_zotero">
+                                                Check Zotero library for metadata (PDF files)
+                                            </label>
+                                        </div>
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" id="create_segments" name="create_segments" checked>
                                             <label class="form-check-label" for="create_segments">
                                                 Create text segments for detailed analysis
                                             </label>
                                         </div>
                                         <div class="form-check">
-                                            <input class="form-check-input" type="checkbox" id="extract_entities">
+                                            <input class="form-check-input" type="checkbox" id="extract_entities" name="extract_entities">
                                             <label class="form-check-label" for="extract_entities">
                                                 Extract entities immediately after upload
                                             </label>
                                         </div>
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" id="temporal_analysis" name="temporal_analysis">
+                                            <label class="form-check-label" for="temporal_analysis">
+                                                Perform temporal analysis
+                                            </label>
+                                        </div>
                                     </div>
-                                </div>
-
-                                <!-- Link to experiment (if applicable) -->
-                                {% if experiment %}
-                                <input type="hidden" name="experiment_id" value="{{ experiment.id }}">
-                                <div class="alert alert-success">
-                                    <i class="fas fa-link"></i> This document will be linked to experiment: <strong>{{ experiment.name }}</strong>
-                                </div>
-                                {% endif %}
-
-                                <button type="submit" class="btn btn-primary">
-                                    <i class="fas fa-upload"></i> Upload Document
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div class="col-lg-4">
-                        <div class="card">
-                            <div class="card-header">
-                                <h6 class="mb-0">Document Analysis</h6>
-                            </div>
-                            <div class="card-body">
-                                <p class="small text-muted">
-                                    Documents uploaded here will be:
-                                </p>
-                                <ul class="small text-muted">
-                                    <li>Processed for text extraction</li>
-                                    <li>Segmented into analyzable chunks</li>
-                                    <li>Available for entity extraction</li>
-                                    <li>Ready for ontology mapping</li>
-                                    <li>Included in experiments</li>
-                                </ul>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </form>
-        </div>
-
-        <!-- Reference Upload Tab -->
-        <div class="tab-pane fade" id="reference" role="tabpanel">
-            <form method="POST" enctype="multipart/form-data" id="referenceUploadForm">
-                <input type="hidden" name="upload_type" value="reference">
-                
-                <div class="row mt-3">
-                    <div class="col-lg-8">
-                        <div class="card">
-                            <div class="card-header">
-                                <h5 class="card-title mb-0">Upload Reference Document</h5>
-                            </div>
-                            <div class="card-body">
-                                <div class="alert alert-info">
-                                    <i class="fas fa-info-circle"></i> 
-                                    Upload academic papers, standards, or other reference materials. 
-                                    <strong>Metadata will be automatically extracted from your Zotero library if available.</strong>
-                                </div>
-
-                                <div class="mb-3">
-                                    <label for="ref_file" class="form-label">Reference File <span class="text-danger">*</span></label>
-                                    <input type="file" class="form-control" id="ref_file" name="file" required
-                                           accept=".pdf,.docx,.doc,.txt,.md,.html,.htm">
-                                    <div class="form-text">PDF files will have metadata extracted and enriched via Zotero</div>
-                                </div>
-
-                                <div class="mb-3">
-                                    <label for="ref_title" class="form-label">Title <span class="text-danger">*</span></label>
-                                    <input type="text" class="form-control" id="ref_title" name="title" required
-                                           placeholder="e.g., Understanding Semantic Networks">
-                                </div>
-
-                                <div class="mb-3">
-                                    <label for="reference_subtype" class="form-label">Reference Type <span class="text-danger">*</span></label>
-                                    <select class="form-select" id="reference_subtype" name="reference_subtype" required>
-                                        <option value="">Select reference type...</option>
-                                        <option value="academic">Academic Paper</option>
-                                        <option value="standard">Standard/Specification</option>
-                                        <option value="book">Book</option>
-                                        <option value="patent">Patent</option>
-                                        <option value="conference">Conference Proceeding</option>
-                                        <option value="technical">Technical Report</option>
-                                        <option value="whitepaper">White Paper</option>
-                                        <option value="website">Web Resource</option>
-                                        <option value="glossary">Glossary/Terminology</option>
-                                        <option value="encyclopedia">Encyclopedia Entry</option>
-                                        <option value="other">Other Reference</option>
-                                    </select>
                                 </div>
 
                                 <!-- Collapsible metadata section -->
@@ -243,7 +184,13 @@
                                             <div class="mb-3">
                                                 <label for="abstract" class="form-label">Abstract</label>
                                                 <textarea class="form-control" name="abstract" rows="3"
-                                                          placeholder="Paper abstract..."></textarea>
+                                                          placeholder="Paper abstract or document summary..."></textarea>
+                                            </div>
+
+                                            <div class="mb-3">
+                                                <label for="citation" class="form-label">Citation</label>
+                                                <textarea class="form-control" name="citation" rows="2"
+                                                          placeholder="Full citation (e.g., APA, MLA format)..."></textarea>
                                             </div>
                                         </div>
                                     </div>
@@ -253,38 +200,44 @@
                                 {% if experiment %}
                                 <input type="hidden" name="experiment_id" value="{{ experiment.id }}">
                                 <div class="form-check mb-3">
-                                    <input class="form-check-input" type="checkbox" name="include_in_analysis" value="true" id="include_in_analysis">
+                                    <input class="form-check-input" type="checkbox" name="include_in_analysis" value="true" id="include_in_analysis" checked>
                                     <label class="form-check-label" for="include_in_analysis">
                                         Include in experiment analysis
                                     </label>
                                 </div>
+                                <div class="alert alert-success">
+                                    <i class="fas fa-link"></i> This document will be linked to experiment: <strong>{{ experiment.name }}</strong>
+                                </div>
                                 {% endif %}
 
                                 <button type="submit" class="btn btn-primary">
-                                    <i class="fas fa-upload"></i> Upload Reference
+                                    <i class="fas fa-upload"></i> Upload Document
                                 </button>
                             </div>
                         </div>
                     </div>
-
+                    
                     <div class="col-lg-4">
                         <div class="card">
                             <div class="card-header bg-success text-white">
-                                <h6 class="mb-0"><i class="fas fa-magic"></i> Zotero Integration</h6>
+                                <h6 class="mb-0"><i class="fas fa-magic"></i> Unified Processing</h6>
                             </div>
                             <div class="card-body">
                                 <p class="small">
-                                    <strong>Automatic metadata extraction:</strong>
+                                    <strong>All documents receive:</strong>
                                 </p>
                                 <ul class="small">
-                                    <li>Searches your Zotero library</li>
-                                    <li>Extracts full bibliographic data</li>
-                                    <li>Captures ProQuest URLs</li>
-                                    <li>Tracks provenance with PROV-O</li>
+                                    <li>Text extraction & processing</li>
+                                    <li>Zotero metadata lookup (PDFs)</li>
+                                    <li>Language detection</li>
+                                    <li>Segmentation for analysis</li>
+                                    <li>Entity extraction (optional)</li>
+                                    <li>Temporal analysis (optional)</li>
+                                    <li>Provenance tracking (PROV-O)</li>
                                 </ul>
                                 <hr>
                                 <p class="small text-muted">
-                                    References are stored separately from documents and can be linked to multiple experiments.
+                                    Documents are classified using PROV-O ontology vocabulary for standardized provenance tracking.
                                 </p>
                             </div>
                         </div>
@@ -529,13 +482,7 @@ document.addEventListener('DOMContentLoaded', function() {
 // Form submission handlers
 document.getElementById('documentUploadForm')?.addEventListener('submit', function(e) {
     e.preventDefault();
-    this.action = "{{ url_for('text_input.upload_file') }}";
-    this.submit();
-});
-
-document.getElementById('referenceUploadForm')?.addEventListener('submit', function(e) {
-    e.preventDefault();
-    this.action = "{{ url_for('references.upload') }}";
+    this.action = "{{ url_for('upload.upload_document') }}";
     this.submit();
 });
 
