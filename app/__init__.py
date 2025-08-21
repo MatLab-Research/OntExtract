@@ -49,6 +49,7 @@ def create_app(config_name=None):
     from app.routes.results import results_bp
     from app.routes.experiments import experiments_bp
     from app.routes.references import references_bp
+    from app.routes.upload import upload_bp
     
     app.register_blueprint(auth_bp, url_prefix='/auth')
     app.register_blueprint(text_input_bp, url_prefix='/input')
@@ -56,6 +57,7 @@ def create_app(config_name=None):
     app.register_blueprint(results_bp, url_prefix='/results')
     app.register_blueprint(experiments_bp)
     app.register_blueprint(references_bp)
+    app.register_blueprint(upload_bp)
     
     # Jinja filters
     @app.template_filter('number_format')
