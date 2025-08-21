@@ -112,13 +112,24 @@ def upload():
             status='uploaded'
         )
         
-        # Phase 1: prefill metadata from PDF via heuristics (pypdf), if enabled
+        # Phase 1: prefill metadata from PDF via heuristics (pypdf) and Zotero, if enabled
         try:
             fext = (file_handler.get_file_extension(original_name) or '').lower()
             if current_app.config.get('PREFILL_METADATA', True) and saved_path and fext == 'pdf':
                 from app.services.reference_metadata_enricher import ReferenceMetadataEnricher
-                enricher = ReferenceMetadataEnricher()
-                delta = enricher.extract(saved_path, existing=document.source_metadata or {}, allow_overwrite=False)
+                
+                # Enable Zotero lookup by default (can be disabled in config)
+                use_zotero = current_app.config.get('USE_ZOTERO_METADATA', True)
+                enricher = ReferenceMetadataEnricher(use_zotero=use_zotero)
+                
+                # Use the new method that includes Zotero lookup
+                delta = enricher.extract_with_zotero(
+                    saved_path, 
+                    title=title,
+                    existing=document.source_metadata or {}, 
+                    allow_overwrite=False
+                )
+                
                 if delta:
                     # merge into document.source_metadata and persist
                     merged = document.source_metadata or {}
@@ -126,8 +137,16 @@ def upload():
                         if k not in merged or not merged.get(k):
                             merged[k] = v
                     document.source_metadata = merged
+                    
+                    # Log if we found Zotero metadata
+                    if 'zotero_key' in delta:
+                        current_app.logger.info(
+                            f"Enriched document {document.id} with Zotero metadata "
+                            f"(key: {delta['zotero_key']}, match score: {delta.get('zotero_match_score', 0):.2f})"
+                        )
         except Exception as _e:
             # Soft-fail: enrichment is best-effort
+            current_app.logger.warning(f"Metadata enrichment failed: {str(_e)}")
             pass
 
         db.session.add(document)

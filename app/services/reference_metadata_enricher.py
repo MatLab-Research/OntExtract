@@ -1,8 +1,13 @@
 import os
 import re
 from typing import Dict, Any, List, Optional
+import logging
 
 import pypdf
+from shared_services.zotero.zotero_service import ZoteroService
+from shared_services.zotero.metadata_mapper import ZoteroMetadataMapper
+
+logger = logging.getLogger(__name__)
 
 
 class ReferenceMetadataEnricher:
@@ -19,8 +24,19 @@ class ReferenceMetadataEnricher:
     YEAR_RE = re.compile(r"\b(19|20)\d{2}\b")
     ISBN_RE = re.compile(r"\b97[89][-\s]?(?:\d[-\s]?){9}[\dxX]\b|\b(?:\d[-\s]?){9}[\dxX]\b")
 
-    def __init__(self, abstract_max_chars: int = 1000):
+    def __init__(self, abstract_max_chars: int = 1000, use_zotero: bool = True):
         self.abstract_max_chars = abstract_max_chars
+        self.use_zotero = use_zotero
+        self.zotero_service = None
+        
+        # Initialize Zotero service if enabled
+        if self.use_zotero:
+            try:
+                self.zotero_service = ZoteroService()
+                logger.info("Zotero service initialized for metadata enrichment")
+            except Exception as e:
+                logger.warning(f"Could not initialize Zotero service: {str(e)}")
+                self.zotero_service = None
 
     def extract(self, pdf_path: str, existing: Optional[Dict[str, Any]] = None, allow_overwrite: bool = False) -> Dict[str, Any]:
         existing = existing or {}
@@ -90,6 +106,92 @@ class ReferenceMetadataEnricher:
                 meta['design'] = design
 
         return meta
+
+    def extract_with_zotero(self, pdf_path: str, title: Optional[str] = None,
+                           existing: Optional[Dict[str, Any]] = None, 
+                           allow_overwrite: bool = False) -> Dict[str, Any]:
+        """
+        Extract metadata using both PDF extraction and Zotero lookup.
+        
+        Args:
+            pdf_path: Path to PDF file
+            title: Document title (if known)
+            existing: Existing metadata
+            allow_overwrite: Whether to overwrite existing values
+            
+        Returns:
+            Combined metadata from PDF and Zotero
+        """
+        # First get PDF metadata
+        pdf_meta = self.extract(pdf_path, existing, allow_overwrite)
+        
+        # If Zotero is not available, return PDF metadata
+        if not self.zotero_service:
+            return pdf_meta
+        
+        # Try to find document in Zotero
+        zotero_matches = []
+        
+        # Use title from PDF extraction or provided title
+        search_title = title or pdf_meta.get('title') or (existing or {}).get('title')
+        search_doi = pdf_meta.get('doi') or (existing or {}).get('doi')
+        search_authors = pdf_meta.get('authors') or (existing or {}).get('authors')
+        search_year = pdf_meta.get('publication_date') or (existing or {}).get('publication_date')
+        
+        # Search Zotero
+        if search_doi or search_title:
+            try:
+                zotero_matches = self.zotero_service.search_by_multiple_fields(
+                    title=search_title,
+                    doi=search_doi,
+                    authors=search_authors if isinstance(search_authors, list) else None,
+                    year=search_year
+                )
+            except Exception as e:
+                logger.error(f"Error searching Zotero: {str(e)}")
+        
+        # If we found matches, merge the metadata
+        if zotero_matches:
+            best_match = zotero_matches[0]  # Already sorted by relevance
+            zotero_meta = ZoteroMetadataMapper.map_to_source_metadata(best_match)
+            
+            # Log the match
+            match_score = best_match['data'].get('_match_score', 0)
+            match_type = best_match['data'].get('_match_type', 'unknown')
+            logger.info(f"Found Zotero match (type: {match_type}, score: {match_score:.2f})")
+            
+            # Merge metadata - Zotero takes precedence for bibliographic data
+            merged_meta = pdf_meta.copy()
+            
+            # Fields where Zotero should take precedence if available
+            zotero_priority_fields = [
+                'authors', 'title', 'publication_date', 'journal', 
+                'doi', 'isbn', 'url', 'abstract', 'citation',
+                'volume', 'issue', 'pages', 'publisher', 'place',
+                'tags', 'proquest_url', 'source_database'
+            ]
+            
+            for field in zotero_priority_fields:
+                if field in zotero_meta and zotero_meta[field]:
+                    # Only update if allowed or field is empty
+                    if allow_overwrite or field not in merged_meta or not merged_meta[field]:
+                        merged_meta[field] = zotero_meta[field]
+            
+            # Always add Zotero-specific metadata
+            merged_meta['zotero_key'] = zotero_meta.get('zotero_key')
+            merged_meta['zotero_match_score'] = match_score
+            merged_meta['zotero_match_type'] = match_type
+            
+            # Merge research design info if present
+            if 'design' in zotero_meta and not merged_meta.get('design'):
+                merged_meta['design'] = zotero_meta['design']
+            elif 'design' in zotero_meta and 'design' in merged_meta:
+                # Merge design fields
+                merged_meta['design'].update(zotero_meta['design'])
+            
+            return merged_meta
+        
+        return pdf_meta
 
     # --- internals ---
 
