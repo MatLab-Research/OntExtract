@@ -52,6 +52,14 @@ Track linguistic evolution through historical texts (newspapers, period books) t
 - Admin account management system
 - File type icon differentiation in UI
 - Historical document processor core class
+- **OntServe Integration** (2025-08-22): PROV-O access via centralized OntServe
+
+#### OntServe Integration ✅ (2025-08-22)
+- [x] **Enhanced OntologyImporter**: `shared_services/ontology/ontology_importer.py` now uses OntServe first
+- [x] **Automatic Fallback**: Falls back to direct download when OntServe unavailable
+- [x] **Backward Compatibility**: All existing PROV-O code works unchanged
+- [x] **Performance Optimization**: Cached responses from OntServe, no more downloads/parsing
+- [x] **Environment Configuration**: `USE_ONTSERVE=true`, `ONTSERVE_URL=http://localhost:8082`
 
 🔄 **In Progress**:
 - Temporal word usage extractor
@@ -126,11 +134,53 @@ Storage & Analysis
 - Update mechanism preserves user data
 - File type icons distinguish local files from external references (OED)
 
+### OntServe Integration Architecture ✅ (2025-08-22)
+
+OntExtract now integrates with OntServe for centralized PROV-O ontology access:
+
+```
+OntExtract ──→ OntExtract Client ──→ OntServe MCP Server ──→ PostgreSQL Database
+    ↓              ↓                      ↓                        ↓
+ Local Cache ←─ Response Cache ←─── Entity Storage ←───── PROV-O Concepts
+```
+
+#### Integration Features
+- **OntServe-First Approach**: Try OntServe, fall back to direct download
+- **Intelligent Caching**: 1-hour TTL cache for OntServe responses
+- **Transparent Operation**: Existing code works unchanged
+- **Environment Configuration**: `USE_ONTSERVE=true` enables integration
+- **PROV-O Access**: 59+ classes and 69+ properties from centralized server
+
+#### Usage Example
+```python
+# Existing code works unchanged - now uses OntServe when available
+from shared_services.ontology.ontology_importer import OntologyImporter
+
+importer = OntologyImporter()  # Auto-detects OntServe
+result = importer.import_prov_o()
+
+if result.get('from_ontserve'):
+    print("✓ Using centralized OntServe")
+else:
+    print("⚠ Fell back to direct download")
+
+# Access experiment concepts as before
+concepts = result['experiment_concepts']
+```
+
+#### Configuration
+```bash
+# Enable OntServe integration
+export USE_ONTSERVE=true
+export ONTSERVE_URL=http://localhost:8082
+export ONTSERVE_CACHE_TTL=3600  # 1 hour cache
+```
+
 ### Next Development Steps
 
 1. Complete temporal_extractor.py implementation
 2. Implement semantic evolution tracking algorithms
-3. Create PROV-O entity tracking system
+3. **Leverage OntServe PROV-O**: Use centralized PROV-O entities for provenance tracking
 4. Integrate Google Cloud services
 5. Build visualization layer for temporal analysis
 6. Add batch processing for large document collections
