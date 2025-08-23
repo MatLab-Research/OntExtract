@@ -1,6 +1,6 @@
 # Byte-compiled / optimized / DLL files
 __pycache__/
-*.py[codz]
+*.py[cod]
 *$py.class
 
 # C extensions
@@ -31,6 +31,9 @@ MANIFEST
 #  before PyInstaller builds the exe, so as to inject date/other infos into it.
 *.manifest
 *.spec
+
+# OntServe cache
+ontserve_cache/
 
 # Installer logs
 pip-log.txt
@@ -226,3 +229,4 @@ deploy.env.example
 *.private
 setup_admin.sh.private
 create_admin_wook.py
+SHARING_GUIDE.md

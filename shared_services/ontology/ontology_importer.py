@@ -5,8 +5,11 @@ This service provides functionality to import ontologies from various sources,
 with special support for PROV-O (W3C Provenance Ontology) and other standard ontologies.
 It can be integrated with the proethica system for unified ontology management.
 
+Enhanced with OntServe integration for centralized ontology management.
+
 Author: OntExtract Team
 Date: 2025-01-19
+Updated: 2025-08-22 (OntServe integration)
 """
 
 import os
@@ -22,6 +25,36 @@ from rdflib import Graph, Namespace, RDF, RDFS, OWL
 from rdflib.namespace import PROV, FOAF, DCTERMS, XSD
 
 logger = logging.getLogger(__name__)
+
+# Try to import OntServe client
+try:
+    # Assume OntServe client is available in the same environment or via path
+    import sys
+    from pathlib import Path
+    
+    # Try to find OntServe client
+    possible_paths = [
+        Path(__file__).parent.parent.parent.parent / "OntServe" / "client",
+        Path.cwd() / "OntServe" / "client",
+        Path("/home/chris/onto/OntServe/client")
+    ]
+    
+    ontserve_client_found = False
+    for path in possible_paths:
+        if (path / "ontextract_client.py").exists():
+            sys.path.insert(0, str(path))
+            from ontextract_client import OntExtractClient, OntServeConnectionError
+            ontserve_client_found = True
+            logger.info(f"Found OntServe client at {path}")
+            break
+    
+    if not ontserve_client_found:
+        raise ImportError("OntServe client not found")
+        
+except ImportError as e:
+    logger.warning(f"OntServe client not available: {e}. Using fallback mode only.")
+    OntExtractClient = None
+    OntServeConnectionError = Exception
 
 # Standard ontology namespaces
 STANDARD_NAMESPACES = {
@@ -61,19 +94,38 @@ class OntologyImporter:
     - Extracting metadata and structure
     - Caching imported ontologies
     - Integration with proethica ontology system
+    - OntServe integration for centralized ontology management
     """
     
-    def __init__(self, cache_dir: str = None, storage_backend: Any = None):
+    def __init__(self, cache_dir: str = None, storage_backend: Any = None, 
+                 use_ontserve: bool = None, ontserve_url: str = None):
         """
         Initialize the ontology importer.
         
         Args:
             cache_dir: Directory for caching downloaded ontologies
             storage_backend: Optional storage backend (e.g., database) for persistence
+            use_ontserve: Whether to use OntServe (auto-detected if None)
+            ontserve_url: OntServe URL (optional)
         """
         self.cache_dir = cache_dir or os.path.join(os.getcwd(), 'ontology_cache')
         self.storage_backend = storage_backend
         self.imported_ontologies = {}
+        
+        # OntServe configuration
+        self.use_ontserve = use_ontserve if use_ontserve is not None else (
+            os.environ.get('USE_ONTSERVE', 'true').lower() == 'true' and 
+            OntExtractClient is not None
+        )
+        self.ontserve_client = None
+        
+        if self.use_ontserve and OntExtractClient:
+            try:
+                self.ontserve_client = OntExtractClient(ontserve_url=ontserve_url)
+                logger.info("OntServe client initialized successfully")
+            except Exception as e:
+                logger.warning(f"Failed to initialize OntServe client: {e}")
+                self.use_ontserve = False
         
         # Create cache directory if it doesn't exist
         os.makedirs(self.cache_dir, exist_ok=True)
@@ -88,16 +140,51 @@ class OntologyImporter:
         """
         Import the W3C PROV-O ontology.
         
+        Enhanced to use OntServe when available, with fallback to direct download.
+        
         Args:
             force_refresh: Force re-download even if cached
             
         Returns:
             Dictionary containing imported ontology information
         """
-        prov_o_url = "https://www.w3.org/ns/prov-o"
-        prov_o_ttl_url = "https://www.w3.org/ns/prov.ttl"
-        
         logger.info("Importing PROV-O ontology...")
+        
+        # Try OntServe first if available
+        if self.use_ontserve and self.ontserve_client:
+            try:
+                logger.info("Attempting to get PROV-O from OntServe...")
+                domain_info = self.ontserve_client.get_domain_info('prov-o')
+                
+                if domain_info and not domain_info.get('error'):
+                    # Get PROV-O entities from OntServe
+                    experiment_concepts = self.ontserve_client.get_prov_experiment_concepts()
+                    
+                    # Create a virtual result that matches the expected format
+                    result = {
+                        'success': True,
+                        'ontology_id': 'prov-o',
+                        'metadata': {
+                            'name': 'W3C Provenance Ontology (PROV-O)',
+                            'description': 'The PROV Ontology (PROV-O) provides a set of classes, properties, and restrictions for representing provenance information',
+                            'source': 'OntServe',
+                            'ontology_id': 'prov-o'
+                        },
+                        'graph': None,  # We don't have the raw graph from OntServe
+                        'experiment_concepts': experiment_concepts,
+                        'from_ontserve': True,
+                        'message': f"Successfully retrieved PROV-O from OntServe with {sum(len(concepts) for concepts in experiment_concepts.values())} concepts"
+                    }
+                    
+                    logger.info(f"Retrieved PROV-O from OntServe with {sum(len(concepts) for concepts in experiment_concepts.values())} concepts")
+                    return result
+                    
+            except Exception as e:
+                logger.warning(f"Failed to get PROV-O from OntServe: {e}")
+                logger.info("Falling back to direct download...")
+        
+        # Fallback to direct download
+        prov_o_ttl_url = "https://www.w3.org/ns/prov.ttl"
         
         # Try to import from the TTL file directly
         result = self.import_from_url(
@@ -111,8 +198,9 @@ class OntologyImporter:
         
         # Extract PROV-O specific concepts for experiment classification
         if result.get('success'):
-            result['experiment_concepts'] = self._extract_prov_experiment_concepts(result['graph'])
-            logger.info(f"Extracted {len(result['experiment_concepts'])} PROV-O concepts for experiments")
+            if result.get('graph'):
+                result['experiment_concepts'] = self._extract_prov_experiment_concepts(result['graph'])
+                logger.info(f"Extracted {sum(len(concepts) for concepts in result['experiment_concepts'].values())} PROV-O concepts for experiments")
         
         return result
     

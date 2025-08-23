@@ -5,7 +5,7 @@
       "name": "Flask: Run OntExtract (run.py debug)",
       "type": "debugpy",
       "request": "launch",
-      "python": "${workspaceFolder}/.venv/bin/python",
+      "python": "${workspaceFolder}/../venv/bin/python",
       "program": "${workspaceFolder}/run.py",
       "console": "integratedTerminal",
       "justMyCode": true,
@@ -13,7 +13,9 @@
       "env": {
         "FLASK_ENV": "development",
         "FLASK_DEBUG": "1",
-        "PYTHONPATH": "${workspaceFolder}"
+        "PYTHONPATH": "${workspaceFolder}:${workspaceFolder}/..",
+        "USE_ONTSERVE": "true",
+        "ONTSERVE_URL": "http://localhost:8083"
       },
       "args": [],
       "cwd": "${workspaceFolder}",
@@ -24,13 +26,16 @@
       "name": "Flask: Debug via module (-m flask)",
       "type": "debugpy",
       "request": "launch",
-      "python": "${workspaceFolder}/.venv/bin/python",
+      "python": "${workspaceFolder}/../venv/bin/python",
       "module": "flask",
       "envFile": "${workspaceFolder}/.env",
       "env": {
         "FLASK_APP": "run:app",
         "FLASK_ENV": "development",
-        "FLASK_DEBUG": "1"
+        "FLASK_DEBUG": "1",
+        "PYTHONPATH": "${workspaceFolder}:${workspaceFolder}/..",
+        "USE_ONTSERVE": "true",
+        "ONTSERVE_URL": "http://localhost:8083"
       },
       "args": [
         "run",
@@ -71,7 +76,11 @@
       "request": "launch",
       "module": "pytest",
       "console": "integratedTerminal",
-      "cwd": "${workspaceFolder}"
+      "cwd": "${workspaceFolder}",
+      "python": "${workspaceFolder}/../venv/bin/python",
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}:${workspaceFolder}/.."
+      }
     }
   ]
 }
