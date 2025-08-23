@@ -62,3 +62,6 @@ coverage==7.3.2
 
 # OED Parser dependency
 langextract
+
+# Zotero API integration
+pyzotero==1.5.18

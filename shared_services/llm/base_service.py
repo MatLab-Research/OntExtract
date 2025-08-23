@@ -42,10 +42,10 @@ class OpenAILLMProvider(BaseLLMProvider):
     
     def __init__(self, 
                  api_key: str = None, 
-                 model: str = "gpt-3.5-turbo",
+                 model: str = None,
                  api_base: str = None):
         self.api_key = api_key or os.environ.get("OPENAI_API_KEY")
-        self.model = model
+        self.model = model or os.environ.get("OPENAI_DEFAULT_MODEL", "gpt-4o-mini")
         self.api_base = api_base or os.environ.get("OPENAI_API_BASE", "https://api.openai.com/v1")
     
     def generate_text(self, 
@@ -104,7 +104,7 @@ class ClaudeLLMProvider(BaseLLMProvider):
                  model: str = None,
                  api_base: str = None):
         self.api_key = api_key or os.environ.get("ANTHROPIC_API_KEY")
-        self.model = model or os.environ.get("CLAUDE_DEFAULT_MODEL", "claude-3-5-sonnet-20241022")
+        self.model = model or os.environ.get("CLAUDE_DEFAULT_MODEL", "claude-sonnet-4-20250514")
         self.api_base = api_base or os.environ.get("ANTHROPIC_API_BASE", "https://api.anthropic.com/v1")
     
     def generate_text(self, 
@@ -179,6 +179,16 @@ class BaseLLMService:
     
     def _get_default_priority(self) -> List[str]:
         """Get default provider priority from environment."""
+        # First check DEFAULT_LLM_PROVIDER for backwards compatibility
+        default_provider = os.environ.get("DEFAULT_LLM_PROVIDER", "").strip().lower()
+        if default_provider:
+            # If DEFAULT_LLM_PROVIDER is set, use it as the first priority
+            if default_provider == "anthropic":
+                default_provider = "claude"  # Normalize anthropic to claude
+            other_provider = "openai" if default_provider == "claude" else "claude"
+            return [default_provider, other_provider]
+        
+        # Otherwise use LLM_PROVIDER_PRIORITY
         priority_str = os.environ.get("LLM_PROVIDER_PRIORITY", "openai,claude")
         return [p.strip().lower() for p in priority_str.split(',')]
     

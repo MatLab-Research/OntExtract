@@ -66,7 +66,20 @@
                                                        data-title="{{ document.get_display_name() }}"
                                                        data-words="{{ document.word_count or 0 }}">
                                                 <label class="form-check-label" for="doc-{{ document.id }}">
-                                                    <span class="badge bg-primary badge-sm me-2">DOC</span>
+                                                    {% set filename = document.get_display_name().lower() %}
+                                                    {% if filename.endswith('.pdf') %}
+                                                        <i class="fas fa-file-pdf text-danger me-2" title="PDF Document"></i>
+                                                    {% elif filename.endswith('.txt') %}
+                                                        <i class="fas fa-file-alt text-secondary me-2" title="Text Document"></i>
+                                                    {% elif filename.endswith('.md') %}
+                                                        <i class="fas fa-file-code text-info me-2" title="Markdown Document"></i>
+                                                    {% elif filename.endswith('.docx') or filename.endswith('.doc') %}
+                                                        <i class="fas fa-file-word text-primary me-2" title="Word Document"></i>
+                                                    {% elif filename.endswith('.html') %}
+                                                        <i class="fas fa-code text-warning me-2" title="HTML Document"></i>
+                                                    {% else %}
+                                                        <i class="fas fa-file text-secondary me-2" title="Document"></i>
+                                                    {% endif %}
                                                     <strong>{{ document.get_display_name() }}</strong>
                                                     <span class="text-muted">
                                                         ({{ document.word_count or 0 }} words)
@@ -109,7 +122,19 @@
                                                        data-title="{{ reference.get_display_name() }}"
                                                        data-words="{{ reference.word_count or 0 }}">
                                                 <label class="form-check-label" for="ref-{{ reference.id }}">
-                                                    <span class="badge bg-success badge-sm me-2">REF</span>
+                                                    {% if reference.reference_type == 'oed_entry' or (reference.reference_subtype and 'oed' in reference.reference_subtype.lower()) %}
+                                                        <i class="fas fa-external-link-alt text-info me-2" title="OED Entry (External)"></i>
+                                                    {% elif (reference.original_filename and reference.original_filename.lower().endswith('.pdf')) or reference.file_type == 'pdf' %}
+                                                        <i class="fas fa-file-pdf text-danger me-2" title="PDF Reference"></i>
+                                                    {% elif reference.reference_type == 'paper' %}
+                                                        <i class="fas fa-graduation-cap text-success me-2" title="Academic Paper"></i>
+                                                    {% elif reference.reference_type == 'standard' %}
+                                                        <i class="fas fa-certificate text-warning me-2" title="Standard Document"></i>
+                                                    {% elif reference.reference_type == 'book' %}
+                                                        <i class="fas fa-book text-primary me-2" title="Book"></i>
+                                                    {% else %}
+                                                        <i class="fas fa-bookmark text-secondary me-2" title="Reference"></i>
+                                                    {% endif %}
                                                     <strong>{{ reference.get_display_name() }}</strong>
                                                     {% if reference.reference_subtype %}
                                                     <small class="badge bg-secondary badge-sm">{{ reference.get_reference_subtype_display() }}</small>

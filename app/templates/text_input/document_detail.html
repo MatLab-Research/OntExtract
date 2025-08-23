@@ -266,7 +266,7 @@ function toggleFullContent() {
 
 function deleteDocument(documentId) {
     if (confirm('Are you sure you want to delete this document? This action cannot be undone.')) {
-        fetch(`/document/${documentId}/delete`, {
+        fetch(`/input/document/${documentId}/delete`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',

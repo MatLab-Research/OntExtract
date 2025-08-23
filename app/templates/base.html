@@ -158,28 +158,26 @@
                 <ul class="navbar-nav me-auto">
                     {% if current_user.is_authenticated %}
                     <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('text_input.upload_form') }}">
-                            <i class="fas fa-upload me-1"></i>Upload
+                        <a class="nav-link" href="{{ url_for('upload.unified') }}">
+                            <i class="fas fa-cloud-upload-alt me-1"></i>Upload
                         </a>
                     </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('text_input.paste_form') }}">
-                            <i class="fas fa-paste me-1"></i>Paste Text
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
+                            <i class="fas fa-folder-open me-1"></i>Library
                         </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('text_input.document_list') }}">
-                            <i class="fas fa-file-text me-1"></i>Source Documents
-                        </a>
+                        <ul class="dropdown-menu">
+                            <li><a class="dropdown-item" href="{{ url_for('text_input.document_list') }}">
+                                <i class="fas fa-file-text me-2"></i>Source Documents
+                            </a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('references.index') }}">
+                                <i class="fas fa-book me-2"></i>References
+                            </a></li>
+                        </ul>
                     </li>
                     <li class="nav-item">
                         <a class="nav-link" href="{{ url_for('experiments.index') }}">
                             <i class="fas fa-flask me-1"></i>Experiments
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('references.index') }}">
-                            <i class="fas fa-book me-1"></i>References
                         </a>
                     </li>
                     <li class="nav-item">
