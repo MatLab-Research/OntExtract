@@ -1,0 +1,150 @@
+{% extends "base.html" %}
+
+{% block title %}Edit {{ term.term_text }} - OntExtract{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row">
+        <div class="col-lg-8 mx-auto">
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="mb-0">
+                        <i class="fas fa-edit me-2"></i>
+                        Edit Term: {{ term.term_text }}
+                    </h3>
+                    <p class="text-muted mb-0">Modify the basic information for this anchor term</p>
+                </div>
+                <div class="card-body">
+                    <form method="POST" action="{{ url_for('terms.edit_term', term_id=term.id) }}">
+                        {{ form.hidden_tag() }}
+                        
+                        <!-- Term Text -->
+                        <div class="mb-3">
+                            {{ form.term_text.label(class="form-label") }}
+                            {{ form.term_text(class="form-control" + (" is-invalid" if form.term_text.errors else "")) }}
+                            {% if form.term_text.errors %}
+                                <div class="invalid-feedback">
+                                    {% for error in form.term_text.errors %}
+                                        {{ error }}
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+
+                        <!-- Description -->
+                        <div class="mb-3">
+                            {{ form.description.label(class="form-label") }}
+                            {{ form.description(class="form-control" + (" is-invalid" if form.description.errors else ""), rows="3") }}
+                            {% if form.description.errors %}
+                                <div class="invalid-feedback">
+                                    {% for error in form.description.errors %}
+                                        {{ error }}
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+
+                        <!-- Etymology -->
+                        <div class="mb-3">
+                            {{ form.etymology.label(class="form-label") }}
+                            {{ form.etymology(class="form-control" + (" is-invalid" if form.etymology.errors else ""), rows="2") }}
+                            {% if form.etymology.errors %}
+                                <div class="invalid-feedback">
+                                    {% for error in form.etymology.errors %}
+                                        {{ error }}
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+
+                        <!-- Research Domain -->
+                        <div class="mb-3">
+                            {{ form.research_domain.label(class="form-label") }}
+                            {{ form.research_domain(class="form-control" + (" is-invalid" if form.research_domain.errors else "")) }}
+                            {% if form.research_domain.errors %}
+                                <div class="invalid-feedback">
+                                    {% for error in form.research_domain.errors %}
+                                        {{ error }}
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+
+                        <!-- Selection Rationale -->
+                        <div class="mb-3">
+                            {{ form.selection_rationale.label(class="form-label") }}
+                            {{ form.selection_rationale(class="form-control" + (" is-invalid" if form.selection_rationale.errors else ""), rows="3") }}
+                            {% if form.selection_rationale.errors %}
+                                <div class="invalid-feedback">
+                                    {% for error in form.selection_rationale.errors %}
+                                        {{ error }}
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+
+                        <!-- Historical Significance -->
+                        <div class="mb-3">
+                            {{ form.historical_significance.label(class="form-label") }}
+                            {{ form.historical_significance(class="form-control" + (" is-invalid" if form.historical_significance.errors else ""), rows="3") }}
+                            {% if form.historical_significance.errors %}
+                                <div class="invalid-feedback">
+                                    {% for error in form.historical_significance.errors %}
+                                        {{ error }}
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+
+                        <!-- Status -->
+                        <div class="mb-3">
+                            {{ form.status.label(class="form-label") }}
+                            {{ form.status(class="form-select" + (" is-invalid" if form.status.errors else "")) }}
+                            {% if form.status.errors %}
+                                <div class="invalid-feedback">
+                                    {% for error in form.status.errors %}
+                                        {{ error }}
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+
+                        <!-- Notes -->
+                        <div class="mb-4">
+                            {{ form.notes.label(class="form-label") }}
+                            {{ form.notes(class="form-control" + (" is-invalid" if form.notes.errors else ""), rows="3") }}
+                            {% if form.notes.errors %}
+                                <div class="invalid-feedback">
+                                    {% for error in form.notes.errors %}
+                                        {{ error }}
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+
+                        <!-- Submit Buttons -->
+                        <div class="d-flex justify-content-between">
+                            <div>
+                                <a href="{{ url_for('terms.view_term', term_id=term.id) }}" class="btn btn-outline-secondary">
+                                    <i class="fas fa-arrow-left me-2"></i>Cancel
+                                </a>
+                            </div>
+                            <div>
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-save me-2"></i>Save Changes
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+            
+            <!-- Note about versions -->
+            <div class="alert alert-info mt-3">
+                <i class="fas fa-info-circle me-2"></i>
+                <strong>Note:</strong> To edit temporal meanings and versions, use the "Add Version" feature or manage versions from the term details page.
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
