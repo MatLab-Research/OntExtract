@@ -231,3 +231,6 @@ setup_admin.sh.private
 create_admin_wook.py
 SHARING_GUIDE.md
 *.env
+
+# Claude Code instructions (development only, not for version control)
+CLAUDE.md
