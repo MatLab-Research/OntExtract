@@ -68,8 +68,15 @@
             border-color: var(--accent-color);
         }
         
+        /* Sticky footer layout */
+        body {
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+        }
+        
         .main-content {
-            min-height: calc(100vh - 120px);
+            flex: 1;
             padding-top: 2rem;
             padding-bottom: 2rem;
         }
@@ -113,7 +120,6 @@
         .footer {
             background-color: var(--secondary-color);
             padding: 2rem 0;
-            margin-top: 3rem;
         }
         
         .alert {
