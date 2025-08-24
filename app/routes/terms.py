@@ -289,18 +289,42 @@ def delete_term(term_id):
     term_text = term.term_text  # Store for flash message
     
     try:
-        # Delete all versions first (due to foreign key constraints)
         from app.models.term import TermVersion
         from app.models.semantic_drift import SemanticDriftActivity
+        from app.models.context_anchor import ContextAnchor
+        from sqlalchemy import text
         
-        # Delete all semantic drift activities for this term
-        # SemanticDriftActivity relates to terms through term_versions, not directly
-        activities_to_delete = SemanticDriftActivity.get_activities_for_term(term.id)
-        for activity in activities_to_delete:
-            db.session.delete(activity)
+        # Get all version IDs for this term
+        version_ids = [str(v.id) for v in TermVersion.query.filter_by(term_id=term.id).all()]
         
-        # Delete all versions
-        TermVersion.query.filter_by(term_id=term.id).delete()
+        if version_ids:
+            # Delete all semantic drift activities for this term
+            activities_to_delete = SemanticDriftActivity.get_activities_for_term(term.id)
+            for activity in activities_to_delete:
+                db.session.delete(activity)
+            
+            # Delete term_version_anchors junction table entries
+            for version_id in version_ids:
+                db.session.execute(
+                    text("DELETE FROM term_version_anchors WHERE term_version_id = :version_id"),
+                    {'version_id': version_id}
+                )
+            
+            # Update context_anchors to remove references to these versions
+            for version_id in version_ids:
+                # Set first_used_in to NULL for anchors that reference this version
+                db.session.execute(
+                    text("UPDATE context_anchors SET first_used_in = NULL WHERE first_used_in = :version_id"),
+                    {'version_id': version_id}
+                )
+                # Set last_used_in to NULL for anchors that reference this version  
+                db.session.execute(
+                    text("UPDATE context_anchors SET last_used_in = NULL WHERE last_used_in = :version_id"),
+                    {'version_id': version_id}
+                )
+            
+            # Now delete all versions
+            TermVersion.query.filter_by(term_id=term.id).delete()
         
         # Now delete the term itself
         db.session.delete(term)
