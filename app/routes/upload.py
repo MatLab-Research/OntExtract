@@ -31,8 +31,7 @@ def unified():
     
     if experiment_id:
         experiment = Experiment.query.filter_by(
-            id=experiment_id,
-            user_id=current_user.id
+            id=experiment_id
         ).first()
     
     return render_template('upload/unified.html', experiment=experiment)

@@ -16,25 +16,25 @@ experiments_bp = Blueprint('experiments', __name__, url_prefix='/experiments')
 @experiments_bp.route('/')
 @login_required
 def index():
-    """List all experiments for the current user"""
-    experiments = Experiment.query.filter_by(user_id=current_user.id).order_by(Experiment.created_at.desc()).all()
+    """List all experiments for all users"""
+    experiments = Experiment.query.order_by(Experiment.created_at.desc()).all()
     return render_template('experiments/index.html', experiments=experiments)
 
 @experiments_bp.route('/new')
 @login_required
 def new():
     """Create a new experiment"""
-    # Get documents and references separately for the current user
-    documents = Document.query.filter_by(user_id=current_user.id, document_type='document').order_by(Document.created_at.desc()).all()
-    references = Document.query.filter_by(user_id=current_user.id, document_type='reference').order_by(Document.created_at.desc()).all()
+    # Get documents and references separately for all users
+    documents = Document.query.filter_by(document_type='document').order_by(Document.created_at.desc()).all()
+    references = Document.query.filter_by(document_type='reference').order_by(Document.created_at.desc()).all()
     return render_template('experiments/new.html', documents=documents, references=references)
 
 @experiments_bp.route('/wizard')
 @login_required
 def wizard():
     """Guided wizard to create an experiment with design options (Choi-inspired)."""
-    documents = Document.query.filter_by(user_id=current_user.id, document_type='document').order_by(Document.created_at.desc()).all()
-    references = Document.query.filter_by(user_id=current_user.id, document_type='reference').order_by(Document.created_at.desc()).all()
+    documents = Document.query.filter_by(document_type='document').order_by(Document.created_at.desc()).all()
+    references = Document.query.filter_by(document_type='reference').order_by(Document.created_at.desc()).all()
     return render_template('experiments/wizard.html', documents=documents, references=references)
 
 @experiments_bp.route('/create', methods=['POST'])
@@ -72,13 +72,13 @@ def create():
 
         # Add documents to the experiment
         for doc_id in data.get('document_ids', []) or []:
-            document = Document.query.filter_by(id=doc_id, user_id=current_user.id).first()
+            document = Document.query.filter_by(id=doc_id).first()
             if document:
                 experiment.add_document(document)
 
         # Add references to the experiment (optional)
         for ref_id in data.get('reference_ids', []) or []:
-            reference = Document.query.filter_by(id=ref_id, user_id=current_user.id, document_type='reference').first()
+            reference = Document.query.filter_by(id=ref_id, document_type='reference').first()
             if reference:
                 experiment.add_reference(reference, include_in_analysis=True)
 
@@ -116,7 +116,7 @@ def create_sample():
     """Create a sample domain comparison experiment using available references and a simple design."""
     try:
         # Pick up to 6 most recent references
-        refs = Document.query.filter_by(user_id=current_user.id, document_type='reference').order_by(Document.created_at.desc()).limit(6).all()
+        refs = Document.query.filter_by(document_type='reference').order_by(Document.created_at.desc()).limit(6).all()
         if not refs:
             flash('No references found. Please upload reference PDFs first (References → Upload).', 'warning')
             return redirect(url_for('experiments.index'))
@@ -158,22 +158,22 @@ def create_sample():
 @login_required
 def view(experiment_id):
     """View experiment details"""
-    experiment = Experiment.query.filter_by(id=experiment_id, user_id=current_user.id).first_or_404()
+    experiment = Experiment.query.filter_by(id=experiment_id).first_or_404()
     return render_template('experiments/view.html', experiment=experiment)
 
 @experiments_bp.route('/<int:experiment_id>/edit')
 @login_required
 def edit(experiment_id):
     """Edit experiment"""
-    experiment = Experiment.query.filter_by(id=experiment_id, user_id=current_user.id).first_or_404()
+    experiment = Experiment.query.filter_by(id=experiment_id).first_or_404()
     
     # Can only edit experiments that are not running
     if experiment.status == 'running':
         flash('Cannot edit an experiment that is currently running', 'error')
         return redirect(url_for('experiments.view', experiment_id=experiment_id))
     
-    # Get all documents for the current user
-    documents = Document.query.filter_by(user_id=current_user.id).order_by(Document.created_at.desc()).all()
+    # Get all documents for all users
+    documents = Document.query.order_by(Document.created_at.desc()).all()
     
     # Get IDs of documents already in the experiment
     selected_doc_ids = [doc.id for doc in experiment.documents]
@@ -188,7 +188,7 @@ def edit(experiment_id):
 def update(experiment_id):
     """Update experiment"""
     try:
-        experiment = Experiment.query.filter_by(id=experiment_id, user_id=current_user.id).first_or_404()
+        experiment = Experiment.query.filter_by(id=experiment_id).first_or_404()
         
         # Can only update experiments that are not running
         if experiment.status == 'running':
@@ -213,7 +213,7 @@ def update(experiment_id):
             
             # Add new documents
             for doc_id in data['document_ids']:
-                document = Document.query.filter_by(id=doc_id, user_id=current_user.id).first()
+                document = Document.query.filter_by(id=doc_id).first()
                 if document:
                     experiment.add_document(document)
         
@@ -234,7 +234,7 @@ def update(experiment_id):
 def delete(experiment_id):
     """Delete experiment"""
     try:
-        experiment = Experiment.query.filter_by(id=experiment_id, user_id=current_user.id).first_or_404()
+        experiment = Experiment.query.filter_by(id=experiment_id).first_or_404()
         
         # Can only delete experiments that are not running
         if experiment.status == 'running':
@@ -257,7 +257,7 @@ def delete(experiment_id):
 def run(experiment_id):
     """Run an experiment"""
     try:
-        experiment = Experiment.query.filter_by(id=experiment_id, user_id=current_user.id).first_or_404()
+        experiment = Experiment.query.filter_by(id=experiment_id).first_or_404()
         
         if not experiment.can_run():
             return jsonify({'error': 'Experiment cannot be run in its current state'}), 400
@@ -308,7 +308,7 @@ def run(experiment_id):
 @login_required
 def results(experiment_id):
     """View experiment results"""
-    experiment = Experiment.query.filter_by(id=experiment_id, user_id=current_user.id).first_or_404()
+    experiment = Experiment.query.filter_by(id=experiment_id).first_or_404()
     
     if experiment.status != 'completed':
         flash('Experiment has not been completed yet', 'warning')
@@ -338,7 +338,7 @@ def results(experiment_id):
 @login_required
 def api_list():
     """API endpoint to list experiments"""
-    experiments = Experiment.query.filter_by(user_id=current_user.id).order_by(Experiment.created_at.desc()).all()
+    experiments = Experiment.query.order_by(Experiment.created_at.desc()).all()
     return jsonify({
         'experiments': [exp.to_dict() for exp in experiments]
     })
@@ -347,14 +347,14 @@ def api_list():
 @login_required
 def api_get(experiment_id):
     """API endpoint to get experiment details"""
-    experiment = Experiment.query.filter_by(id=experiment_id, user_id=current_user.id).first_or_404()
+    experiment = Experiment.query.filter_by(id=experiment_id).first_or_404()
     return jsonify(experiment.to_dict(include_documents=True))
 
 @experiments_bp.route('/<int:experiment_id>/manage_terms')
 @login_required
 def manage_terms(experiment_id):
     """Manage terms for domain comparison experiment"""
-    experiment = Experiment.query.filter_by(id=experiment_id, user_id=current_user.id).first_or_404()
+    experiment = Experiment.query.filter_by(id=experiment_id).first_or_404()
     
     # Only for domain comparison experiments
     if experiment.experiment_type != 'domain_comparison':
@@ -380,7 +380,7 @@ def manage_terms(experiment_id):
 def update_terms(experiment_id):
     """Update terms and domains for an experiment"""
     try:
-        experiment = Experiment.query.filter_by(id=experiment_id, user_id=current_user.id).first_or_404()
+        experiment = Experiment.query.filter_by(id=experiment_id).first_or_404()
         
         data = request.get_json()
         terms = data.get('terms', [])
@@ -408,7 +408,7 @@ def update_terms(experiment_id):
 def get_terms(experiment_id):
     """Get saved terms and definitions for an experiment"""
     try:
-        experiment = Experiment.query.filter_by(id=experiment_id, user_id=current_user.id).first_or_404()
+        experiment = Experiment.query.filter_by(id=experiment_id).first_or_404()
         
         config = json.loads(experiment.configuration) if experiment.configuration else {}
         
@@ -427,7 +427,7 @@ def get_terms(experiment_id):
 def fetch_definitions(experiment_id):
     """Fetch definitions for a term from references and ontologies"""
     try:
-        experiment = Experiment.query.filter_by(id=experiment_id, user_id=current_user.id).first_or_404()
+        experiment = Experiment.query.filter_by(id=experiment_id).first_or_404()
         
         data = request.get_json()
         term = data.get('term')
@@ -509,7 +509,7 @@ def fetch_definitions(experiment_id):
 @login_required
 def manage_temporal_terms(experiment_id):
     """Manage terms for temporal evolution experiment"""
-    experiment = Experiment.query.filter_by(id=experiment_id, user_id=current_user.id).first_or_404()
+    experiment = Experiment.query.filter_by(id=experiment_id).first_or_404()
     
     # Only for temporal evolution experiments
     if experiment.experiment_type != 'temporal_evolution':
@@ -642,7 +642,7 @@ def manage_temporal_terms(experiment_id):
 def update_temporal_terms(experiment_id):
     """Update terms and periods for a temporal evolution experiment"""
     try:
-        experiment = Experiment.query.filter_by(id=experiment_id, user_id=current_user.id).first_or_404()
+        experiment = Experiment.query.filter_by(id=experiment_id).first_or_404()
         
         data = request.get_json()
         terms = data.get('terms', [])
@@ -670,7 +670,7 @@ def update_temporal_terms(experiment_id):
 def get_temporal_terms(experiment_id):
     """Get saved temporal terms and data for an experiment"""
     try:
-        experiment = Experiment.query.filter_by(id=experiment_id, user_id=current_user.id).first_or_404()
+        experiment = Experiment.query.filter_by(id=experiment_id).first_or_404()
         
         config = json.loads(experiment.configuration) if experiment.configuration else {}
         
@@ -689,7 +689,7 @@ def get_temporal_terms(experiment_id):
 def fetch_temporal_data(experiment_id):
     """Fetch temporal data for a term across time periods using advanced temporal analysis"""
     try:
-        experiment = Experiment.query.filter_by(id=experiment_id, user_id=current_user.id).first_or_404()
+        experiment = Experiment.query.filter_by(id=experiment_id).first_or_404()
         
         data = request.get_json()
         if not data:
@@ -992,7 +992,7 @@ def generate_time_periods(start_year: int, end_year: int, interval: Optional[int
 def analyze_evolution(experiment_id):
     """Analyze the evolution of a term over time with detailed semantic drift analysis"""
     try:
-        experiment = Experiment.query.filter_by(id=experiment_id, user_id=current_user.id).first_or_404()
+        experiment = Experiment.query.filter_by(id=experiment_id).first_or_404()
         
         data = request.get_json()
         term = data.get('term')

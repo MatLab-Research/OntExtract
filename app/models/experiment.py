@@ -55,6 +55,7 @@ class Experiment(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False, index=True)
     
     # Relationships
+    user = db.relationship('User', backref='user_experiments')
     documents = db.relationship('Document', secondary=experiment_documents, 
                               backref=db.backref('experiments', lazy='dynamic'),
                               lazy='dynamic')

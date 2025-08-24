@@ -59,6 +59,7 @@ class Document(db.Model):
     parent_document_id = db.Column(db.Integer, db.ForeignKey('documents.id'), index=True)
     
     # Relationships
+    user = db.relationship('User', backref='user_documents')
     processing_jobs = db.relationship('ProcessingJob', backref='document', lazy='dynamic', cascade='all, delete-orphan')
     # Child documents (e.g., individual OED senses)
     children = db.relationship('Document', backref=db.backref('parent', remote_side=[id]), lazy='dynamic', cascade='all')
