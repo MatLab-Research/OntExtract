@@ -50,6 +50,7 @@ def create_app(config_name=None):
     from app.routes.experiments import experiments_bp
     from app.routes.references import references_bp
     from app.routes.upload import upload_bp
+    from app.routes.terms import terms_bp
     
     app.register_blueprint(auth_bp, url_prefix='/auth')
     app.register_blueprint(text_input_bp, url_prefix='/input')
@@ -58,6 +59,7 @@ def create_app(config_name=None):
     app.register_blueprint(experiments_bp)
     app.register_blueprint(references_bp)
     app.register_blueprint(upload_bp)
+    app.register_blueprint(terms_bp)
     
     # Jinja filters
     @app.template_filter('number_format')
@@ -74,7 +76,36 @@ def create_app(config_name=None):
     @app.route('/')
     def index():
         from flask import render_template
-        return render_template('index.html')
+        from flask_login import current_user
+        
+        # Get user's dashboard data
+        dashboard_data = {
+            'recent_term': None,
+            'term_counts': {
+                'anchor_terms': 0,
+                'term_versions': 0,
+                'drift_analyses': 0
+            }
+        }
+        
+        if current_user.is_authenticated:
+            try:
+                from app.models.term import Term, TermVersion
+                from app.models.semantic_drift import SemanticDriftActivity
+                
+                # Get most recent term
+                dashboard_data['recent_term'] = Term.query.filter_by(created_by=current_user.id).order_by(Term.created_at.desc()).first()
+                
+                # Get counts
+                dashboard_data['term_counts']['anchor_terms'] = Term.query.filter_by(created_by=current_user.id).count()
+                dashboard_data['term_counts']['term_versions'] = TermVersion.query.filter_by(created_by=current_user.id).count()
+                dashboard_data['term_counts']['drift_analyses'] = SemanticDriftActivity.query.filter_by(created_by=current_user.id).count()
+                dashboard_data['term_counts']['total_analyses'] = dashboard_data['term_counts']['term_versions'] + dashboard_data['term_counts']['drift_analyses']
+                
+            except Exception as e:
+                app.logger.debug(f"Could not fetch dashboard data: {e}")
+        
+        return render_template('index.html', **dashboard_data)
     
     # Create upload directory
     os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)

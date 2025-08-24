@@ -1,0 +1,315 @@
+{% extends "base.html" %}
+
+{% block title %}Shared Services Status - OntExtract{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row">
+        <div class="col-12">
+            <!-- Header -->
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h1><i class="fas fa-heartbeat me-2"></i>Shared Services Status</h1>
+                <a href="{{ url_for('terms.term_index') }}" class="btn btn-outline-secondary">
+                    <i class="fas fa-arrow-left me-2"></i>Back to Terms
+                </a>
+            </div>
+            
+            <!-- Overall Status Summary -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">System Health Overview</h5>
+                </div>
+                <div class="card-body">
+                    {% set available_services = status.values() | selectattr('available', 'equalto', true) | list %}
+                    {% set total_services = status | length %}
+                    {% set health_percentage = (available_services | length / total_services * 100) | round %}
+                    
+                    <div class="row">
+                        <div class="col-md-3">
+                            <div class="text-center">
+                                <div class="display-4 
+                                    {% if health_percentage >= 80 %}text-success
+                                    {% elif health_percentage >= 60 %}text-warning
+                                    {% else %}text-danger{% endif %}">
+                                    {{ health_percentage }}%
+                                </div>
+                                <p class="text-muted mb-0">Services Available</p>
+                            </div>
+                        </div>
+                        <div class="col-md-9">
+                            <p><strong>{{ available_services | length }}</strong> of <strong>{{ total_services }}</strong> services are operational.</p>
+                            <div class="progress" style="height: 20px;">
+                                <div class="progress-bar 
+                                    {% if health_percentage >= 80 %}bg-success
+                                    {% elif health_percentage >= 60 %}bg-warning
+                                    {% else %}bg-danger{% endif %}"
+                                    role="progressbar" 
+                                    style="width: {{ health_percentage }}%"
+                                    aria-valuenow="{{ health_percentage }}" 
+                                    aria-valuemin="0" 
+                                    aria-valuemax="100">
+                                    {{ available_services | length }}/{{ total_services }}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Individual Service Status -->
+            <div class="row">
+                {% for service_name, service_info in status.items() %}
+                <div class="col-lg-6 col-md-6 mb-4">
+                    <div class="card h-100">
+                        <div class="card-header d-flex justify-content-between align-items-center">
+                            <h6 class="mb-0">
+                                <i class="fas fa-cog me-2"></i>
+                                {{ service_name.replace('_', ' ').title() }}
+                            </h6>
+                            {% if service_info.available %}
+                                <span class="badge bg-success">
+                                    <i class="fas fa-check-circle"></i> Available
+                                </span>
+                            {% else %}
+                                <span class="badge bg-danger">
+                                    <i class="fas fa-times-circle"></i> Unavailable
+                                </span>
+                            {% endif %}
+                        </div>
+                        <div class="card-body">
+                            {% if service_info.available %}
+                                <!-- Service Available -->
+                                <div class="text-success mb-2">
+                                    <i class="fas fa-check-circle me-1"></i>
+                                    Service is operational
+                                </div>
+                                
+                                {% if service_info.class %}
+                                <p class="mb-1">
+                                    <strong>Implementation:</strong> 
+                                    <code>{{ service_info.class }}</code>
+                                </p>
+                                {% endif %}
+                                
+                                {% if service_info.module %}
+                                <p class="mb-1">
+                                    <strong>Module:</strong> 
+                                    <small class="text-muted">{{ service_info.module }}</small>
+                                </p>
+                                {% endif %}
+                                
+                                {% if service_info.initialized %}
+                                <p class="mb-0">
+                                    <span class="badge bg-info">
+                                        <i class="fas fa-check"></i> Initialized
+                                    </span>
+                                </p>
+                                {% endif %}
+                                
+                            {% else %}
+                                <!-- Service Unavailable -->
+                                <div class="text-danger mb-2">
+                                    <i class="fas fa-times-circle me-1"></i>
+                                    Service is not available
+                                </div>
+                                
+                                {% if service_info.reason %}
+                                <p class="mb-2">
+                                    <strong>Reason:</strong> 
+                                    <span class="text-muted">{{ service_info.reason }}</span>
+                                </p>
+                                {% endif %}
+                                
+                                {% if service_info.error %}
+                                <div class="alert alert-warning p-2 mb-0">
+                                    <small>
+                                        <strong>Error:</strong> {{ service_info.error }}
+                                    </small>
+                                </div>
+                                {% endif %}
+                            {% endif %}
+                        </div>
+                        
+                        <!-- Service Capabilities -->
+                        <div class="card-footer bg-light">
+                            <small class="text-muted">
+                                {% if service_name == 'embedding_service' %}
+                                    <i class="fas fa-vector-square"></i> Semantic embeddings & similarity
+                                {% elif service_name == 'semantic_tracker' %}
+                                    <i class="fas fa-chart-line"></i> Semantic drift detection
+                                {% elif service_name == 'temporal_extractor' %}
+                                    <i class="fas fa-clock"></i> Temporal word usage analysis
+                                {% elif service_name == 'historical_processor' %}
+                                    <i class="fas fa-scroll"></i> Historical text processing
+                                {% elif service_name == 'provenance_tracker' %}
+                                    <i class="fas fa-sitemap"></i> PROV-O provenance tracking
+                                {% elif service_name == 'analysis_service' %}
+                                    <i class="fas fa-brain"></i> Comprehensive term analysis
+                                {% else %}
+                                    <i class="fas fa-gear"></i> Supporting service
+                                {% endif %}
+                            </small>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            
+            <!-- Service Integration Features -->
+            <div class="card mt-4">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-puzzle-piece me-2"></i>Available Features</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6>Automatic Analysis</h6>
+                            <ul class="list-unstyled">
+                                <li class="mb-1">
+                                    {% if status.embedding_service.available %}
+                                        <i class="fas fa-check text-success"></i>
+                                    {% else %}
+                                        <i class="fas fa-times text-danger"></i>
+                                    {% endif %}
+                                    Context anchor discovery via embeddings
+                                </li>
+                                <li class="mb-1">
+                                    {% if status.semantic_tracker.available %}
+                                        <i class="fas fa-check text-success"></i>
+                                    {% else %}
+                                        <i class="fas fa-times text-danger"></i>
+                                    {% endif %}
+                                    Automatic fuzziness score calculation
+                                </li>
+                                <li class="mb-1">
+                                    {% if status.semantic_tracker.available %}
+                                        <i class="fas fa-check text-success"></i>
+                                    {% else %}
+                                        <i class="fas fa-times text-danger"></i>
+                                    {% endif %}
+                                    Semantic drift detection between versions
+                                </li>
+                                <li class="mb-1">
+                                    {% if status.temporal_extractor.available %}
+                                        <i class="fas fa-check text-success"></i>
+                                    {% else %}
+                                        <i class="fas fa-times text-danger"></i>
+                                    {% endif %}
+                                    Temporal word usage extraction
+                                </li>
+                            </ul>
+                        </div>
+                        <div class="col-md-6">
+                            <h6>Research Capabilities</h6>
+                            <ul class="list-unstyled">
+                                <li class="mb-1">
+                                    {% if status.historical_processor.available %}
+                                        <i class="fas fa-check text-success"></i>
+                                    {% else %}
+                                        <i class="fas fa-times text-danger"></i>
+                                    {% endif %}
+                                    Historical text normalization
+                                </li>
+                                <li class="mb-1">
+                                    {% if status.provenance_tracker.available %}
+                                        <i class="fas fa-check text-success"></i>
+                                    {% else %}
+                                        <i class="fas fa-times text-danger"></i>
+                                    {% endif %}
+                                    PROV-O compliant provenance tracking
+                                </li>
+                                <li class="mb-1">
+                                    {% if status.embedding_service.available %}
+                                        <i class="fas fa-check text-success"></i>
+                                    {% else %}
+                                        <i class="fas fa-times text-danger"></i>
+                                    {% endif %}
+                                    Multi-provider embedding support
+                                </li>
+                                <li class="mb-1">
+                                    {% if status.semantic_tracker.available %}
+                                        <i class="fas fa-check text-success"></i>
+                                    {% else %}
+                                        <i class="fas fa-times text-danger"></i>
+                                    {% endif %}
+                                    Meaning cluster identification
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Service Configuration -->
+            <div class="card mt-4">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-cogs me-2"></i>Configuration & Setup</h5>
+                </div>
+                <div class="card-body">
+                    <div class="accordion" id="configAccordion">
+                        <div class="accordion-item">
+                            <h2 class="accordion-header" id="headingSetup">
+                                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseSetup">
+                                    <i class="fas fa-wrench me-2"></i>Service Setup Instructions
+                                </button>
+                            </h2>
+                            <div id="collapseSetup" class="accordion-collapse collapse" data-bs-parent="#configAccordion">
+                                <div class="accordion-body">
+                                    <h6>To enable all shared services:</h6>
+                                    <ol>
+                                        <li><strong>Install dependencies:</strong>
+                                            <pre><code>pip install -r shared_services_requirements.txt</code></pre>
+                                        </li>
+                                        <li><strong>Set environment variables (optional):</strong>
+                                            <pre><code>export EMBEDDING_PROVIDER_PRIORITY="local,openai"
+export OPENAI_API_KEY="your-key-here"
+export ANTHROPIC_API_KEY="your-key-here"</code></pre>
+                                        </li>
+                                        <li><strong>Restart the application</strong> to reload services</li>
+                                    </ol>
+                                    
+                                    <div class="alert alert-info mt-3">
+                                        <i class="fas fa-info-circle me-2"></i>
+                                        <strong>Note:</strong> The system will gracefully degrade when services are unavailable,
+                                        falling back to basic functionality.
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Refresh Button -->
+            <div class="text-center mt-4">
+                <button onclick="location.reload()" class="btn btn-outline-primary">
+                    <i class="fas fa-sync-alt me-2"></i>Refresh Status
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Auto-refresh status every 30 seconds
+    setInterval(function() {
+        // Add a subtle indicator that refresh is happening
+        document.querySelector('h1').innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Shared Services Status';
+        
+        // Reload after short delay
+        setTimeout(function() {
+            location.reload();
+        }, 1000);
+    }, 30000);
+    
+    // Add tooltips for service status badges
+    document.addEventListener('DOMContentLoaded', function() {
+        var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+        var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+            return new bootstrap.Tooltip(tooltipTriggerEl);
+        });
+    });
+</script>
+{% endblock %}
