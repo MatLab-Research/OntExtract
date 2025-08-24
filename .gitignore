@@ -234,3 +234,4 @@ SHARING_GUIDE.md
 
 # Claude Code instructions (development only, not for version control)
 CLAUDE.md
+backup_ontextract_*.sql
