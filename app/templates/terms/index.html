@@ -151,6 +151,14 @@
                                                class="btn btn-outline-success" title="Add Version">
                                                 <i class="fas fa-plus"></i>
                                             </a>
+                                            {% if current_user.is_admin %}
+                                            <button type="button" 
+                                                    class="btn btn-outline-danger" 
+                                                    title="Delete Term"
+                                                    onclick="confirmDelete('{{ term.id }}', '{{ term.term_text }}')">
+                                                <i class="fas fa-trash"></i>
+                                            </button>
+                                            {% endif %}
                                         </div>
                                     </td>
                                 </tr>
@@ -232,7 +240,7 @@
                 <div class="col-12">
                     <div class="card bg-light">
                         <div class="card-body">
-                            <h6><i class="fas fa-info-circle me-2"></i>About Terms</h6>
+                            <h6>About Terms</h6>
                             <p class="mb-0 small">
                                 Terms are historically significant words selected for semantic change analysis. 
                                 Each term can have multiple temporal versions representing different meanings across time periods, 
@@ -241,6 +249,33 @@
                         </div>
                     </div>
                 </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Confirmation Modal -->
+<div class="modal fade" id="deleteModal" tabindex="-1" aria-labelledby="deleteModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="deleteModalLabel">Confirm Delete</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to delete the term "<strong id="delete-term-name"></strong>"?</p>
+                <div class="alert alert-warning">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    <strong>Warning:</strong> This action cannot be undone. All temporal versions and associated data will be permanently deleted.
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <form id="delete-form" method="POST" style="display: inline;">
+                    <button type="submit" class="btn btn-danger">
+                        <i class="fas fa-trash me-2"></i>Delete Term
+                    </button>
+                </form>
             </div>
         </div>
     </div>
@@ -255,5 +290,19 @@
             this.form.submit();
         }
     });
+    
+    // Delete confirmation function
+    function confirmDelete(termId, termText) {
+        // Set the term name in the modal
+        document.getElementById('delete-term-name').textContent = termText;
+        
+        // Set the form action to the delete route
+        const deleteForm = document.getElementById('delete-form');
+        deleteForm.action = `/terms/${termId}/delete`;
+        
+        // Show the modal
+        const deleteModal = new bootstrap.Modal(document.getElementById('deleteModal'));
+        deleteModal.show();
+    }
 </script>
 {% endblock %}

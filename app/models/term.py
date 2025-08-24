@@ -166,6 +166,7 @@ class TermVersion(db.Model):
     
     # Corpus and source information
     corpus_source = db.Column(db.String(100), index=True)
+    source_citation = db.Column(db.Text)  # Academic citation for this meaning
     source_documents = db.Column(JSON)
     extraction_method = db.Column(db.String(50))
     

@@ -46,6 +46,46 @@
                             <div class="form-text">Describe the current or baseline meaning of this term</div>
                         </div>
 
+                        <!-- Research Domain -->
+                        <div class="mb-3">
+                            {{ form.research_domain.label(class="form-label") }}
+                            <div class="input-group">
+                                {{ form.research_domain(class="form-control" + (" is-invalid" if form.research_domain.errors else ""), list="research-domain-options", autocomplete="on") }}
+                                <button class="btn btn-outline-secondary" type="button" id="research-domain-help" data-bs-toggle="tooltip" data-bs-placement="top" title="Choose from existing domains or add a new one">
+                                    <i class="fas fa-question-circle"></i>
+                                </button>
+                            </div>
+                            {% if form.research_domain.errors %}
+                                <div class="invalid-feedback">
+                                    {% for error in form.research_domain.errors %}
+                                        {{ error }}
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                            <div class="form-text">Research domain or field of study (e.g., Philosophy, Science, Politics, Engineering Ethics)</div>
+                            
+                            <!-- Research domain options (existing + predefined) -->
+                            <datalist id="research-domain-options">
+                                <!-- Existing domains from database (populated first) -->
+                                {% for domain in existing_domains %}
+                                <option value="{{ domain }}">
+                                {% endfor %}
+                                
+                                <!-- Predefined domain suggestions -->
+                                {% set predefined_domains = [
+                                    'Philosophy', 'Science', 'Politics', 'Engineering Ethics',
+                                    'Medical Ethics', 'Business Ethics', 'Environmental Science',
+                                    'Computer Science', 'Linguistics', 'Psychology', 'Sociology',
+                                    'History', 'Law', 'Economics', 'Anthropology'
+                                ] %}
+                                {% for domain in predefined_domains %}
+                                    {% if domain not in existing_domains %}
+                                    <option value="{{ domain }}">
+                                    {% endif %}
+                                {% endfor %}
+                            </datalist>
+                        </div>
+
                         <!-- Temporal Period Configuration -->
                         <div class="mb-4">
                             <label class="form-label">Reference Time Period *</label>
@@ -170,9 +210,15 @@
                                     
                                     <!-- Source Citation for Manual Entry -->
                                     <div class="mt-3">
-                                        <label class="form-label">Source Citation *</label>
-                                        <input type="text" class="form-control" id="manual-source-citation" 
-                                               placeholder="e.g., COHA Corpus (1810-2009), IEEE Standard 830 (1998), Webster's Technical Dictionary (2020)">
+                                        {{ form.source_citation.label(class="form-label") }} *
+                                        {{ form.source_citation(class="form-control", id="manual-source-citation") }}
+                                        {% if form.source_citation.errors %}
+                                            <div class="invalid-feedback">
+                                                {% for error in form.source_citation.errors %}
+                                                    {{ error }}
+                                                {% endfor %}
+                                            </div>
+                                        {% endif %}
                                         <div class="form-text">Provide the authoritative source for this term definition (required for PROV-O compliance)</div>
                                     </div>
                                     
@@ -806,6 +852,40 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         }
         
+        // Suggest research domain based on term characteristics
+        const researchDomainField = document.getElementById('research_domain');
+        if (researchDomainField && selectedResult) {
+            // Auto-suggest domain based on term characteristics
+            let suggestedDomain = '';
+            
+            if (service === 'dictionary' && selectedResult.functional_label) {
+                const label = selectedResult.functional_label.toLowerCase();
+                if (label.includes('noun') && selectedResult.definitions) {
+                    const def = selectedResult.definitions[0].toLowerCase();
+                    
+                    // Simple domain classification based on definition content
+                    if (def.includes('philosophy') || def.includes('philosophical') || def.includes('ethics') || def.includes('moral')) {
+                        suggestedDomain = 'Philosophy';
+                    } else if (def.includes('science') || def.includes('scientific') || def.includes('research')) {
+                        suggestedDomain = 'Science';
+                    } else if (def.includes('political') || def.includes('government') || def.includes('policy')) {
+                        suggestedDomain = 'Politics';
+                    } else if (def.includes('legal') || def.includes('court') || def.includes('judicial')) {
+                        suggestedDomain = 'Law';
+                    } else if (def.includes('economic') || def.includes('business') || def.includes('commerce')) {
+                        suggestedDomain = 'Economics';
+                    } else if (def.includes('language') || def.includes('linguistic') || def.includes('grammar')) {
+                        suggestedDomain = 'Linguistics';
+                    }
+                }
+            }
+            
+            // Only populate if field is empty and we have a suggestion
+            if (suggestedDomain && !researchDomainField.value.trim()) {
+                researchDomainField.value = suggestedDomain;
+            }
+        }
+        
         // Close the service results
         const resultsDiv = document.getElementById('service-results');
         if (resultsDiv) {
@@ -813,11 +893,12 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         
         // Show success message
+        const suggestedDomainText = researchDomainField && researchDomainField.value ? `, research domain (${researchDomainField.value})` : '';
         const alertHtml = `
             <div class="alert alert-success alert-dismissible fade show" role="alert">
                 <i class="fas fa-check-circle me-2"></i>
                 <strong>Result Selected!</strong> 
-                Term text, meaning description, temporal period (${currentSearchResults.current_year || 'current year'}), context anchors, and source citation have been populated from Merriam-Webster ${service}.
+                Term text, meaning description, temporal period (${currentSearchResults.current_year || 'current year'})${suggestedDomainText}, context anchors, and source citation have been populated from Merriam-Webster ${service}.
                 <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
             </div>
         `;

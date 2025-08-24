@@ -413,6 +413,7 @@ The term entry system now fully complies with the Choi research framework method
   - Term Text: The searched term
   - Meaning Description: Primary definition(s) from selected result
   - Temporal Period: Current year (when the definition was accessed)
+  - Research Domain: Intelligently suggested based on definition content
   - Context Anchors: Key terms extracted from definitions or synonyms
   - Source Citation: Proper academic citation format with current access date
   - Source Type: Automatically set to "dictionary"
@@ -432,10 +433,33 @@ The term entry system now fully complies with the Choi research framework method
    - **Term Text**: Populated with the searched term
    - **Meaning Description**: Primary definition(s) from Merriam-Webster
    - **Temporal Period**: Set to current year (definition access date)
+   - **Research Domain**: Intelligently suggested based on definition content
    - **Context Anchors**: Key terms extracted automatically
    - **Source Citation**: Academic citation format with current access date
    - **Source Type**: Set to "dictionary"
 6. Form switches to Manual Entry tab with all fields populated and ready for submission
+
+#### Research Domain Management ✅ (2025-08-24)
+
+**Dynamic Research Domain Field:**
+- **Autocomplete Functionality**: Input field with datalist showing existing domains + predefined options
+- **Intelligent Suggestions**: Merriam-Webster integration suggests domains based on definition content
+- **Persistent Learning**: New domains added by users appear in future autocomplete suggestions
+- **Predefined Options**: Philosophy, Science, Politics, Engineering Ethics, Medical Ethics, Business Ethics, Environmental Science, Computer Science, Linguistics, Psychology, Sociology, History, Law, Economics, Anthropology
+
+**Domain Classification Logic:**
+- Ethics/Moral content → Philosophy
+- Scientific/Research content → Science
+- Political/Government content → Politics
+- Legal/Court content → Law
+- Economic/Business content → Economics
+- Language/Grammar content → Linguistics
+
+**User Experience:**
+- Field appears between Meaning Description and Temporal Period in form
+- Help button with tooltip explains functionality
+- Existing domains populate first in autocomplete dropdown
+- Users can type new domains which are stored for future use
 
 ### Research Methodology Alignment ✅
 

@@ -80,6 +80,12 @@ class AddTermForm(FlaskForm):
         render_kw={'placeholder': 'Source of evidence for this meaning'}
     )
     
+    source_citation = TextAreaField(
+        'Source Citation',
+        validators=[Optional(), Length(max=1000)],
+        render_kw={'placeholder': 'Academic citation for this meaning (e.g., dictionary, paper, etc.)', 'rows': 2}
+    )
+    
     context_anchor = StringField(
         'Context Anchors',
         validators=[Optional(), Length(max=1000)],

@@ -84,7 +84,13 @@ def add_term():
             existing = Term.query.filter_by(term_text=form.term_text.data).first()
             if existing:
                 flash(f'Term "{form.term_text.data}" already exists. Please choose a different term.', 'error')
-                return render_template('terms/add.html', form=form)
+                # Get existing research domains for error case as well
+                existing_domains = db.session.query(Term.research_domain).distinct().filter(
+                    Term.research_domain.isnot(None),
+                    Term.research_domain != ''
+                ).all()
+                existing_domains = [d[0] for d in existing_domains]
+                return render_template('terms/add.html', form=form, existing_domains=existing_domains)
             
             # Create term
             term = Term(
@@ -115,6 +121,7 @@ def add_term():
                 temporal_end_year=form.temporal_end_year.data,
                 meaning_description=form.meaning_description.data,
                 corpus_source=form.corpus_source.data,
+                source_citation=form.source_citation.data,
                 confidence_level=form.confidence_level.data,
                 fuzziness_score=form.fuzziness_score.data,
                 extraction_method='manual',
@@ -143,7 +150,14 @@ def add_term():
             current_app.logger.error(f"Error creating term: {str(e)}")
             flash('An error occurred while creating the term. Please try again.', 'error')
     
-    return render_template('terms/add.html', form=form)
+    # Get existing research domains for autocomplete
+    existing_domains = db.session.query(Term.research_domain).distinct().filter(
+        Term.research_domain.isnot(None),
+        Term.research_domain != ''
+    ).all()
+    existing_domains = [d[0] for d in existing_domains]
+    
+    return render_template('terms/add.html', form=form, existing_domains=existing_domains)
 
 
 @terms_bp.route('/import', methods=['GET', 'POST'])
@@ -192,6 +206,9 @@ def view_term(term_id):
 @login_required
 def edit_term(term_id):
     """Edit term basic information"""
+    from app.forms.term_forms import EditTermForm
+    from app.models.term import TermVersion
+    
     term = Term.query.get_or_404(term_id)
     
     # Check permissions
@@ -199,16 +216,36 @@ def edit_term(term_id):
         flash('You do not have permission to edit this term.', 'error')
         return redirect(url_for('terms.view_term', term_id=term_id))
     
-    if request.method == 'POST':
+    # Get all temporal versions for this term, ordered by latest first
+    versions = TermVersion.query.filter_by(term_id=term.id).order_by(
+        TermVersion.generated_at_time.desc()
+    ).all()
+    
+    # Get the version ID from request (for editing specific versions)
+    version_id = request.args.get('version_id') or request.form.get('selected_version_id')
+    selected_version = None
+    
+    if version_id:
+        selected_version = TermVersion.query.filter_by(id=version_id, term_id=term.id).first()
+    
+    # If no specific version selected, use the latest version
+    if not selected_version and versions:
+        selected_version = versions[0]  # Latest version
+    
+    # Initialize form with existing term data
+    form = EditTermForm()
+    
+    if form.validate_on_submit():
         try:
-            # Update term fields
-            term.description = request.form.get('description', '').strip()
-            term.etymology = request.form.get('etymology', '').strip()
-            term.notes = request.form.get('notes', '').strip()
-            term.research_domain = request.form.get('research_domain', '').strip()
-            term.selection_rationale = request.form.get('selection_rationale', '').strip()
-            term.historical_significance = request.form.get('historical_significance', '').strip()
-            term.status = request.form.get('status', term.status)
+            # Update term fields from form
+            term.term_text = form.term_text.data
+            term.description = form.description.data
+            term.etymology = form.etymology.data
+            term.research_domain = form.research_domain.data
+            term.selection_rationale = form.selection_rationale.data
+            term.historical_significance = form.historical_significance.data
+            term.status = form.status.data
+            term.notes = form.notes.data
             term.updated_by = current_user.id
             
             db.session.commit()
@@ -221,7 +258,62 @@ def edit_term(term_id):
             current_app.logger.error(f"Error updating term: {str(e)}")
             flash('An error occurred while updating the term.', 'error')
     
-    return render_template('terms/edit.html', term=term)
+    # Pre-populate form with existing data for GET requests
+    if request.method == 'GET':
+        form.term_text.data = term.term_text
+        form.description.data = term.description
+        form.etymology.data = term.etymology
+        form.research_domain.data = term.research_domain
+        form.selection_rationale.data = term.selection_rationale
+        form.historical_significance.data = term.historical_significance
+        form.status.data = term.status
+        form.notes.data = term.notes
+    
+    return render_template('terms/edit.html', 
+                         term=term, 
+                         form=form, 
+                         versions=versions, 
+                         selected_version=selected_version)
+
+
+@terms_bp.route('/<uuid:term_id>/delete', methods=['POST'])
+@login_required
+def delete_term(term_id):
+    """Delete a term (admin only)"""
+    # Check if user is admin
+    if not current_user.is_admin:
+        flash('You do not have permission to delete terms.', 'error')
+        return redirect(url_for('terms.term_index'))
+    
+    term = Term.query.get_or_404(term_id)
+    term_text = term.term_text  # Store for flash message
+    
+    try:
+        # Delete all versions first (due to foreign key constraints)
+        from app.models.term import TermVersion
+        from app.models.semantic_drift import SemanticDriftActivity
+        
+        # Delete all semantic drift activities for this term
+        # SemanticDriftActivity relates to terms through term_versions, not directly
+        activities_to_delete = SemanticDriftActivity.get_activities_for_term(term.id)
+        for activity in activities_to_delete:
+            db.session.delete(activity)
+        
+        # Delete all versions
+        TermVersion.query.filter_by(term_id=term.id).delete()
+        
+        # Now delete the term itself
+        db.session.delete(term)
+        db.session.commit()
+        
+        flash(f'Term "{term_text}" and all its versions have been deleted successfully.', 'success')
+        
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"Error deleting term {term_id}: {str(e)}")
+        flash(f'An error occurred while deleting the term: {str(e)}', 'error')
+    
+    return redirect(url_for('terms.term_index'))
 
 
 @terms_bp.route('/<uuid:term_id>/add-version', methods=['GET', 'POST'])

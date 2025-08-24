@@ -10,21 +10,15 @@
             <div class="d-flex justify-content-between align-items-center mb-4">
                 <div>
                     <h1>
-                        <i class="fas fa-anchor me-2"></i>
                         {{ term.term_text }}
                         {% if term.status == 'active' %}
-                            <span class="badge bg-success">Active</span>
+                            <span class="badge bg-success fs-6">Active</span>
                         {% elif term.status == 'provisional' %}
-                            <span class="badge bg-warning">Provisional</span>
+                            <span class="badge bg-warning fs-6">Provisional</span>
                         {% elif term.status == 'deprecated' %}
-                            <span class="badge bg-secondary">Deprecated</span>
+                            <span class="badge bg-secondary fs-6">Deprecated</span>
                         {% endif %}
                     </h1>
-                    {% if term.research_domain %}
-                        <p class="text-muted mb-0">
-                            <i class="fas fa-tag me-1"></i>{{ term.research_domain }}
-                        </p>
-                    {% endif %}
                 </div>
                 <div>
                     <a href="{{ url_for('terms.term_index') }}" class="btn btn-outline-secondary me-2">
@@ -46,12 +40,99 @@
                 <div class="col-lg-8">
                     <div class="card">
                         <div class="card-header">
-                            <h5 class="mb-0">Term Information</h5>
+                            <div class="d-flex justify-content-between align-items-center">
+                                <h5 class="mb-0">Term Information</h5>
+                                {% if versions|length > 1 %}
+                                <div class="d-flex align-items-center">
+                                    <label for="version-selector" class="form-label mb-0 me-2 small">Version:</label>
+                                    <select id="version-selector" class="form-select form-select-sm" style="width: auto;" onchange="updateVersionData()">
+                                        {% for version in versions %}
+                                        <option value="{{ version.id }}" 
+                                                {% if version.is_current or (loop.first and not versions|selectattr('is_current')|list) %}selected{% endif %}
+                                                data-meaning="{{ version.meaning_description }}"
+                                                data-temporal-period="{{ version.temporal_period }}"
+                                                data-corpus-source="{{ version.corpus_source or '' }}"
+                                                data-source-citation="{{ version.source_citation or '' }}"
+                                                data-fuzziness="{{ version.fuzziness_score or '' }}"
+                                                data-confidence="{{ version.confidence_level or '' }}"
+                                                data-context-anchors="{{ version.context_anchor|join(', ') if version.context_anchor else '' }}"
+                                                data-created="{{ version.generated_at_time.strftime('%b %d, %Y') }}">
+                                            {{ version.temporal_period }}
+                                            {% if version.is_current %}(Current){% endif %}
+                                        </option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                {% endif %}
+                            </div>
                         </div>
                         <div class="card-body">
-                            {% if term.description %}
+                            <!-- Always show research domain (term-level) -->
+                            {% if term.research_domain %}
                             <div class="mb-3">
-                                <strong>Description:</strong>
+                                <strong>Research Domain:</strong>
+                                <span class="badge bg-info">{{ term.research_domain }}</span>
+                            </div>
+                            {% endif %}
+                            
+                            <!-- Version-specific data (dynamic) -->
+                            {% if versions %}
+                            {% set current_version = versions|selectattr('is_current')|first or versions[0] %}
+                            <div id="version-data">
+                                <div class="mb-3">
+                                    <strong>Temporal Period:</strong>
+                                    <span id="temporal-period" class="badge bg-primary">{{ current_version.temporal_period }}</span>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <strong>Meaning Description:</strong>
+                                    <p id="meaning-description">{{ current_version.meaning_description }}</p>
+                                </div>
+                                
+                                <div id="corpus-source-section" class="mb-3" {% if not current_version.corpus_source %}style="display: none;"{% endif %}>
+                                    <strong>Corpus Source:</strong>
+                                    <span id="corpus-source">{{ current_version.corpus_source or '' }}</span>
+                                </div>
+                                
+                                <div id="source-citation-section" class="mb-3" {% if not current_version.source_citation %}style="display: none;"{% endif %}>
+                                    <strong>Citation:</strong>
+                                    <div id="source-citation" class="text-muted fst-italic">{{ current_version.source_citation or '' }}</div>
+                                </div>
+                                
+                                <div class="row mb-3">
+                                    <div id="fuzziness-section" class="col-md-6" {% if not current_version.fuzziness_score %}style="display: none;"{% endif %}>
+                                        <strong>Fuzziness Score:</strong>
+                                        <span id="fuzziness-score">{{ "%.3f"|format(current_version.fuzziness_score) if current_version.fuzziness_score else '' }}</span>
+                                    </div>
+                                    <div id="confidence-section" class="col-md-6" {% if not current_version.confidence_level %}style="display: none;"{% endif %}>
+                                        <strong>Confidence:</strong>
+                                        <span id="confidence-level" class="badge 
+                                            {% if current_version.confidence_level == 'high' %}bg-success
+                                            {% elif current_version.confidence_level == 'medium' %}bg-warning
+                                            {% else %}bg-danger{% endif %}">
+                                            {{ current_version.confidence_level.title() if current_version.confidence_level else '' }}
+                                        </span>
+                                    </div>
+                                </div>
+                                
+                                <div id="context-anchors-section" class="mb-3" {% if not current_version.context_anchor %}style="display: none;"{% endif %}>
+                                    <strong>Context Anchors:</strong>
+                                    <span id="context-anchors" class="text-muted">{{ current_version.context_anchor|join(', ') if current_version.context_anchor else '' }}</span>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <small class="text-muted">
+                                        <strong>Version Created:</strong> <span id="version-created">{{ current_version.generated_at_time.strftime('%b %d, %Y') }}</span>
+                                    </small>
+                                </div>
+                            </div>
+                            {% endif %}
+                            
+                            <!-- Term-level metadata (static) -->
+                            {% if term.description %}
+                            <hr>
+                            <div class="mb-3">
+                                <strong>Term Description:</strong>
                                 <p>{{ term.description }}</p>
                             </div>
                             {% endif %}
@@ -79,8 +160,26 @@
                             
                             {% if term.notes %}
                             <div class="mb-3">
-                                <strong>Notes:</strong>
+                                <strong>Term Notes:</strong>
                                 <p>{{ term.notes }}</p>
+                            </div>
+                            {% endif %}
+                            
+                            <!-- Fallback message if no information is available -->
+                            {% if not versions and not (term.research_domain or term.description or term.etymology or term.selection_rationale or term.historical_significance or term.notes) %}
+                            <div class="text-center py-3">
+                                <i class="fas fa-info-circle fa-2x text-muted mb-2"></i>
+                                <p class="text-muted mb-0">No information available for this term.</p>
+                                {% if term.created_by == current_user.id or current_user.is_admin %}
+                                <small class="text-muted">
+                                    <a href="{{ url_for('terms.edit_term', term_id=term.id) }}" class="text-decoration-none">
+                                        Edit this term
+                                    </a> to add details, or 
+                                    <a href="{{ url_for('terms.add_version', term_id=term.id) }}" class="text-decoration-none">
+                                        add a temporal version
+                                    </a>.
+                                </small>
+                                {% endif %}
                             </div>
                             {% endif %}
                         </div>
@@ -136,7 +235,7 @@
                                 <div class="card-header d-flex justify-content-between align-items-center">
                                     <strong>{{ version.temporal_period }}</strong>
                                     {% if version.is_current %}
-                                        <span class="badge bg-success">Current</span>
+                                        <span class="badge bg-success fs-6">Current</span>
                                     {% endif %}
                                 </div>
                                 <div class="card-body">
@@ -234,4 +333,118 @@
         </div>
     </div>
 </div>
+
+<script>
+function updateVersionData() {
+    const selector = document.getElementById('version-selector');
+    if (!selector) return;
+    
+    const selectedOption = selector.options[selector.selectedIndex];
+    
+    // Update temporal period
+    const temporalPeriod = document.getElementById('temporal-period');
+    if (temporalPeriod) {
+        temporalPeriod.textContent = selectedOption.dataset.temporalPeriod;
+    }
+    
+    // Update meaning description
+    const meaningDesc = document.getElementById('meaning-description');
+    if (meaningDesc) {
+        meaningDesc.textContent = selectedOption.dataset.meaning;
+    }
+    
+    // Update corpus source
+    const corpusSource = document.getElementById('corpus-source');
+    const corpusSourceSection = document.getElementById('corpus-source-section');
+    if (corpusSource && corpusSourceSection) {
+        const source = selectedOption.dataset.corpusSource;
+        if (source) {
+            corpusSource.textContent = source;
+            corpusSourceSection.style.display = 'block';
+        } else {
+            corpusSourceSection.style.display = 'none';
+        }
+    }
+    
+    // Update source citation
+    const sourceCitation = document.getElementById('source-citation');
+    const sourceCitationSection = document.getElementById('source-citation-section');
+    if (sourceCitation && sourceCitationSection) {
+        const citation = selectedOption.dataset.sourceCitation;
+        if (citation) {
+            sourceCitation.textContent = citation;
+            sourceCitationSection.style.display = 'block';
+        } else {
+            sourceCitationSection.style.display = 'none';
+        }
+    }
+    
+    // Update fuzziness score
+    const fuzzinessScore = document.getElementById('fuzziness-score');
+    const fuzzinessSection = document.getElementById('fuzziness-section');
+    if (fuzzinessScore && fuzzinessSection) {
+        const fuzziness = selectedOption.dataset.fuzziness;
+        if (fuzziness) {
+            fuzzinessScore.textContent = parseFloat(fuzziness).toFixed(3);
+            fuzzinessSection.style.display = 'block';
+        } else {
+            fuzzinessSection.style.display = 'none';
+        }
+    }
+    
+    // Update confidence level
+    const confidenceLevel = document.getElementById('confidence-level');
+    const confidenceSection = document.getElementById('confidence-section');
+    if (confidenceLevel && confidenceSection) {
+        const confidence = selectedOption.dataset.confidence;
+        if (confidence) {
+            confidenceLevel.textContent = confidence.charAt(0).toUpperCase() + confidence.slice(1);
+            
+            // Update badge color based on confidence level
+            confidenceLevel.className = 'badge ';
+            if (confidence === 'high') {
+                confidenceLevel.className += 'bg-success';
+            } else if (confidence === 'medium') {
+                confidenceLevel.className += 'bg-warning';
+            } else {
+                confidenceLevel.className += 'bg-danger';
+            }
+            
+            confidenceSection.style.display = 'block';
+        } else {
+            confidenceSection.style.display = 'none';
+        }
+    }
+    
+    // Update context anchors
+    const contextAnchors = document.getElementById('context-anchors');
+    const contextAnchorsSection = document.getElementById('context-anchors-section');
+    if (contextAnchors && contextAnchorsSection) {
+        const anchors = selectedOption.dataset.contextAnchors;
+        if (anchors) {
+            contextAnchors.textContent = anchors;
+            contextAnchorsSection.style.display = 'block';
+        } else {
+            contextAnchorsSection.style.display = 'none';
+        }
+    }
+    
+    // Update version created date
+    const versionCreated = document.getElementById('version-created');
+    if (versionCreated) {
+        versionCreated.textContent = selectedOption.dataset.created;
+    }
+}
+
+// Initialize tooltips if Bootstrap is available
+document.addEventListener('DOMContentLoaded', function() {
+    if (typeof bootstrap !== 'undefined') {
+        var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+        var tooltipList = tooltipTriggerList.map(function(tooltipTriggerEl) {
+            return new bootstrap.Tooltip(tooltipTriggerEl);
+        });
+    }
+});
+</script>
+
 {% endblock %}
