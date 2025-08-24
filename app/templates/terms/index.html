@@ -8,7 +8,7 @@
         <div class="col-12">
             <!-- Header -->
             <div class="d-flex justify-content-between align-items-center mb-4">
-                <h1><i class="fas fa-anchor me-2"></i>Anchor Terms Index</h1>
+                <h1>Terms Index</h1>
                 <a href="{{ url_for('terms.add_term') }}" class="btn btn-primary">
                     <i class="fas fa-plus me-2"></i>Add New Term
                 </a>
@@ -210,7 +210,7 @@
             <!-- No Terms Found -->
             <div class="card">
                 <div class="card-body text-center py-5">
-                    <i class="fas fa-anchor fa-3x text-muted mb-3"></i>
+                    <i class="fas fa-search fa-3x text-muted mb-3"></i>
                     <h4>No Terms Found</h4>
                     {% if search_query or status_filter or domain_filter %}
                     <p class="text-muted">No terms match your current search criteria.</p>
@@ -232,9 +232,9 @@
                 <div class="col-12">
                     <div class="card bg-light">
                         <div class="card-body">
-                            <h6><i class="fas fa-info-circle me-2"></i>About Anchor Terms</h6>
+                            <h6><i class="fas fa-info-circle me-2"></i>About Terms</h6>
                             <p class="mb-0 small">
-                                Anchor terms are historically significant words selected for semantic change analysis. 
+                                Terms are historically significant words selected for semantic change analysis. 
                                 Each term can have multiple temporal versions representing different meanings across time periods, 
                                 with context anchors defining semantic neighborhoods and fuzziness scores measuring membership retention.
                             </p>

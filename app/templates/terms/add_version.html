@@ -1,0 +1,204 @@
+{% extends "base.html" %}
+
+{% block title %}Add Version - {{ term.term_text }} - OntExtract{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row">
+        <div class="col-lg-8 mx-auto">
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="mb-0">
+                        <i class="fas fa-plus me-2"></i>
+                        Add New Version: {{ term.term_text }}
+                    </h3>
+                    <p class="text-muted mb-0">Create a new temporal version with different meaning or context</p>
+                </div>
+                <div class="card-body">
+                    <form method="POST" action="{{ url_for('terms.add_version', term_id=term.id) }}">
+                        {{ form.hidden_tag() }}
+                        
+                        <!-- Meaning Description -->
+                        <div class="mb-3">
+                            {{ form.meaning_description.label(class="form-label") }}
+                            {{ form.meaning_description(class="form-control" + (" is-invalid" if form.meaning_description.errors else ""), rows="4") }}
+                            {% if form.meaning_description.errors %}
+                                <div class="invalid-feedback">
+                                    {% for error in form.meaning_description.errors %}
+                                        {{ error }}
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                            <div class="form-text">Describe the meaning of "{{ term.term_text }}" in this time period</div>
+                        </div>
+
+                        <!-- Temporal Period -->
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                {{ form.temporal_period.label(class="form-label") }}
+                                {{ form.temporal_period(class="form-control" + (" is-invalid" if form.temporal_period.errors else "")) }}
+                                {% if form.temporal_period.errors %}
+                                    <div class="invalid-feedback">
+                                        {% for error in form.temporal_period.errors %}
+                                            {{ error }}
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                            <div class="col-md-3">
+                                {{ form.temporal_start_year.label(class="form-label") }}
+                                {{ form.temporal_start_year(class="form-control" + (" is-invalid" if form.temporal_start_year.errors else "")) }}
+                                {% if form.temporal_start_year.errors %}
+                                    <div class="invalid-feedback">
+                                        {% for error in form.temporal_start_year.errors %}
+                                            {{ error }}
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                            <div class="col-md-3">
+                                {{ form.temporal_end_year.label(class="form-label") }}
+                                {{ form.temporal_end_year(class="form-control" + (" is-invalid" if form.temporal_end_year.errors else "")) }}
+                                {% if form.temporal_end_year.errors %}
+                                    <div class="invalid-feedback">
+                                        {% for error in form.temporal_end_year.errors %}
+                                            {{ error }}
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <!-- Corpus Source -->
+                        <div class="mb-3">
+                            {{ form.corpus_source.label(class="form-label") }}
+                            {{ form.corpus_source(class="form-control" + (" is-invalid" if form.corpus_source.errors else "")) }}
+                            {% if form.corpus_source.errors %}
+                                <div class="invalid-feedback">
+                                    {% for error in form.corpus_source.errors %}
+                                        {{ error }}
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                            <div class="form-text">Source of evidence for this meaning (e.g., "19th century literature", "legal documents")</div>
+                        </div>
+
+                        <!-- Context Anchors -->
+                        <div class="mb-3">
+                            {{ form.context_anchor.label(class="form-label") }}
+                            {{ form.context_anchor(class="form-control" + (" is-invalid" if form.context_anchor.errors else "")) }}
+                            {% if form.context_anchor.errors %}
+                                <div class="invalid-feedback">
+                                    {% for error in form.context_anchor.errors %}
+                                        {{ error }}
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                            <div class="form-text">Related terms that help define the semantic neighborhood (comma-separated)</div>
+                        </div>
+
+                        <!-- Fuzziness Score -->
+                        <div class="mb-3">
+                            {{ form.fuzziness_score.label(class="form-label") }}
+                            <div class="input-group">
+                                {{ form.fuzziness_score(class="form-control" + (" is-invalid" if form.fuzziness_score.errors else ""), step="0.1", min="0", max="1") }}
+                                <span class="input-group-text">
+                                    <i class="fas fa-sliders-h"></i>
+                                </span>
+                            </div>
+                            {% if form.fuzziness_score.errors %}
+                                <div class="invalid-feedback">
+                                    {% for error in form.fuzziness_score.errors %}
+                                        {{ error }}
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                            <div class="form-text">Confidence in meaning boundaries (0.0 = very fuzzy, 1.0 = precise). Leave blank for automatic calculation.</div>
+                        </div>
+
+                        <!-- Confidence Level -->
+                        <div class="mb-3">
+                            {{ form.confidence_level.label(class="form-label") }}
+                            {{ form.confidence_level(class="form-select" + (" is-invalid" if form.confidence_level.errors else "")) }}
+                            {% if form.confidence_level.errors %}
+                                <div class="invalid-feedback">
+                                    {% for error in form.confidence_level.errors %}
+                                        {{ error }}
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+
+                        <!-- Notes -->
+                        <div class="mb-4">
+                            {{ form.notes.label(class="form-label") }}
+                            {{ form.notes(class="form-control" + (" is-invalid" if form.notes.errors else ""), rows="3") }}
+                            {% if form.notes.errors %}
+                                <div class="invalid-feedback">
+                                    {% for error in form.notes.errors %}
+                                        {{ error }}
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                            <div class="form-text">Additional notes about this version (optional)</div>
+                        </div>
+
+                        <!-- Submit Buttons -->
+                        <div class="d-flex justify-content-between">
+                            <a href="{{ url_for('terms.view_term', term_id=term.id) }}" class="btn btn-outline-secondary">
+                                <i class="fas fa-arrow-left me-2"></i>Cancel
+                            </a>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save me-2"></i>Create Version
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+            
+            <!-- Existing Versions Info -->
+            {% if existing_versions %}
+            <div class="card mt-3">
+                <div class="card-header">
+                    <h6 class="mb-0">Existing Versions</h6>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        {% for version in existing_versions %}
+                        <div class="col-md-6 mb-2">
+                            <div class="border rounded p-2 {% if version.is_current %}border-success bg-light{% endif %}">
+                                <strong>{{ version.temporal_period }}</strong>
+                                {% if version.is_current %}<span class="badge bg-success ms-1">Current</span>{% endif %}
+                                <br><small class="text-muted">{{ version.meaning_description[:100] }}...</small>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Update fuzziness score display
+    const fuzzinessInput = document.getElementById('fuzziness_score');
+    if (fuzzinessInput) {
+        fuzzinessInput.addEventListener('input', function() {
+            const value = parseFloat(this.value);
+            const helpText = this.parentElement.nextElementSibling.nextElementSibling;
+            if (value >= 0 && value <= 1) {
+                let description = '';
+                if (value <= 0.3) description = 'Very fuzzy boundaries';
+                else if (value <= 0.6) description = 'Moderately fuzzy boundaries';
+                else description = 'Well-defined boundaries';
+                
+                helpText.innerHTML = `Confidence in meaning boundaries (0.0 = very fuzzy, 1.0 = precise). Current: ${description}. Leave blank for automatic calculation.`;
+            }
+        });
+    }
+});
+</script>
+{% endblock %}

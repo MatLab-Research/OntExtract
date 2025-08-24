@@ -16,27 +16,27 @@
             
             {% if current_user.is_authenticated %}
                 <!-- All Actions in One Row -->
-                <div class="d-flex flex-wrap justify-content-center gap-3">
-                    <a href="{{ url_for('terms.add_term') }}" class="btn btn-primary btn-lg">
-                        <i class="fas fa-plus-circle me-2"></i>Add New Term
+                <div class="d-flex justify-content-center gap-2 flex-nowrap">
+                    <a href="{{ url_for('terms.add_term') }}" class="btn btn-primary">
+                        <i class="fas fa-plus-circle me-1"></i>Add Term
                     </a>
-                    <a href="{{ url_for('terms.import_terms') }}" class="btn btn-warning btn-lg">
-                        <i class="fas fa-upload me-2"></i>Import Terms
+                    <a href="{{ url_for('terms.import_terms') }}" class="btn btn-warning">
+                        <i class="fas fa-upload me-1"></i>Import
                     </a>
-                    <a href="{{ url_for('terms.term_index') }}" class="btn btn-success btn-lg">
-                        <i class="fas fa-list me-2"></i>Browse Terms
+                    <a href="{{ url_for('terms.term_index') }}" class="btn btn-success">
+                        <i class="fas fa-list me-1"></i>Browse
                     </a>
-                    <a href="{{ url_for('terms.download_data') }}" class="btn btn-outline-info btn-lg">
-                        <i class="fas fa-download me-2"></i>Download Data
+                    <a href="{{ url_for('terms.download_data') }}" class="btn btn-outline-info">
+                        <i class="fas fa-download me-1"></i>Download
                     </a>
                 </div>
             {% else %}
-                <div class="d-flex flex-wrap justify-content-center gap-3">
-                    <a href="{{ url_for('auth.register') }}" class="btn btn-primary btn-lg">
-                        <i class="fas fa-user-plus me-2"></i>Get Started
+                <div class="d-flex justify-content-center gap-2 flex-nowrap">
+                    <a href="{{ url_for('auth.register') }}" class="btn btn-primary">
+                        <i class="fas fa-user-plus me-1"></i>Get Started
                     </a>
-                    <a href="{{ url_for('auth.login') }}" class="btn btn-outline-light btn-lg">
-                        <i class="fas fa-sign-in-alt me-2"></i>Sign In
+                    <a href="{{ url_for('auth.login') }}" class="btn btn-outline-light">
+                        <i class="fas fa-sign-in-alt me-1"></i>Sign In
                     </a>
                 </div>
             {% endif %}
@@ -45,10 +45,6 @@
 
     <!-- Methodology Section -->
     <div class="row mb-4">
-        <div class="col-12">
-            <h3 class="text-center mb-4">Semantic Change Analysis Framework</h3>
-        </div>
-        
         <div class="col-lg-4 col-md-6 mb-3">
             <div class="card h-100">
                 <div class="card-body">
@@ -140,8 +136,8 @@
         </div>
     </div>
 
-    {% if current_user.is_authenticated %}
-    <!-- Quick Stats (if user is logged in) -->
+    {% if false and current_user.is_authenticated %}
+    <!-- Quick Stats (if user is logged in) - HIDDEN FOR NOW -->
     <div class="row">
         <div class="col-12">
             <h4 class="text-center mb-3">Your Research Dashboard</h4>
@@ -187,7 +183,9 @@
             </div>
         </div>
     </div>
+    {% endif %}
     
+    {% if current_user.is_authenticated %}
     <!-- Recent Activity -->
     <div class="row">
         <div class="col-12">
