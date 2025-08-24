@@ -46,51 +46,324 @@
                             <div class="form-text">Describe the current or baseline meaning of this term</div>
                         </div>
 
-                        <!-- Temporal Period -->
-                        <div class="mb-3">
-                            {{ form.temporal_period.label(class="form-label") }}
-                            {{ form.temporal_period(class="form-control" + (" is-invalid" if form.temporal_period.errors else "")) }}
+                        <!-- Temporal Period Configuration -->
+                        <div class="mb-4">
+                            <label class="form-label">Reference Time Period *</label>
+                            <div class="form-text mb-3">This is the historical period where this term meaning is anchored, following the Choi research framework.</div>
+                            
+                            <!-- Period Selection Method -->
+                            <div class="btn-group mb-3" role="group" aria-label="Period selection method">
+                                <input type="radio" class="btn-check" name="period-method" id="single-year" value="single" checked>
+                                <label class="btn btn-outline-primary" for="single-year">
+                                    <i class="fas fa-calendar-day"></i> Single Year
+                                </label>
+                                
+                                <input type="radio" class="btn-check" name="period-method" id="year-range" value="range">
+                                <label class="btn btn-outline-primary" for="year-range">
+                                    <i class="fas fa-calendar-alt"></i> Year Range
+                                </label>
+                                
+                                <input type="radio" class="btn-check" name="period-method" id="period-name" value="named">
+                                <label class="btn btn-outline-primary" for="period-name">
+                                    <i class="fas fa-clock"></i> Named Period
+                                </label>
+                            </div>
+                            
+                            <!-- Single Year Input -->
+                            <div id="single-year-input" class="period-input">
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <input type="number" class="form-control" id="reference-year" 
+                                               placeholder="e.g., 2000" min="1400" max="2030" value="2000">
+                                        <small class="text-muted">Reference year for this meaning</small>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Year Range Input -->
+                            <div id="year-range-input" class="period-input" style="display: none;">
+                                <div class="row">
+                                    <div class="col-md-4">
+                                        <label class="form-label">Start Year</label>
+                                        <input type="number" class="form-control" id="start-year" 
+                                               placeholder="e.g., 1990" min="1400" max="2030" value="2000">
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label class="form-label">End Year</label>
+                                        <input type="number" class="form-control" id="end-year" 
+                                               placeholder="e.g., 2020" min="1400" max="2030" value="2020">
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Named Period Input -->
+                            <div id="named-period-input" class="period-input" style="display: none;">
+                                <div class="row">
+                                    <div class="col-md-8">
+                                        <input type="text" class="form-control" id="period-name-text" 
+                                               placeholder="e.g., Early 20th Century, Victorian Era, Modern Period">
+                                        <small class="text-muted">Descriptive name for the historical period</small>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Hidden field for backend -->
+                            {{ form.temporal_period(class="form-control", style="display: none;") }}
                             {% if form.temporal_period.errors %}
-                                <div class="invalid-feedback">
+                                <div class="invalid-feedback d-block">
                                     {% for error in form.temporal_period.errors %}
                                         {{ error }}
                                     {% endfor %}
                                 </div>
                             {% endif %}
-                            <div class="form-text">Time period for this meaning (e.g., "1800-1850", "Early 20th Century")</div>
                         </div>
 
-                        <!-- Context Anchor -->
-                        <div class="mb-3">
-                            {{ form.context_anchor.label(class="form-label") }}
-                            {{ form.context_anchor(class="form-control" + (" is-invalid" if form.context_anchor.errors else "")) }}
-                            {% if form.context_anchor.errors %}
-                                <div class="invalid-feedback">
-                                    {% for error in form.context_anchor.errors %}
-                                        {{ error }}
-                                    {% endfor %}
+                        <!-- Context Anchoring Sources -->
+                        <div class="mb-4">
+                            <label class="form-label">Context Anchoring Method *</label>
+                            <div class="form-text mb-3">Select how this term's meaning is anchored, following the Choi research framework.</div>
+                            
+                            <!-- Tab Navigation -->
+                            <ul class="nav nav-tabs mb-3" id="anchorTabs" role="tablist">
+                                <li class="nav-item" role="presentation">
+                                    <button class="nav-link active" id="manual-tab" data-bs-toggle="tab" data-bs-target="#manual-pane" type="button" role="tab">
+                                        <i class="fas fa-keyboard me-1"></i> Manual Entry
+                                    </button>
+                                </li>
+                                <li class="nav-item" role="presentation">
+                                    <button class="nav-link" id="reference-tab" data-bs-toggle="tab" data-bs-target="#reference-pane" type="button" role="tab">
+                                        <i class="fas fa-file-text me-1"></i> Reference Document
+                                    </button>
+                                </li>
+                                <li class="nav-item" role="presentation">
+                                    <button class="nav-link" id="services-tab" data-bs-toggle="tab" data-bs-target="#services-pane" type="button" role="tab">
+                                        <i class="fas fa-cloud me-1"></i> Connected Services
+                                    </button>
+                                </li>
+                                <li class="nav-item" role="presentation">
+                                    <button class="nav-link" id="ontology-tab" data-bs-toggle="tab" data-bs-target="#ontology-pane" type="button" role="tab">
+                                        <i class="fas fa-sitemap me-1"></i> Ontology
+                                    </button>
+                                </li>
+                            </ul>
+                            
+                            <!-- Tab Content -->
+                            <div class="tab-content" id="anchorTabContent">
+                                
+                                <!-- Manual Entry Tab -->
+                                <div class="tab-pane fade show active" id="manual-pane" role="tabpanel">
+                                    <div class="alert alert-info">
+                                        <i class="fas fa-info-circle me-2"></i>
+                                        <strong>Manual Entry:</strong> Enter context anchors manually with proper source citation.
+                                    </div>
+                                    
+                                    {{ form.context_anchor.label(class="form-label") }}
+                                    {{ form.context_anchor(class="form-control" + (" is-invalid" if form.context_anchor.errors else "")) }}
+                                    {% if form.context_anchor.errors %}
+                                        <div class="invalid-feedback">
+                                            {% for error in form.context_anchor.errors %}
+                                                {{ error }}
+                                            {% endfor %}
+                                        </div>
+                                    {% endif %}
+                                    <div class="form-text mb-3">Related terms that help anchor this meaning (comma-separated)</div>
+                                    
+                                    <!-- Source Citation for Manual Entry -->
+                                    <div class="mt-3">
+                                        <label class="form-label">Source Citation *</label>
+                                        <input type="text" class="form-control" id="manual-source-citation" 
+                                               placeholder="e.g., COHA Corpus (1810-2009), IEEE Standard 830 (1998), Webster's Technical Dictionary (2020)">
+                                        <div class="form-text">Provide the authoritative source for this term definition (required for PROV-O compliance)</div>
+                                    </div>
+                                    
+                                    <!-- Source Type -->
+                                    <div class="mt-3">
+                                        <label class="form-label">Source Type</label>
+                                        <select class="form-select" id="manual-source-type">
+                                            <option value="">Select source type...</option>
+                                            <option value="corpus">Corpus (e.g., COHA, Google Books)</option>
+                                            <option value="dictionary">Dictionary (e.g., Webster's, Oxford)</option>
+                                            <option value="standard">Technical Standard (e.g., IEEE, ISO)</option>
+                                            <option value="academic">Academic Publication</option>
+                                            <option value="government">Government Document</option>
+                                            <option value="industry">Industry Specification</option>
+                                        </select>
+                                        <div class="form-text">Categorize the type of authoritative source</div>
+                                    </div>
                                 </div>
-                            {% endif %}
-                            <div class="form-text">Related terms that help anchor this meaning (comma-separated)</div>
+                                
+                                <!-- Reference Document Tab -->
+                                <div class="tab-pane fade" id="reference-pane" role="tabpanel">
+                                    <div class="alert alert-info">
+                                        <i class="fas fa-info-circle me-2"></i>
+                                        <strong>Reference Document:</strong> Use a document from your collection as the contextual anchor.
+                                    </div>
+                                    
+                                    <label class="form-label">Reference Document</label>
+                                    <select class="form-select" id="anchor-document-select">
+                                        <option value="">Select a reference document...</option>
+                                        <!-- Will be populated via JavaScript -->
+                                    </select>
+                                    <div class="form-text mb-3">Choose a document from your references to provide contextual anchoring</div>
+                                    
+                                    <!-- Context Extract -->
+                                    <div class="mt-3">
+                                        <label class="form-label">Context Extract</label>
+                                        <textarea class="form-control" id="document-context-extract" rows="3"
+                                                  placeholder="Enter the specific text passage that defines or contextualizes this term..."></textarea>
+                                        <div class="form-text">Specific passage from the document that provides context for this term</div>
+                                    </div>
+                                    
+                                    <!-- Page/Section Reference -->
+                                    <div class="mt-3">
+                                        <label class="form-label">Page/Section Reference</label>
+                                        <input type="text" class="form-control" id="document-page-ref" 
+                                               placeholder="e.g., Page 23, Section 4.2, Chapter 3">
+                                        <div class="form-text">Specific location within the document</div>
+                                    </div>
+                                </div>
+                                
+                                <!-- Connected Services Tab -->
+                                <div class="tab-pane fade" id="services-pane" role="tabpanel">
+                                    <div class="alert alert-info">
+                                        <i class="fas fa-info-circle me-2"></i>
+                                        <strong>Connected Services:</strong> Use external authoritative sources for term definitions.
+                                    </div>
+                                    
+                                    <!-- Service Selection -->
+                                    <div class="row mb-3">
+                                        <div class="col-md-6">
+                                            <div class="card h-100">
+                                                <div class="card-body text-center">
+                                                    <i class="fas fa-book fa-2x text-danger mb-2"></i>
+                                                    <h6>Merriam-Webster Dictionary</h6>
+                                                    <p class="small text-muted">Authoritative American English definitions</p>
+                                                    <button type="button" class="btn btn-outline-danger btn-sm" id="mw-dict-service-btn">
+                                                        Search Dictionary
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <div class="card h-100">
+                                                <div class="card-body text-center">
+                                                    <i class="fas fa-list-alt fa-2x text-secondary mb-2"></i>
+                                                    <h6>Merriam-Webster Thesaurus</h6>
+                                                    <p class="small text-muted">Synonyms and antonyms for context anchoring</p>
+                                                    <button type="button" class="btn btn-outline-secondary btn-sm" id="mw-thes-service-btn">
+                                                        Search Thesaurus
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="row mb-3">
+                                        <div class="col-md-6">
+                                            <div class="card h-100">
+                                                <div class="card-body text-center">
+                                                    <i class="fas fa-book fa-2x text-warning mb-2"></i>
+                                                    <h6>Oxford English Dictionary</h6>
+                                                    <p class="small text-muted">Authoritative English language definitions</p>
+                                                    <button type="button" class="btn btn-outline-warning btn-sm" id="oed-service-btn">
+                                                        Search OED
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <div class="card h-100">
+                                                <div class="card-body text-center">
+                                                    <i class="fas fa-database fa-2x text-primary mb-2"></i>
+                                                    <h6>COHA Corpus</h6>
+                                                    <p class="small text-muted">Historical American English usage patterns</p>
+                                                    <button type="button" class="btn btn-outline-primary btn-sm" id="coha-service-btn">
+                                                        Search COHA
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="row mb-3">
+                                        <div class="col-md-6">
+                                            <div class="card h-100">
+                                                <div class="card-body text-center">
+                                                    <i class="fas fa-graduation-cap fa-2x text-success mb-2"></i>
+                                                    <h6>WordNet</h6>
+                                                    <p class="small text-muted">Lexical database and semantic network</p>
+                                                    <button type="button" class="btn btn-outline-success btn-sm" id="wordnet-service-btn">
+                                                        Search WordNet
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <div class="card h-100">
+                                                <div class="card-body text-center">
+                                                    <i class="fas fa-globe fa-2x text-info mb-2"></i>
+                                                    <h6>Wikidata</h6>
+                                                    <p class="small text-muted">Structured knowledge base definitions</p>
+                                                    <button type="button" class="btn btn-outline-info btn-sm" id="wikidata-service-btn">
+                                                        Search Wikidata
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Service Results -->
+                                    <div id="service-results" class="mt-3" style="display: none;">
+                                        <div class="border rounded p-3 bg-light">
+                                            <div id="service-results-content">
+                                                <!-- Service search results will appear here -->
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- Ontology Tab -->
+                                <div class="tab-pane fade" id="ontology-pane" role="tabpanel">
+                                    <div class="alert alert-info">
+                                        <i class="fas fa-info-circle me-2"></i>
+                                        <strong>Ontology:</strong> Use formal ontological concepts from OntServe for anchoring.
+                                    </div>
+                                    
+                                    <label class="form-label">Ontology Source</label>
+                                    <select class="form-select" id="ontology-select">
+                                        <option value="">Select ontology from OntServe...</option>
+                                        <option value="prov-o">PROV-O (Provenance Ontology)</option>
+                                        <option value="foaf">FOAF (Friend of a Friend)</option>
+                                        <option value="dublin-core">Dublin Core</option>
+                                        <!-- More options will be loaded from OntServe -->
+                                    </select>
+                                    <div class="form-text mb-3">Select an ontology from OntServe, then choose specific concepts</div>
+                                    
+                                    <!-- Concept Selection -->
+                                    <div id="ontology-concepts" class="mt-3" style="display: none;">
+                                        <label class="form-label">Related Concepts</label>
+                                        <select class="form-select" id="concept-select" multiple>
+                                            <!-- Will be populated based on ontology selection -->
+                                        </select>
+                                        <div class="form-text">Select relevant concepts from the chosen ontology</div>
+                                    </div>
+                                    
+                                    <!-- Domain specification -->
+                                    <div class="mt-3">
+                                        <label class="form-label">Research Domain</label>
+                                        <input type="text" class="form-control" id="research-domain" 
+                                               placeholder="e.g., computer science, linguistics, engineering">
+                                        <div class="form-text">Specify the research domain for contextual anchoring</div>
+                                    </div>
+                                </div>
+                                
+                            </div> <!-- End tab-content -->
                         </div>
 
-                        <!-- Fuzziness Score -->
-                        <div class="mb-3">
-                            {{ form.fuzziness_score.label(class="form-label") }}
-                            <div class="input-group">
-                                {{ form.fuzziness_score(class="form-control" + (" is-invalid" if form.fuzziness_score.errors else ""), step="0.1", min="0", max="1") }}
-                                <span class="input-group-text">
-                                    <i class="fas fa-sliders-h"></i>
-                                </span>
-                            </div>
-                            {% if form.fuzziness_score.errors %}
-                                <div class="invalid-feedback">
-                                    {% for error in form.fuzziness_score.errors %}
-                                        {{ error }}
-                                    {% endfor %}
-                                </div>
-                            {% endif %}
-                            <div class="form-text">Confidence in meaning boundaries (0.0 = fuzzy, 1.0 = precise). Leave blank for automatic calculation.</div>
+                        <!-- Note about fuzziness score -->
+                        <div class="alert alert-info mb-3">
+                            <i class="fas fa-info-circle me-2"></i>
+                            <strong>Automatic Calculation:</strong> Fuzziness scores will be calculated automatically based on semantic drift analysis using the Choi research framework.
                         </div>
 
                         <!-- Confidence Level -->
@@ -137,31 +410,473 @@
     </div>
 </div>
 
-<!-- Auto-suggest for Context Anchor -->
+<!-- Enhanced Term Entry Interface -->
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    // Simple auto-suggest implementation for context anchors
-    const contextInput = document.getElementById('context_anchor');
-    if (contextInput) {
-        contextInput.addEventListener('input', function() {
-            // TODO: Implement context anchor suggestions
-            // This could fetch suggestions from existing terms or semantic services
+    // Period selection method handling
+    const periodMethods = document.querySelectorAll('input[name="period-method"]');
+    const singleYearInput = document.getElementById('single-year-input');
+    const yearRangeInput = document.getElementById('year-range-input');
+    const namedPeriodInput = document.getElementById('named-period-input');
+    const hiddenPeriodField = document.getElementById('temporal_period');
+    
+    periodMethods.forEach(method => {
+        method.addEventListener('change', function() {
+            // Hide all inputs
+            singleYearInput.style.display = 'none';
+            yearRangeInput.style.display = 'none';
+            namedPeriodInput.style.display = 'none';
+            
+            // Show selected input
+            if (this.value === 'single') {
+                singleYearInput.style.display = 'block';
+                updateHiddenField();
+            } else if (this.value === 'range') {
+                yearRangeInput.style.display = 'block';
+                updateHiddenField();
+            } else if (this.value === 'named') {
+                namedPeriodInput.style.display = 'block';
+                updateHiddenField();
+            }
+        });
+    });
+    
+    // Update hidden field with current selection
+    function updateHiddenField() {
+        const selectedMethod = document.querySelector('input[name="period-method"]:checked').value;
+        let value = '';
+        
+        if (selectedMethod === 'single') {
+            const year = document.getElementById('reference-year').value;
+            if (year) value = year;
+        } else if (selectedMethod === 'range') {
+            const startYear = document.getElementById('start-year').value;
+            const endYear = document.getElementById('end-year').value;
+            if (startYear && endYear) value = `${startYear}-${endYear}`;
+        } else if (selectedMethod === 'named') {
+            const periodName = document.getElementById('period-name-text').value;
+            if (periodName) value = periodName;
+        }
+        
+        hiddenPeriodField.value = value;
+    }
+    
+    // Listen for changes on all period inputs
+    document.getElementById('reference-year').addEventListener('input', updateHiddenField);
+    document.getElementById('start-year').addEventListener('input', updateHiddenField);
+    document.getElementById('end-year').addEventListener('input', updateHiddenField);
+    document.getElementById('period-name-text').addEventListener('input', updateHiddenField);
+    
+    // Initialize with default selection
+    updateHiddenField();
+    
+    // Anchoring method handling
+    const anchorMethods = document.querySelectorAll('input[name="anchor-method"]');
+    const manualAnchorInput = document.getElementById('manual-anchor-input');
+    const documentAnchorInput = document.getElementById('document-anchor-input');
+    const oedAnchorInput = document.getElementById('oed-anchor-input');
+    const ontologyAnchorInput = document.getElementById('ontology-anchor-input');
+    
+    anchorMethods.forEach(method => {
+        method.addEventListener('change', function() {
+            // Hide all anchor inputs
+            document.querySelectorAll('.anchor-input').forEach(input => {
+                input.style.display = 'none';
+            });
+            
+            // Show selected input
+            if (this.value === 'manual') {
+                manualAnchorInput.style.display = 'block';
+            } else if (this.value === 'document') {
+                documentAnchorInput.style.display = 'block';
+                loadReferenceDocuments();
+            } else if (this.value === 'oed') {
+                oedAnchorInput.style.display = 'block';
+            } else if (this.value === 'ontology') {
+                ontologyAnchorInput.style.display = 'block';
+                loadOntServeOntologies();
+            }
+        });
+    });
+    
+    // Load reference documents for anchor selection
+    function loadReferenceDocuments() {
+        const select = document.getElementById('anchor-document-select');
+        // TODO: Implement AJAX call to load references
+        // fetch('/references/api/list')
+        //     .then(response => response.json())
+        //     .then(data => populateDocumentSelect(data));
+        
+        // Placeholder options
+        select.innerHTML = `
+            <option value="">Select a reference document...</option>
+            <option value="ieee-standard">IEEE Standard 830 - Software Requirements Specification</option>
+            <option value="w3c-prov">W3C PROV-O Specification</option>
+            <option value="webster-dict">Webster's Technical Dictionary</option>
+        `;
+    }
+    
+    // Load OntServe ontologies
+    function loadOntServeOntologies() {
+        const ontologySelect = document.getElementById('ontology-select');
+        const conceptsDiv = document.getElementById('ontology-concepts');
+        const conceptSelect = document.getElementById('concept-select');
+        
+        // TODO: Implement AJAX call to OntServe
+        // fetch('/ontserve/api/ontologies')
+        //     .then(response => response.json())
+        //     .then(data => populateOntologySelect(data));
+        
+        ontologySelect.addEventListener('change', function() {
+            if (this.value) {
+                conceptsDiv.style.display = 'block';
+                loadOntologyConcepts(this.value);
+            } else {
+                conceptsDiv.style.display = 'none';
+            }
         });
     }
     
-    // Update fuzziness score display
-    const fuzzinessInput = document.getElementById('fuzziness_score');
-    if (fuzzinessInput) {
-        fuzzinessInput.addEventListener('input', function() {
-            const value = parseFloat(this.value);
-            const helpText = this.parentElement.nextElementSibling.nextElementSibling;
-            if (value >= 0 && value <= 1) {
-                let description = '';
-                if (value <= 0.3) description = 'Highly fuzzy boundaries';
-                else if (value <= 0.6) description = 'Moderately fuzzy boundaries';
-                else description = 'Well-defined boundaries';
+    // Load concepts from selected ontology
+    function loadOntologyConcepts(ontologyId) {
+        const conceptSelect = document.getElementById('concept-select');
+        
+        // TODO: Implement AJAX call to OntServe for specific ontology
+        // fetch(`/ontserve/api/ontologies/${ontologyId}/concepts`)
+        //     .then(response => response.json())
+        //     .then(data => populateConceptSelect(data));
+        
+        // Placeholder options based on ontology
+        if (ontologyId === 'prov-o') {
+            conceptSelect.innerHTML = `
+                <option value="prov:Entity">prov:Entity</option>
+                <option value="prov:Activity">prov:Activity</option>
+                <option value="prov:Agent">prov:Agent</option>
+                <option value="prov:wasDerivedFrom">prov:wasDerivedFrom</option>
+                <option value="prov:wasGeneratedBy">prov:wasGeneratedBy</option>
+                <option value="prov:wasAssociatedWith">prov:wasAssociatedWith</option>
+            `;
+        }
+    }
+    
+    // Merriam-Webster Dictionary Search
+    document.getElementById('mw-dict-service-btn').addEventListener('click', function() {
+        const searchTerm = prompt('Enter term to search in Merriam-Webster Dictionary:');
+        if (!searchTerm) return;
+        
+        searchMerriamWebster(searchTerm, 'dictionary');
+    });
+    
+    // Merriam-Webster Thesaurus Search
+    document.getElementById('mw-thes-service-btn').addEventListener('click', function() {
+        const searchTerm = prompt('Enter term to search in Merriam-Webster Thesaurus:');
+        if (!searchTerm) return;
+        
+        searchMerriamWebster(searchTerm, 'thesaurus');
+    });
+    
+    // Generic Merriam-Webster search function
+    async function searchMerriamWebster(term, service) {
+        const resultsDiv = document.getElementById('service-results');
+        const resultsContent = document.getElementById('service-results-content');
+        
+        resultsContent.innerHTML = `
+            <div class="alert alert-info">
+                <i class="fas fa-spinner fa-spin me-2"></i>
+                Searching Merriam-Webster ${service} for "${term}"...
+            </div>
+        `;
+        resultsDiv.style.display = 'block';
+        
+        try {
+            const response = await fetch(`/api/merriam-webster/${service}/${encodeURIComponent(term)}`);
+            const data = await response.json();
+            
+            if (data.success && data.results && data.results.length > 0) {
+                // Store results for selection function
+                currentSearchResults = data;
+                currentSearchTerm = term;
+                currentSearchService = service;
+                let html = `
+                    <div class="alert alert-success">
+                        <i class="fas fa-check-circle me-2"></i>
+                        <strong>Merriam-Webster ${service.charAt(0).toUpperCase() + service.slice(1)} Results for "${term}"</strong>
+                    </div>
+                `;
                 
-                helpText.innerHTML = `Confidence in meaning boundaries (0.0 = fuzzy, 1.0 = precise). Current: ${description}`;
+                data.results.forEach((result, index) => {
+                    html += `
+                        <div class="card mb-2">
+                            <div class="card-body">
+                                <h6 class="card-title">
+                                    <strong>${result.word || result.id}</strong>
+                                    ${result.functional_label ? `<span class="badge bg-secondary ms-2">${result.functional_label}</span>` : ''}
+                                </h6>
+                    `;
+                    
+                    if (service === 'dictionary') {
+                        if (result.definitions && result.definitions.length > 0) {
+                            html += `<ul class="mb-2">`;
+                            result.definitions.forEach(def => {
+                                html += `<li>${def}</li>`;
+                            });
+                            html += `</ul>`;
+                        }
+                    } else if (service === 'thesaurus') {
+                        if (result.synonyms && result.synonyms.length > 0) {
+                            html += `
+                                <p><strong>Synonyms:</strong> 
+                                ${result.synonyms.flat().slice(0, 10).join(', ')}</p>
+                            `;
+                        }
+                        if (result.antonyms && result.antonyms.length > 0) {
+                            html += `
+                                <p><strong>Antonyms:</strong> 
+                                ${result.antonyms.flat().slice(0, 10).join(', ')}</p>
+                            `;
+                        }
+                    }
+                    
+                    html += `
+                            <button type="button" class="btn btn-sm btn-outline-primary" 
+                                    onclick="selectMerriamWebsterResult('${term}', '${service}', ${index})">
+                                Use This Definition
+                            </button>
+                        </div>
+                    </div>
+                    `;
+                });
+                
+                html += `
+                    <div class="mt-3 p-2 bg-light rounded">
+                        <small><strong>Citation:</strong> ${data.citation}</small>
+                    </div>
+                `;
+                
+                resultsContent.innerHTML = html;
+                
+            } else if (data.success && (!data.results || data.results.length === 0)) {
+                // Clear stored results if no results found
+                currentSearchResults = null;
+                currentSearchTerm = null;
+                currentSearchService = null;
+                
+                resultsContent.innerHTML = `
+                    <div class="alert alert-warning">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        No results found for "${term}" in Merriam-Webster ${service}.
+                        <br><small>Try a different spelling or search term.</small>
+                    </div>
+                `;
+            } else {
+                throw new Error(data.error || 'Unknown error occurred');
+            }
+            
+        } catch (error) {
+            console.error('Merriam-Webster API Error:', error);
+            
+            // Clear stored results on error
+            currentSearchResults = null;
+            currentSearchTerm = null;
+            currentSearchService = null;
+            
+            resultsContent.innerHTML = `
+                <div class="alert alert-danger">
+                    <i class="fas fa-exclamation-circle me-2"></i>
+                    <strong>Error searching Merriam-Webster ${service}</strong>
+                    <br>${error.message}
+                    <br><small>Please try again or contact support if the problem persists.</small>
+                </div>
+            `;
+        }
+    }
+    
+    // Store search results for result selection
+    let currentSearchResults = null;
+    let currentSearchTerm = null;
+    let currentSearchService = null;
+
+    // Function to handle selecting a Merriam-Webster result
+    window.selectMerriamWebsterResult = function(term, service, index) {
+        if (!currentSearchResults || !currentSearchResults.results) {
+            alert('Error: Search results not available. Please search again.');
+            return;
+        }
+        
+        const selectedResult = currentSearchResults.results[index];
+        if (!selectedResult) {
+            alert('Error: Selected result not found. Please try again.');
+            return;
+        }
+        
+        // Switch to Manual Entry tab
+        const manualTab = document.getElementById('manual-tab');
+        const manualPane = document.getElementById('manual-pane');
+        
+        // Activate manual tab
+        manualTab.click();
+        
+        // Populate Term Text field with the searched term
+        const termTextField = document.getElementById('term_text');
+        if (termTextField) {
+            termTextField.value = term;
+        }
+        
+        // Populate Meaning Description with the selected definition
+        const meaningDescriptionField = document.getElementById('meaning_description');
+        if (meaningDescriptionField && selectedResult) {
+            let meaningText = '';
+            
+            if (service === 'dictionary' && selectedResult.definitions && selectedResult.definitions.length > 0) {
+                // Use the first definition as the primary meaning
+                meaningText = selectedResult.definitions[0];
+                
+                // Add additional definitions if available
+                if (selectedResult.definitions.length > 1) {
+                    const additionalDefs = selectedResult.definitions.slice(1, 3); // Take up to 2 more
+                    meaningText += '; ' + additionalDefs.join('; ');
+                }
+            } else if (service === 'thesaurus' && selectedResult.shortdef && selectedResult.shortdef.length > 0) {
+                // Use short definition from thesaurus
+                meaningText = selectedResult.shortdef[0];
+            }
+            
+            if (meaningText) {
+                meaningDescriptionField.value = meaningText;
+            }
+        }
+        
+        // Populate context anchor field
+        const contextAnchorField = document.getElementById('context_anchor');
+        if (contextAnchorField) {
+            let contextTerms = [term]; // Start with the search term
+            
+            if (service === 'dictionary' && selectedResult.definitions) {
+                // Extract key terms from definitions for context anchoring
+                selectedResult.definitions.forEach(def => {
+                    // Simple extraction of potential anchor terms (nouns, key concepts)
+                    const words = def.toLowerCase().match(/\b[a-z]{4,}\b/g);
+                    if (words) {
+                        contextTerms = contextTerms.concat(words.slice(0, 3)); // Take first 3 meaningful words
+                    }
+                });
+            } else if (service === 'thesaurus') {
+                // Use synonyms as context anchors
+                if (selectedResult.synonyms && selectedResult.synonyms.length > 0) {
+                    const synonymList = selectedResult.synonyms.flat();
+                    contextTerms = contextTerms.concat(synonymList.slice(0, 5));
+                }
+            }
+            
+            // Remove duplicates and join
+            contextTerms = [...new Set(contextTerms)];
+            contextAnchorField.value = contextTerms.slice(0, 8).join(', ');
+        }
+        
+        // Populate source citation field
+        const sourceCitationField = document.getElementById('manual-source-citation');
+        if (sourceCitationField && currentSearchResults.citation) {
+            sourceCitationField.value = currentSearchResults.citation;
+        }
+        
+        // Set source type to dictionary
+        const sourceTypeField = document.getElementById('manual-source-type');
+        if (sourceTypeField) {
+            sourceTypeField.value = 'dictionary';
+        }
+        
+        // Populate temporal period with current year from API response
+        if (currentSearchResults.current_year) {
+            // Set to single year mode (should already be default)
+            const singleYearRadio = document.getElementById('single-year');
+            if (singleYearRadio) {
+                singleYearRadio.checked = true;
+            }
+            
+            // Set the reference year to current year
+            const referenceYearField = document.getElementById('reference-year');
+            if (referenceYearField) {
+                referenceYearField.value = currentSearchResults.current_year;
+            }
+            
+            // Update the hidden field
+            const hiddenPeriodField = document.getElementById('temporal_period');
+            if (hiddenPeriodField) {
+                hiddenPeriodField.value = currentSearchResults.current_year.toString();
+            }
+        }
+        
+        // Close the service results
+        const resultsDiv = document.getElementById('service-results');
+        if (resultsDiv) {
+            resultsDiv.style.display = 'none';
+        }
+        
+        // Show success message
+        const alertHtml = `
+            <div class="alert alert-success alert-dismissible fade show" role="alert">
+                <i class="fas fa-check-circle me-2"></i>
+                <strong>Result Selected!</strong> 
+                Term text, meaning description, temporal period (${currentSearchResults.current_year || 'current year'}), context anchors, and source citation have been populated from Merriam-Webster ${service}.
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+        `;
+        
+        // Insert alert at top of manual pane
+        const manualPaneElement = document.getElementById('manual-pane');
+        if (manualPaneElement) {
+            manualPaneElement.insertAdjacentHTML('afterbegin', alertHtml);
+        }
+        
+        // Auto-dismiss success message after 4 seconds
+        setTimeout(() => {
+            const alert = manualPaneElement.querySelector('.alert-success');
+            if (alert) {
+                alert.remove();
+            }
+        }, 4000);
+    }
+    
+    // OED Search functionality (existing)
+    if (document.getElementById('oed-service-btn')) {
+        document.getElementById('oed-service-btn').addEventListener('click', function() {
+            const searchTerm = prompt('Enter term to search in OED:');
+            if (!searchTerm) return;
+            
+            const resultsDiv = document.getElementById('service-results');
+            const resultsContent = document.getElementById('service-results-content');
+            
+            resultsContent.innerHTML = `
+                <div class="alert alert-info">
+                    <i class="fas fa-search me-2"></i>
+                    Searching OED for "${searchTerm}"...
+                    <br><small>Note: This will integrate with the existing OED reference system.</small>
+                </div>
+            `;
+            resultsDiv.style.display = 'block';
+        });
+    }
+    
+    // Auto-suggest for manual context anchor
+    const contextInput = document.getElementById('context_anchor');
+    if (contextInput) {
+        contextInput.addEventListener('input', function() {
+            // TODO: Implement context anchor suggestions from:
+            // 1. Existing terms in database
+            // 2. OntServe ontologies 
+            // 3. Related terms from corpus analysis
+        });
+    }
+    
+    // Form validation enhancement
+    const form = document.querySelector('form');
+    if (form) {
+        form.addEventListener('submit', function(e) {
+            const periodValue = hiddenPeriodField.value;
+            if (!periodValue.trim()) {
+                e.preventDefault();
+                alert('Please specify a reference time period for this term.');
+                return false;
             }
         });
     }

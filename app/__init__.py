@@ -51,6 +51,7 @@ def create_app(config_name=None):
     from app.routes.references import references_bp
     from app.routes.upload import upload_bp
     from app.routes.terms import terms_bp
+    from app.routes.merriam_webster import merriam_bp
     
     app.register_blueprint(auth_bp, url_prefix='/auth')
     app.register_blueprint(text_input_bp, url_prefix='/input')
@@ -60,6 +61,7 @@ def create_app(config_name=None):
     app.register_blueprint(references_bp)
     app.register_blueprint(upload_bp)
     app.register_blueprint(terms_bp)
+    app.register_blueprint(merriam_bp)
     
     # Jinja filters
     @app.template_filter('number_format')

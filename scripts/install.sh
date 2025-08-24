@@ -79,32 +79,30 @@ docker-compose down 2>/dev/null || true
 print_status "Building Docker image..."
 docker-compose build
 
-# Start the database first and wait for it to be ready
-print_status "Starting database service..."
-docker-compose up -d db
+# Note: Using system PostgreSQL database on port 5432
+print_status "Checking system PostgreSQL connection..."
 
-print_status "Waiting for database to be ready..."
-sleep 5
+print_status "Waiting for system PostgreSQL database to be ready..."
+sleep 2
 
-# Check if database is ready
+# Check if system PostgreSQL database is ready
 MAX_TRIES=30
 TRIES=0
-while ! docker-compose exec -T db pg_isready -U postgres > /dev/null 2>&1; do
+while ! pg_isready -h localhost -p 5432 -U postgres > /dev/null 2>&1; do
     TRIES=$((TRIES+1))
     if [ $TRIES -gt $MAX_TRIES ]; then
-        print_error "Database failed to start after $MAX_TRIES attempts."
+        print_error "System PostgreSQL database failed to connect after $MAX_TRIES attempts."
+        print_error "Please ensure PostgreSQL is installed and running on port 5432."
         exit 1
     fi
     echo -n "."
     sleep 2
 done
 echo ""
-print_status "Database is ready!"
+print_status "System PostgreSQL database is ready!"
 
-# Initialize database
-print_status "Initializing database..."
-docker-compose up -d db_init
-sleep 5
+# Database initialization will be handled by the Flask app
+print_status "Database initialization will be handled by the Flask application..."
 
 # Start the web application
 print_status "Starting web application..."
