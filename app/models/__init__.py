@@ -9,6 +9,11 @@ from .ontology_mapping import OntologyMapping
 from .text_segment import TextSegment
 from .experiment import Experiment
 
+# Term management models
+from .term import Term, TermVersion, FuzzinessAdjustment
+from .context_anchor import ContextAnchor
+from .semantic_drift import SemanticDriftActivity, AnalysisAgent, ProvenanceChain
+
 __all__ = [
     'User', 
     'Document', 
@@ -16,5 +21,13 @@ __all__ = [
     'ExtractedEntity', 
     'OntologyMapping', 
     'TextSegment',
-    'Experiment'
+    'Experiment',
+    # Term management models
+    'Term',
+    'TermVersion', 
+    'FuzzinessAdjustment',
+    'ContextAnchor',
+    'SemanticDriftActivity',
+    'AnalysisAgent',
+    'ProvenanceChain'
 ]

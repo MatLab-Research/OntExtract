@@ -8,24 +8,36 @@
     <div class="row mb-5">
         <div class="col-lg-8 mx-auto text-center">
             <h1 class="display-4 fw-bold mb-4">
-                <i class="fas fa-project-diagram text-success me-3"></i>
+                <i class="fas fa-anchor text-primary me-3"></i>
                 OntExtract
             </h1>
             <p class="lead mb-4">
-                A research tool for ontology-based text analysis and entity extraction. 
-                Upload documents or paste text to analyze semantic relationships using computational linguistics methods.
+                Semantic Change Analysis through Term-Centric Research. 
+                Track how word meanings evolve over time using ontological frameworks and PROV-O provenance.
             </p>
             
             {% if current_user.is_authenticated %}
+                <!-- Primary Term Management Action -->
+                <div class="row justify-content-center mb-4">
+                    <div class="col-lg-6">
+                        <a href="{{ url_for('terms.add_term') }}" class="btn btn-primary btn-lg w-100 py-3">
+                            <i class="fas fa-plus-circle fa-2x mb-2"></i><br>
+                            <strong>Add New Term</strong><br>
+                            <small>Create anchor term for semantic analysis</small>
+                        </a>
+                    </div>
+                </div>
+                
+                <!-- Secondary Actions -->
                 <div class="d-flex flex-wrap justify-content-center gap-3">
-                    <a href="{{ url_for('text_input.upload_form') }}" class="btn btn-primary btn-lg">
-                        <i class="fas fa-upload me-2"></i>Upload Files
+                    <a href="{{ url_for('terms.term_index') }}" class="btn btn-success btn-lg">
+                        <i class="fas fa-list me-2"></i>Browse Terms
                     </a>
-                    <a href="{{ url_for('text_input.paste_form') }}" class="btn btn-success btn-lg">
-                        <i class="fas fa-paste me-2"></i>Paste Text
+                    <a href="{{ url_for('experiments.index') }}" class="btn btn-outline-info btn-lg">
+                        <i class="fas fa-flask me-2"></i>Experiments
                     </a>
-                    <a href="{{ url_for('text_input.document_list') }}" class="btn btn-outline-info btn-lg">
-                        <i class="fas fa-file-text me-2"></i>Source Documents
+                    <a href="{{ url_for('text_input.document_list') }}" class="btn btn-outline-secondary btn-lg">
+                        <i class="fas fa-file-text me-2"></i>Documents
                     </a>
                 </div>
             {% else %}
@@ -44,19 +56,19 @@
     <!-- Methodology Section -->
     <div class="row mb-5">
         <div class="col-12">
-            <h2 class="text-center mb-5">Research Methodology</h2>
+            <h2 class="text-center mb-5">Semantic Change Analysis Framework</h2>
         </div>
         
         <div class="col-lg-4 col-md-6 mb-4">
             <div class="card h-100 text-center">
                 <div class="card-body">
                     <div class="feature-icon">
-                        <i class="fas fa-file-upload"></i>
+                        <i class="fas fa-anchor"></i>
                     </div>
-                    <h4>Document Processing</h4>
+                    <h4>Context Anchors</h4>
                     <p class="text-muted">
-                        Supports multiple document formats (PDF, DOCX, TXT, HTML, Markdown) 
-                        with automated text extraction and preprocessing.
+                        Define semantic neighborhoods of terms fixed to specific meanings 
+                        at particular points in time for drift measurement.
                     </p>
                 </div>
             </div>
@@ -66,12 +78,12 @@
             <div class="card h-100 text-center">
                 <div class="card-body">
                     <div class="feature-icon">
-                        <i class="fas fa-brain"></i>
+                        <i class="fas fa-clock"></i>
                     </div>
-                    <h4>Computational Linguistics</h4>
+                    <h4>Temporal Analysis</h4>
                     <p class="text-muted">
-                        Employs large language models and Google LangExtract 
-                        for named entity recognition and linguistic analysis.
+                        Track semantic drift through neighborhood overlap, positional change, 
+                        and similarity reduction across time periods.
                     </p>
                 </div>
             </div>
@@ -81,12 +93,12 @@
             <div class="card h-100 text-center">
                 <div class="card-body">
                     <div class="feature-icon">
-                        <i class="fas fa-project-diagram"></i>
+                        <i class="fas fa-balance-scale"></i>
                     </div>
-                    <h4>Ontological Modeling</h4>
+                    <h4>Fuzziness Scoring</h4>
                     <p class="text-muted">
-                        Maps extracted entities to formal ontological structures 
-                        for semantic knowledge representation and reasoning.
+                        Measure degree of membership retention in original semantic 
+                        categories using continuous rather than binary classifications.
                     </p>
                 </div>
             </div>
@@ -96,12 +108,12 @@
             <div class="card h-100 text-center">
                 <div class="card-body">
                     <div class="feature-icon">
-                        <i class="fas fa-search"></i>
+                        <i class="fas fa-question-circle"></i>
                     </div>
-                    <h4>Entity Extraction</h4>
+                    <h4>Uncertainty Management</h4>
                     <p class="text-muted">
-                        Identifies and classifies entities (persons, organizations, concepts) 
-                        with contextual relationship analysis.
+                        Handle interpretive ambiguity through provisional classifications 
+                        and confidence-based weights for borderline cases.
                     </p>
                 </div>
             </div>
@@ -111,12 +123,12 @@
             <div class="card h-100 text-center">
                 <div class="card-body">
                     <div class="feature-icon">
-                        <i class="fas fa-chart-network"></i>
+                        <i class="fas fa-sitemap"></i>
                     </div>
-                    <h4>Graph-Based Analysis</h4>
+                    <h4>PROV-O Provenance</h4>
                     <p class="text-muted">
-                        Visualizes semantic relationships and entity networks 
-                        for qualitative and quantitative text analysis.
+                        Document complete audit trails using W3C Provenance Ontology 
+                        for traceable semantic change detection.
                     </p>
                 </div>
             </div>
@@ -126,12 +138,12 @@
             <div class="card h-100 text-center">
                 <div class="card-body">
                     <div class="feature-icon">
-                        <i class="fas fa-download"></i>
+                        <i class="fas fa-code-branch"></i>
                     </div>
-                    <h4>Data Export</h4>
+                    <h4>Version Control</h4>
                     <p class="text-muted">
-                        Outputs structured data in standard formats (JSON, RDF, CSV) 
-                        for integration with research workflows.
+                        Maintain branching semantic histories with parallel meaning 
+                        trajectories and convergence tracking over time.
                     </p>
                 </div>
             </div>
@@ -142,15 +154,15 @@
     <!-- Quick Stats (if user is logged in) -->
     <div class="row">
         <div class="col-12">
-            <h3 class="text-center mb-4">Your Dashboard</h3>
+            <h3 class="text-center mb-4">Your Research Dashboard</h3>
         </div>
         
         <div class="col-lg-3 col-md-6 mb-4">
             <div class="card stats-card">
                 <div class="card-body text-center">
-                    <i class="fas fa-file-text fa-2x mb-3"></i>
-                    <h3 class="mb-1">{{ current_user.documents.count() }}</h3>
-                    <p class="mb-0">Source Documents</p>
+                    <i class="fas fa-anchor fa-2x mb-3 text-primary"></i>
+                    <h3 class="mb-1">{{ term_counts.anchor_terms }}</h3>
+                    <p class="mb-0">Anchor Terms</p>
                 </div>
             </div>
         </div>
@@ -158,9 +170,9 @@
         <div class="col-lg-3 col-md-6 mb-4">
             <div class="card stats-card">
                 <div class="card-body text-center">
-                    <i class="fas fa-cogs fa-2x mb-3"></i>
-                    <h3 class="mb-1">{{ current_user.processing_jobs.count() }}</h3>
-                    <p class="mb-0">Processing Jobs</p>
+                    <i class="fas fa-code-branch fa-2x mb-3 text-success"></i>
+                    <h3 class="mb-1">{{ term_counts.term_versions }}</h3>
+                    <p class="mb-0">Term Versions</p>
                 </div>
             </div>
         </div>
@@ -168,25 +180,55 @@
         <div class="col-lg-3 col-md-6 mb-4">
             <div class="card stats-card">
                 <div class="card-body text-center">
-                    <i class="fas fa-calendar fa-2x mb-3"></i>
+                    <i class="fas fa-project-diagram fa-2x mb-3 text-info"></i>
+                    <h3 class="mb-1">{{ term_counts.drift_analyses }}</h3>
+                    <p class="mb-0">Drift Analyses</p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-3 col-md-6 mb-4">
+            <div class="card stats-card">
+                <div class="card-body text-center">
+                    <i class="fas fa-calendar fa-2x mb-3 text-warning"></i>
                     <h3 class="mb-1">{{ current_user.created_at.strftime('%b %Y') }}</h3>
                     <p class="mb-0">Member Since</p>
                 </div>
             </div>
         </div>
-        
-        <div class="col-lg-3 col-md-6 mb-4">
-            <div class="card stats-card">
-                <div class="card-body text-center">
-                    <i class="fas fa-clock fa-2x mb-3"></i>
-                    <h3 class="mb-1">
-                        {% if current_user.last_login %}
-                            {{ current_user.last_login.strftime('%b %d') }}
-                        {% else %}
-                            Never
-                        {% endif %}
-                    </h3>
-                    <p class="mb-0">Last Login</p>
+    </div>
+    
+    <!-- Recent Activity -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Recent Terms</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6>Most Recent</h6>
+                            <p class="text-muted">
+                                {% if recent_term %}
+                                    "{{ recent_term.term_text }}" - {{ recent_term.created_at.strftime('%b %d, %Y') }}
+                                {% else %}
+                                    No terms created yet
+                                {% endif %}
+                            </p>
+                        </div>
+                        <div class="col-md-6">
+                            <h6>Quick Actions</h6>
+                            <div class="btn-group-sm">
+                                <a href="{{ url_for('terms.add_term') }}" class="btn btn-primary btn-sm me-2">
+                                    <i class="fas fa-plus"></i> Add Term
+                                </a>
+                                <a href="{{ url_for('terms.term_index') }}" class="btn btn-outline-secondary btn-sm">
+                                    <i class="fas fa-list"></i> View All
+                                </a>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
