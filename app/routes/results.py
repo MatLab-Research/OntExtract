@@ -9,6 +9,14 @@ def results_home():
     """Results dashboard"""
     return render_template('results/index.html')
 
+@results_bp.route('/reports')
+@login_required
+def reports():
+    """View analysis reports and summaries"""
+    # TODO: Implement reports dashboard
+    return render_template('results/reports.html')
+
+
 @results_bp.route('/job/<int:job_id>')
 @login_required
 def job_results(job_id):

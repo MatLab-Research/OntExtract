@@ -3,6 +3,7 @@ from flask_login import login_required, current_user
 from app import db
 from app.models import Term, TermVersion, ContextAnchor, FuzzinessAdjustment, AnalysisAgent
 from app.services.term_analysis_service import TermAnalysisService, TermAnalysisResult
+from app.forms import AddTermForm, EditTermForm, AddVersionForm
 from sqlalchemy import func, desc
 from datetime import datetime
 import json
@@ -74,55 +75,26 @@ def term_index():
 @terms_bp.route('/add', methods=['GET', 'POST'])
 @login_required 
 def add_term():
-    """Add new term with wizard interface"""
-    if request.method == 'POST':
+    """Add new term with WTForms validation"""
+    form = AddTermForm()
+    
+    if form.validate_on_submit():
         try:
-            # Parse form data
-            term_text = request.form.get('term_text', '').strip()
-            description = request.form.get('description', '').strip()
-            etymology = request.form.get('etymology', '').strip()
-            notes = request.form.get('notes', '').strip()
-            research_domain = request.form.get('research_domain', '').strip()
-            selection_rationale = request.form.get('selection_rationale', '').strip()
-            historical_significance = request.form.get('historical_significance', '').strip()
-            
-            # First version data
-            temporal_period = request.form.get('temporal_period', '').strip()
-            temporal_start_year = request.form.get('temporal_start_year', type=int)
-            temporal_end_year = request.form.get('temporal_end_year', type=int)
-            meaning_description = request.form.get('meaning_description', '').strip()
-            corpus_source = request.form.get('corpus_source', '').strip()
-            confidence_level = request.form.get('confidence_level', 'medium')
-            context_anchors = request.form.get('context_anchors', '').strip()
-            
-            # Validation
-            if not term_text:
-                flash('Term text is required.', 'error')
-                return render_template('terms/add.html')
-            
-            if not meaning_description:
-                flash('Meaning description is required for the first version.', 'error')
-                return render_template('terms/add.html')
-                
-            if not temporal_period:
-                flash('Temporal period is required for the first version.', 'error')
-                return render_template('terms/add.html')
-            
             # Check for duplicate
-            existing = Term.query.filter_by(term_text=term_text, created_by=current_user.id).first()
+            existing = Term.query.filter_by(term_text=form.term_text.data, created_by=current_user.id).first()
             if existing:
-                flash(f'You already have a term "{term_text}". Please choose a different term.', 'error')
-                return render_template('terms/add.html')
+                flash(f'You already have a term "{form.term_text.data}". Please choose a different term.', 'error')
+                return render_template('terms/add.html', form=form)
             
             # Create term
             term = Term(
-                term_text=term_text,
-                description=description,
-                etymology=etymology,
-                notes=notes,
-                research_domain=research_domain,
-                selection_rationale=selection_rationale,
-                historical_significance=historical_significance,
+                term_text=form.term_text.data,
+                description=form.description.data,
+                etymology=form.etymology.data,
+                notes=form.notes.data,
+                research_domain=form.research_domain.data,
+                selection_rationale=form.selection_rationale.data,
+                historical_significance=form.historical_significance.data,
                 created_by=current_user.id,
                 status='active'
             )
@@ -132,18 +104,19 @@ def add_term():
             
             # Parse context anchors
             anchor_list = []
-            if context_anchors:
-                anchor_list = [anchor.strip() for anchor in context_anchors.split(',') if anchor.strip()]
+            if form.context_anchor.data:
+                anchor_list = [anchor.strip() for anchor in form.context_anchor.data.split(',') if anchor.strip()]
             
             # Create first version
             version = TermVersion(
                 term_id=term.id,
-                temporal_period=temporal_period,
-                temporal_start_year=temporal_start_year,
-                temporal_end_year=temporal_end_year,
-                meaning_description=meaning_description,
-                corpus_source=corpus_source,
-                confidence_level=confidence_level,
+                temporal_period=form.temporal_period.data,
+                temporal_start_year=form.temporal_start_year.data,
+                temporal_end_year=form.temporal_end_year.data,
+                meaning_description=form.meaning_description.data,
+                corpus_source=form.corpus_source.data,
+                confidence_level=form.confidence_level.data,
+                fuzziness_score=form.fuzziness_score.data,
                 extraction_method='manual',
                 context_anchor=anchor_list,  # Store as JSON
                 generated_at_time=datetime.utcnow(),
@@ -162,16 +135,39 @@ def add_term():
             
             db.session.commit()
             
-            flash(f'Term "{term_text}" created successfully with first temporal version.', 'success')
+            flash(f'Term "{form.term_text.data}" created successfully with first temporal version.', 'success')
             return redirect(url_for('terms.view_term', term_id=term.id))
             
         except Exception as e:
             db.session.rollback()
             current_app.logger.error(f"Error creating term: {str(e)}")
             flash('An error occurred while creating the term. Please try again.', 'error')
-            return render_template('terms/add.html')
     
-    return render_template('terms/add.html')
+    return render_template('terms/add.html', form=form)
+
+
+@terms_bp.route('/import', methods=['GET', 'POST'])
+@login_required
+def import_terms():
+    """Import terms from CSV/Excel files"""
+    if request.method == 'POST':
+        # TODO: Implement file upload and parsing logic
+        flash('Import functionality coming soon!', 'info')
+        return redirect(url_for('terms.term_index'))
+    
+    return render_template('terms/import.html')
+
+
+@terms_bp.route('/download', methods=['GET', 'POST'])
+@login_required
+def download_data():
+    """Download terms and analysis data in various formats"""
+    if request.method == 'POST':
+        # TODO: Implement data export logic
+        flash('Download functionality coming soon!', 'info')
+        return redirect(url_for('terms.term_index'))
+    
+    return render_template('terms/download.html')
 
 
 @terms_bp.route('/<uuid:term_id>')

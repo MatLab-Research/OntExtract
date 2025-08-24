@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+
+{% block title %}Download Data - OntExtract{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row">
+        <div class="col-lg-8 mx-auto">
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="mb-0">
+                        <i class="fas fa-download me-2"></i>
+                        Download Data
+                    </h3>
+                    <p class="text-muted mb-0">Export your terms and analysis data in various formats</p>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle me-2"></i>
+                        <strong>Coming Soon!</strong> This feature is under development. You'll be able to export your research data in multiple formats.
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h5><i class="fas fa-file-csv me-2 text-success"></i>Data Export Formats:</h5>
+                            <ul>
+                                <li>CSV - Spreadsheet compatible format</li>
+                                <li>Excel - Full-featured workbook with multiple sheets</li>
+                                <li>JSON - Structured data with complete metadata</li>
+                                <li>XML - Hierarchical format with provenance</li>
+                                <li>RDF/Turtle - Semantic web compatible</li>
+                            </ul>
+                        </div>
+                        <div class="col-md-6">
+                            <h5><i class="fas fa-database me-2 text-primary"></i>Export Options:</h5>
+                            <ul>
+                                <li>All terms and versions</li>
+                                <li>Selected terms only</li>
+                                <li>Analysis results and drift data</li>
+                                <li>Context anchors and relationships</li>
+                                <li>Provenance and audit trails</li>
+                                <li>Custom date range filtering</li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <div class="row mt-4">
+                        <div class="col-12">
+                            <h5><i class="fas fa-chart-line me-2 text-warning"></i>Analysis Reports:</h5>
+                            <ul>
+                                <li>Semantic drift summary reports (PDF)</li>
+                                <li>Term evolution timelines (HTML/PDF)</li>
+                                <li>Comparative analysis charts</li>
+                                <li>Fuzziness score distributions</li>
+                                <li>Citation-ready research data packages</li>
+                            </ul>
+                        </div>
+                    </div>
+                    
+                    <div class="mt-4">
+                        <a href="{{ url_for('terms.term_index') }}" class="btn btn-success me-2">
+                            <i class="fas fa-list me-1"></i>Browse Terms
+                        </a>
+                        <a href="{{ url_for('terms.add_term') }}" class="btn btn-primary me-2">
+                            <i class="fas fa-plus-circle me-1"></i>Add New Term
+                        </a>
+                        <a href="{{ url_for('experiments.index') }}" class="btn btn-outline-secondary">
+                            <i class="fas fa-flask me-1"></i>Run Experiments
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

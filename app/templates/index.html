@@ -8,36 +8,26 @@
     <div class="row mb-5">
         <div class="col-lg-8 mx-auto text-center">
             <h1 class="display-4 fw-bold mb-4">
-                <i class="fas fa-anchor text-primary me-3"></i>
                 OntExtract
             </h1>
             <p class="lead mb-4">
-                Semantic Change Analysis through Term-Centric Research. 
-                Track how word meanings evolve over time using ontological frameworks and PROV-O provenance.
+                Semantic Change Analysis through Term-Centric Research
             </p>
             
             {% if current_user.is_authenticated %}
-                <!-- Primary Term Management Action -->
-                <div class="row justify-content-center mb-4">
-                    <div class="col-lg-6">
-                        <a href="{{ url_for('terms.add_term') }}" class="btn btn-primary btn-lg w-100 py-3">
-                            <i class="fas fa-plus-circle fa-2x mb-2"></i><br>
-                            <strong>Add New Term</strong><br>
-                            <small>Create anchor term for semantic analysis</small>
-                        </a>
-                    </div>
-                </div>
-                
-                <!-- Secondary Actions -->
+                <!-- All Actions in One Row -->
                 <div class="d-flex flex-wrap justify-content-center gap-3">
+                    <a href="{{ url_for('terms.add_term') }}" class="btn btn-primary btn-lg">
+                        <i class="fas fa-plus-circle me-2"></i>Add New Term
+                    </a>
+                    <a href="{{ url_for('terms.import_terms') }}" class="btn btn-warning btn-lg">
+                        <i class="fas fa-upload me-2"></i>Import Terms
+                    </a>
                     <a href="{{ url_for('terms.term_index') }}" class="btn btn-success btn-lg">
                         <i class="fas fa-list me-2"></i>Browse Terms
                     </a>
-                    <a href="{{ url_for('experiments.index') }}" class="btn btn-outline-info btn-lg">
-                        <i class="fas fa-flask me-2"></i>Experiments
-                    </a>
-                    <a href="{{ url_for('text_input.document_list') }}" class="btn btn-outline-secondary btn-lg">
-                        <i class="fas fa-file-text me-2"></i>Documents
+                    <a href="{{ url_for('terms.download_data') }}" class="btn btn-outline-info btn-lg">
+                        <i class="fas fa-download me-2"></i>Download Data
                     </a>
                 </div>
             {% else %}
@@ -54,19 +44,19 @@
     </div>
 
     <!-- Methodology Section -->
-    <div class="row mb-5">
+    <div class="row mb-4">
         <div class="col-12">
-            <h2 class="text-center mb-5">Semantic Change Analysis Framework</h2>
+            <h3 class="text-center mb-4">Semantic Change Analysis Framework</h3>
         </div>
         
-        <div class="col-lg-4 col-md-6 mb-4">
-            <div class="card h-100 text-center">
+        <div class="col-lg-4 col-md-6 mb-3">
+            <div class="card h-100">
                 <div class="card-body">
-                    <div class="feature-icon">
-                        <i class="fas fa-anchor"></i>
-                    </div>
-                    <h4>Context Anchors</h4>
-                    <p class="text-muted">
+                    <h5 class="d-flex align-items-center">
+                        <i class="fas fa-anchor text-primary me-2"></i>
+                        Context Anchors
+                    </h5>
+                    <p class="text-muted mb-0">
                         Define semantic neighborhoods of terms fixed to specific meanings 
                         at particular points in time for drift measurement.
                     </p>
@@ -74,14 +64,14 @@
             </div>
         </div>
         
-        <div class="col-lg-4 col-md-6 mb-4">
-            <div class="card h-100 text-center">
+        <div class="col-lg-4 col-md-6 mb-3">
+            <div class="card h-100">
                 <div class="card-body">
-                    <div class="feature-icon">
-                        <i class="fas fa-clock"></i>
-                    </div>
-                    <h4>Temporal Analysis</h4>
-                    <p class="text-muted">
+                    <h5 class="d-flex align-items-center">
+                        <i class="fas fa-clock text-success me-2"></i>
+                        Temporal Analysis
+                    </h5>
+                    <p class="text-muted mb-0">
                         Track semantic drift through neighborhood overlap, positional change, 
                         and similarity reduction across time periods.
                     </p>
@@ -89,14 +79,14 @@
             </div>
         </div>
         
-        <div class="col-lg-4 col-md-6 mb-4">
-            <div class="card h-100 text-center">
+        <div class="col-lg-4 col-md-6 mb-3">
+            <div class="card h-100">
                 <div class="card-body">
-                    <div class="feature-icon">
-                        <i class="fas fa-balance-scale"></i>
-                    </div>
-                    <h4>Fuzziness Scoring</h4>
-                    <p class="text-muted">
+                    <h5 class="d-flex align-items-center">
+                        <i class="fas fa-sliders-h text-info me-2"></i>
+                        Fuzziness Scoring
+                    </h5>
+                    <p class="text-muted mb-0">
                         Measure degree of membership retention in original semantic 
                         categories using continuous rather than binary classifications.
                     </p>
@@ -104,14 +94,14 @@
             </div>
         </div>
         
-        <div class="col-lg-4 col-md-6 mb-4">
-            <div class="card h-100 text-center">
+        <div class="col-lg-4 col-md-6 mb-3">
+            <div class="card h-100">
                 <div class="card-body">
-                    <div class="feature-icon">
-                        <i class="fas fa-question-circle"></i>
-                    </div>
-                    <h4>Uncertainty Management</h4>
-                    <p class="text-muted">
+                    <h5 class="d-flex align-items-center">
+                        <i class="fas fa-question-circle text-warning me-2"></i>
+                        Uncertainty Management
+                    </h5>
+                    <p class="text-muted mb-0">
                         Handle interpretive ambiguity through provisional classifications 
                         and confidence-based weights for borderline cases.
                     </p>
@@ -119,14 +109,14 @@
             </div>
         </div>
         
-        <div class="col-lg-4 col-md-6 mb-4">
-            <div class="card h-100 text-center">
+        <div class="col-lg-4 col-md-6 mb-3">
+            <div class="card h-100">
                 <div class="card-body">
-                    <div class="feature-icon">
-                        <i class="fas fa-sitemap"></i>
-                    </div>
-                    <h4>PROV-O Provenance</h4>
-                    <p class="text-muted">
+                    <h5 class="d-flex align-items-center">
+                        <i class="fas fa-sitemap text-danger me-2"></i>
+                        PROV-O Provenance
+                    </h5>
+                    <p class="text-muted mb-0">
                         Document complete audit trails using W3C Provenance Ontology 
                         for traceable semantic change detection.
                     </p>
@@ -134,14 +124,14 @@
             </div>
         </div>
         
-        <div class="col-lg-4 col-md-6 mb-4">
-            <div class="card h-100 text-center">
+        <div class="col-lg-4 col-md-6 mb-3">
+            <div class="card h-100">
                 <div class="card-body">
-                    <div class="feature-icon">
-                        <i class="fas fa-code-branch"></i>
-                    </div>
-                    <h4>Version Control</h4>
-                    <p class="text-muted">
+                    <h5 class="d-flex align-items-center">
+                        <i class="fas fa-code-branch text-secondary me-2"></i>
+                        Version Control
+                    </h5>
+                    <p class="text-muted mb-0">
                         Maintain branching semantic histories with parallel meaning 
                         trajectories and convergence tracking over time.
                     </p>
@@ -154,10 +144,10 @@
     <!-- Quick Stats (if user is logged in) -->
     <div class="row">
         <div class="col-12">
-            <h3 class="text-center mb-4">Your Research Dashboard</h3>
+            <h4 class="text-center mb-3">Your Research Dashboard</h4>
         </div>
         
-        <div class="col-lg-3 col-md-6 mb-4">
+        <div class="col-lg-3 col-md-6 mb-3">
             <div class="card stats-card">
                 <div class="card-body text-center">
                     <i class="fas fa-anchor fa-2x mb-3 text-primary"></i>
@@ -167,7 +157,7 @@
             </div>
         </div>
         
-        <div class="col-lg-3 col-md-6 mb-4">
+        <div class="col-lg-3 col-md-6 mb-3">
             <div class="card stats-card">
                 <div class="card-body text-center">
                     <i class="fas fa-code-branch fa-2x mb-3 text-success"></i>
@@ -177,7 +167,7 @@
             </div>
         </div>
         
-        <div class="col-lg-3 col-md-6 mb-4">
+        <div class="col-lg-3 col-md-6 mb-3">
             <div class="card stats-card">
                 <div class="card-body text-center">
                     <i class="fas fa-project-diagram fa-2x mb-3 text-info"></i>
@@ -187,12 +177,12 @@
             </div>
         </div>
         
-        <div class="col-lg-3 col-md-6 mb-4">
+        <div class="col-lg-3 col-md-6 mb-3">
             <div class="card stats-card">
                 <div class="card-body text-center">
-                    <i class="fas fa-calendar fa-2x mb-3 text-warning"></i>
-                    <h3 class="mb-1">{{ current_user.created_at.strftime('%b %Y') }}</h3>
-                    <p class="mb-0">Member Since</p>
+                    <i class="fas fa-chart-line fa-2x mb-3 text-warning"></i>
+                    <h3 class="mb-1">{{ term_counts.total_analyses or 0 }}</h3>
+                    <p class="mb-0">Total Analyses</p>
                 </div>
             </div>
         </div>
