@@ -226,7 +226,7 @@ def document_list():
     page = request.args.get('page', 1, type=int)
     per_page = 10
     
-    documents = Document.query.filter_by(user_id=current_user.id, document_type='document')\
+    documents = Document.query.filter_by(document_type='document')\
         .order_by(Document.created_at.desc())\
         .paginate(page=page, per_page=per_page, error_out=False)
     
@@ -236,7 +236,7 @@ def document_list():
 @login_required
 def document_detail(document_id):
     """Show document details"""
-    document = Document.query.filter_by(id=document_id, user_id=current_user.id).first_or_404()
+    document = Document.query.filter_by(id=document_id).first_or_404()
     
     # Get processing jobs for this document
     processing_jobs = document.processing_jobs.order_by(ProcessingJob.created_at.desc()).limit(5).all()
@@ -249,7 +249,7 @@ def document_detail(document_id):
 @login_required
 def delete_document(document_id):
     """Delete a document"""
-    document = Document.query.filter_by(id=document_id, user_id=current_user.id).first_or_404()
+    document = Document.query.filter_by(id=document_id).first_or_404()
     
     try:
         # Delete associated file
@@ -278,7 +278,7 @@ def delete_document(document_id):
 @login_required
 def api_document_content(document_id):
     """API endpoint to get document content"""
-    document = Document.query.filter_by(id=document_id, user_id=current_user.id).first_or_404()
+    document = Document.query.filter_by(id=document_id).first_or_404()
     return jsonify(document.to_dict(include_content=True))
 
 @text_input_bp.route('/api/documents')
@@ -288,7 +288,7 @@ def api_document_list():
     page = request.args.get('page', 1, type=int)
     per_page = request.args.get('per_page', 10, type=int)
     
-    documents = Document.query.filter_by(user_id=current_user.id)\
+    documents = Document.query\
         .order_by(Document.created_at.desc())\
         .paginate(page=page, per_page=per_page, error_out=False)
     

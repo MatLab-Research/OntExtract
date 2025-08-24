@@ -17,9 +17,8 @@ references_bp = Blueprint('references', __name__, url_prefix='/references')
 @references_bp.route('/')
 @login_required
 def index():
-    """List all references for the current user"""
+    """List all references for all users"""
     references = Document.query.filter_by(
-        user_id=current_user.id,
         document_type='reference'
     ).order_by(Document.created_at.desc()).all()
     
@@ -29,7 +28,7 @@ def index():
 @login_required
 def download(id: int):
     """Download the original file for a reference document if present."""
-    doc = Document.query.filter_by(id=id, user_id=current_user.id).first_or_404()
+    doc = Document.query.filter_by(id=id).first_or_404()
     if not doc.file_path:
         flash('No file attached to this reference.', 'warning')
         return redirect(url_for('references.view', id=id))
@@ -164,7 +163,7 @@ def upload():
         experiment_id = request.form.get('experiment_id')
         if experiment_id:
             experiment = Experiment.query.get(experiment_id)
-            if experiment and experiment.user_id == current_user.id:
+            if experiment:
                 experiment.add_reference(document, 
                                        include_in_analysis=request.form.get('include_in_analysis') == 'true')
                 flash(f'Reference linked to experiment "{experiment.name}"', 'success')
@@ -177,8 +176,7 @@ def upload():
     experiment = None
     if experiment_id:
         experiment = Experiment.query.filter_by(
-            id=experiment_id,
-            user_id=current_user.id
+            id=experiment_id
         ).first()
     
     # Use tabbed interface by default for better UX
@@ -565,7 +563,7 @@ def split_oed_reference(parent_id: int):
 
     The parent remains a summary entry; children receive parent_document_id.
     """
-    parent_doc = Document.query.filter_by(id=parent_id, user_id=current_user.id, document_type='reference').first_or_404()
+    parent_doc = Document.query.filter_by(id=parent_id, document_type='reference').first_or_404()
     meta = parent_doc.source_metadata or {}
     selected = meta.get('selected_senses') or []
     if not selected:
@@ -626,13 +624,11 @@ def view(id):
     """View reference details"""
     reference = Document.query.filter_by(
         id=id,
-        user_id=current_user.id,
         document_type='reference'
     ).first_or_404()
     
     # Get experiments that use this reference (use relationship.any to avoid typing issues)
     experiments_using = Experiment.query.filter(
-        Experiment.user_id == current_user.id,
         Experiment.references.any(Document.id == reference.id)
     ).all()
     
@@ -646,7 +642,6 @@ def edit(id):
     """Edit reference metadata"""
     reference = Document.query.filter_by(
         id=id,
-        user_id=current_user.id,
         document_type='reference'
     ).first_or_404()
     
@@ -690,7 +685,6 @@ def delete(id):
     """Delete a reference"""
     reference = Document.query.filter_by(
         id=id,
-        user_id=current_user.id,
         document_type='reference'
     ).first_or_404()
     
@@ -713,12 +707,10 @@ def api_search():
     
     if not query:
         references = Document.query.filter_by(
-            user_id=current_user.id,
             document_type='reference'
         ).limit(20).all()
     else:
         references = Document.query.filter(
-            Document.user_id == current_user.id,
             Document.document_type == 'reference',
             Document.title.contains(query)
         ).limit(20).all()

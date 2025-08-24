@@ -80,10 +80,10 @@ def add_term():
     
     if form.validate_on_submit():
         try:
-            # Check for duplicate
-            existing = Term.query.filter_by(term_text=form.term_text.data, created_by=current_user.id).first()
+            # Check for duplicate across all users
+            existing = Term.query.filter_by(term_text=form.term_text.data).first()
             if existing:
-                flash(f'You already have a term "{form.term_text.data}". Please choose a different term.', 'error')
+                flash(f'Term "{form.term_text.data}" already exists. Please choose a different term.', 'error')
                 return render_template('terms/add.html', form=form)
             
             # Create term

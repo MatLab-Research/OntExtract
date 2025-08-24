@@ -31,6 +31,7 @@
                                     <th>Title</th>
                                     <th>Type</th>
                                     <th>Source</th>
+                                    <th>Uploaded By</th>
                                     <th>Date</th>
                                     <th>Status</th>
                                     <th>Used In</th>
@@ -86,6 +87,13 @@
                                         <small>Oxford English Dictionary</small>
                                         {% else %}
                                         <span class="text-muted">-</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if reference.user %}
+                                            <span class="text-muted">{{ reference.user.username }}</span>
+                                        {% else %}
+                                            <span class="text-muted">-</span>
                                         {% endif %}
                                     </td>
                                     <td>

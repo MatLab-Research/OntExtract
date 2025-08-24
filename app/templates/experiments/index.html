@@ -28,6 +28,7 @@
                                     <th>Type</th>
                                     <th>Documents</th>
                                     <th>Status</th>
+                                    <th>Created By</th>
                                     <th>Created</th>
                                     <th>Actions</th>
                                 </tr>
@@ -61,6 +62,13 @@
                                             <span class="badge bg-danger">Error</span>
                                         {% else %}
                                             <span class="badge bg-secondary">{{ experiment.status }}</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if experiment.user %}
+                                            <span class="text-muted">{{ experiment.user.username }}</span>
+                                        {% else %}
+                                            <span class="text-muted">-</span>
                                         {% endif %}
                                     </td>
                                     <td>{{ experiment.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
