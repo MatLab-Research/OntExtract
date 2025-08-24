@@ -1,0 +1,259 @@
+{% extends "base.html" %}
+
+{% block title %}Terms Index - OntExtract{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row">
+        <div class="col-12">
+            <!-- Header -->
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h1><i class="fas fa-anchor me-2"></i>Anchor Terms Index</h1>
+                <a href="{{ url_for('terms.add_term') }}" class="btn btn-primary">
+                    <i class="fas fa-plus me-2"></i>Add New Term
+                </a>
+            </div>
+            
+            <!-- Search and Filters -->
+            <div class="card mb-4">
+                <div class="card-body">
+                    <form method="GET" class="row g-3">
+                        <div class="col-md-4">
+                            <label for="search" class="form-label">Search Terms</label>
+                            <input type="text" class="form-control" id="search" name="search" 
+                                   value="{{ search_query }}" placeholder="Search by term text...">
+                        </div>
+                        <div class="col-md-3">
+                            <label for="status" class="form-label">Status</label>
+                            <select class="form-select" id="status" name="status">
+                                <option value="">All Statuses</option>
+                                <option value="active" {{ 'selected' if status_filter == 'active' }}>Active</option>
+                                <option value="provisional" {{ 'selected' if status_filter == 'provisional' }}>Provisional</option>
+                                <option value="deprecated" {{ 'selected' if status_filter == 'deprecated' }}>Deprecated</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label for="domain" class="form-label">Research Domain</label>
+                            <select class="form-select" id="domain" name="domain">
+                                <option value="">All Domains</option>
+                                {% for domain in domains %}
+                                <option value="{{ domain }}" {{ 'selected' if domain_filter == domain }}>{{ domain }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label">&nbsp;</label>
+                            <div>
+                                <button type="submit" class="btn btn-outline-primary">
+                                    <i class="fas fa-search"></i> Search
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+            
+            <!-- Terms List -->
+            {% if terms.items %}
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">
+                        Terms 
+                        <span class="badge bg-secondary">{{ terms.total }}</span>
+                        {% if search_query or status_filter or domain_filter %}
+                            <small class="text-muted">(filtered)</small>
+                        {% endif %}
+                    </h5>
+                    <div class="text-muted">
+                        Page {{ terms.page }} of {{ terms.pages }}
+                    </div>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Term</th>
+                                    <th>Status</th>
+                                    <th>Research Domain</th>
+                                    <th>Current Version</th>
+                                    <th>Versions</th>
+                                    <th>Created</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for term in terms.items %}
+                                <tr>
+                                    <td>
+                                        <strong>{{ term.term_text }}</strong>
+                                        {% if term.description %}
+                                        <br><small class="text-muted">{{ term.description[:100] }}{% if term.description|length > 100 %}...{% endif %}</small>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if term.status == 'active' %}
+                                            <span class="badge bg-success">Active</span>
+                                        {% elif term.status == 'provisional' %}
+                                            <span class="badge bg-warning">Provisional</span>
+                                        {% elif term.status == 'deprecated' %}
+                                            <span class="badge bg-secondary">Deprecated</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if term.research_domain %}
+                                            <span class="badge bg-info">{{ term.research_domain }}</span>
+                                        {% else %}
+                                            <span class="text-muted">—</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% set current_version = term.get_current_version() %}
+                                        {% if current_version %}
+                                            <strong>{{ current_version.temporal_period }}</strong>
+                                            <br><small class="text-muted">
+                                                {% if current_version.fuzziness_score %}
+                                                    Fuzziness: {{ "%.3f"|format(current_version.fuzziness_score) }}
+                                                {% endif %}
+                                                {% if current_version.confidence_level %}
+                                                    <span class="badge bg-light text-dark">{{ current_version.confidence_level }}</span>
+                                                {% endif %}
+                                            </small>
+                                        {% else %}
+                                            <span class="text-muted">No current version</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-primary">{{ term.get_version_count() }}</span>
+                                        {% if term.has_provisional_versions() %}
+                                            <i class="fas fa-question-circle text-warning" title="Has provisional versions"></i>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <small>{{ term.created_at.strftime('%b %d, %Y') }}</small>
+                                        {% if term.creator %}
+                                            <br><small class="text-muted">by {{ term.creator.username }}</small>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <div class="btn-group btn-group-sm" role="group">
+                                            <a href="{{ url_for('terms.view_term', term_id=term.id) }}" 
+                                               class="btn btn-outline-primary" title="View Details">
+                                                <i class="fas fa-eye"></i>
+                                            </a>
+                                            {% if term.created_by == current_user.id or current_user.is_admin %}
+                                            <a href="{{ url_for('terms.edit_term', term_id=term.id) }}" 
+                                               class="btn btn-outline-secondary" title="Edit Term">
+                                                <i class="fas fa-edit"></i>
+                                            </a>
+                                            {% endif %}
+                                            <a href="{{ url_for('terms.add_version', term_id=term.id) }}" 
+                                               class="btn btn-outline-success" title="Add Version">
+                                                <i class="fas fa-plus"></i>
+                                            </a>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                
+                <!-- Pagination -->
+                {% if terms.pages > 1 %}
+                <div class="card-footer">
+                    <nav aria-label="Terms pagination">
+                        <ul class="pagination pagination-sm justify-content-center mb-0">
+                            {% if terms.has_prev %}
+                            <li class="page-item">
+                                <a class="page-link" href="{{ url_for('terms.term_index', page=terms.prev_num, search=search_query, status=status_filter, domain=domain_filter) }}">
+                                    <i class="fas fa-chevron-left"></i> Previous
+                                </a>
+                            </li>
+                            {% endif %}
+                            
+                            {% for page_num in terms.iter_pages() %}
+                                {% if page_num %}
+                                    {% if page_num != terms.page %}
+                                    <li class="page-item">
+                                        <a class="page-link" href="{{ url_for('terms.term_index', page=page_num, search=search_query, status=status_filter, domain=domain_filter) }}">
+                                            {{ page_num }}
+                                        </a>
+                                    </li>
+                                    {% else %}
+                                    <li class="page-item active">
+                                        <span class="page-link">{{ page_num }}</span>
+                                    </li>
+                                    {% endif %}
+                                {% else %}
+                                <li class="page-item disabled">
+                                    <span class="page-link">...</span>
+                                </li>
+                                {% endif %}
+                            {% endfor %}
+                            
+                            {% if terms.has_next %}
+                            <li class="page-item">
+                                <a class="page-link" href="{{ url_for('terms.term_index', page=terms.next_num, search=search_query, status=status_filter, domain=domain_filter) }}">
+                                    Next <i class="fas fa-chevron-right"></i>
+                                </a>
+                            </li>
+                            {% endif %}
+                        </ul>
+                    </nav>
+                </div>
+                {% endif %}
+            </div>
+            
+            {% else %}
+            <!-- No Terms Found -->
+            <div class="card">
+                <div class="card-body text-center py-5">
+                    <i class="fas fa-anchor fa-3x text-muted mb-3"></i>
+                    <h4>No Terms Found</h4>
+                    {% if search_query or status_filter or domain_filter %}
+                    <p class="text-muted">No terms match your current search criteria.</p>
+                    <a href="{{ url_for('terms.term_index') }}" class="btn btn-outline-secondary me-2">
+                        <i class="fas fa-times"></i> Clear Filters
+                    </a>
+                    {% else %}
+                    <p class="text-muted">You haven't created any anchor terms yet.</p>
+                    {% endif %}
+                    <a href="{{ url_for('terms.add_term') }}" class="btn btn-primary">
+                        <i class="fas fa-plus me-2"></i>Add Your First Term
+                    </a>
+                </div>
+            </div>
+            {% endif %}
+            
+            <!-- Help Section -->
+            <div class="row mt-4">
+                <div class="col-12">
+                    <div class="card bg-light">
+                        <div class="card-body">
+                            <h6><i class="fas fa-info-circle me-2"></i>About Anchor Terms</h6>
+                            <p class="mb-0 small">
+                                Anchor terms are historically significant words selected for semantic change analysis. 
+                                Each term can have multiple temporal versions representing different meanings across time periods, 
+                                with context anchors defining semantic neighborhoods and fuzziness scores measuring membership retention.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Auto-submit search form on Enter key
+    document.getElementById('search').addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+            this.form.submit();
+        }
+    });
+</script>
+{% endblock %}
