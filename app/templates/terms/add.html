@@ -1,0 +1,170 @@
+{% extends "base.html" %}
+
+{% block title %}Add New Term - OntExtract{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row">
+        <div class="col-lg-8 mx-auto">
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="mb-0">
+                        <i class="fas fa-plus-circle me-2"></i>
+                        Add New Term
+                    </h3>
+                    <p class="text-muted mb-0">Create a new anchor term for semantic change analysis</p>
+                </div>
+                <div class="card-body">
+                    <form method="POST" action="{{ url_for('terms.add_term') }}">
+                        {{ form.hidden_tag() }}
+                        
+                        <!-- Term Text -->
+                        <div class="mb-3">
+                            {{ form.term_text.label(class="form-label") }}
+                            {{ form.term_text(class="form-control" + (" is-invalid" if form.term_text.errors else "")) }}
+                            {% if form.term_text.errors %}
+                                <div class="invalid-feedback">
+                                    {% for error in form.term_text.errors %}
+                                        {{ error }}
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                            <div class="form-text">The word or phrase you want to analyze for semantic change</div>
+                        </div>
+
+                        <!-- Meaning Description -->
+                        <div class="mb-3">
+                            {{ form.meaning_description.label(class="form-label") }}
+                            {{ form.meaning_description(class="form-control" + (" is-invalid" if form.meaning_description.errors else ""), rows="4") }}
+                            {% if form.meaning_description.errors %}
+                                <div class="invalid-feedback">
+                                    {% for error in form.meaning_description.errors %}
+                                        {{ error }}
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                            <div class="form-text">Describe the current or baseline meaning of this term</div>
+                        </div>
+
+                        <!-- Temporal Period -->
+                        <div class="mb-3">
+                            {{ form.temporal_period.label(class="form-label") }}
+                            {{ form.temporal_period(class="form-control" + (" is-invalid" if form.temporal_period.errors else "")) }}
+                            {% if form.temporal_period.errors %}
+                                <div class="invalid-feedback">
+                                    {% for error in form.temporal_period.errors %}
+                                        {{ error }}
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                            <div class="form-text">Time period for this meaning (e.g., "1800-1850", "Early 20th Century")</div>
+                        </div>
+
+                        <!-- Context Anchor -->
+                        <div class="mb-3">
+                            {{ form.context_anchor.label(class="form-label") }}
+                            {{ form.context_anchor(class="form-control" + (" is-invalid" if form.context_anchor.errors else "")) }}
+                            {% if form.context_anchor.errors %}
+                                <div class="invalid-feedback">
+                                    {% for error in form.context_anchor.errors %}
+                                        {{ error }}
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                            <div class="form-text">Related terms that help anchor this meaning (comma-separated)</div>
+                        </div>
+
+                        <!-- Fuzziness Score -->
+                        <div class="mb-3">
+                            {{ form.fuzziness_score.label(class="form-label") }}
+                            <div class="input-group">
+                                {{ form.fuzziness_score(class="form-control" + (" is-invalid" if form.fuzziness_score.errors else ""), step="0.1", min="0", max="1") }}
+                                <span class="input-group-text">
+                                    <i class="fas fa-sliders-h"></i>
+                                </span>
+                            </div>
+                            {% if form.fuzziness_score.errors %}
+                                <div class="invalid-feedback">
+                                    {% for error in form.fuzziness_score.errors %}
+                                        {{ error }}
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                            <div class="form-text">Confidence in meaning boundaries (0.0 = fuzzy, 1.0 = precise). Leave blank for automatic calculation.</div>
+                        </div>
+
+                        <!-- Confidence Level -->
+                        <div class="mb-3">
+                            {{ form.confidence_level.label(class="form-label") }}
+                            {{ form.confidence_level(class="form-select" + (" is-invalid" if form.confidence_level.errors else "")) }}
+                            {% if form.confidence_level.errors %}
+                                <div class="invalid-feedback">
+                                    {% for error in form.confidence_level.errors %}
+                                        {{ error }}
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                            <div class="form-text">Your confidence in this term definition</div>
+                        </div>
+
+                        <!-- Notes -->
+                        <div class="mb-4">
+                            {{ form.notes.label(class="form-label") }}
+                            {{ form.notes(class="form-control" + (" is-invalid" if form.notes.errors else ""), rows="3") }}
+                            {% if form.notes.errors %}
+                                <div class="invalid-feedback">
+                                    {% for error in form.notes.errors %}
+                                        {{ error }}
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                            <div class="form-text">Additional notes or context (optional)</div>
+                        </div>
+
+                        <!-- Submit Buttons -->
+                        <div class="d-flex justify-content-between">
+                            <a href="{{ url_for('terms.term_index') }}" class="btn btn-outline-secondary">
+                                <i class="fas fa-arrow-left me-2"></i>Cancel
+                            </a>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save me-2"></i>Create Term
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Auto-suggest for Context Anchor -->
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Simple auto-suggest implementation for context anchors
+    const contextInput = document.getElementById('context_anchor');
+    if (contextInput) {
+        contextInput.addEventListener('input', function() {
+            // TODO: Implement context anchor suggestions
+            // This could fetch suggestions from existing terms or semantic services
+        });
+    }
+    
+    // Update fuzziness score display
+    const fuzzinessInput = document.getElementById('fuzziness_score');
+    if (fuzzinessInput) {
+        fuzzinessInput.addEventListener('input', function() {
+            const value = parseFloat(this.value);
+            const helpText = this.parentElement.nextElementSibling.nextElementSibling;
+            if (value >= 0 && value <= 1) {
+                let description = '';
+                if (value <= 0.3) description = 'Highly fuzzy boundaries';
+                else if (value <= 0.6) description = 'Moderately fuzzy boundaries';
+                else description = 'Well-defined boundaries';
+                
+                helpText.innerHTML = `Confidence in meaning boundaries (0.0 = fuzzy, 1.0 = precise). Current: ${description}`;
+            }
+        });
+    }
+});
+</script>
+{% endblock %}

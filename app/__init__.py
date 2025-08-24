@@ -100,6 +100,7 @@ def create_app(config_name=None):
                 dashboard_data['term_counts']['anchor_terms'] = Term.query.filter_by(created_by=current_user.id).count()
                 dashboard_data['term_counts']['term_versions'] = TermVersion.query.filter_by(created_by=current_user.id).count()
                 dashboard_data['term_counts']['drift_analyses'] = SemanticDriftActivity.query.filter_by(created_by=current_user.id).count()
+                dashboard_data['term_counts']['total_analyses'] = dashboard_data['term_counts']['term_versions'] + dashboard_data['term_counts']['drift_analyses']
                 
             except Exception as e:
                 app.logger.debug(f"Could not fetch dashboard data: {e}")
