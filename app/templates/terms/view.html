@@ -1,0 +1,237 @@
+{% extends "base.html" %}
+
+{% block title %}{{ term.term_text }} - Term Details - OntExtract{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row">
+        <div class="col-12">
+            <!-- Header -->
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                    <h1>
+                        <i class="fas fa-anchor me-2"></i>
+                        {{ term.term_text }}
+                        {% if term.status == 'active' %}
+                            <span class="badge bg-success">Active</span>
+                        {% elif term.status == 'provisional' %}
+                            <span class="badge bg-warning">Provisional</span>
+                        {% elif term.status == 'deprecated' %}
+                            <span class="badge bg-secondary">Deprecated</span>
+                        {% endif %}
+                    </h1>
+                    {% if term.research_domain %}
+                        <p class="text-muted mb-0">
+                            <i class="fas fa-tag me-1"></i>{{ term.research_domain }}
+                        </p>
+                    {% endif %}
+                </div>
+                <div>
+                    <a href="{{ url_for('terms.term_index') }}" class="btn btn-outline-secondary me-2">
+                        <i class="fas fa-arrow-left me-1"></i>Back to Index
+                    </a>
+                    {% if term.created_by == current_user.id or current_user.is_admin %}
+                    <a href="{{ url_for('terms.edit_term', term_id=term.id) }}" class="btn btn-outline-primary me-2">
+                        <i class="fas fa-edit me-1"></i>Edit Term
+                    </a>
+                    {% endif %}
+                    <a href="{{ url_for('terms.add_version', term_id=term.id) }}" class="btn btn-primary">
+                        <i class="fas fa-plus me-1"></i>Add Version
+                    </a>
+                </div>
+            </div>
+
+            <!-- Term Information -->
+            <div class="row mb-4">
+                <div class="col-lg-8">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="mb-0">Term Information</h5>
+                        </div>
+                        <div class="card-body">
+                            {% if term.description %}
+                            <div class="mb-3">
+                                <strong>Description:</strong>
+                                <p>{{ term.description }}</p>
+                            </div>
+                            {% endif %}
+                            
+                            {% if term.etymology %}
+                            <div class="mb-3">
+                                <strong>Etymology:</strong>
+                                <p>{{ term.etymology }}</p>
+                            </div>
+                            {% endif %}
+                            
+                            {% if term.selection_rationale %}
+                            <div class="mb-3">
+                                <strong>Selection Rationale:</strong>
+                                <p>{{ term.selection_rationale }}</p>
+                            </div>
+                            {% endif %}
+                            
+                            {% if term.historical_significance %}
+                            <div class="mb-3">
+                                <strong>Historical Significance:</strong>
+                                <p>{{ term.historical_significance }}</p>
+                            </div>
+                            {% endif %}
+                            
+                            {% if term.notes %}
+                            <div class="mb-3">
+                                <strong>Notes:</strong>
+                                <p>{{ term.notes }}</p>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="col-lg-4">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="mb-0">Statistics</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="row text-center">
+                                <div class="col-6">
+                                    <h3 class="text-primary">{{ term.get_version_count() }}</h3>
+                                    <small>Versions</small>
+                                </div>
+                                <div class="col-6">
+                                    <h3 class="text-info">{{ drift_activities|length }}</h3>
+                                    <small>Analyses</small>
+                                </div>
+                            </div>
+                            <hr>
+                            <div class="small text-muted">
+                                <p><strong>Created:</strong> {{ term.created_at.strftime('%B %d, %Y') }}</p>
+                                {% if term.creator %}
+                                <p><strong>Created by:</strong> {{ term.creator.username }}</p>
+                                {% endif %}
+                                <p><strong>Last modified:</strong> {{ term.updated_at.strftime('%B %d, %Y') if term.updated_at else 'Never' }}</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Temporal Versions -->
+            <div class="card mb-4">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">
+                        <i class="fas fa-clock me-2"></i>Temporal Versions
+                        <span class="badge bg-primary">{{ versions|length }}</span>
+                    </h5>
+                    <a href="{{ url_for('terms.add_version', term_id=term.id) }}" class="btn btn-sm btn-outline-primary">
+                        <i class="fas fa-plus me-1"></i>Add Version
+                    </a>
+                </div>
+                <div class="card-body">
+                    {% if versions %}
+                    <div class="row">
+                        {% for version in versions %}
+                        <div class="col-md-6 mb-3">
+                            <div class="card {% if version.is_current %}border-success{% endif %}">
+                                <div class="card-header d-flex justify-content-between align-items-center">
+                                    <strong>{{ version.temporal_period }}</strong>
+                                    {% if version.is_current %}
+                                        <span class="badge bg-success">Current</span>
+                                    {% endif %}
+                                </div>
+                                <div class="card-body">
+                                    <p class="mb-2">{{ version.meaning_description[:150] }}{% if version.meaning_description|length > 150 %}...{% endif %}</p>
+                                    
+                                    <div class="small text-muted">
+                                        {% if version.fuzziness_score %}
+                                        <div class="mb-1">
+                                            <strong>Fuzziness:</strong> {{ "%.3f"|format(version.fuzziness_score) }}
+                                        </div>
+                                        {% endif %}
+                                        
+                                        {% if version.confidence_level %}
+                                        <div class="mb-1">
+                                            <strong>Confidence:</strong> 
+                                            <span class="badge badge-sm 
+                                                {% if version.confidence_level == 'high' %}bg-success
+                                                {% elif version.confidence_level == 'medium' %}bg-warning
+                                                {% else %}bg-danger{% endif %}">
+                                                {{ version.confidence_level.title() }}
+                                            </span>
+                                        </div>
+                                        {% endif %}
+                                        
+                                        {% if version.context_anchor %}
+                                        <div class="mb-1">
+                                            <strong>Context Anchors:</strong> {{ version.context_anchor[:3]|join(', ') }}{% if version.context_anchor|length > 3 %} +{{ version.context_anchor|length - 3 }} more{% endif %}
+                                        </div>
+                                        {% endif %}
+                                        
+                                        <div class="mb-1">
+                                            <strong>Created:</strong> {{ version.generated_at_time.strftime('%b %d, %Y') }}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <div class="text-center py-4">
+                        <i class="fas fa-clock fa-3x text-muted mb-3"></i>
+                        <h5>No Versions Yet</h5>
+                        <p class="text-muted">This term doesn't have any temporal versions yet.</p>
+                        <a href="{{ url_for('terms.add_version', term_id=term.id) }}" class="btn btn-primary">
+                            <i class="fas fa-plus me-1"></i>Add First Version
+                        </a>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Semantic Drift Activities -->
+            {% if drift_activities %}
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-chart-line me-2"></i>Recent Analysis Activities
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Activity</th>
+                                    <th>Period Range</th>
+                                    <th>Drift Detected</th>
+                                    <th>Algorithm</th>
+                                    <th>Date</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for activity in drift_activities[:5] %}
+                                <tr>
+                                    <td>{{ activity.activity_type.replace('_', ' ').title() }}</td>
+                                    <td>{{ activity.start_period }} → {{ activity.end_period }}</td>
+                                    <td>
+                                        {% if activity.drift_detected %}
+                                            <span class="badge bg-warning">Yes</span>
+                                        {% else %}
+                                            <span class="badge bg-success">No</span>
+                                        {% endif %}
+                                    </td>
+                                    <td><small>{{ activity.detection_algorithm }}</small></td>
+                                    <td><small>{{ activity.activity_time.strftime('%b %d, %Y') }}</small></td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
