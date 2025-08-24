@@ -217,15 +217,44 @@ class TermVersion(db.Model):
         ).first()
         
         if not existing:
-            db.session.execute(
-                text("INSERT INTO term_version_anchors (term_version_id, context_anchor_id, similarity_score, rank_in_neighborhood) VALUES (:version_id, :anchor_id, :score, :rank)"),
-                {
-                    'version_id': str(self.id), 
-                    'anchor_id': str(anchor.id),
-                    'score': similarity_score,
-                    'rank': rank
-                }
-            )
+            # Build the INSERT statement dynamically based on available values
+            if similarity_score is not None and rank is not None:
+                db.session.execute(
+                    text("INSERT INTO term_version_anchors (term_version_id, context_anchor_id, similarity_score, rank_in_neighborhood) VALUES (:version_id, :anchor_id, :score, :rank)"),
+                    {
+                        'version_id': str(self.id), 
+                        'anchor_id': str(anchor.id),
+                        'score': similarity_score,
+                        'rank': rank
+                    }
+                )
+            elif similarity_score is not None:
+                db.session.execute(
+                    text("INSERT INTO term_version_anchors (term_version_id, context_anchor_id, similarity_score) VALUES (:version_id, :anchor_id, :score)"),
+                    {
+                        'version_id': str(self.id), 
+                        'anchor_id': str(anchor.id),
+                        'score': similarity_score
+                    }
+                )
+            elif rank is not None:
+                db.session.execute(
+                    text("INSERT INTO term_version_anchors (term_version_id, context_anchor_id, rank_in_neighborhood) VALUES (:version_id, :anchor_id, :rank)"),
+                    {
+                        'version_id': str(self.id), 
+                        'anchor_id': str(anchor.id),
+                        'rank': rank
+                    }
+                )
+            else:
+                # Insert with only required fields, let PostgreSQL handle defaults/NULLs
+                db.session.execute(
+                    text("INSERT INTO term_version_anchors (term_version_id, context_anchor_id) VALUES (:version_id, :anchor_id)"),
+                    {
+                        'version_id': str(self.id), 
+                        'anchor_id': str(anchor.id)
+                    }
+                )
     
     def get_context_anchor_terms(self):
         """Get list of context anchor terms"""

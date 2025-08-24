@@ -1,0 +1,46 @@
+@prefix prov: <http://www.w3.org/ns/prov#> .
+@prefix ex:   <http://example.org/> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+
+#################################################################
+# Entities: Different versions of the term "cloud"
+#################################################################
+
+# The meaning of "cloud" in 2000
+ex:Term_Cloud_2000 a prov:Entity ;
+    prov:generatedAtTime "2000"^^xsd:gYear ;        # Entity created in 2000
+    prov:wasDerivedFrom ex:Corpus_COHA .            # Derived from the COHA corpus / we don't have to have it but it could be a meaningful metadata to record
+
+# The meaning of "cloud" in 2010 (marked as provisional)
+ex:Term_Cloud_2010 a prov:Entity , ex:ProvisionalMeaning ; 
+    prov:generatedAtTime "2010"^^xsd:gYear ;        # Entity created in 2010
+    prov:wasDerivedFrom ex:Corpus_COHA .            # Derived from the COHA corpus / we don't have to have it but it could be a meaningful metadata to record
+
+#################################################################
+# Activity: Semantic drift detection between 2000 and 2010
+#################################################################
+
+ex:SemanticDrift_Cloud_2000_2010 a prov:Activity , ex:ProvisionalActivity ;
+    prov:used ex:Term_Cloud_2000 ;                  # Used the 2000 meaning as input
+    prov:generated ex:Term_Cloud_2010 ;             # Produced the 2010 meaning as output
+    prov:wasAssociatedWith ex:HistBERT_Model ;      # Associated with a software agent
+    prov:endedAtTime "2010"^^xsd:gYear .            # Activity concluded in 2010
+
+#################################################################
+# Agent: The algorithm responsible
+#################################################################
+
+ex:HistBERT_Model a prov:SoftwareAgent ;
+    rdfs:label "HistBERT Temporal Embedding Alignment" .
+
+#################################################################
+# Custom extension classes for provisional tagging
+#################################################################
+
+ex:ProvisionalMeaning a rdfs:Class ;
+    rdfs:label "Provisional semantic meaning" ;
+    rdfs:comment "A meaning version that is considered tentative or uncertain." .
+
+ex:ProvisionalActivity a rdfs:Class ;
+    rdfs:label "Provisional semantic drift detection" ;
+    rdfs:comment "An activity whose results are considered provisional rather than confirmed." .
