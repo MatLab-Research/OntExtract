@@ -185,9 +185,10 @@ def upload_document():
             # Basic processing
             processing_service.process_document(document)
             
-            # Create segments if requested
-            if create_segments:
-                processing_service.create_initial_segments(document)
+            # Note: Segments are now created manually from document processing page
+            # Removed automatic segmentation to allow user control
+            # if create_segments:
+            #     processing_service.create_initial_segments(document)
             
             # Extract entities if requested
             if extract_entities:
@@ -227,11 +228,8 @@ def upload_document():
                 flash(f'Document linked to experiment "{experiment.name}"', 'success')
                 return redirect(url_for('experiments.view', id=experiment_id))
         
-        # Redirect based on document type
-        if document_type == 'reference':
-            return redirect(url_for('references.view', id=document.id))
-        else:
-            return redirect(url_for('text_input.document_detail', document_id=document.id))
+        # All documents now go to the same detail page with full processing options
+        return redirect(url_for('text_input.document_detail', document_id=document.id))
             
     except Exception as e:
         current_app.logger.error(f"Error uploading document: {str(e)}")

@@ -1,16 +1,17 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}OntExtract - Ontology-based Text Analysis{% endblock %}</title>
-    
+
     <!-- Bootstrap CSS (Darkly theme from Bootswatch) -->
     <link href="https://cdn.jsdelivr.net/npm/bootswatch@5.3.0/dist/darkly/bootstrap.min.css" rel="stylesheet">
-    
+
     <!-- Font Awesome for icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    
+
     <!-- Custom CSS -->
     <style>
         :root {
@@ -20,73 +21,74 @@
             --warning-color: #f39c12;
             --danger-color: #e74c3c;
         }
-        
+
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
         }
-        
+
         /* Global content width control */
         :root {
             /* Change this to adjust max page width */
             --content-max-width: 1200px;
         }
-        
+
         .navbar-brand {
             font-weight: 600;
             font-size: 1.5rem;
         }
-        
+
         .card {
             border: none;
             box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
             transition: all 0.3s ease;
         }
-        
+
         .card:hover {
             box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
             transform: translateY(-2px);
         }
-        
+
         .btn {
             border-radius: 6px;
             font-weight: 500;
             transition: all 0.3s ease;
         }
-        
+
         .btn-primary {
             background: linear-gradient(135deg, var(--primary-color), #4e73df);
             border-color: var(--primary-color);
         }
-        
+
         .btn-primary:hover {
             transform: translateY(-1px);
             box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
         }
-        
+
         .btn-success {
             background: linear-gradient(135deg, var(--accent-color), #1dd1a1);
             border-color: var(--accent-color);
         }
-        
+
         /* Sticky footer layout */
         body {
             display: flex;
             flex-direction: column;
             min-height: 100vh;
         }
-        
+
         .main-content {
             flex: 1;
             padding-top: 2rem;
             padding-bottom: 2rem;
         }
+
         .main-inner {
             max-width: var(--content-max-width);
             margin: 0 auto;
             padding-left: 1rem;
             padding-right: 1rem;
         }
-        
+
         .upload-area {
             border: 2px dashed #6c757d;
             border-radius: 12px;
@@ -95,38 +97,38 @@
             transition: all 0.3s ease;
             background: rgba(108, 117, 125, 0.05);
         }
-        
+
         .upload-area:hover {
             border-color: var(--primary-color);
             background: rgba(55, 90, 127, 0.1);
         }
-        
+
         .upload-area.drag-over {
             border-color: var(--accent-color);
             background: rgba(0, 188, 140, 0.1);
         }
-        
+
         .feature-icon {
             font-size: 2rem;
             margin-bottom: 0.75rem;
             color: var(--accent-color);
         }
-        
+
         .stats-card {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
         }
-        
+
         .footer {
             background-color: var(--secondary-color);
             padding: 2rem 0;
         }
-        
+
         .alert {
             border-radius: 8px;
             border: none;
         }
-        
+
         /* Loading spinner */
         .spinner-overlay {
             display: none;
@@ -140,14 +142,15 @@
             align-items: center;
             justify-content: center;
         }
-        
+
         .spinner-overlay.show {
             display: flex;
         }
     </style>
-    
+
     {% block extra_css %}{% endblock %}
 </head>
+
 <body>
     <!-- Navigation -->
     <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
@@ -155,33 +158,31 @@
             <a class="navbar-brand" href="{{ url_for('index') }}">
                 <i class="fas fa-brain me-2"></i>OntExtract
             </a>
-            
+
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
                 <span class="navbar-toggler-icon"></span>
             </button>
-            
+
             <div class="collapse navbar-collapse" id="navbarNav">
                 <ul class="navbar-nav me-auto">
                     {% if current_user.is_authenticated %}
-                    <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('upload.unified') }}">
-                            <i class="fas fa-cloud-upload-alt me-1"></i>Upload
-                        </a>
-                    </li>
                     <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
                             <i class="fas fa-folder-open me-1"></i>Library
                         </a>
                         <ul class="dropdown-menu">
                             <li><a class="dropdown-item" href="{{ url_for('text_input.document_list') }}">
-                                <i class="fas fa-file-text me-2"></i>Source Documents
-                            </a></li>
-                            <li><a class="dropdown-item" href="{{ url_for('references.index') }}">
-                                <i class="fas fa-book me-2"></i>References
-                            </a></li>
+                                    <i class="fas fa-file-text me-2"></i>All Documents
+                                </a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('upload.unified') }}">
+                                    <i class="fas fa-cloud-upload-alt me-2"></i>Upload Document
+                                </a></li>
+                            <li>
+                                <hr class="dropdown-divider">
+                            </li>
                             <li><a class="dropdown-item" href="{{ url_for('terms.term_index') }}">
-                                <i class="fas fa-tags me-2"></i>Terms
-                            </a></li>
+                                    <i class="fas fa-tags me-2"></i>Terms
+                                </a></li>
                         </ul>
                     </li>
                     <li class="nav-item">
@@ -201,18 +202,22 @@
                     </li>
                     {% endif %}
                 </ul>
-                
+
                 <ul class="navbar-nav">
                     {% if current_user.is_authenticated %}
                     <li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button" data-bs-toggle="dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button"
+                            data-bs-toggle="dropdown">
                             <i class="fas fa-user me-1"></i>{{ current_user.username }}
                         </a>
                         <ul class="dropdown-menu">
                             <li><a class="dropdown-item" href="#"><i class="fas fa-user me-2"></i>Profile</a></li>
                             <li><a class="dropdown-item" href="#"><i class="fas fa-cog me-2"></i>Settings</a></li>
-                            <li><hr class="dropdown-divider"></li>
-                            <li><a class="dropdown-item" href="{{ url_for('auth.logout') }}"><i class="fas fa-sign-out-alt me-2"></i>Logout</a></li>
+                            <li>
+                                <hr class="dropdown-divider">
+                            </li>
+                            <li><a class="dropdown-item" href="{{ url_for('auth.logout') }}"><i
+                                        class="fas fa-sign-out-alt me-2"></i>Logout</a></li>
                         </ul>
                     </li>
                     {% else %}
@@ -234,25 +239,26 @@
 
     <!-- Flash Messages -->
     {% with messages = get_flashed_messages(with_categories=true) %}
-        {% if messages %}
-            <div class="container mt-3">
-                {% for category, message in messages %}
-                    <div class="alert alert-{{ 'danger' if category == 'error' else category }} alert-dismissible fade show" role="alert">
-                        {% if category == 'success' %}
-                            <i class="fas fa-check-circle me-2"></i>
-                        {% elif category == 'error' %}
-                            <i class="fas fa-exclamation-circle me-2"></i>
-                        {% elif category == 'warning' %}
-                            <i class="fas fa-exclamation-triangle me-2"></i>
-                        {% else %}
-                            <i class="fas fa-info-circle me-2"></i>
-                        {% endif %}
-                        {{ message }}
-                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                    </div>
-                {% endfor %}
-            </div>
-        {% endif %}
+    {% if messages %}
+    <div class="container mt-3">
+        {% for category, message in messages %}
+        <div class="alert alert-{{ 'danger' if category == 'error' else category }} alert-dismissible fade show"
+            role="alert">
+            {% if category == 'success' %}
+            <i class="fas fa-check-circle me-2"></i>
+            {% elif category == 'error' %}
+            <i class="fas fa-exclamation-circle me-2"></i>
+            {% elif category == 'warning' %}
+            <i class="fas fa-exclamation-triangle me-2"></i>
+            {% else %}
+            <i class="fas fa-info-circle me-2"></i>
+            {% endif %}
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
     {% endwith %}
 
     <!-- Main Content -->
@@ -288,7 +294,7 @@
 
     <!-- Bootstrap JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    
+
     <!-- Custom JavaScript -->
     <script>
         // Global utility functions
@@ -296,11 +302,11 @@
             document.getElementById('loadingMessage').textContent = message;
             document.getElementById('loadingSpinner').classList.add('show');
         }
-        
+
         function hideLoading() {
             document.getElementById('loadingSpinner').classList.remove('show');
         }
-        
+
         // Auto-hide alerts after 5 seconds
         setTimeout(() => {
             const alerts = document.querySelectorAll('.alert');
@@ -310,7 +316,8 @@
             });
         }, 5000);
     </script>
-    
+
     {% block extra_js %}{% endblock %}
 </body>
+
 </html>

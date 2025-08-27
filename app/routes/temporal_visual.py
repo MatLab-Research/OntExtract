@@ -1,6 +1,5 @@
 from flask import Blueprint, render_template, request, jsonify, current_app
-from app.models import Experiment, Document, Reference
-from app.models.experiment import TemporalEvolution
+from app.models import Experiment, Document
 import logging
 
 logger = logging.getLogger(__name__)
@@ -52,14 +51,16 @@ def get_experiment_data(experiment_id):
                     'metadata': doc.source_metadata or {}
                 })
                 
-        if hasattr(experiment, 'references'):
+        # Note: OntExtract doesn't have a References model, only Documents
+        # This section is kept for compatibility but may not be used
+        if hasattr(experiment, 'references') and experiment.references:
             for ref in experiment.references:
                 references.append({
                     'id': ref.id,
                     'title': ref.title,
-                    'type': getattr(ref, 'reference_type', 'unknown'), 
+                    'type': getattr(ref, 'document_type', 'unknown'), 
                     'year': getattr(ref, 'year', None),
-                    'metadata': ref.source_metadata or {}
+                    'metadata': getattr(ref, 'source_metadata', {}) or {}
                 })
         
         # Get temporal evolution specific data
@@ -184,10 +185,8 @@ def analyze_temporal_evolution():
 def get_document_details(document_id):
     """Get detailed information about a specific document."""
     try:
-        # Try to find the document in both Document and Reference tables
+        # Find the document
         document = Document.query.get(document_id)
-        if not document:
-            document = Reference.query.get(document_id)
             
         if not document:
             return jsonify({'error': 'Document not found'}), 404
@@ -195,9 +194,9 @@ def get_document_details(document_id):
         details = {
             'id': document.id,
             'title': document.title,
-            'type': getattr(document, 'document_type', getattr(document, 'reference_type', 'unknown')),
+            'type': getattr(document, 'document_type', 'unknown'),
             'year': getattr(document, 'year', None),
-            'metadata': document.source_metadata or {},
+            'metadata': getattr(document, 'source_metadata', {}) or {},
             'content_preview': getattr(document, 'content', '')[:500] if hasattr(document, 'content') else None,
             'file_path': getattr(document, 'file_path', None),
             'created_at': document.created_at.isoformat() if hasattr(document, 'created_at') and document.created_at else None

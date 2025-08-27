@@ -265,12 +265,8 @@ class TextProcessingService:
 
             db.session.commit()
 
-            # Create basic segments (optional for references)
-            try:
-                self.create_initial_segments(document)
-            except Exception:
-                # Non-fatal for now
-                db.session.rollback()
+            # Note: Segments are now created manually from document processing page
+            # Removed automatic segmentation to allow user control
         except Exception as e:
             db.session.rollback()
             raise e
