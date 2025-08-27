@@ -25,17 +25,20 @@
     <!-- Main tabs for upload types -->
     <ul class="nav nav-tabs mt-3" id="uploadTypeTabs" role="tablist">
         <li class="nav-item" role="presentation">
-            <button class="nav-link active" id="document-tab" data-bs-toggle="tab" data-bs-target="#document" type="button" role="tab">
+            <button class="nav-link active" id="document-tab" data-bs-toggle="tab" data-bs-target="#document"
+                type="button" role="tab">
                 <i class="fas fa-file-alt"></i> Documents
             </button>
         </li>
         <li class="nav-item" role="presentation">
-            <button class="nav-link" id="paste-tab" data-bs-toggle="tab" data-bs-target="#paste" type="button" role="tab">
+            <button class="nav-link" id="paste-tab" data-bs-toggle="tab" data-bs-target="#paste" type="button"
+                role="tab">
                 <i class="fas fa-paste"></i> Paste Text
             </button>
         </li>
         <li class="nav-item" role="presentation">
-            <button class="nav-link" id="dictionary-tab" data-bs-toggle="tab" data-bs-target="#dictionary" type="button" role="tab">
+            <button class="nav-link" id="dictionary-tab" data-bs-toggle="tab" data-bs-target="#dictionary" type="button"
+                role="tab">
                 <i class="fas fa-spell-check"></i> Dictionary Entry
             </button>
         </li>
@@ -46,7 +49,7 @@
         <div class="tab-pane fade show active" id="document" role="tabpanel">
             <form method="POST" enctype="multipart/form-data" id="documentUploadForm">
                 <input type="hidden" name="upload_type" value="document">
-                
+
                 <div class="row mt-3">
                     <div class="col-lg-8">
                         <div class="card">
@@ -55,22 +58,55 @@
                             </div>
                             <div class="card-body">
                                 <div class="alert alert-info">
-                                    <i class="fas fa-info-circle"></i> 
-                                    Upload any document for analysis, reference, or archival. 
-                                    <strong>Metadata will be automatically extracted from your Zotero library if available (PDF files).</strong>
+                                    <i class="fas fa-info-circle"></i>
+                                    Upload any document for analysis, reference, or archival.
+                                    <strong>Metadata will be automatically extracted from your Zotero library if
+                                        available (PDF files).</strong>
                                 </div>
 
+                                <!-- Drag and Drop File Upload -->
                                 <div class="mb-3">
-                                    <label for="doc_file" class="form-label">Document File <span class="text-danger">*</span></label>
-                                    <input type="file" class="form-control" id="doc_file" name="file" required
-                                           accept=".pdf,.docx,.doc,.txt,.md,.html,.htm">
-                                    <div class="form-text">Accepted formats: PDF, Word, Text, Markdown, HTML</div>
+                                    <label class="form-label">Document File <span class="text-danger">*</span></label>
+
+                                    <!-- Drop Zone -->
+                                    <div class="upload-drop-zone" id="dropZone" ondrop="dropHandler(event);"
+                                        ondragover="dragOverHandler(event);" ondragenter="dragEnterHandler(event);"
+                                        ondragleave="dragLeaveHandler(event);">
+                                        <div class="upload-drop-content">
+                                            <i class="fas fa-cloud-upload-alt upload-icon"></i>
+                                            <h5>Drop files here to upload</h5>
+                                            <p class="text-muted">or click to browse</p>
+                                            <div class="upload-formats">
+                                                <small class="text-muted">Accepted: PDF, Word, Text, Markdown,
+                                                    HTML</small>
+                                            </div>
+                                        </div>
+                                        <input type="file" class="d-none" id="doc_file" name="file" required
+                                            accept=".pdf,.docx,.doc,.txt,.md,.html,.htm" onchange="fileSelected(this)">
+                                    </div>
+
+                                    <!-- Selected File Display -->
+                                    <div id="selectedFileInfo" class="mt-2" style="display: none;">
+                                        <div class="alert alert-success mb-0">
+                                            <div class="d-flex align-items-center">
+                                                <i class="fas fa-file-alt me-2"></i>
+                                                <div>
+                                                    <strong id="selectedFileName"></strong>
+                                                    <br><small id="selectedFileSize" class="text-muted"></small>
+                                                </div>
+                                                <button type="button" class="btn btn-sm btn-outline-secondary ms-auto"
+                                                    onclick="clearSelectedFile()">
+                                                    <i class="fas fa-times"></i>
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
                                 </div>
 
                                 <div class="mb-3">
                                     <label for="doc_title" class="form-label">Title</label>
                                     <input type="text" class="form-control" id="doc_title" name="title"
-                                           placeholder="Optional - will use filename if not provided">
+                                        placeholder="Optional - will use filename if not provided">
                                 </div>
 
                                 <!-- Document Type using PROV-O -->
@@ -95,70 +131,53 @@
 
                                 <!-- Language detection info -->
                                 <div class="form-check mb-3">
-                                    <input class="form-check-input" type="checkbox" id="auto_detect_language" name="auto_detect_language" checked>
+                                    <input class="form-check-input" type="checkbox" id="auto_detect_language"
+                                        name="auto_detect_language" checked>
                                     <label class="form-check-label" for="auto_detect_language">
                                         Automatically detect document language
                                     </label>
                                 </div>
 
-                                <!-- Processing options -->
-                                <div class="card bg-light mb-3">
-                                    <div class="card-body">
-                                        <h6 class="card-title">Processing Options</h6>
-                                        <div class="form-check">
-                                            <input class="form-check-input" type="checkbox" id="check_zotero" name="check_zotero" checked>
-                                            <label class="form-check-label" for="check_zotero">
-                                                Check Zotero library for metadata (PDF files)
-                                            </label>
-                                        </div>
-                                        <div class="form-check">
-                                            <input class="form-check-input" type="checkbox" id="create_segments" name="create_segments" checked>
-                                            <label class="form-check-label" for="create_segments">
-                                                Create text segments for detailed analysis
-                                            </label>
-                                        </div>
-                                        <div class="form-check">
-                                            <input class="form-check-input" type="checkbox" id="extract_entities" name="extract_entities">
-                                            <label class="form-check-label" for="extract_entities">
-                                                Extract entities immediately after upload
-                                            </label>
-                                        </div>
-                                        <div class="form-check">
-                                            <input class="form-check-input" type="checkbox" id="temporal_analysis" name="temporal_analysis">
-                                            <label class="form-check-label" for="temporal_analysis">
-                                                Perform temporal analysis
-                                            </label>
-                                        </div>
-                                    </div>
+                                <!-- Automatic Zotero enhancement (always enabled for PDFs) -->
+                                <div class="alert alert-success">
+                                    <input type="hidden" name="check_zotero" value="on">
+                                    <i class="fas fa-magic me-2"></i>
+                                    <strong>Automatic Enhancement:</strong> PDF files will be automatically enhanced
+                                    with Zotero metadata if available.
+                                    Processing options (embeddings, segmentation, entity extraction) will be available
+                                    on the document page after upload.
                                 </div>
 
                                 <!-- Collapsible metadata section -->
                                 <div class="mb-3">
-                                    <a class="btn btn-sm btn-outline-secondary" data-bs-toggle="collapse" href="#metadataFields" role="button">
+                                    <a class="btn btn-sm btn-outline-secondary" data-bs-toggle="collapse"
+                                        href="#metadataFields" role="button">
                                         <i class="fas fa-chevron-down"></i> Additional Metadata (Optional)
                                     </a>
                                     <div class="collapse mt-2" id="metadataFields">
                                         <div class="card card-body">
                                             <p class="small text-muted mb-3">
-                                                <i class="fas fa-magic"></i> These fields will be auto-populated from Zotero if a match is found
+                                                <i class="fas fa-magic"></i> These fields will be auto-populated from
+                                                Zotero if a match is found
                                             </p>
-                                            
+
                                             <div class="mb-3">
                                                 <label for="authors" class="form-label">Authors</label>
                                                 <input type="text" class="form-control" name="authors"
-                                                       placeholder="e.g., Smith, J., Doe, A. (comma-separated)">
+                                                    placeholder="e.g., Smith, J., Doe, A. (comma-separated)">
                                             </div>
 
                                             <div class="row">
                                                 <div class="col-md-6 mb-3">
-                                                    <label for="publication_date" class="form-label">Publication Date</label>
+                                                    <label for="publication_date" class="form-label">Publication
+                                                        Date</label>
                                                     <input type="text" class="form-control" name="publication_date"
-                                                           placeholder="e.g., 2023">
+                                                        placeholder="e.g., 2023">
                                                 </div>
                                                 <div class="col-md-6 mb-3">
                                                     <label for="journal" class="form-label">Journal/Publisher</label>
                                                     <input type="text" class="form-control" name="journal"
-                                                           placeholder="e.g., Nature, IEEE">
+                                                        placeholder="e.g., Nature, IEEE">
                                                 </div>
                                             </div>
 
@@ -166,31 +185,31 @@
                                                 <div class="col-md-6 mb-3">
                                                     <label for="doi" class="form-label">DOI</label>
                                                     <input type="text" class="form-control" name="doi"
-                                                           placeholder="e.g., 10.1234/example">
+                                                        placeholder="e.g., 10.1234/example">
                                                 </div>
                                                 <div class="col-md-6 mb-3">
                                                     <label for="isbn" class="form-label">ISBN</label>
                                                     <input type="text" class="form-control" name="isbn"
-                                                           placeholder="e.g., 978-3-16-148410-0">
+                                                        placeholder="e.g., 978-3-16-148410-0">
                                                 </div>
                                             </div>
 
                                             <div class="mb-3">
                                                 <label for="url" class="form-label">URL</label>
                                                 <input type="url" class="form-control" name="url"
-                                                       placeholder="https://example.com/paper">
+                                                    placeholder="https://example.com/paper">
                                             </div>
 
                                             <div class="mb-3">
                                                 <label for="abstract" class="form-label">Abstract</label>
                                                 <textarea class="form-control" name="abstract" rows="3"
-                                                          placeholder="Paper abstract or document summary..."></textarea>
+                                                    placeholder="Paper abstract or document summary..."></textarea>
                                             </div>
 
                                             <div class="mb-3">
                                                 <label for="citation" class="form-label">Citation</label>
                                                 <textarea class="form-control" name="citation" rows="2"
-                                                          placeholder="Full citation (e.g., APA, MLA format)..."></textarea>
+                                                    placeholder="Full citation (e.g., APA, MLA format)..."></textarea>
                                             </div>
                                         </div>
                                     </div>
@@ -200,13 +219,15 @@
                                 {% if experiment %}
                                 <input type="hidden" name="experiment_id" value="{{ experiment.id }}">
                                 <div class="form-check mb-3">
-                                    <input class="form-check-input" type="checkbox" name="include_in_analysis" value="true" id="include_in_analysis" checked>
+                                    <input class="form-check-input" type="checkbox" name="include_in_analysis"
+                                        value="true" id="include_in_analysis" checked>
                                     <label class="form-check-label" for="include_in_analysis">
                                         Include in experiment analysis
                                     </label>
                                 </div>
                                 <div class="alert alert-success">
-                                    <i class="fas fa-link"></i> This document will be linked to experiment: <strong>{{ experiment.name }}</strong>
+                                    <i class="fas fa-link"></i> This document will be linked to experiment: <strong>{{
+                                        experiment.name }}</strong>
                                 </div>
                                 {% endif %}
 
@@ -216,32 +237,7 @@
                             </div>
                         </div>
                     </div>
-                    
-                    <div class="col-lg-4">
-                        <div class="card">
-                            <div class="card-header bg-success text-white">
-                                <h6 class="mb-0"><i class="fas fa-magic"></i> Unified Processing</h6>
-                            </div>
-                            <div class="card-body">
-                                <p class="small">
-                                    <strong>All documents receive:</strong>
-                                </p>
-                                <ul class="small">
-                                    <li>Text extraction & processing</li>
-                                    <li>Zotero metadata lookup (PDFs)</li>
-                                    <li>Language detection</li>
-                                    <li>Segmentation for analysis</li>
-                                    <li>Entity extraction (optional)</li>
-                                    <li>Temporal analysis (optional)</li>
-                                    <li>Provenance tracking (PROV-O)</li>
-                                </ul>
-                                <hr>
-                                <p class="small text-muted">
-                                    Documents are classified using PROV-O ontology vocabulary for standardized provenance tracking.
-                                </p>
-                            </div>
-                        </div>
-                    </div>
+
                 </div>
             </form>
         </div>
@@ -250,7 +246,7 @@
         <div class="tab-pane fade" id="paste" role="tabpanel">
             <form method="POST" id="pasteTextForm">
                 <input type="hidden" name="upload_type" value="paste">
-                
+
                 <div class="row mt-3">
                     <div class="col-lg-8">
                         <div class="card">
@@ -259,9 +255,10 @@
                             </div>
                             <div class="card-body">
                                 <div class="mb-3">
-                                    <label for="paste_title" class="form-label">Title <span class="text-danger">*</span></label>
+                                    <label for="paste_title" class="form-label">Title <span
+                                            class="text-danger">*</span></label>
                                     <input type="text" class="form-control" id="paste_title" name="title" required
-                                           placeholder="Give your text a descriptive title">
+                                        placeholder="Give your text a descriptive title">
                                 </div>
 
                                 <div class="mb-3">
@@ -273,11 +270,12 @@
                                 </div>
 
                                 <div class="mb-3">
-                                    <label for="paste_content" class="form-label">Content <span class="text-danger">*</span></label>
+                                    <label for="paste_content" class="form-label">Content <span
+                                            class="text-danger">*</span></label>
                                     <textarea class="form-control" id="paste_content" name="content" rows="12" required
-                                              placeholder="Paste your text content here..."></textarea>
+                                        placeholder="Paste your text content here..."></textarea>
                                     <div class="form-text">
-                                        <span id="char-count">0</span> characters | 
+                                        <span id="char-count">0</span> characters |
                                         <span id="word-count">0</span> words
                                     </div>
                                 </div>
@@ -321,12 +319,14 @@
             <!-- Sub-tabs for OED vs General Dictionary -->
             <ul class="nav nav-pills mt-3 mb-3" id="dictionarySubTabs">
                 <li class="nav-item">
-                    <button class="nav-link active" id="oed-pill" data-bs-toggle="pill" data-bs-target="#oed-content" type="button">
+                    <button class="nav-link active" id="oed-pill" data-bs-toggle="pill" data-bs-target="#oed-content"
+                        type="button">
                         <i class="fas fa-book"></i> OED Entry
                     </button>
                 </li>
                 <li class="nav-item">
-                    <button class="nav-link" id="general-dict-pill" data-bs-toggle="pill" data-bs-target="#general-dict-content" type="button">
+                    <button class="nav-link" id="general-dict-pill" data-bs-toggle="pill"
+                        data-bs-target="#general-dict-content" type="button">
                         <i class="fas fa-spell-check"></i> Other Dictionary
                     </button>
                 </li>
@@ -338,7 +338,7 @@
                     <form method="POST" id="oedForm">
                         <input type="hidden" name="upload_type" value="oed_dictionary">
                         <input type="hidden" name="reference_subtype" value="dictionary_oed">
-                        
+
                         <div class="row">
                             <div class="col-lg-8">
                                 <div class="card">
@@ -352,15 +352,18 @@
                                         <div class="card mb-4 bg-light">
                                             <div class="card-body">
                                                 <h6 class="card-title">
-                                                    <i class="fas fa-file-pdf text-danger"></i> Upload OED PDF (Optional)
+                                                    <i class="fas fa-file-pdf text-danger"></i> Upload OED PDF
+                                                    (Optional)
                                                 </h6>
                                                 <p class="small text-muted">Upload a PDF to auto-populate fields</p>
                                                 <div class="row align-items-end">
                                                     <div class="col-md-8">
-                                                        <input type="file" class="form-control" id="oed_pdf_file" accept=".pdf">
+                                                        <input type="file" class="form-control" id="oed_pdf_file"
+                                                            accept=".pdf">
                                                     </div>
                                                     <div class="col-md-4">
-                                                        <button type="button" class="btn btn-secondary w-100" onclick="parseOEDPDF()">
+                                                        <button type="button" class="btn btn-secondary w-100"
+                                                            onclick="parseOEDPDF()">
                                                             <i class="fas fa-magic"></i> Parse PDF
                                                         </button>
                                                     </div>
@@ -370,21 +373,23 @@
                                         </div>
 
                                         <div class="mb-3">
-                                            <label for="oed_term" class="form-label">Term/Headword <span class="text-danger">*</span></label>
+                                            <label for="oed_term" class="form-label">Term/Headword <span
+                                                    class="text-danger">*</span></label>
                                             <input type="text" class="form-control" id="oed_term" name="title" required
-                                                   placeholder="e.g., ontology">
+                                                placeholder="e.g., ontology">
                                         </div>
 
                                         <div class="mb-3">
-                                            <label for="oed_full_text" class="form-label">Complete OED Entry <span class="text-danger">*</span></label>
-                                            <textarea class="form-control" id="oed_full_text" name="content" rows="10" required
-                                                      placeholder="The complete OED entry text..."></textarea>
+                                            <label for="oed_full_text" class="form-label">Complete OED Entry <span
+                                                    class="text-danger">*</span></label>
+                                            <textarea class="form-control" id="oed_full_text" name="content" rows="10"
+                                                required placeholder="The complete OED entry text..."></textarea>
                                         </div>
 
                                         <div class="mb-3">
                                             <label for="oed_first_use" class="form-label">First Recorded Use</label>
                                             <input type="text" class="form-control" id="oed_first_use" name="first_use"
-                                                   placeholder="e.g., 1721">
+                                                placeholder="e.g., 1721">
                                         </div>
 
                                         <button type="submit" class="btn btn-primary">
@@ -402,7 +407,7 @@
                     <form method="POST" id="generalDictForm">
                         <input type="hidden" name="upload_type" value="general_dictionary">
                         <input type="hidden" name="reference_subtype" value="dictionary_general">
-                        
+
                         <div class="row">
                             <div class="col-lg-8">
                                 <div class="card">
@@ -411,27 +416,30 @@
                                     </div>
                                     <div class="card-body">
                                         <div class="mb-3">
-                                            <label for="dict_source" class="form-label">Dictionary Source <span class="text-danger">*</span></label>
-                                            <input type="text" class="form-control" id="dict_source" name="journal" required
-                                                   placeholder="e.g., Merriam-Webster, Domain Glossary">
+                                            <label for="dict_source" class="form-label">Dictionary Source <span
+                                                    class="text-danger">*</span></label>
+                                            <input type="text" class="form-control" id="dict_source" name="journal"
+                                                required placeholder="e.g., Merriam-Webster, Domain Glossary">
                                         </div>
 
                                         <div class="mb-3">
-                                            <label for="dict_term" class="form-label">Term <span class="text-danger">*</span></label>
+                                            <label for="dict_term" class="form-label">Term <span
+                                                    class="text-danger">*</span></label>
                                             <input type="text" class="form-control" id="dict_term" name="title" required
-                                                   placeholder="Enter the term">
+                                                placeholder="Enter the term">
                                         </div>
 
                                         <div class="mb-3">
-                                            <label for="dict_definition" class="form-label">Definition <span class="text-danger">*</span></label>
-                                            <textarea class="form-control" id="dict_definition" name="content" rows="4" required
-                                                      placeholder="Enter the definition..."></textarea>
+                                            <label for="dict_definition" class="form-label">Definition <span
+                                                    class="text-danger">*</span></label>
+                                            <textarea class="form-control" id="dict_definition" name="content" rows="4"
+                                                required placeholder="Enter the definition..."></textarea>
                                         </div>
 
                                         <div class="mb-3">
                                             <label for="dict_context" class="form-label">Context/Domain</label>
                                             <input type="text" class="form-control" id="dict_context" name="context"
-                                                   placeholder="e.g., Computer Science, Medicine">
+                                                placeholder="e.g., Computer Science, Medicine">
                                         </div>
 
                                         <button type="submit" class="btn btn-primary">
@@ -449,283 +457,467 @@
 </div>
 
 <script>
-// Remember selected tab
-document.addEventListener('DOMContentLoaded', function() {
-    // Main tab memory
-    const savedTab = localStorage.getItem('uploadMainTab');
-    if (savedTab) {
-        const tabButton = document.querySelector(`#${savedTab}-tab`);
-        if (tabButton) {
-            new bootstrap.Tab(tabButton).show();
+    // Remember selected tab
+    document.addEventListener('DOMContentLoaded', function () {
+        // Main tab memory
+        const savedTab = localStorage.getItem('uploadMainTab');
+        if (savedTab) {
+            const tabButton = document.querySelector(`#${savedTab}-tab`);
+            if (tabButton) {
+                new bootstrap.Tab(tabButton).show();
+            }
         }
-    }
-    
-    // Save tab preference when changed
-    document.querySelectorAll('#uploadTypeTabs button[data-bs-toggle="tab"]').forEach(tab => {
-        tab.addEventListener('shown.bs.tab', function (e) {
-            const tabId = e.target.id.replace('-tab', '');
-            localStorage.setItem('uploadMainTab', tabId);
+
+        // Save tab preference when changed
+        document.querySelectorAll('#uploadTypeTabs button[data-bs-toggle="tab"]').forEach(tab => {
+            tab.addEventListener('shown.bs.tab', function (e) {
+                const tabId = e.target.id.replace('-tab', '');
+                localStorage.setItem('uploadMainTab', tabId);
+            });
         });
+
+        // Character/word counter for paste text
+        const pasteContent = document.getElementById('paste_content');
+        if (pasteContent) {
+            pasteContent.addEventListener('input', function () {
+                const text = this.value;
+                document.getElementById('char-count').textContent = text.length;
+                document.getElementById('word-count').textContent = text.trim() ? text.trim().split(/\s+/).length : 0;
+            });
+        }
     });
-    
-    // Character/word counter for paste text
-    const pasteContent = document.getElementById('paste_content');
-    if (pasteContent) {
-        pasteContent.addEventListener('input', function() {
-            const text = this.value;
-            document.getElementById('char-count').textContent = text.length;
-            document.getElementById('word-count').textContent = text.trim() ? text.trim().split(/\s+/).length : 0;
-        });
-    }
-});
 
-// Form submission handlers
-document.getElementById('documentUploadForm')?.addEventListener('submit', function(e) {
-    e.preventDefault();
-    this.action = "{{ url_for('upload.upload_document') }}";
-    this.submit();
-});
+    // Form submission handlers
+    document.getElementById('documentUploadForm')?.addEventListener('submit', function (e) {
+        e.preventDefault();
+        this.action = "{{ url_for('upload.upload_document') }}";
+        this.submit();
+    });
 
-document.getElementById('pasteTextForm')?.addEventListener('submit', function(e) {
-    e.preventDefault();
-    const contentType = document.getElementById('content_type').value;
-    if (contentType === 'reference') {
-        // Convert to reference format
-        const formData = new FormData(this);
-        formData.set('reference_subtype', 'other');
-        // Submit as reference
-        fetch("{{ url_for('references.upload_dictionary') }}", {
+    document.getElementById('pasteTextForm')?.addEventListener('submit', function (e) {
+        e.preventDefault();
+        const contentType = document.getElementById('content_type').value;
+        if (contentType === 'reference') {
+            // Convert to reference format
+            const formData = new FormData(this);
+            formData.set('reference_subtype', 'other');
+            // Submit as reference
+            fetch("{{ url_for('references.upload_dictionary') }}", {
+                method: 'POST',
+                body: formData
+            }).then(response => {
+                if (response.ok) {
+                    window.location.href = "{{ url_for('references.index') }}";
+                }
+            });
+        } else {
+            this.action = "{{ url_for('text_input.submit_text') }}";
+            this.submit();
+        }
+    });
+
+    document.getElementById('oedForm')?.addEventListener('submit', function (e) {
+        e.preventDefault();
+        this.action = "{{ url_for('references.upload_dictionary') }}";
+        this.submit();
+    });
+
+    document.getElementById('generalDictForm')?.addEventListener('submit', function (e) {
+        e.preventDefault();
+        this.action = "{{ url_for('references.upload_dictionary') }}";
+        this.submit();
+    });
+
+    // OED PDF Parser
+    function parseOEDPDF() {
+        const fileInput = document.getElementById('oed_pdf_file');
+        const statusDiv = document.getElementById('oed_parse_status');
+        const file = fileInput.files[0];
+
+        if (!file) {
+            statusDiv.innerHTML = '<div class="alert alert-warning">Please select a PDF file</div>';
+            return;
+        }
+
+        statusDiv.innerHTML = '<div class="alert alert-info"><i class="fas fa-spinner fa-spin"></i> Parsing PDF...</div>';
+
+        const formData = new FormData();
+        formData.append('file', file);
+
+        fetch('{{ url_for("references.parse_oed_pdf") }}', {
             method: 'POST',
             body: formData
-        }).then(response => {
-            if (response.ok) {
-                window.location.href = "{{ url_for('references.index') }}";
-            }
-        });
-    } else {
-        this.action = "{{ url_for('text_input.submit_text') }}";
-        this.submit();
+        })
+            .then(response => response.json())
+            .then(result => {
+                if (result.success) {
+                    // Auto-populate form fields
+                    if (result.data.headword) {
+                        document.getElementById('oed_term').value = result.data.headword;
+                    }
+                    if (result.data.full_text) {
+                        document.getElementById('oed_full_text').value = result.data.full_text;
+                    }
+                    if (result.data.first_recorded_use) {
+                        document.getElementById('oed_first_use').value = result.data.first_recorded_use;
+                    }
+
+                    statusDiv.innerHTML = '<div class="alert alert-success"><i class="fas fa-check-circle"></i> Successfully parsed OED entry!</div>';
+                } else {
+                    statusDiv.innerHTML = `<div class="alert alert-danger"><i class="fas fa-exclamation-circle"></i> Error: ${result.error || 'Unknown error'}</div>`;
+                }
+            })
+            .catch(error => {
+                statusDiv.innerHTML = `<div class="alert alert-danger"><i class="fas fa-exclamation-circle"></i> Error: ${error.message}</div>`;
+            });
     }
-});
-
-document.getElementById('oedForm')?.addEventListener('submit', function(e) {
-    e.preventDefault();
-    this.action = "{{ url_for('references.upload_dictionary') }}";
-    this.submit();
-});
-
-document.getElementById('generalDictForm')?.addEventListener('submit', function(e) {
-    e.preventDefault();
-    this.action = "{{ url_for('references.upload_dictionary') }}";
-    this.submit();
-});
-
-// OED PDF Parser
-function parseOEDPDF() {
-    const fileInput = document.getElementById('oed_pdf_file');
-    const statusDiv = document.getElementById('oed_parse_status');
-    const file = fileInput.files[0];
-    
-    if (!file) {
-        statusDiv.innerHTML = '<div class="alert alert-warning">Please select a PDF file</div>';
-        return;
-    }
-    
-    statusDiv.innerHTML = '<div class="alert alert-info"><i class="fas fa-spinner fa-spin"></i> Parsing PDF...</div>';
-    
-    const formData = new FormData();
-    formData.append('file', file);
-    
-    fetch('{{ url_for("references.parse_oed_pdf") }}', {
-        method: 'POST',
-        body: formData
-    })
-    .then(response => response.json())
-    .then(result => {
-        if (result.success) {
-            // Auto-populate form fields
-            if (result.data.headword) {
-                document.getElementById('oed_term').value = result.data.headword;
-            }
-            if (result.data.full_text) {
-                document.getElementById('oed_full_text').value = result.data.full_text;
-            }
-            if (result.data.first_recorded_use) {
-                document.getElementById('oed_first_use').value = result.data.first_recorded_use;
-            }
-            
-            statusDiv.innerHTML = '<div class="alert alert-success"><i class="fas fa-check-circle"></i> Successfully parsed OED entry!</div>';
-        } else {
-            statusDiv.innerHTML = `<div class="alert alert-danger"><i class="fas fa-exclamation-circle"></i> Error: ${result.error || 'Unknown error'}</div>`;
-        }
-    })
-    .catch(error => {
-        statusDiv.innerHTML = `<div class="alert alert-danger"><i class="fas fa-exclamation-circle"></i> Error: ${error.message}</div>`;
-    });
-}
 </script>
 
 <style>
-/* Custom styles for the unified upload interface - Dark theme compatible */
-.nav-tabs {
-    border-bottom: 2px solid #444;
-}
-
-.nav-tabs .nav-link {
-    color: #adb5bd;  /* Light gray for inactive tabs */
-    background-color: transparent;
-    border: 1px solid transparent;
-    border-radius: 0.375rem 0.375rem 0 0;
-    transition: all 0.3s ease;
-}
-
-.nav-tabs .nav-link:hover {
-    color: #fff;  /* White on hover */
-    background-color: rgba(255, 255, 255, 0.1);
-    border-color: #444 #444 transparent;
-}
-
-.nav-tabs .nav-link.active {
-    color: #fff;  /* White for active tab text */
-    background-color: #222;  /* Dark background for active tab */
-    border-color: #444 #444 #222;  /* Border that blends with content area */
-    font-weight: 500;
-}
-
-.nav-tabs .nav-link i {
-    margin-right: 0.5rem;
-    opacity: 0.8;
-}
-
-.nav-tabs .nav-link.active i {
-    opacity: 1;
-    color: #00bc8c;  /* Accent color for active tab icon */
-}
-
-/* Sub-tabs (pills) for dictionary section */
-.nav-pills .nav-link {
-    margin-right: 0.5rem;
-    border-radius: 0.375rem;
-    color: #adb5bd;
-    background-color: transparent;
-    border: 1px solid #444;
-    transition: all 0.3s ease;
-}
-
-.nav-pills .nav-link:hover {
-    color: #fff;
-    background-color: rgba(255, 255, 255, 0.1);
-    border-color: #666;
-}
-
-.nav-pills .nav-link.active {
-    color: #222;
-    background-color: #00bc8c;  /* Accent color for active pill */
-    border-color: #00bc8c;
-    font-weight: 500;
-}
-
-/* Tab content area */
-.tab-content {
-    background-color: #222;
-    border: 1px solid #444;
-    border-top: none;
-    border-radius: 0 0 0.375rem 0.375rem;
-    padding: 1rem;
-}
-
-/* Card adjustments for dark theme */
-.card {
-    background-color: #303030;
-    border: 1px solid #444;
-}
-
-.card-header {
-    background-color: #375a7f;
-    border-bottom: 1px solid #444;
-    color: #fff;
-}
-
-.card-header.bg-primary {
-    background: linear-gradient(135deg, #375a7f 0%, #4e73df 100%) !important;
-}
-
-.card-header.bg-success {
-    background: linear-gradient(135deg, #28a745 0%, #20c997 100%) !important;
-}
-
-/* Form controls for dark theme */
-.form-control, .form-select {
-    background-color: #222;
-    border-color: #444;
-    color: #fff;
-}
-
-.form-control:focus, .form-select:focus {
-    background-color: #1a1a1a;
-    border-color: #00bc8c;
-    color: #fff;
-    box-shadow: 0 0 0 0.2rem rgba(0, 188, 140, 0.25);
-}
-
-.form-control::placeholder {
-    color: #6c757d;
-}
-
-.form-label {
-    color: #adb5bd;
-    font-weight: 500;
-}
-
-.form-text {
-    color: #6c757d;
-}
-
-/* Alert adjustments */
-.alert-info {
-    background-color: rgba(52, 152, 219, 0.2);
-    border-color: #3498db;
-    color: #74b9ff;
-}
-
-/* Light background cards within dark theme */
-.card.bg-light {
-    background-color: rgba(255, 255, 255, 0.05) !important;
-    border-color: #444;
-}
-
-.card.bg-light .card-body {
-    color: #adb5bd;
-}
-
-/* Collapse animation */
-.collapse.show {
-    animation: slideDown 0.3s ease-out;
-}
-
-@keyframes slideDown {
-    from {
-        opacity: 0;
-        transform: translateY(-10px);
+    /* Custom styles for the unified upload interface - Dark theme compatible */
+    .nav-tabs {
+        border-bottom: 2px solid #444;
     }
-    to {
+
+    .nav-tabs .nav-link {
+        color: #adb5bd;
+        /* Light gray for inactive tabs */
+        background-color: transparent;
+        border: 1px solid transparent;
+        border-radius: 0.375rem 0.375rem 0 0;
+        transition: all 0.3s ease;
+    }
+
+    .nav-tabs .nav-link:hover {
+        color: #fff;
+        /* White on hover */
+        background-color: rgba(255, 255, 255, 0.1);
+        border-color: #444 #444 transparent;
+    }
+
+    .nav-tabs .nav-link.active {
+        color: #fff;
+        /* White for active tab text */
+        background-color: #222;
+        /* Dark background for active tab */
+        border-color: #444 #444 #222;
+        /* Border that blends with content area */
+        font-weight: 500;
+    }
+
+    .nav-tabs .nav-link i {
+        margin-right: 0.5rem;
+        opacity: 0.8;
+    }
+
+    .nav-tabs .nav-link.active i {
         opacity: 1;
-        transform: translateY(0);
+        color: #00bc8c;
+        /* Accent color for active tab icon */
     }
-}
 
-/* Required field asterisk */
-.text-danger {
-    color: #e74c3c !important;
-}
+    /* Sub-tabs (pills) for dictionary section */
+    .nav-pills .nav-link {
+        margin-right: 0.5rem;
+        border-radius: 0.375rem;
+        color: #adb5bd;
+        background-color: transparent;
+        border: 1px solid #444;
+        transition: all 0.3s ease;
+    }
 
-/* Ensure good contrast for links */
-a {
-    color: #00bc8c;
-}
+    .nav-pills .nav-link:hover {
+        color: #fff;
+        background-color: rgba(255, 255, 255, 0.1);
+        border-color: #666;
+    }
 
-a:hover {
-    color: #00d49a;
-}
+    .nav-pills .nav-link.active {
+        color: #222;
+        background-color: #00bc8c;
+        /* Accent color for active pill */
+        border-color: #00bc8c;
+        font-weight: 500;
+    }
+
+    /* Tab content area */
+    .tab-content {
+        background-color: #222;
+        border: 1px solid #444;
+        border-top: none;
+        border-radius: 0 0 0.375rem 0.375rem;
+        padding: 1rem;
+    }
+
+    /* Card adjustments for dark theme */
+    .card {
+        background-color: #303030;
+        border: 1px solid #444;
+    }
+
+    .card-header {
+        background-color: #375a7f;
+        border-bottom: 1px solid #444;
+        color: #fff;
+    }
+
+    .card-header.bg-primary {
+        background: linear-gradient(135deg, #375a7f 0%, #4e73df 100%) !important;
+    }
+
+    .card-header.bg-success {
+        background: linear-gradient(135deg, #28a745 0%, #20c997 100%) !important;
+    }
+
+    /* Form controls for dark theme */
+    .form-control,
+    .form-select {
+        background-color: #222;
+        border-color: #444;
+        color: #fff;
+    }
+
+    .form-control:focus,
+    .form-select:focus {
+        background-color: #1a1a1a;
+        border-color: #00bc8c;
+        color: #fff;
+        box-shadow: 0 0 0 0.2rem rgba(0, 188, 140, 0.25);
+    }
+
+    .form-control::placeholder {
+        color: #6c757d;
+    }
+
+    .form-label {
+        color: #adb5bd;
+        font-weight: 500;
+    }
+
+    .form-text {
+        color: #6c757d;
+    }
+
+    /* Alert adjustments */
+    .alert-info {
+        background-color: rgba(52, 152, 219, 0.2);
+        border-color: #3498db;
+        color: #74b9ff;
+    }
+
+    /* Light background cards within dark theme */
+    .card.bg-light {
+        background-color: rgba(255, 255, 255, 0.05) !important;
+        border-color: #444;
+    }
+
+    .card.bg-light .card-body {
+        color: #adb5bd;
+    }
+
+    /* Collapse animation */
+    .collapse.show {
+        animation: slideDown 0.3s ease-out;
+    }
+
+    @keyframes slideDown {
+        from {
+            opacity: 0;
+            transform: translateY(-10px);
+        }
+
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    /* Required field asterisk */
+    .text-danger {
+        color: #e74c3c !important;
+    }
+
+    /* Ensure good contrast for links */
+    a {
+        color: #00bc8c;
+    }
+
+    a:hover {
+        color: #00d49a;
+    }
+
+    /* Drag and Drop Upload Zone */
+    .upload-drop-zone {
+        border: 2px dashed #6c757d;
+        border-radius: 12px;
+        padding: 3rem 2rem;
+        text-align: center;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        background: rgba(108, 117, 125, 0.05);
+        min-height: 200px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .upload-drop-zone:hover {
+        border-color: #00bc8c;
+        background: rgba(0, 188, 140, 0.1);
+        transform: translateY(-2px);
+    }
+
+    .upload-drop-zone.drag-over {
+        border-color: #00bc8c;
+        background: rgba(0, 188, 140, 0.2);
+        border-style: solid;
+    }
+
+    .upload-drop-content {
+        text-align: center;
+    }
+
+    .upload-icon {
+        font-size: 3rem;
+        color: #6c757d;
+        margin-bottom: 1rem;
+        transition: color 0.3s ease;
+    }
+
+    .upload-drop-zone:hover .upload-icon {
+        color: #00bc8c;
+    }
+
+    .upload-drop-zone.drag-over .upload-icon {
+        color: #00bc8c;
+        animation: bounce 0.5s ease-in-out;
+    }
+
+    @keyframes bounce {
+
+        0%,
+        20%,
+        60%,
+        100% {
+            transform: translateY(0);
+        }
+
+        40% {
+            transform: translateY(-10px);
+        }
+
+        80% {
+            transform: translateY(-5px);
+        }
+    }
+
+    .upload-formats {
+        margin-top: 1rem;
+        padding: 0.5rem;
+        background: rgba(0, 0, 0, 0.1);
+        border-radius: 6px;
+    }
 </style>
+
+<script>
+    // Drag and Drop Functionality
+    function dragOverHandler(ev) {
+        ev.preventDefault();
+    }
+
+    function dragEnterHandler(ev) {
+        ev.preventDefault();
+        document.getElementById('dropZone').classList.add('drag-over');
+    }
+
+    function dragLeaveHandler(ev) {
+        ev.preventDefault();
+        if (!ev.currentTarget.contains(ev.relatedTarget)) {
+            document.getElementById('dropZone').classList.remove('drag-over');
+        }
+    }
+
+    function dropHandler(ev) {
+        ev.preventDefault();
+        document.getElementById('dropZone').classList.remove('drag-over');
+
+        if (ev.dataTransfer.items) {
+            // Use DataTransferItemList interface
+            for (let i = 0; i < ev.dataTransfer.items.length; i++) {
+                if (ev.dataTransfer.items[i].kind === 'file') {
+                    const file = ev.dataTransfer.items[i].getAsFile();
+                    handleFileSelection(file);
+                    break; // Only handle the first file
+                }
+            }
+        } else {
+            // Use DataTransfer interface
+            for (let i = 0; i < ev.dataTransfer.files.length; i++) {
+                handleFileSelection(ev.dataTransfer.files[i]);
+                break; // Only handle the first file
+            }
+        }
+    }
+
+    // Handle file input change
+    function fileSelected(input) {
+        if (input.files && input.files[0]) {
+            handleFileSelection(input.files[0]);
+        }
+    }
+
+    // Common file handling
+    function handleFileSelection(file) {
+        const fileInput = document.getElementById('doc_file');
+        const dataTransfer = new DataTransfer();
+        dataTransfer.items.add(file);
+        fileInput.files = dataTransfer.files;
+
+        // Show file info
+        displaySelectedFile(file);
+
+        // Auto-populate title if empty
+        const titleInput = document.getElementById('doc_title');
+        if (!titleInput.value) {
+            titleInput.value = file.name.replace(/\.[^/.]+$/, ""); // Remove extension
+        }
+    }
+
+    function displaySelectedFile(file) {
+        const fileInfoDiv = document.getElementById('selectedFileInfo');
+        const fileNameSpan = document.getElementById('selectedFileName');
+        const fileSizeSpan = document.getElementById('selectedFileSize');
+
+        fileNameSpan.textContent = file.name;
+        fileSizeSpan.textContent = formatFileSize(file.size);
+        fileInfoDiv.style.display = 'block';
+    }
+
+    function clearSelectedFile() {
+        const fileInput = document.getElementById('doc_file');
+        fileInput.value = '';
+        document.getElementById('selectedFileInfo').style.display = 'none';
+        document.getElementById('doc_title').value = '';
+    }
+
+    function formatFileSize(bytes) {
+        if (bytes === 0) return '0 Bytes';
+        const k = 1024;
+        const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    }
+
+    // Make drop zone clickable
+    document.addEventListener('DOMContentLoaded', function () {
+        const dropZone = document.getElementById('dropZone');
+        const fileInput = document.getElementById('doc_file');
+
+        if (dropZone && fileInput) {
+            dropZone.addEventListener('click', function () {
+                fileInput.click();
+            });
+        }
+    });
+</script>
 {% endblock %}

@@ -74,12 +74,8 @@ def submit_text():
         db.session.add(document)
         db.session.commit()
         
-        # Initialize text processing service for basic segmentation
-        text_service = TextProcessingService()
-        try:
-            text_service.create_initial_segments(document)
-        except Exception as e:
-            current_app.logger.error(f"Error creating text segments: {str(e)}")
+        # Note: Segmentation is now manual from document processing page
+        # Removed automatic segmentation to allow user control
         
         if request.is_json:
             return jsonify({
@@ -190,12 +186,8 @@ def upload_file():
         db.session.add(document)
         db.session.commit()
         
-        # Initialize text processing service for basic segmentation
-        text_service = TextProcessingService()
-        try:
-            text_service.create_initial_segments(document)
-        except Exception as e:
-            current_app.logger.error(f"Error creating text segments: {str(e)}")
+        # Note: Segmentation is now manual from document processing page
+        # Removed automatic segmentation to allow user control
         
         if request.is_json:
             return jsonify({
@@ -222,11 +214,12 @@ def upload_file():
 @text_input_bp.route('/documents')
 @login_required
 def document_list():
-    """List user's source documents"""
+    """List all user documents (both source documents and references)"""
     page = request.args.get('page', 1, type=int)
     per_page = 10
     
-    documents = Document.query.filter_by(document_type='document')\
+    # Show ALL documents regardless of type
+    documents = Document.query\
         .order_by(Document.created_at.desc())\
         .paginate(page=page, per_page=per_page, error_out=False)
     
