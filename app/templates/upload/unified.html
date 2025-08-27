@@ -90,9 +90,9 @@
                                         <div class="alert alert-success mb-0">
                                             <div class="d-flex align-items-center">
                                                 <i class="fas fa-file-alt me-2"></i>
-                                                <div>
-                                                    <strong id="selectedFileName"></strong>
-                                                    <br><small id="selectedFileSize" class="text-muted"></small>
+                                                <div class="flex-grow-1">
+                                                    <strong id="selectedFileName">No file selected</strong>
+                                                    <br><small id="selectedFileSize" class="text-muted">0 bytes</small>
                                                 </div>
                                                 <button type="button" class="btn btn-sm btn-outline-secondary ms-auto"
                                                     onclick="clearSelectedFile()">
@@ -885,12 +885,28 @@
 
     function displaySelectedFile(file) {
         const fileInfoDiv = document.getElementById('selectedFileInfo');
-        const fileNameSpan = document.getElementById('selectedFileName');
-        const fileSizeSpan = document.getElementById('selectedFileSize');
 
-        fileNameSpan.textContent = file.name;
-        fileSizeSpan.textContent = formatFileSize(file.size);
-        fileInfoDiv.style.display = 'block';
+        if (fileInfoDiv) {
+            // Create the content dynamically to avoid missing element issues
+            fileInfoDiv.innerHTML = `
+                <div class="alert alert-success mb-0">
+                    <div class="d-flex align-items-center">
+                        <i class="fas fa-file-alt me-2"></i>
+                        <div class="flex-grow-1">
+                            <strong>${file.name}</strong>
+                            <br><small class="text-muted">${formatFileSize(file.size)}</small>
+                        </div>
+                        <button type="button" class="btn btn-sm btn-outline-secondary ms-auto" onclick="clearSelectedFile()">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                </div>
+            `;
+            fileInfoDiv.style.display = 'block';
+        } else {
+            // Fallback: show simple alert
+            alert(`File selected: ${file.name} (${formatFileSize(file.size)})`);
+        }
     }
 
     function clearSelectedFile() {
