@@ -908,14 +908,49 @@
         return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
     }
 
-    // Make drop zone clickable
+    // Make drop zone clickable and set up drag handlers
     document.addEventListener('DOMContentLoaded', function () {
         const dropZone = document.getElementById('dropZone');
         const fileInput = document.getElementById('doc_file');
 
         if (dropZone && fileInput) {
+            // Click handler
             dropZone.addEventListener('click', function () {
                 fileInput.click();
+            });
+
+            // Drag and drop handlers
+            dropZone.addEventListener('dragover', function (e) {
+                e.preventDefault();
+            });
+
+            dropZone.addEventListener('dragenter', function (e) {
+                e.preventDefault();
+                dropZone.classList.add('drag-over');
+            });
+
+            dropZone.addEventListener('dragleave', function (e) {
+                e.preventDefault();
+                if (!e.currentTarget.contains(e.relatedTarget)) {
+                    dropZone.classList.remove('drag-over');
+                }
+            });
+
+            dropZone.addEventListener('drop', function (e) {
+                e.preventDefault();
+                dropZone.classList.remove('drag-over');
+
+                const files = e.dataTransfer.files;
+                if (files && files.length > 0) {
+                    handleFileSelection(files[0]);
+                }
+            });
+
+            // File input change handler
+            fileInput.addEventListener('change', function () {
+                if (this.files && this.files[0]) {
+                    handleFileSelection(this.files[0]);
+                }
             });
         }
     });
