@@ -1,0 +1,716 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Temporal Evolution - Visual Pipeline</title>
+
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Font Awesome for book/page icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- D3.js for advanced graphing -->
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+
+    <style>
+        body {
+            background-color: #f8f9fa;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        }
+
+        .pipeline-container {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            margin: 20px;
+            padding: 30px;
+        }
+
+        .timeline-header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+
+        .timeline-header h1 {
+            color: #2c3e50;
+            font-weight: 300;
+            margin-bottom: 10px;
+        }
+
+        .timeline-subtitle {
+            color: #7f8c8d;
+            font-size: 16px;
+        }
+
+        /* Timeline Container */
+        .timeline-container {
+            position: relative;
+            min-height: 600px;
+            overflow-x: auto;
+            overflow-y: visible;
+            padding: 40px 20px;
+        }
+
+        /* Timeline backbone */
+        .timeline-backbone {
+            position: absolute;
+            top: 50%;
+            left: 5%;
+            right: 5%;
+            height: 4px;
+            background: linear-gradient(90deg, #3498db, #2c3e50);
+            border-radius: 2px;
+            z-index: 1;
+        }
+
+        /* Time periods */
+        .time-period {
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            text-align: center;
+            z-index: 2;
+        }
+
+        .period-marker {
+            width: 16px;
+            height: 16px;
+            background: #2c3e50;
+            border: 4px solid white;
+            border-radius: 50%;
+            margin: 0 auto 10px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        }
+
+        .period-label {
+            background: white;
+            padding: 8px 12px;
+            border-radius: 20px;
+            font-weight: 600;
+            color: #2c3e50;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            white-space: nowrap;
+            font-size: 14px;
+        }
+
+        /* Document containers */
+        .documents-container {
+            position: absolute;
+            width: 180px;
+            left: 50%;
+            transform: translateX(-50%);
+        }
+
+        .documents-above {
+            bottom: 60px;
+        }
+
+        .documents-below {
+            top: 60px;
+        }
+
+        /* Document items */
+        .document-item {
+            background: white;
+            border-radius: 8px;
+            padding: 12px;
+            margin: 8px 0;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border-left: 4px solid transparent;
+        }
+
+        .document-item:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            border-left-color: #3498db;
+        }
+
+        .document-icon {
+            font-size: 24px;
+            margin-right: 10px;
+            color: #3498db;
+        }
+
+        .document-content {
+            display: flex;
+            align-items: center;
+        }
+
+        .document-info {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .document-title {
+            font-weight: 600;
+            font-size: 12px;
+            color: #2c3e50;
+            margin: 0;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .document-meta {
+            font-size: 10px;
+            color: #7f8c8d;
+            margin: 2px 0 0 0;
+        }
+
+        /* Document type styling */
+        .doc-type-academic {
+            border-left-color: #e74c3c;
+        }
+
+        .doc-type-legal {
+            border-left-color: #f39c12;
+        }
+
+        .doc-type-technical {
+            border-left-color: #27ae60;
+        }
+
+        .doc-type-historical {
+            border-left-color: #9b59b6;
+        }
+
+        .doc-type-academic .document-icon {
+            color: #e74c3c;
+        }
+
+        .doc-type-legal .document-icon {
+            color: #f39c12;
+        }
+
+        .doc-type-technical .document-icon {
+            color: #27ae60;
+        }
+
+        .doc-type-historical .document-icon {
+            color: #9b59b6;
+        }
+
+        /* Connection lines */
+        .connection-line {
+            position: absolute;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .connection-path {
+            stroke: #3498db;
+            stroke-width: 2;
+            fill: none;
+            stroke-dasharray: 5, 5;
+            opacity: 0.6;
+        }
+
+        /* Legend */
+        .legend {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            font-size: 12px;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            margin: 5px 0;
+        }
+
+        .legend-color {
+            width: 12px;
+            height: 12px;
+            border-radius: 2px;
+            margin-right: 8px;
+        }
+
+        /* Control panel */
+        .control-panel {
+            background: #34495e;
+            color: white;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+
+        .control-group {
+            display: flex;
+            align-items: center;
+            margin: 10px 0;
+        }
+
+        .control-group label {
+            margin-right: 10px;
+            min-width: 120px;
+            font-size: 14px;
+        }
+
+        .form-control {
+            font-size: 12px;
+        }
+
+        /* Analysis results panel */
+        .analysis-results {
+            background: #ecf0f1;
+            border-radius: 8px;
+            padding: 20px;
+            margin-top: 20px;
+        }
+
+        .metric-card {
+            background: white;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 10px;
+            text-align: center;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .metric-value {
+            font-size: 24px;
+            font-weight: 600;
+            color: #2c3e50;
+        }
+
+        .metric-label {
+            font-size: 12px;
+            color: #7f8c8d;
+            margin-top: 5px;
+        }
+
+        /* Responsive adjustments */
+        @media (max-width: 768px) {
+            .documents-container {
+                width: 140px;
+            }
+
+            .document-title {
+                font-size: 11px;
+            }
+
+            .document-meta {
+                font-size: 9px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container-fluid">
+        <!-- Header -->
+        <div class="pipeline-container">
+            <div class="timeline-header">
+                <h1><i class="fas fa-history"></i> Temporal Evolution Analysis</h1>
+                <div class="timeline-subtitle">Visualizing semantic change across time periods</div>
+            </div>
+
+            <!-- Control Panel -->
+            <div class="control-panel">
+                <div class="row">
+                    <div class="col-md-3">
+                        <div class="control-group">
+                            <label>Term:</label>
+                            <input type="text" class="form-control" id="searchTerm"
+                                placeholder="e.g., artificial intelligence" value="artificial intelligence">
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="control-group">
+                            <label>Time Range:</label>
+                            <select class="form-control" id="timeRange">
+                                <option value="1950-2024">1950-2024 (Full Range)</option>
+                                <option value="1980-2024">1980-2024 (Recent)</option>
+                                <option value="2000-2024" selected>2000-2024 (Contemporary)</option>
+                                <option value="custom">Custom Range</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="control-group">
+                            <label>Period Length:</label>
+                            <select class="form-control" id="periodLength">
+                                <option value="5" selected>5 Years</option>
+                                <option value="10">10 Years</option>
+                                <option value="20">20 Years</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="control-group">
+                            <label></label>
+                            <button class="btn btn-primary btn-sm" id="analyzeBtn">
+                                <i class="fas fa-play"></i> Analyze Evolution
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Timeline Visualization -->
+        <div class="pipeline-container">
+            <div class="timeline-container" id="timelineContainer">
+                <!-- Timeline backbone -->
+                <div class="timeline-backbone"></div>
+
+                <!-- Legend -->
+                <div class="legend">
+                    <h6><i class="fas fa-info-circle"></i> Document Types</h6>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background-color: #e74c3c;"></div>
+                        <span>Academic Papers</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background-color: #f39c12;"></div>
+                        <span>Legal Documents</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background-color: #27ae60;"></div>
+                        <span>Technical Reports</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background-color: #9b59b6;"></div>
+                        <span>Historical Texts</span>
+                    </div>
+                </div>
+
+                <!-- This will be populated by JavaScript -->
+            </div>
+
+            <!-- Analysis Results -->
+            <div class="analysis-results" id="analysisResults" style="display: none;">
+                <h5><i class="fas fa-chart-bar"></i> Evolution Analysis Results</h5>
+                <div class="row">
+                    <div class="col-md-3">
+                        <div class="metric-card">
+                            <div class="metric-value" id="semanticDrift">0.73</div>
+                            <div class="metric-label">Semantic Drift Score</div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="metric-card">
+                            <div class="metric-value" id="contextStability">42%</div>
+                            <div class="metric-label">Context Stability</div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="metric-card">
+                            <div class="metric-value" id="documentsAnalyzed">24</div>
+                            <div class="metric-label">Documents Analyzed</div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="metric-card">
+                            <div class="metric-value" id="confidenceScore">89%</div>
+                            <div class="metric-label">Confidence Score</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mt-3">
+                    <h6>Key Findings:</h6>
+                    <ul id="keyFindings">
+                        <li>Significant semantic shift detected between 2005-2010 periods</li>
+                        <li>Term usage evolved from purely academic to commercial applications</li>
+                        <li>Context stability decreased by 30% in recent decade</li>
+                        <li>New associations: "machine learning", "deep learning", "neural networks"</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+    <script>
+        class TemporalEvolutionVisualizer {
+            constructor() {
+                this.container = document.getElementById('timelineContainer');
+                this.currentTerm = 'artificial intelligence';
+                this.timePeriods = [];
+                this.documents = {};
+                this.init();
+            }
+
+            init() {
+                this.generateSampleData();
+                this.renderTimeline();
+                this.setupEventHandlers();
+            }
+
+            generateSampleData() {
+                // Generate time periods from 2000 to 2024 in 5-year intervals
+                const startYear = 2000;
+                const endYear = 2024;
+                const intervalYears = 5;
+
+                this.timePeriods = [];
+                for (let year = startYear; year <= endYear; year += intervalYears) {
+                    const endPeriod = Math.min(year + intervalYears - 1, endYear);
+                    this.timePeriods.push({
+                        id: `period-${year}`,
+                        label: `${year}-${endPeriod}`,
+                        year: year,
+                        endYear: endPeriod
+                    });
+                }
+
+                // Generate sample documents for each period
+                const documentTypes = [
+                    { type: 'academic', icon: 'fa-graduation-cap', class: 'doc-type-academic' },
+                    { type: 'legal', icon: 'fa-gavel', class: 'doc-type-legal' },
+                    { type: 'technical', icon: 'fa-cogs', class: 'doc-type-technical' },
+                    { type: 'historical', icon: 'fa-book', class: 'doc-type-historical' }
+                ];
+
+                const sampleTitles = {
+                    academic: ['AI Research Paper', 'ML Theory', 'Neural Networks', 'Deep Learning', 'Computer Vision'],
+                    legal: ['AI Regulations', 'Ethics Guidelines', 'Patent Law', 'Data Protection', 'AI Rights'],
+                    technical: ['System Architecture', 'Implementation Guide', 'API Documentation', 'Performance Study', 'Technical Specs'],
+                    historical: ['Historical Context', 'Evolution of AI', 'Early Computing', 'Foundational Work', 'Timeline Analysis']
+                };
+
+                this.documents = {};
+                this.timePeriods.forEach((period, periodIndex) => {
+                    this.documents[period.id] = [];
+
+                    // Generate 3-6 documents per period
+                    const docCount = Math.floor(Math.random() * 4) + 3;
+
+                    for (let i = 0; i < docCount; i++) {
+                        const docType = documentTypes[Math.floor(Math.random() * documentTypes.length)];
+                        const titles = sampleTitles[docType.type];
+                        const title = titles[Math.floor(Math.random() * titles.length)];
+
+                        this.documents[period.id].push({
+                            id: `doc-${period.id}-${i}`,
+                            title: `${title} ${period.year + Math.floor(Math.random() * 5)}`,
+                            type: docType.type,
+                            icon: docType.icon,
+                            class: docType.class,
+                            year: period.year + Math.floor(Math.random() * 5),
+                            relevance: Math.random() * 0.5 + 0.5, // 0.5 to 1.0
+                            citations: Math.floor(Math.random() * 50) + 5
+                        });
+                    }
+
+                    // Sort documents by relevance
+                    this.documents[period.id].sort((a, b) => b.relevance - a.relevance);
+                });
+            }
+
+            renderTimeline() {
+                // Clear existing content except backbone and legend
+                const existingPeriods = this.container.querySelectorAll('.time-period');
+                existingPeriods.forEach(el => el.remove());
+
+                const existingConnections = this.container.querySelectorAll('.connection-line');
+                existingConnections.forEach(el => el.remove());
+
+                // Calculate positions
+                const containerWidth = this.container.offsetWidth;
+                const leftMargin = 5; // 5% margin
+                const rightMargin = 5; // 5% margin
+                const availableWidth = containerWidth * (100 - leftMargin - rightMargin) / 100;
+                const periodSpacing = availableWidth / (this.timePeriods.length - 1);
+
+                this.timePeriods.forEach((period, index) => {
+                    const leftPosition = (leftMargin / 100) * containerWidth + (index * periodSpacing);
+                    const leftPercentage = (leftPosition / containerWidth) * 100;
+
+                    // Create period marker
+                    const periodElement = this.createPeriodElement(period, leftPercentage);
+                    this.container.appendChild(periodElement);
+
+                    // Add documents for this period
+                    this.addDocumentsForPeriod(period, leftPercentage);
+                });
+
+                // Add connection lines between periods
+                this.addConnectionLines();
+            }
+
+            createPeriodElement(period, leftPercentage) {
+                const periodDiv = document.createElement('div');
+                periodDiv.className = 'time-period';
+                periodDiv.style.left = `${leftPercentage}%`;
+                periodDiv.innerHTML = `
+                    <div class="period-marker"></div>
+                    <div class="period-label">${period.label}</div>
+                `;
+                return periodDiv;
+            }
+
+            addDocumentsForPeriod(period, leftPercentage) {
+                const documents = this.documents[period.id];
+                if (!documents || documents.length === 0) return;
+
+                // Split documents between above and below timeline
+                const midpoint = Math.ceil(documents.length / 2);
+                const documentsAbove = documents.slice(0, midpoint);
+                const documentsBelow = documents.slice(midpoint);
+
+                // Create containers
+                if (documentsAbove.length > 0) {
+                    const aboveContainer = this.createDocumentsContainer(documentsAbove, 'documents-above', leftPercentage);
+                    this.container.appendChild(aboveContainer);
+                }
+
+                if (documentsBelow.length > 0) {
+                    const belowContainer = this.createDocumentsContainer(documentsBelow, 'documents-below', leftPercentage);
+                    this.container.appendChild(belowContainer);
+                }
+            }
+
+            createDocumentsContainer(documents, containerClass, leftPercentage) {
+                const container = document.createElement('div');
+                container.className = `documents-container ${containerClass}`;
+                container.style.left = `${leftPercentage}%`;
+
+                documents.forEach(doc => {
+                    const docElement = document.createElement('div');
+                    docElement.className = `document-item ${doc.class}`;
+                    docElement.innerHTML = `
+                        <div class="document-content">
+                            <i class="fas ${doc.icon} document-icon"></i>
+                            <div class="document-info">
+                                <div class="document-title">${doc.title}</div>
+                                <div class="document-meta">${doc.year} • ${doc.citations} citations</div>
+                            </div>
+                        </div>
+                    `;
+
+                    docElement.addEventListener('click', () => this.showDocumentDetails(doc));
+                    container.appendChild(docElement);
+                });
+
+                return container;
+            }
+
+            addConnectionLines() {
+                // Add SVG for connection lines
+                const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+                svg.setAttribute('class', 'connection-line');
+                svg.style.position = 'absolute';
+                svg.style.top = '0';
+                svg.style.left = '0';
+                svg.style.width = '100%';
+                svg.style.height = '100%';
+                svg.style.pointerEvents = 'none';
+                svg.style.zIndex = '0';
+
+                // Add sample connection paths (these would be data-driven in real implementation)
+                const containerWidth = this.container.offsetWidth;
+                const leftMargin = 5;
+                const availableWidth = containerWidth * 0.9;
+                const periodSpacing = availableWidth / (this.timePeriods.length - 1);
+
+                for (let i = 0; i < this.timePeriods.length - 1; i++) {
+                    const startX = (leftMargin / 100) * containerWidth + (i * periodSpacing);
+                    const endX = (leftMargin / 100) * containerWidth + ((i + 1) * periodSpacing);
+                    const midY = this.container.offsetHeight / 2;
+
+                    const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                    const pathData = `M ${startX + 50} ${midY - 30} Q ${(startX + endX) / 2} ${midY - 60} ${endX - 50} ${midY - 30}`;
+                    path.setAttribute('d', pathData);
+                    path.setAttribute('class', 'connection-path');
+                    svg.appendChild(path);
+
+                    const path2 = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                    const pathData2 = `M ${startX + 50} ${midY + 30} Q ${(startX + endX) / 2} ${midY + 60} ${endX - 50} ${midY + 30}`;
+                    path2.setAttribute('d', pathData2);
+                    path2.setAttribute('class', 'connection-path');
+                    svg.appendChild(path2);
+                }
+
+                this.container.appendChild(svg);
+            }
+
+            showDocumentDetails(doc) {
+                alert(`Document: ${doc.title}\nType: ${doc.type}\nYear: ${doc.year}\nCitations: ${doc.citations}\nRelevance: ${Math.round(doc.relevance * 100)}%`);
+            }
+
+            setupEventHandlers() {
+                document.getElementById('analyzeBtn').addEventListener('click', () => {
+                    this.runAnalysis();
+                });
+
+                document.getElementById('searchTerm').addEventListener('change', (e) => {
+                    this.currentTerm = e.target.value;
+                });
+
+                document.getElementById('timeRange').addEventListener('change', (e) => {
+                    this.updateTimeRange(e.target.value);
+                });
+
+                document.getElementById('periodLength').addEventListener('change', (e) => {
+                    this.updatePeriodLength(parseInt(e.target.value));
+                });
+
+                // Handle window resize
+                window.addEventListener('resize', () => {
+                    setTimeout(() => this.renderTimeline(), 100);
+                });
+            }
+
+            updateTimeRange(range) {
+                // This would update the time periods based on the selected range
+                console.log('Updating time range:', range);
+            }
+
+            updatePeriodLength(years) {
+                // This would regenerate periods with the new length
+                console.log('Updating period length:', years);
+            }
+
+            runAnalysis() {
+                // Show loading state
+                const btn = document.getElementById('analyzeBtn');
+                btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Analyzing...';
+                btn.disabled = true;
+
+                // Simulate analysis delay
+                setTimeout(() => {
+                    this.showAnalysisResults();
+                    btn.innerHTML = '<i class="fas fa-play"></i> Analyze Evolution';
+                    btn.disabled = false;
+                }, 2000);
+            }
+
+            showAnalysisResults() {
+                const resultsDiv = document.getElementById('analysisResults');
+                resultsDiv.style.display = 'block';
+
+                // Animate the appearance
+                resultsDiv.style.opacity = '0';
+                setTimeout(() => {
+                    resultsDiv.style.transition = 'opacity 0.5s ease';
+                    resultsDiv.style.opacity = '1';
+                }, 100);
+
+                // Update metrics with random values for demo
+                document.getElementById('semanticDrift').textContent = (Math.random() * 0.5 + 0.5).toFixed(2);
+                document.getElementById('contextStability').textContent = Math.floor(Math.random() * 50 + 30) + '%';
+                document.getElementById('documentsAnalyzed').textContent = Object.values(this.documents).flat().length;
+                document.getElementById('confidenceScore').textContent = Math.floor(Math.random() * 20 + 80) + '%';
+            }
+        }
+
+        // Initialize the visualizer when the page loads
+        document.addEventListener('DOMContentLoaded', () => {
+            new TemporalEvolutionVisualizer();
+        });
+    </script>
+</body>
+
+</html>
