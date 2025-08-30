@@ -1,9 +1,18 @@
 """
 Base LLM service providing a unified interface for multiple LLM providers.
 
-This service abstracts different LLM providers (OpenAI, Claude, local models)
-behind a common interface for text generation and processing.
+DEPRECATED: This service is being replaced by the unified LLM orchestration system.
+Please use the unified system located at /shared/llm_orchestration/ for new development.
+
+This legacy service is maintained for backward compatibility only.
 """
+
+import warnings
+warnings.warn(
+    "OntExtract shared_services/llm is deprecated. Use /shared/llm_orchestration/ instead.",
+    DeprecationWarning,
+    stacklevel=2
+)
 
 import os
 import logging
