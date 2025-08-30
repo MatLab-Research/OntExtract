@@ -235,3 +235,32 @@ SHARING_GUIDE.md
 # Claude Code instructions (development only, not for version control)
 CLAUDE.md
 backup_ontextract_*.sql
+
+# Documentation directories (development/internal only)
+docs/
+*/docs/
+
+# Scripts and development artifacts
+scripts/
+*/scripts/
+scratch/
+*/scratch/
+pending_delete/
+*/pending_delete/
+
+# Cache directories
+cache/
+*/cache/
+*_cache/
+*/*_cache/
+ontserve_cache/
+ontology_cache/
+
+# Archive directories
+archive/
+*/archive/
+
+# Test artifacts
+*.temp
+temp_*/
+*_temp/
