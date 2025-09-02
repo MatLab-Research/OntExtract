@@ -39,22 +39,7 @@
         <li class="nav-item" role="presentation">
             <button class="nav-link" id="dictionary-tab" data-bs-toggle="tab" data-bs-target="#dictionary" type="button"
                 role="tab">
-                <i class="fas fa-spell-check"></i> Dictionary Entry
-            </button>
-        </li>
-        <li class="nav-item" role="presentation">
-            <button class="nav-link" id="oed-tab" data-bs-toggle="tab" data-bs-target="#oed" type="button" role="tab">
-                <i class="fas fa-book text-warning"></i> OED Entry
-            </button>
-        </li>
-        <li class="nav-item" role="presentation">
-            <button class="nav-link" id="mw-dict-tab" data-bs-toggle="tab" data-bs-target="#mw-dict" type="button" role="tab">
-                <i class="fas fa-book text-danger"></i> MW Dictionary
-            </button>
-        </li>
-        <li class="nav-item" role="presentation">
-            <button class="nav-link" id="mw-thes-tab" data-bs-toggle="tab" data-bs-target="#mw-thes" type="button" role="tab">
-                <i class="fas fa-list-alt text-secondary"></i> MW Thesaurus
+                <i class="fas fa-book"></i> Dictionary
             </button>
         </li>
     </ul>
@@ -306,264 +291,213 @@
                             </div>
                         </div>
                     </div>
-
-                    <div class="col-lg-4">
-                        <div class="card">
-                            <div class="card-header">
-                                <h6 class="mb-0">Tips</h6>
-                            </div>
-                            <div class="card-body">
-                                <p class="small text-muted">
-                                    Paste text directly when you:
-                                </p>
-                                <ul class="small text-muted">
-                                    <li>Have content from a webpage</li>
-                                    <li>Want to quickly analyze text</li>
-                                    <li>Need to add notes or summaries</li>
-                                    <li>Have content not in a file format</li>
-                                </ul>
-                            </div>
-                        </div>
-                    </div>
                 </div>
             </form>
         </div>
 
-        <!-- Dictionary Entry Tab -->
+        <!-- Dictionary Tab with Nested Sub-tabs -->
         <div class="tab-pane fade" id="dictionary" role="tabpanel">
-            <form method="POST" id="generalDictForm">
-                <input type="hidden" name="upload_type" value="general_dictionary">
-                <input type="hidden" name="reference_subtype" value="dictionary_general">
+            <!-- Dictionary Sub-tabs -->
+            <ul class="nav nav-pills mt-3 mb-3" id="dictionarySubTabs" role="tablist">
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link active" id="general-dict-pill" data-bs-toggle="pill" data-bs-target="#general-dict-content"
+                        type="button" role="tab">
+                        <i class="fas fa-spell-check"></i> General Dictionary
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="oed-pill" data-bs-toggle="pill" data-bs-target="#oed-content"
+                        type="button" role="tab">
+                        <i class="fas fa-book text-warning"></i> OED Entry
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="mw-dict-pill" data-bs-toggle="pill" data-bs-target="#mw-dict-content"
+                        type="button" role="tab">
+                        <i class="fas fa-book text-danger"></i> MW Dictionary
+                    </button>
+                </li>
+            </ul>
 
-                <div class="row mt-3">
-                    <div class="col-lg-8">
-                        <div class="card">
-                            <div class="card-header">
-                                <h5 class="card-title mb-0">
-                                    <i class="fas fa-spell-check"></i> Dictionary Entry
-                                </h5>
-                            </div>
-                            <div class="card-body">
-                                <div class="mb-3">
-                                    <label for="dict_source" class="form-label">Dictionary Source <span
-                                            class="text-danger">*</span></label>
-                                    <input type="text" class="form-control" id="dict_source" name="journal"
-                                        required placeholder="e.g., Merriam-Webster, Domain Glossary, Technical Standard">
+            <div class="tab-content" id="dictionarySubTabContent">
+                <!-- General Dictionary -->
+                <div class="tab-pane fade show active" id="general-dict-content" role="tabpanel">
+                    <form method="POST" id="generalDictForm">
+                        <input type="hidden" name="upload_type" value="general_dictionary">
+                        <input type="hidden" name="reference_subtype" value="dictionary_general">
+
+                        <div class="row">
+                            <div class="col-lg-8">
+                                <div class="card">
+                                    <div class="card-header">
+                                        <h5 class="card-title mb-0">
+                                            <i class="fas fa-spell-check"></i> General Dictionary Entry
+                                        </h5>
+                                    </div>
+                                    <div class="card-body">
+                                        <div class="mb-3">
+                                            <label for="dict_source" class="form-label">Dictionary Source <span
+                                                    class="text-danger">*</span></label>
+                                            <input type="text" class="form-control" id="dict_source" name="journal"
+                                                required placeholder="e.g., Merriam-Webster, Domain Glossary, Technical Standard">
+                                        </div>
+
+                                        <div class="mb-3">
+                                            <label for="dict_term" class="form-label">Term <span
+                                                    class="text-danger">*</span></label>
+                                            <input type="text" class="form-control" id="dict_term" name="title" required
+                                                placeholder="Enter the term">
+                                        </div>
+
+                                        <div class="mb-3">
+                                            <label for="dict_definition" class="form-label">Definition <span
+                                                    class="text-danger">*</span></label>
+                                            <textarea class="form-control" id="dict_definition" name="content" rows="4"
+                                                required placeholder="Enter the definition..."></textarea>
+                                        </div>
+
+                                        <div class="mb-3">
+                                            <label for="dict_context" class="form-label">Context/Domain</label>
+                                            <input type="text" class="form-control" id="dict_context" name="context"
+                                                placeholder="e.g., Computer Science, Medicine">
+                                        </div>
+
+                                        <div class="mb-3">
+                                            <label for="dict_citation" class="form-label">Citation <span
+                                                    class="text-danger">*</span></label>
+                                            <textarea class="form-control" name="citation" rows="2" required
+                                                placeholder="Full citation for this dictionary entry..."></textarea>
+                                        </div>
+
+                                        <button type="submit" class="btn btn-primary">
+                                            <i class="fas fa-save"></i> Save Dictionary Entry
+                                        </button>
+                                    </div>
                                 </div>
-
-                                <div class="mb-3">
-                                    <label for="dict_term" class="form-label">Term <span
-                                            class="text-danger">*</span></label>
-                                    <input type="text" class="form-control" id="dict_term" name="title" required
-                                        placeholder="Enter the term">
-                                </div>
-
-                                <div class="mb-3">
-                                    <label for="dict_definition" class="form-label">Definition <span
-                                            class="text-danger">*</span></label>
-                                    <textarea class="form-control" id="dict_definition" name="content" rows="4"
-                                        required placeholder="Enter the definition..."></textarea>
-                                </div>
-
-                                <div class="mb-3">
-                                    <label for="dict_context" class="form-label">Context/Domain</label>
-                                    <input type="text" class="form-control" id="dict_context" name="context"
-                                        placeholder="e.g., Computer Science, Medicine">
-                                </div>
-
-                                <div class="mb-3">
-                                    <label for="dict_citation" class="form-label">Citation <span
-                                            class="text-danger">*</span></label>
-                                    <textarea class="form-control" name="citation" rows="2" required
-                                        placeholder="Full citation for this dictionary entry..."></textarea>
-                                </div>
-
-                                <button type="submit" class="btn btn-primary">
-                                    <i class="fas fa-save"></i> Save Dictionary Entry
-                                </button>
                             </div>
                         </div>
-                    </div>
+                    </form>
                 </div>
-            </form>
-        </div>
 
-        <!-- OED Entry Tab -->
-        <div class="tab-pane fade" id="oed" role="tabpanel">
-            <div class="row mt-3">
-                <div class="col-lg-8">
-                    <div class="card">
-                        <div class="card-header">
-                            <h5 class="card-title mb-0">
-                                <i class="fas fa-book text-warning"></i> Oxford English Dictionary Entry
-                            </h5>
-                        </div>
-                        <div class="card-body">
-                            <div class="alert alert-info">
-                                <i class="fas fa-info-circle"></i>
-                                Search and add entries from the Oxford English Dictionary. 
-                                <strong>Only metadata is stored; definitions are fetched on demand to comply with OED terms.</strong>
-                            </div>
+                <!-- OED Entry -->
+                <div class="tab-pane fade" id="oed-content" role="tabpanel">
+                    <form method="POST" id="oedForm">
+                        <input type="hidden" name="upload_type" value="oed_dictionary">
+                        <input type="hidden" name="reference_subtype" value="dictionary_oed">
 
-                            <div class="mb-3">
-                                <label class="form-label">Search Term <span class="text-danger">*</span></label>
-                                <div class="input-group">
-                                    <input type="text" class="form-control" id="oed-search-term" 
-                                           placeholder="Enter word to search in OED...">
-                                    <button class="btn btn-outline-warning" type="button" id="oed-search-btn">
-                                        <i class="fas fa-search"></i> Search OED
-                                    </button>
+                        <div class="row">
+                            <div class="col-lg-8">
+                                <div class="card">
+                                    <div class="card-header bg-primary text-white">
+                                        <h5 class="card-title mb-0">
+                                            <i class="fas fa-book"></i> Oxford English Dictionary Entry
+                                        </h5>
+                                    </div>
+                                    <div class="card-body">
+                                        <!-- PDF Upload Section -->
+                                        <div class="card mb-4 bg-light">
+                                            <div class="card-body">
+                                                <h6 class="card-title">
+                                                    <i class="fas fa-file-pdf text-danger"></i> Upload OED PDF
+                                                    (Optional)
+                                                </h6>
+                                                <p class="small text-muted">Upload a PDF to auto-populate fields</p>
+                                                <div class="row align-items-end">
+                                                    <div class="col-md-8">
+                                                        <input type="file" class="form-control" id="oed_pdf_file"
+                                                            accept=".pdf">
+                                                    </div>
+                                                    <div class="col-md-4">
+                                                        <button type="button" class="btn btn-secondary w-100"
+                                                            onclick="parseOEDPDF()">
+                                                            <i class="fas fa-magic"></i> Parse PDF
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                                <div id="oed_parse_status" class="mt-2"></div>
+                                            </div>
+                                        </div>
+
+                                        <div class="mb-3">
+                                            <label for="oed_term" class="form-label">Term/Headword <span
+                                                    class="text-danger">*</span></label>
+                                            <input type="text" class="form-control" id="oed_term" name="title" required
+                                                placeholder="e.g., ontology">
+                                        </div>
+
+                                        <div class="mb-3">
+                                            <label for="oed_full_text" class="form-label">Complete OED Entry <span
+                                                    class="text-danger">*</span></label>
+                                            <textarea class="form-control" id="oed_full_text" name="content" rows="10"
+                                                required placeholder="The complete OED entry text..."></textarea>
+                                        </div>
+
+                                        <div class="mb-3">
+                                            <label for="oed_first_use" class="form-label">First Recorded Use</label>
+                                            <input type="text" class="form-control" id="oed_first_use" name="first_use"
+                                                placeholder="e.g., 1721">
+                                        </div>
+
+                                        <button type="submit" class="btn btn-primary">
+                                            <i class="fas fa-save"></i> Save OED Entry
+                                        </button>
+                                    </div>
                                 </div>
-                                <div class="form-text">Search the Oxford English Dictionary for entry suggestions</div>
                             </div>
+                        </div>
+                    </form>
+                </div>
 
-                            <!-- OED Search Results -->
-                            <div id="oed-results" class="mt-3" style="display: none;">
-                                <div class="border rounded p-3 bg-light">
-                                    <div id="oed-results-content">
-                                        <!-- OED search results will appear here -->
+                <!-- MW Dictionary -->
+                <div class="tab-pane fade" id="mw-dict-content" role="tabpanel">
+                    <div class="row">
+                        <div class="col-lg-8">
+                            <div class="card">
+                                <div class="card-header bg-danger text-white">
+                                    <h5 class="card-title mb-0">
+                                        <i class="fas fa-book text-danger"></i> Merriam-Webster Dictionary Entry
+                                    </h5>
+                                </div>
+                                <div class="card-body">
+                                    <div class="alert alert-info">
+                                        <i class="fas fa-info-circle me-2"></i>
+                                        <strong>Search Merriam-Webster Dictionary</strong>
+                                        <br>Enter a term to search and retrieve definitions from the Merriam-Webster Dictionary API.
+                                    </div>
+
+                                    <!-- Search Interface -->
+                                    <div class="mb-3">
+                                        <label for="mw_search_term" class="form-label">Search Term <span
+                                                class="text-danger">*</span></label>
+                                        <div class="input-group">
+                                            <input type="text" class="form-control" id="mw_search_term"
+                                                placeholder="Enter term to search...">
+                                            <button class="btn btn-danger" type="button" onclick="searchMWDictionary()">
+                                                <i class="fas fa-search"></i> Search MW Dictionary
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    <!-- Search Results -->
+                                    <div id="mw_dict_results" style="display: none;">
+                                        <div id="mw_dict_results_content">
+                                            <!-- Results will be populated here -->
+                                        </div>
+                                    </div>
+
+                                    <div class="mt-3 text-muted small">
+                                        <i class="fas fa-info-circle me-1"></i>
+                                        Results will be automatically saved as dictionary entries when selected.
                                     </div>
                                 </div>
                             </div>
                         </div>
                     </div>
                 </div>
-                <div class="col-lg-4">
-                    <div class="card">
-                        <div class="card-header">
-                            <h6 class="card-title mb-0">About OED Integration</h6>
-                        </div>
-                        <div class="card-body">
-                            <p class="small text-muted mb-2">
-                                The Oxford English Dictionary provides authoritative definitions and etymological information.
-                            </p>
-                            <p class="small text-muted">
-                                <strong>Note:</strong> This integration stores only metadata (entry ID, headword, part of speech) 
-                                and fetches definitions on demand to comply with OED licensing terms.
-                            </p>
-                        </div>
-                    </div>
-                </div>
+
             </div>
         </div>
 
-        <!-- Merriam-Webster Dictionary Tab -->
-        <div class="tab-pane fade" id="mw-dict" role="tabpanel">
-            <div class="row mt-3">
-                <div class="col-lg-8">
-                    <div class="card">
-                        <div class="card-header">
-                            <h5 class="card-title mb-0">
-                                <i class="fas fa-book text-danger"></i> Merriam-Webster Dictionary Entry
-                            </h5>
-                        </div>
-                        <div class="card-body">
-                            <div class="alert alert-info">
-                                <i class="fas fa-info-circle"></i>
-                                Search and add entries from Merriam-Webster Dictionary.
-                                <strong>Authoritative American English definitions with pronunciation and usage.</strong>
-                            </div>
-
-                            <div class="mb-3">
-                                <label class="form-label">Search Term <span class="text-danger">*</span></label>
-                                <div class="input-group">
-                                    <input type="text" class="form-control" id="mw-dict-search-term" 
-                                           placeholder="Enter word to search in Merriam-Webster...">
-                                    <button class="btn btn-outline-danger" type="button" id="mw-dict-search-btn">
-                                        <i class="fas fa-search"></i> Search Dictionary
-                                    </button>
-                                </div>
-                                <div class="form-text">Search Merriam-Webster Dictionary for definitions</div>
-                            </div>
-
-                            <!-- MW Dictionary Search Results -->
-                            <div id="mw-dict-results" class="mt-3" style="display: none;">
-                                <div class="border rounded p-3 bg-light">
-                                    <div id="mw-dict-results-content">
-                                        <!-- MW Dictionary search results will appear here -->
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-lg-4">
-                    <div class="card">
-                        <div class="card-header">
-                            <h6 class="card-title mb-0">About MW Dictionary</h6>
-                        </div>
-                        <div class="card-body">
-                            <p class="small text-muted mb-2">
-                                Merriam-Webster provides comprehensive American English definitions with 
-                                pronunciation guides and usage examples.
-                            </p>
-                            <p class="small text-muted">
-                                Perfect for contemporary word definitions and standard American usage.
-                            </p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Merriam-Webster Thesaurus Tab -->
-        <div class="tab-pane fade" id="mw-thes" role="tabpanel">
-            <div class="row mt-3">
-                <div class="col-lg-8">
-                    <div class="card">
-                        <div class="card-header">
-                            <h5 class="card-title mb-0">
-                                <i class="fas fa-list-alt text-secondary"></i> Merriam-Webster Thesaurus Entry
-                            </h5>
-                        </div>
-                        <div class="card-body">
-                            <div class="alert alert-info">
-                                <i class="fas fa-info-circle"></i>
-                                Search and add entries from Merriam-Webster Thesaurus.
-                                <strong>Find synonyms, antonyms, and related words for semantic analysis.</strong>
-                            </div>
-
-                            <div class="mb-3">
-                                <label class="form-label">Search Term <span class="text-danger">*</span></label>
-                                <div class="input-group">
-                                    <input type="text" class="form-control" id="mw-thes-search-term" 
-                                           placeholder="Enter word to search in thesaurus...">
-                                    <button class="btn btn-outline-secondary" type="button" id="mw-thes-search-btn">
-                                        <i class="fas fa-search"></i> Search Thesaurus
-                                    </button>
-                                </div>
-                                <div class="form-text">Search Merriam-Webster Thesaurus for synonyms and antonyms</div>
-                            </div>
-
-                            <!-- MW Thesaurus Search Results -->
-                            <div id="mw-thes-results" class="mt-3" style="display: none;">
-                                <div class="border rounded p-3 bg-light">
-                                    <div id="mw-thes-results-content">
-                                        <!-- MW Thesaurus search results will appear here -->
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-lg-4">
-                    <div class="card">
-                        <div class="card-header">
-                            <h6 class="card-title mb-0">About MW Thesaurus</h6>
-                        </div>
-                        <div class="card-body">
-                            <p class="small text-muted mb-2">
-                                Merriam-Webster Thesaurus provides comprehensive synonym and antonym lists 
-                                for semantic relationship analysis.
-                            </p>
-                            <p class="small text-muted">
-                                Essential for understanding word relationships and context anchoring.
-                            </p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
     </div>
 </div>
 
@@ -586,6 +520,133 @@
                 localStorage.setItem('uploadMainTab', tabId);
             });
         });
+
+        // Dictionary sub-tab memory
+        const savedDictTab = localStorage.getItem('dictionarySubTab');
+        if (savedDictTab) {
+            const subTabButton = document.querySelector(`#${savedDictTab}-pill`);
+            if (subTabButton) {
+                new bootstrap.Tab(subTabButton).show();
+            }
+        }
+
+        // Save dictionary sub-tab preference when changed
+        document.querySelectorAll('#dictionarySubTabs button[data-bs-toggle="pill"]').forEach(tab => {
+            tab.addEventListener('shown.bs.tab', function (e) {
+                const tabId = e.target.id.replace('-pill', '');
+                localStorage.setItem('dictionarySubTab', tabId);
+            });
+        });
+
+        // Add search functionality for nested dictionary tabs
+        setupDictionarySearch();
+    });
+
+    // MW Dictionary Search functionality
+    function searchMWDictionary() {
+        const searchTerm = document.getElementById('mw_search_term')?.value.trim();
+        if (!searchTerm) {
+            alert('Please enter a search term');
+            return;
+        }
+        
+        const resultsDiv = document.getElementById('mw_dict_results');
+        const resultsContent = document.getElementById('mw_dict_results_content');
+        
+        resultsContent.innerHTML = `
+            <div class="alert alert-info">
+                <i class="fas fa-spinner fa-spin me-2"></i>
+                Searching Merriam-Webster Dictionary for "${searchTerm}"...
+            </div>
+        `;
+        resultsDiv.style.display = 'block';
+        
+        // Use existing MW Dictionary API endpoint
+        fetch(`/api/merriam-webster/dictionary/${encodeURIComponent(searchTerm)}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.success && data.results && data.results.length > 0) {
+                    displayMWDictionaryResults(data, searchTerm);
+                } else {
+                    resultsContent.innerHTML = `
+                        <div class="alert alert-warning">
+                            <i class="fas fa-exclamation-triangle me-2"></i>
+                            No dictionary entries found for "${searchTerm}".
+                        </div>
+                    `;
+                }
+            })
+            .catch(error => {
+                console.error('MW Dictionary API Error:', error);
+                resultsContent.innerHTML = `
+                    <div class="alert alert-danger">
+                        <i class="fas fa-exclamation-circle me-2"></i>
+                        <strong>Error searching MW Dictionary:</strong> ${error.message}
+                    </div>
+                `;
+            });
+    }
+
+
+    // Display MW Dictionary results
+    function displayMWDictionaryResults(data, searchTerm) {
+        const resultsContent = document.getElementById('mw_dict_results_content');
+        
+        let html = `
+            <div class="alert alert-success">
+                <i class="fas fa-check-circle me-2"></i>
+                <strong>MW Dictionary Results for "${searchTerm}"</strong>
+            </div>
+        `;
+        
+        data.results.forEach((result, index) => {
+            html += `
+                <div class="card mb-2">
+                    <div class="card-body">
+                        <h6 class="card-title">
+                            <strong>${result.word || result.id}</strong>
+                            ${result.functional_label ? `<span class="badge bg-secondary ms-2">${result.functional_label}</span>` : ''}
+                        </h6>
+            `;
+            
+            if (result.definitions && result.definitions.length > 0) {
+                html += `<ul class="mb-2">`;
+                result.definitions.forEach(def => {
+                    html += `<li>${def}</li>`;
+                });
+                html += `</ul>`;
+            }
+            
+            html += `
+                        <button type="button" class="btn btn-sm btn-outline-primary" 
+                                onclick="selectMWDictionaryResult('${searchTerm}', ${index})">
+                            Add MW Dictionary Entry
+                        </button>
+                    </div>
+                </div>
+            `;
+        });
+        
+        resultsContent.innerHTML = html;
+        window.currentMWDictResults = data;
+    }
+
+
+    // Setup search functionality
+    function setupDictionarySearch() {
+        // MW Dictionary search button
+        document.getElementById('mw_search_term')?.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                searchMWDictionary();
+            }
+        });
+    }
+
+    // Handle MW Dictionary result selection (placeholder - implement based on backend)
+    function selectMWDictionaryResult(searchTerm, index) {
+        alert(`Selected MW Dictionary result ${index} for "${searchTerm}". Backend integration needed.`);
+    }
+
 
         // Character/word counter for paste text
         const pasteContent = document.getElementById('paste_content');
