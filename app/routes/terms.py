@@ -90,7 +90,12 @@ def add_term():
                     Term.research_domain != ''
                 ).all()
                 existing_domains = [d[0] for d in existing_domains]
-                return render_template('terms/add.html', form=form, existing_domains=existing_domains)
+                
+                # Get documents for reference document selection
+                from app.models.document import Document
+                documents = Document.query.filter_by(user_id=current_user.id).order_by(Document.title).all()
+                
+                return render_template('terms/add.html', form=form, existing_domains=existing_domains, documents=documents)
             
             # Create term
             term = Term(
@@ -157,7 +162,11 @@ def add_term():
     ).all()
     existing_domains = [d[0] for d in existing_domains]
     
-    return render_template('terms/add.html', form=form, existing_domains=existing_domains)
+    # Get documents for reference document selection
+    from app.models.document import Document
+    documents = Document.query.filter_by(user_id=current_user.id).order_by(Document.title).all()
+    
+    return render_template('terms/add.html', form=form, existing_domains=existing_domains, documents=documents)
 
 
 @terms_bp.route('/import', methods=['GET', 'POST'])

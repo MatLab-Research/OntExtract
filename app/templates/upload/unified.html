@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}Add Document - OntExtract{% endblock %}
+{% block title %}Add Source - OntExtract{% endblock %}
 
 {% block content %}
 <div class="container mt-4">
@@ -9,7 +9,7 @@
             <nav aria-label="breadcrumb">
                 <ol class="breadcrumb">
                     <li class="breadcrumb-item"><a href="{{ url_for('index') }}">Home</a></li>
-                    <li class="breadcrumb-item active">Add Document</li>
+                    <li class="breadcrumb-item active">Add Source</li>
                 </ol>
             </nav>
         </div>
@@ -17,7 +17,7 @@
 
     <div class="row">
         <div class="col-12">
-            <h1><i class="fas fa-plus-circle text-primary"></i> Add Document</h1>
+            <h1><i class="fas fa-plus-circle text-primary"></i> Add Source</h1>
             <p class="text-muted">Add documents, dictionary entries, or references from various sources</p>
         </div>
     </div>
@@ -27,7 +27,7 @@
         <li class="nav-item" role="presentation">
             <button class="nav-link active" id="document-tab" data-bs-toggle="tab" data-bs-target="#document"
                 type="button" role="tab">
-                <i class="fas fa-file-alt"></i> Documents
+                <i class="fas fa-file-alt"></i> Upload
             </button>
         </li>
         <li class="nav-item" role="presentation">
@@ -331,142 +331,61 @@
 
         <!-- Dictionary Entry Tab -->
         <div class="tab-pane fade" id="dictionary" role="tabpanel">
-            <!-- Sub-tabs for OED vs General Dictionary -->
-            <ul class="nav nav-pills mt-3 mb-3" id="dictionarySubTabs">
-                <li class="nav-item">
-                    <button class="nav-link active" id="oed-pill" data-bs-toggle="pill" data-bs-target="#oed-content"
-                        type="button">
-                        <i class="fas fa-book"></i> OED Entry
-                    </button>
-                </li>
-                <li class="nav-item">
-                    <button class="nav-link" id="general-dict-pill" data-bs-toggle="pill"
-                        data-bs-target="#general-dict-content" type="button">
-                        <i class="fas fa-spell-check"></i> Other Dictionary
-                    </button>
-                </li>
-            </ul>
+            <form method="POST" id="generalDictForm">
+                <input type="hidden" name="upload_type" value="general_dictionary">
+                <input type="hidden" name="reference_subtype" value="dictionary_general">
 
-            <div class="tab-content" id="dictionarySubTabContent">
-                <!-- OED Entry -->
-                <div class="tab-pane fade show active" id="oed-content">
-                    <form method="POST" id="oedForm">
-                        <input type="hidden" name="upload_type" value="oed_dictionary">
-                        <input type="hidden" name="reference_subtype" value="dictionary_oed">
-
-                        <div class="row">
-                            <div class="col-lg-8">
-                                <div class="card">
-                                    <div class="card-header bg-primary text-white">
-                                        <h5 class="card-title mb-0">
-                                            <i class="fas fa-book"></i> Oxford English Dictionary Entry
-                                        </h5>
-                                    </div>
-                                    <div class="card-body">
-                                        <!-- PDF Upload Section -->
-                                        <div class="card mb-4 bg-light">
-                                            <div class="card-body">
-                                                <h6 class="card-title">
-                                                    <i class="fas fa-file-pdf text-danger"></i> Upload OED PDF
-                                                    (Optional)
-                                                </h6>
-                                                <p class="small text-muted">Upload a PDF to auto-populate fields</p>
-                                                <div class="row align-items-end">
-                                                    <div class="col-md-8">
-                                                        <input type="file" class="form-control" id="oed_pdf_file"
-                                                            accept=".pdf">
-                                                    </div>
-                                                    <div class="col-md-4">
-                                                        <button type="button" class="btn btn-secondary w-100"
-                                                            onclick="parseOEDPDF()">
-                                                            <i class="fas fa-magic"></i> Parse PDF
-                                                        </button>
-                                                    </div>
-                                                </div>
-                                                <div id="oed_parse_status" class="mt-2"></div>
-                                            </div>
-                                        </div>
-
-                                        <div class="mb-3">
-                                            <label for="oed_term" class="form-label">Term/Headword <span
-                                                    class="text-danger">*</span></label>
-                                            <input type="text" class="form-control" id="oed_term" name="title" required
-                                                placeholder="e.g., ontology">
-                                        </div>
-
-                                        <div class="mb-3">
-                                            <label for="oed_full_text" class="form-label">Complete OED Entry <span
-                                                    class="text-danger">*</span></label>
-                                            <textarea class="form-control" id="oed_full_text" name="content" rows="10"
-                                                required placeholder="The complete OED entry text..."></textarea>
-                                        </div>
-
-                                        <div class="mb-3">
-                                            <label for="oed_first_use" class="form-label">First Recorded Use</label>
-                                            <input type="text" class="form-control" id="oed_first_use" name="first_use"
-                                                placeholder="e.g., 1721">
-                                        </div>
-
-                                        <button type="submit" class="btn btn-primary">
-                                            <i class="fas fa-save"></i> Save OED Entry
-                                        </button>
-                                    </div>
+                <div class="row mt-3">
+                    <div class="col-lg-8">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5 class="card-title mb-0">
+                                    <i class="fas fa-spell-check"></i> Dictionary Entry
+                                </h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="mb-3">
+                                    <label for="dict_source" class="form-label">Dictionary Source <span
+                                            class="text-danger">*</span></label>
+                                    <input type="text" class="form-control" id="dict_source" name="journal"
+                                        required placeholder="e.g., Merriam-Webster, Domain Glossary, Technical Standard">
                                 </div>
+
+                                <div class="mb-3">
+                                    <label for="dict_term" class="form-label">Term <span
+                                            class="text-danger">*</span></label>
+                                    <input type="text" class="form-control" id="dict_term" name="title" required
+                                        placeholder="Enter the term">
+                                </div>
+
+                                <div class="mb-3">
+                                    <label for="dict_definition" class="form-label">Definition <span
+                                            class="text-danger">*</span></label>
+                                    <textarea class="form-control" id="dict_definition" name="content" rows="4"
+                                        required placeholder="Enter the definition..."></textarea>
+                                </div>
+
+                                <div class="mb-3">
+                                    <label for="dict_context" class="form-label">Context/Domain</label>
+                                    <input type="text" class="form-control" id="dict_context" name="context"
+                                        placeholder="e.g., Computer Science, Medicine">
+                                </div>
+
+                                <div class="mb-3">
+                                    <label for="dict_citation" class="form-label">Citation <span
+                                            class="text-danger">*</span></label>
+                                    <textarea class="form-control" name="citation" rows="2" required
+                                        placeholder="Full citation for this dictionary entry..."></textarea>
+                                </div>
+
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-save"></i> Save Dictionary Entry
+                                </button>
                             </div>
                         </div>
-                    </form>
+                    </div>
                 </div>
-
-                <!-- General Dictionary -->
-                <div class="tab-pane fade" id="general-dict-content">
-                    <form method="POST" id="generalDictForm">
-                        <input type="hidden" name="upload_type" value="general_dictionary">
-                        <input type="hidden" name="reference_subtype" value="dictionary_general">
-
-                        <div class="row">
-                            <div class="col-lg-8">
-                                <div class="card">
-                                    <div class="card-header">
-                                        <h5 class="card-title mb-0">General Dictionary Entry</h5>
-                                    </div>
-                                    <div class="card-body">
-                                        <div class="mb-3">
-                                            <label for="dict_source" class="form-label">Dictionary Source <span
-                                                    class="text-danger">*</span></label>
-                                            <input type="text" class="form-control" id="dict_source" name="journal"
-                                                required placeholder="e.g., Merriam-Webster, Domain Glossary">
-                                        </div>
-
-                                        <div class="mb-3">
-                                            <label for="dict_term" class="form-label">Term <span
-                                                    class="text-danger">*</span></label>
-                                            <input type="text" class="form-control" id="dict_term" name="title" required
-                                                placeholder="Enter the term">
-                                        </div>
-
-                                        <div class="mb-3">
-                                            <label for="dict_definition" class="form-label">Definition <span
-                                                    class="text-danger">*</span></label>
-                                            <textarea class="form-control" id="dict_definition" name="content" rows="4"
-                                                required placeholder="Enter the definition..."></textarea>
-                                        </div>
-
-                                        <div class="mb-3">
-                                            <label for="dict_context" class="form-label">Context/Domain</label>
-                                            <input type="text" class="form-control" id="dict_context" name="context"
-                                                placeholder="e.g., Computer Science, Medicine">
-                                        </div>
-
-                                        <button type="submit" class="btn btn-primary">
-                                            <i class="fas fa-save"></i> Save Dictionary Entry
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </form>
-                </div>
-            </div>
+            </form>
         </div>
 
         <!-- OED Entry Tab -->
