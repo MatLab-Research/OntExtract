@@ -18,10 +18,13 @@
                     <form method="POST" action="{{ url_for('terms.add_term') }}">
                         {{ form.hidden_tag() }}
                         
-                        <!-- Term Text -->
-                        <div class="mb-3">
-                            {{ form.term_text.label(class="form-label") }}
-                            {{ form.term_text(class="form-control" + (" is-invalid" if form.term_text.errors else "")) }}
+                        <!-- Term Text (MOST IMPORTANT FIELD - ALWAYS VISIBLE) -->
+                        <div class="mb-4 p-3 bg-light border rounded">
+                            <div class="mb-2">
+                                <h5 class="mb-1">{{ form.term_text.label(class="form-label") }}</h5>
+                                <small class="text-muted">Enter the term manually or use the options below to search and auto-populate</small>
+                            </div>
+                            {{ form.term_text(class="form-control form-control-lg" + (" is-invalid" if form.term_text.errors else "")) }}
                             {% if form.term_text.errors %}
                                 <div class="invalid-feedback">
                                     {% for error in form.term_text.errors %}
@@ -31,138 +34,9 @@
                             {% endif %}
                             <div class="form-text">The word or phrase you want to analyze for semantic change</div>
                         </div>
-
-                        <!-- Meaning Description -->
-                        <div class="mb-3">
-                            {{ form.meaning_description.label(class="form-label") }}
-                            {{ form.meaning_description(class="form-control" + (" is-invalid" if form.meaning_description.errors else ""), rows="4") }}
-                            {% if form.meaning_description.errors %}
-                                <div class="invalid-feedback">
-                                    {% for error in form.meaning_description.errors %}
-                                        {{ error }}
-                                    {% endfor %}
-                                </div>
-                            {% endif %}
-                            <div class="form-text">Describe the current or baseline meaning of this term</div>
-                        </div>
-
-                        <!-- Research Domain -->
-                        <div class="mb-3">
-                            {{ form.research_domain.label(class="form-label") }}
-                            <div class="input-group">
-                                {{ form.research_domain(class="form-control" + (" is-invalid" if form.research_domain.errors else ""), list="research-domain-options", autocomplete="on") }}
-                                <button class="btn btn-outline-secondary" type="button" id="research-domain-help" data-bs-toggle="tooltip" data-bs-placement="top" title="Choose from existing domains or add a new one">
-                                    <i class="fas fa-question-circle"></i>
-                                </button>
-                            </div>
-                            {% if form.research_domain.errors %}
-                                <div class="invalid-feedback">
-                                    {% for error in form.research_domain.errors %}
-                                        {{ error }}
-                                    {% endfor %}
-                                </div>
-                            {% endif %}
-                            <div class="form-text">Research domain or field of study (e.g., Philosophy, Science, Politics, Engineering Ethics)</div>
-                            
-                            <!-- Research domain options (existing + predefined) -->
-                            <datalist id="research-domain-options">
-                                <!-- Existing domains from database (populated first) -->
-                                {% for domain in existing_domains %}
-                                <option value="{{ domain }}">
-                                {% endfor %}
-                                
-                                <!-- Predefined domain suggestions -->
-                                {% set predefined_domains = [
-                                    'Philosophy', 'Science', 'Politics', 'Engineering Ethics',
-                                    'Medical Ethics', 'Business Ethics', 'Environmental Science',
-                                    'Computer Science', 'Linguistics', 'Psychology', 'Sociology',
-                                    'History', 'Law', 'Economics', 'Anthropology'
-                                ] %}
-                                {% for domain in predefined_domains %}
-                                    {% if domain not in existing_domains %}
-                                    <option value="{{ domain }}">
-                                    {% endif %}
-                                {% endfor %}
-                            </datalist>
-                        </div>
-
-                        <!-- Temporal Period Configuration -->
+                        
+                        <!-- Anchoring Methods -->
                         <div class="mb-4">
-                            <label class="form-label">Reference Time Period *</label>
-                            <div class="form-text mb-3">This is the historical period where this term meaning is anchored, following the Choi research framework.</div>
-                            
-                            <!-- Period Selection Method -->
-                            <div class="btn-group mb-3" role="group" aria-label="Period selection method">
-                                <input type="radio" class="btn-check" name="period-method" id="single-year" value="single" checked>
-                                <label class="btn btn-outline-primary" for="single-year">
-                                    <i class="fas fa-calendar-day"></i> Single Year
-                                </label>
-                                
-                                <input type="radio" class="btn-check" name="period-method" id="year-range" value="range">
-                                <label class="btn btn-outline-primary" for="year-range">
-                                    <i class="fas fa-calendar-alt"></i> Year Range
-                                </label>
-                                
-                                <input type="radio" class="btn-check" name="period-method" id="period-name" value="named">
-                                <label class="btn btn-outline-primary" for="period-name">
-                                    <i class="fas fa-clock"></i> Named Period
-                                </label>
-                            </div>
-                            
-                            <!-- Single Year Input -->
-                            <div id="single-year-input" class="period-input">
-                                <div class="row">
-                                    <div class="col-md-6">
-                                        <input type="number" class="form-control" id="reference-year" 
-                                               placeholder="e.g., 2000" min="1400" max="2030" value="2000">
-                                        <small class="text-muted">Reference year for this meaning</small>
-                                    </div>
-                                </div>
-                            </div>
-                            
-                            <!-- Year Range Input -->
-                            <div id="year-range-input" class="period-input" style="display: none;">
-                                <div class="row">
-                                    <div class="col-md-4">
-                                        <label class="form-label">Start Year</label>
-                                        <input type="number" class="form-control" id="start-year" 
-                                               placeholder="e.g., 1990" min="1400" max="2030" value="2000">
-                                    </div>
-                                    <div class="col-md-4">
-                                        <label class="form-label">End Year</label>
-                                        <input type="number" class="form-control" id="end-year" 
-                                               placeholder="e.g., 2020" min="1400" max="2030" value="2020">
-                                    </div>
-                                </div>
-                            </div>
-                            
-                            <!-- Named Period Input -->
-                            <div id="named-period-input" class="period-input" style="display: none;">
-                                <div class="row">
-                                    <div class="col-md-8">
-                                        <input type="text" class="form-control" id="period-name-text" 
-                                               placeholder="e.g., Early 20th Century, Victorian Era, Modern Period">
-                                        <small class="text-muted">Descriptive name for the historical period</small>
-                                    </div>
-                                </div>
-                            </div>
-                            
-                            <!-- Hidden field for backend -->
-                            {{ form.temporal_period(class="form-control", style="display: none;") }}
-                            {% if form.temporal_period.errors %}
-                                <div class="invalid-feedback d-block">
-                                    {% for error in form.temporal_period.errors %}
-                                        {{ error }}
-                                    {% endfor %}
-                                </div>
-                            {% endif %}
-                        </div>
-
-                        <!-- Context Anchoring Sources -->
-                        <div class="mb-4">
-                            <label class="form-label">Context Anchoring Method *</label>
-                            <div class="form-text mb-3">Select how this term's meaning is anchored, following the Choi research framework.</div>
-                            
                             <!-- Tab Navigation -->
                             <ul class="nav nav-tabs mb-3" id="anchorTabs" role="tablist">
                                 <li class="nav-item" role="presentation">
@@ -180,11 +54,6 @@
                                         <i class="fas fa-cloud me-1"></i> Connected Services
                                     </button>
                                 </li>
-                                <li class="nav-item" role="presentation">
-                                    <button class="nav-link" id="ontology-tab" data-bs-toggle="tab" data-bs-target="#ontology-pane" type="button" role="tab">
-                                        <i class="fas fa-sitemap me-1"></i> Ontology
-                                    </button>
-                                </li>
                             </ul>
                             
                             <!-- Tab Content -->
@@ -194,32 +63,7 @@
                                 <div class="tab-pane fade show active" id="manual-pane" role="tabpanel">
                                     <div class="alert alert-info">
                                         <i class="fas fa-info-circle me-2"></i>
-                                        <strong>Manual Entry:</strong> Enter context anchors manually with proper source citation.
-                                    </div>
-                                    
-                                    {{ form.context_anchor.label(class="form-label") }}
-                                    {{ form.context_anchor(class="form-control" + (" is-invalid" if form.context_anchor.errors else "")) }}
-                                    {% if form.context_anchor.errors %}
-                                        <div class="invalid-feedback">
-                                            {% for error in form.context_anchor.errors %}
-                                                {{ error }}
-                                            {% endfor %}
-                                        </div>
-                                    {% endif %}
-                                    <div class="form-text mb-3">Related terms that help anchor this meaning (comma-separated)</div>
-                                    
-                                    <!-- Source Citation for Manual Entry -->
-                                    <div class="mt-3">
-                                        {{ form.source_citation.label(class="form-label") }} *
-                                        {{ form.source_citation(class="form-control", id="manual-source-citation") }}
-                                        {% if form.source_citation.errors %}
-                                            <div class="invalid-feedback">
-                                                {% for error in form.source_citation.errors %}
-                                                    {{ error }}
-                                                {% endfor %}
-                                            </div>
-                                        {% endif %}
-                                        <div class="form-text">Provide the authoritative source for this term definition (required for PROV-O compliance)</div>
+                                        <strong>Manual Entry:</strong> Enter term information manually. Use the fields below to specify the term, meaning, and related context.
                                     </div>
                                     
                                     <!-- Source Type -->
@@ -245,27 +89,33 @@
                                         <strong>Reference Document:</strong> Use a document from your collection as the contextual anchor.
                                     </div>
                                     
-                                    <label class="form-label">Reference Document</label>
+                                    <label class="form-label">Reference Document *</label>
                                     <select class="form-select" id="anchor-document-select">
-                                        <option value="">Select a reference document...</option>
-                                        <!-- Will be populated via JavaScript -->
+                                        <option value="">Select a document from your collection...</option>
+                                        {% for doc in documents %}
+                                        <option value="{{ doc.id }}" data-title="{{ doc.title }}" data-type="{{ doc.document_type or 'document' }}">
+                                            {{ doc.title }}
+                                            {% if doc.author %} - {{ doc.author }}{% endif %}
+                                            {% if doc.year %} ({{ doc.year }}){% endif %}
+                                        </option>
+                                        {% endfor %}
                                     </select>
-                                    <div class="form-text mb-3">Choose a document from your references to provide contextual anchoring</div>
+                                    <div class="form-text mb-3">Choose a document from your collection to provide contextual anchoring</div>
                                     
-                                    <!-- Context Extract -->
-                                    <div class="mt-3">
-                                        <label class="form-label">Context Extract</label>
-                                        <textarea class="form-control" id="document-context-extract" rows="3"
-                                                  placeholder="Enter the specific text passage that defines or contextualizes this term..."></textarea>
-                                        <div class="form-text">Specific passage from the document that provides context for this term</div>
+                                    {% if not documents %}
+                                    <div class="alert alert-warning">
+                                        <i class="fas fa-exclamation-triangle me-2"></i>
+                                        <strong>No documents found.</strong> 
+                                        <a href="{{ url_for('upload.unified') }}" class="alert-link">Upload documents</a> 
+                                        to use them as reference sources.
                                     </div>
+                                    {% endif %}
                                     
-                                    <!-- Page/Section Reference -->
                                     <div class="mt-3">
-                                        <label class="form-label">Page/Section Reference</label>
-                                        <input type="text" class="form-control" id="document-page-ref" 
-                                               placeholder="e.g., Page 23, Section 4.2, Chapter 3">
-                                        <div class="form-text">Specific location within the document</div>
+                                        <div class="alert alert-info">
+                                            <i class="fas fa-magic me-2"></i>
+                                            <strong>Automatic Processing:</strong> Once you select a document, the system will automatically analyze it to extract relevant terms and context.
+                                        </div>
                                     </div>
                                 </div>
                                 
@@ -342,43 +192,163 @@
                                     </div>
                                 </div>
                                 
-                                <!-- Ontology Tab -->
-                                <div class="tab-pane fade" id="ontology-pane" role="tabpanel">
-                                    <div class="alert alert-info">
-                                        <i class="fas fa-info-circle me-2"></i>
-                                        <strong>Ontology:</strong> Use formal ontological concepts from OntServe for anchoring.
-                                    </div>
-                                    
-                                    <label class="form-label">Ontology Source</label>
-                                    <select class="form-select" id="ontology-select">
-                                        <option value="">Select ontology from OntServe...</option>
-                                        <option value="prov-o">PROV-O (Provenance Ontology)</option>
-                                        <option value="foaf">FOAF (Friend of a Friend)</option>
-                                        <option value="dublin-core">Dublin Core</option>
-                                        <!-- More options will be loaded from OntServe -->
-                                    </select>
-                                    <div class="form-text mb-3">Select an ontology from OntServe, then choose specific concepts</div>
-                                    
-                                    <!-- Concept Selection -->
-                                    <div id="ontology-concepts" class="mt-3" style="display: none;">
-                                        <label class="form-label">Related Concepts</label>
-                                        <select class="form-select" id="concept-select" multiple>
-                                            <!-- Will be populated based on ontology selection -->
-                                        </select>
-                                        <div class="form-text">Select relevant concepts from the chosen ontology</div>
-                                    </div>
-                                    
-                                    <!-- Domain specification -->
-                                    <div class="mt-3">
-                                        <label class="form-label">Research Domain</label>
-                                        <input type="text" class="form-control" id="research-domain" 
-                                               placeholder="e.g., computer science, linguistics, engineering">
-                                        <div class="form-text">Specify the research domain for contextual anchoring</div>
-                                    </div>
-                                </div>
-                                
                             </div> <!-- End tab-content -->
                         </div>
+
+                        <!-- Meaning Description -->
+                        <div class="mb-3">
+                            {{ form.meaning_description.label(class="form-label") }}
+                            {{ form.meaning_description(class="form-control" + (" is-invalid" if form.meaning_description.errors else ""), rows="4") }}
+                            {% if form.meaning_description.errors %}
+                                <div class="invalid-feedback">
+                                    {% for error in form.meaning_description.errors %}
+                                        {{ error }}
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                            <div class="form-text">Describe the current or baseline meaning of this term</div>
+                        </div>
+
+                        <!-- Context Anchors -->
+                        <div class="mb-3">
+                            {{ form.context_anchor.label(class="form-label") }}
+                            {{ form.context_anchor(class="form-control" + (" is-invalid" if form.context_anchor.errors else "")) }}
+                            {% if form.context_anchor.errors %}
+                                <div class="invalid-feedback">
+                                    {% for error in form.context_anchor.errors %}
+                                        {{ error }}
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                            <div class="form-text">Related terms that help anchor this meaning (comma-separated)</div>
+                        </div>
+
+                        <!-- Source Citation -->
+                        <div class="mb-3">
+                            {{ form.source_citation.label(class="form-label") }} *
+                            {{ form.source_citation(class="form-control" + (" is-invalid" if form.source_citation.errors else "")) }}
+                            {% if form.source_citation.errors %}
+                                <div class="invalid-feedback">
+                                    {% for error in form.source_citation.errors %}
+                                        {{ error }}
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                            <div class="form-text">Provide the authoritative source for this term definition (required for PROV-O compliance)</div>
+                        </div>
+
+                        <!-- Research Domain -->
+                        <div class="mb-3">
+                            {{ form.research_domain.label(class="form-label") }}
+                            <div class="input-group">
+                                {{ form.research_domain(class="form-control" + (" is-invalid" if form.research_domain.errors else ""), list="research-domain-options", autocomplete="on") }}
+                                <button class="btn btn-outline-secondary" type="button" id="research-domain-help" data-bs-toggle="tooltip" data-bs-placement="top" title="Choose from existing domains or add a new one">
+                                    <i class="fas fa-question-circle"></i>
+                                </button>
+                            </div>
+                            {% if form.research_domain.errors %}
+                                <div class="invalid-feedback">
+                                    {% for error in form.research_domain.errors %}
+                                        {{ error }}
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                            <div class="form-text">Research domain or field of study (e.g., Philosophy, Science, Politics, Engineering Ethics)</div>
+                            
+                            <!-- Research domain options (existing + predefined) -->
+                            <datalist id="research-domain-options">
+                                <!-- Existing domains from database (populated first) -->
+                                {% for domain in existing_domains %}
+                                <option value="{{ domain }}">
+                                {% endfor %}
+                                
+                                <!-- Predefined domain suggestions -->
+                                {% set predefined_domains = [
+                                    'Philosophy', 'Science', 'Politics', 'Engineering Ethics',
+                                    'Medical Ethics', 'Business Ethics', 'Environmental Science',
+                                    'Computer Science', 'Linguistics', 'Psychology', 'Sociology',
+                                    'History', 'Law', 'Economics', 'Anthropology'
+                                ] %}
+                                {% for domain in predefined_domains %}
+                                    {% if domain not in existing_domains %}
+                                    <option value="{{ domain }}">
+                                    {% endif %}
+                                {% endfor %}
+                            </datalist>
+                        </div>
+
+                        <!-- Temporal Period Configuration -->
+                        <div class="mb-4">
+                            <label class="form-label">Reference Time Period *</label>
+                            <div class="form-text mb-3">This is the historical period where this term meaning is anchored.</div>
+                            
+                            <!-- Period Selection Method -->
+                            <div class="btn-group mb-3" role="group" aria-label="Period selection method">
+                                <input type="radio" class="btn-check" name="period-method" id="single-year" value="single" checked>
+                                <label class="btn btn-outline-primary" for="single-year">
+                                    <i class="fas fa-calendar-day"></i> Single Year
+                                </label>
+                                
+                                <input type="radio" class="btn-check" name="period-method" id="year-range" value="range">
+                                <label class="btn btn-outline-primary" for="year-range">
+                                    <i class="fas fa-calendar-alt"></i> Year Range
+                                </label>
+                                
+                                <input type="radio" class="btn-check" name="period-method" id="period-name" value="named">
+                                <label class="btn btn-outline-primary" for="period-name">
+                                    <i class="fas fa-clock"></i> Named Period
+                                </label>
+                            </div>
+                            
+                            <!-- Single Year Input -->
+                            <div id="single-year-input" class="period-input">
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <input type="number" class="form-control" id="reference-year" 
+                                               placeholder="e.g., 2000" min="1400" max="2030" value="2000">
+                                        <small class="text-muted">Reference year for this meaning</small>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Year Range Input -->
+                            <div id="year-range-input" class="period-input" style="display: none;">
+                                <div class="row">
+                                    <div class="col-md-4">
+                                        <label class="form-label">Start Year</label>
+                                        <input type="number" class="form-control" id="start-year" 
+                                               placeholder="e.g., 1990" min="1400" max="2030" value="2000">
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label class="form-label">End Year</label>
+                                        <input type="number" class="form-control" id="end-year" 
+                                               placeholder="e.g., 2020" min="1400" max="2030" value="2020">
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Named Period Input -->
+                            <div id="named-period-input" class="period-input" style="display: none;">
+                                <div class="row">
+                                    <div class="col-md-8">
+                                        <input type="text" class="form-control" id="period-name-text" 
+                                               placeholder="e.g., Early 20th Century, Victorian Era, Modern Period">
+                                        <small class="text-muted">Descriptive name for the historical period</small>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Hidden field for backend -->
+                            {{ form.temporal_period(class="form-control", style="display: none;") }}
+                            {% if form.temporal_period.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {% for error in form.temporal_period.errors %}
+                                        {{ error }}
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+
 
                         <!-- Note about fuzziness score -->
                         <div class="alert alert-info mb-3">
@@ -386,19 +356,6 @@
                             <strong>Automatic Calculation:</strong> Fuzziness scores will be calculated automatically based on semantic drift analysis using the Choi research framework.
                         </div>
 
-                        <!-- Confidence Level -->
-                        <div class="mb-3">
-                            {{ form.confidence_level.label(class="form-label") }}
-                            {{ form.confidence_level(class="form-select" + (" is-invalid" if form.confidence_level.errors else "")) }}
-                            {% if form.confidence_level.errors %}
-                                <div class="invalid-feedback">
-                                    {% for error in form.confidence_level.errors %}
-                                        {{ error }}
-                                    {% endfor %}
-                                </div>
-                            {% endif %}
-                            <div class="form-text">Your confidence in this term definition</div>
-                        </div>
 
                         <!-- Notes -->
                         <div class="mb-4">
@@ -1412,6 +1369,58 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         }, 4000);
     }
+    
+    // Reference Document Selection Handler
+    document.getElementById('anchor-document-select')?.addEventListener('change', function() {
+        const selectedOption = this.options[this.selectedIndex];
+        
+        if (selectedOption.value) {
+            const docTitle = selectedOption.dataset.title;
+            const docType = selectedOption.dataset.type;
+            
+            // Update source citation with document reference
+            const sourceCitationField = document.getElementById('source_citation');
+            if (sourceCitationField) {
+                sourceCitationField.value = `${docTitle} (Document ID: ${selectedOption.value})`;
+            }
+            
+            // Set temporal period to current year (when document was added)
+            const singleYearRadio = document.getElementById('single-year');
+            if (singleYearRadio) {
+                singleYearRadio.checked = true;
+            }
+            
+            const referenceYearField = document.getElementById('reference-year');
+            if (referenceYearField) {
+                const currentYear = new Date().getFullYear();
+                referenceYearField.value = currentYear;
+            }
+            
+            const hiddenPeriodField = document.getElementById('temporal_period');
+            if (hiddenPeriodField) {
+                hiddenPeriodField.value = new Date().getFullYear().toString();
+            }
+            
+            // Show confirmation message
+            const alertHtml = `
+                <div class="alert alert-success alert-dismissible fade show mt-2" role="alert">
+                    <i class="fas fa-check-circle me-2"></i>
+                    <strong>Document Selected!</strong> The system will automatically process "${docTitle}" to extract relevant terms.
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+            `;
+            
+            // Add alert to the reference tab
+            const referencePane = document.getElementById('reference-pane');
+            if (referencePane) {
+                const existingAlert = referencePane.querySelector('.alert-success');
+                if (existingAlert) {
+                    existingAlert.remove();
+                }
+                referencePane.insertAdjacentHTML('beforeend', alertHtml);
+            }
+        }
+    });
     
     // Auto-suggest for manual context anchor
     const contextInput = document.getElementById('context_anchor');
