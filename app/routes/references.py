@@ -11,6 +11,7 @@ from app.models.experiment import Experiment
 from app.services.text_processing import TextProcessingService
 from app.utils.file_handler import FileHandler
 from app.services.oed_service import OEDService
+from app.services.wordnet_service import WordNetService
 
 references_bp = Blueprint('references', __name__, url_prefix='/references')
 
@@ -832,3 +833,31 @@ def upload_dictionary():
             return redirect(url_for('experiments.view', id=experiment_id))
     
     return redirect(url_for('references.view', id=document.id))
+
+@references_bp.route('/api/wordnet/search')
+@login_required
+def api_wordnet_search():
+    """Search WordNet for a word and return synsets with definitions."""
+    word = request.args.get('q', '').strip()
+    if not word:
+        return jsonify({"success": False, "error": "Missing 'q' query parameter"}), 400
+
+    service = WordNetService()
+    data = service.search_word(word)
+    status = 200 if data.get('success', True) else 500
+    return jsonify(data), status
+
+@references_bp.route('/api/wordnet/similarity')
+@login_required
+def api_wordnet_similarity():
+    """Calculate semantic similarity between two words using WordNet."""
+    word1 = request.args.get('word1', '').strip()
+    word2 = request.args.get('word2', '').strip()
+    
+    if not word1 or not word2:
+        return jsonify({"success": False, "error": "Missing 'word1' or 'word2' query parameters"}), 400
+
+    service = WordNetService()
+    data = service.get_word_similarity(word1, word2)
+    status = 200 if data.get('success', True) else 500
+    return jsonify(data), status

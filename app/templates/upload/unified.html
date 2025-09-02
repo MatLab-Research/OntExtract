@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}Upload - OntExtract{% endblock %}
+{% block title %}Add Document - OntExtract{% endblock %}
 
 {% block content %}
 <div class="container mt-4">
@@ -9,7 +9,7 @@
             <nav aria-label="breadcrumb">
                 <ol class="breadcrumb">
                     <li class="breadcrumb-item"><a href="{{ url_for('index') }}">Home</a></li>
-                    <li class="breadcrumb-item active">Upload</li>
+                    <li class="breadcrumb-item active">Add Document</li>
                 </ol>
             </nav>
         </div>
@@ -17,8 +17,8 @@
 
     <div class="row">
         <div class="col-12">
-            <h1><i class="fas fa-cloud-upload-alt text-primary"></i> Upload Content</h1>
-            <p class="text-muted">Upload documents for analysis or add references to your library</p>
+            <h1><i class="fas fa-plus-circle text-primary"></i> Add Document</h1>
+            <p class="text-muted">Add documents, dictionary entries, or references from various sources</p>
         </div>
     </div>
 
@@ -40,6 +40,21 @@
             <button class="nav-link" id="dictionary-tab" data-bs-toggle="tab" data-bs-target="#dictionary" type="button"
                 role="tab">
                 <i class="fas fa-spell-check"></i> Dictionary Entry
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="oed-tab" data-bs-toggle="tab" data-bs-target="#oed" type="button" role="tab">
+                <i class="fas fa-book text-warning"></i> OED Entry
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="mw-dict-tab" data-bs-toggle="tab" data-bs-target="#mw-dict" type="button" role="tab">
+                <i class="fas fa-book text-danger"></i> MW Dictionary
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="mw-thes-tab" data-bs-toggle="tab" data-bs-target="#mw-thes" type="button" role="tab">
+                <i class="fas fa-list-alt text-secondary"></i> MW Thesaurus
             </button>
         </li>
     </ul>
@@ -453,6 +468,183 @@
                 </div>
             </div>
         </div>
+
+        <!-- OED Entry Tab -->
+        <div class="tab-pane fade" id="oed" role="tabpanel">
+            <div class="row mt-3">
+                <div class="col-lg-8">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="card-title mb-0">
+                                <i class="fas fa-book text-warning"></i> Oxford English Dictionary Entry
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="alert alert-info">
+                                <i class="fas fa-info-circle"></i>
+                                Search and add entries from the Oxford English Dictionary. 
+                                <strong>Only metadata is stored; definitions are fetched on demand to comply with OED terms.</strong>
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label">Search Term <span class="text-danger">*</span></label>
+                                <div class="input-group">
+                                    <input type="text" class="form-control" id="oed-search-term" 
+                                           placeholder="Enter word to search in OED...">
+                                    <button class="btn btn-outline-warning" type="button" id="oed-search-btn">
+                                        <i class="fas fa-search"></i> Search OED
+                                    </button>
+                                </div>
+                                <div class="form-text">Search the Oxford English Dictionary for entry suggestions</div>
+                            </div>
+
+                            <!-- OED Search Results -->
+                            <div id="oed-results" class="mt-3" style="display: none;">
+                                <div class="border rounded p-3 bg-light">
+                                    <div id="oed-results-content">
+                                        <!-- OED search results will appear here -->
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-lg-4">
+                    <div class="card">
+                        <div class="card-header">
+                            <h6 class="card-title mb-0">About OED Integration</h6>
+                        </div>
+                        <div class="card-body">
+                            <p class="small text-muted mb-2">
+                                The Oxford English Dictionary provides authoritative definitions and etymological information.
+                            </p>
+                            <p class="small text-muted">
+                                <strong>Note:</strong> This integration stores only metadata (entry ID, headword, part of speech) 
+                                and fetches definitions on demand to comply with OED licensing terms.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Merriam-Webster Dictionary Tab -->
+        <div class="tab-pane fade" id="mw-dict" role="tabpanel">
+            <div class="row mt-3">
+                <div class="col-lg-8">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="card-title mb-0">
+                                <i class="fas fa-book text-danger"></i> Merriam-Webster Dictionary Entry
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="alert alert-info">
+                                <i class="fas fa-info-circle"></i>
+                                Search and add entries from Merriam-Webster Dictionary.
+                                <strong>Authoritative American English definitions with pronunciation and usage.</strong>
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label">Search Term <span class="text-danger">*</span></label>
+                                <div class="input-group">
+                                    <input type="text" class="form-control" id="mw-dict-search-term" 
+                                           placeholder="Enter word to search in Merriam-Webster...">
+                                    <button class="btn btn-outline-danger" type="button" id="mw-dict-search-btn">
+                                        <i class="fas fa-search"></i> Search Dictionary
+                                    </button>
+                                </div>
+                                <div class="form-text">Search Merriam-Webster Dictionary for definitions</div>
+                            </div>
+
+                            <!-- MW Dictionary Search Results -->
+                            <div id="mw-dict-results" class="mt-3" style="display: none;">
+                                <div class="border rounded p-3 bg-light">
+                                    <div id="mw-dict-results-content">
+                                        <!-- MW Dictionary search results will appear here -->
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-lg-4">
+                    <div class="card">
+                        <div class="card-header">
+                            <h6 class="card-title mb-0">About MW Dictionary</h6>
+                        </div>
+                        <div class="card-body">
+                            <p class="small text-muted mb-2">
+                                Merriam-Webster provides comprehensive American English definitions with 
+                                pronunciation guides and usage examples.
+                            </p>
+                            <p class="small text-muted">
+                                Perfect for contemporary word definitions and standard American usage.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Merriam-Webster Thesaurus Tab -->
+        <div class="tab-pane fade" id="mw-thes" role="tabpanel">
+            <div class="row mt-3">
+                <div class="col-lg-8">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="card-title mb-0">
+                                <i class="fas fa-list-alt text-secondary"></i> Merriam-Webster Thesaurus Entry
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="alert alert-info">
+                                <i class="fas fa-info-circle"></i>
+                                Search and add entries from Merriam-Webster Thesaurus.
+                                <strong>Find synonyms, antonyms, and related words for semantic analysis.</strong>
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label">Search Term <span class="text-danger">*</span></label>
+                                <div class="input-group">
+                                    <input type="text" class="form-control" id="mw-thes-search-term" 
+                                           placeholder="Enter word to search in thesaurus...">
+                                    <button class="btn btn-outline-secondary" type="button" id="mw-thes-search-btn">
+                                        <i class="fas fa-search"></i> Search Thesaurus
+                                    </button>
+                                </div>
+                                <div class="form-text">Search Merriam-Webster Thesaurus for synonyms and antonyms</div>
+                            </div>
+
+                            <!-- MW Thesaurus Search Results -->
+                            <div id="mw-thes-results" class="mt-3" style="display: none;">
+                                <div class="border rounded p-3 bg-light">
+                                    <div id="mw-thes-results-content">
+                                        <!-- MW Thesaurus search results will appear here -->
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-lg-4">
+                    <div class="card">
+                        <div class="card-header">
+                            <h6 class="card-title mb-0">About MW Thesaurus</h6>
+                        </div>
+                        <div class="card-body">
+                            <p class="small text-muted mb-2">
+                                Merriam-Webster Thesaurus provides comprehensive synonym and antonym lists 
+                                for semantic relationship analysis.
+                            </p>
+                            <p class="small text-muted">
+                                Essential for understanding word relationships and context anchoring.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 </div>
 
@@ -571,6 +763,332 @@
                 statusDiv.innerHTML = `<div class="alert alert-danger"><i class="fas fa-exclamation-circle"></i> Error: ${error.message}</div>`;
             });
     }
+
+    // OED Entry Search
+    document.getElementById('oed-search-btn')?.addEventListener('click', async function() {
+        const searchTerm = document.getElementById('oed-search-term').value.trim();
+        if (!searchTerm) return;
+        
+        const resultsDiv = document.getElementById('oed-results');
+        const resultsContent = document.getElementById('oed-results-content');
+        
+        resultsContent.innerHTML = `
+            <div class="alert alert-info">
+                <i class="fas fa-spinner fa-spin me-2"></i>
+                Searching OED for "${searchTerm}"...
+            </div>
+        `;
+        resultsDiv.style.display = 'block';
+        
+        try {
+            const res = await fetch(`/references/api/oed/suggest?q=${encodeURIComponent(searchTerm)}`);
+            const data = await res.json();
+            
+            if (!data.success) {
+                resultsContent.innerHTML = `
+                    <div class="alert alert-warning">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        <strong>OED API Error:</strong> ${data.error || 'Unable to search OED'}
+                        <br><small>Make sure OED API is configured with proper credentials.</small>
+                    </div>
+                `;
+                return;
+            }
+            
+            const suggestions = data.suggestions || [];
+            if (suggestions.length === 0) {
+                resultsContent.innerHTML = `
+                    <div class="alert alert-warning">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        No OED entries found for "${searchTerm}".
+                    </div>
+                `;
+                return;
+            }
+            
+            let html = `<div class="alert alert-success"><strong>OED Results for "${searchTerm}"</strong></div>`;
+            
+            suggestions.forEach((entry, index) => {
+                const entryId = entry.entry_id || '';
+                const headword = entry.headword || entry.word || searchTerm;
+                const pos = entry.pos || entry.part_of_speech || '';
+                
+                html += `
+                    <div class="card mb-2">
+                        <div class="card-body">
+                            <h6 class="card-title">
+                                <strong>${headword}</strong>
+                                ${pos ? `<span class="badge bg-secondary ms-2">${pos}</span>` : ''}
+                                <small class="text-muted ms-2">(${entryId})</small>
+                            </h6>
+                            <button type="button" class="btn btn-sm btn-outline-primary" 
+                                    onclick="addOEDEntry('${searchTerm}', '${entryId}', '${headword}', '${pos}')">
+                                Add OED Entry
+                            </button>
+                        </div>
+                    </div>
+                `;
+            });
+            
+            resultsContent.innerHTML = html;
+            
+        } catch (error) {
+            console.error('OED API Error:', error);
+            resultsContent.innerHTML = `
+                <div class="alert alert-danger">
+                    <i class="fas fa-exclamation-circle me-2"></i>
+                    <strong>Error searching OED:</strong> ${error.message}
+                </div>
+            `;
+        }
+    });
+
+    // MW Dictionary Search  
+    document.getElementById('mw-dict-search-btn')?.addEventListener('click', async function() {
+        const searchTerm = document.getElementById('mw-dict-search-term').value.trim();
+        if (!searchTerm) return;
+        
+        const resultsDiv = document.getElementById('mw-dict-results');
+        const resultsContent = document.getElementById('mw-dict-results-content');
+        
+        resultsContent.innerHTML = `
+            <div class="alert alert-info">
+                <i class="fas fa-spinner fa-spin me-2"></i>
+                Searching Merriam-Webster Dictionary for "${searchTerm}"...
+            </div>
+        `;
+        resultsDiv.style.display = 'block';
+        
+        try {
+            const res = await fetch(`/api/merriam-webster/dictionary/${encodeURIComponent(searchTerm)}`);
+            const data = await res.json();
+            
+            if (!data.success || !data.results || data.results.length === 0) {
+                resultsContent.innerHTML = `
+                    <div class="alert alert-warning">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        No dictionary entries found for "${searchTerm}".
+                    </div>
+                `;
+                return;
+            }
+            
+            let html = `<div class="alert alert-success"><strong>MW Dictionary Results for "${searchTerm}"</strong></div>`;
+            
+            data.results.forEach((entry, index) => {
+                const word = entry.word || entry.id || searchTerm;
+                const pos = entry.functional_label || '';
+                const definitions = entry.definitions || [];
+                
+                html += `
+                    <div class="card mb-2">
+                        <div class="card-body">
+                            <h6 class="card-title">
+                                <strong>${word}</strong>
+                                ${pos ? `<span class="badge bg-secondary ms-2">${pos}</span>` : ''}
+                            </h6>
+                `;
+                
+                if (definitions.length > 0) {
+                    html += `<ol class="mb-2">`;
+                    definitions.slice(0, 3).forEach(def => {
+                        html += `<li class="small">${def}</li>`;
+                    });
+                    html += `</ol>`;
+                }
+                
+                html += `
+                            <button type="button" class="btn btn-sm btn-outline-primary" 
+                                    onclick="addMWDictEntry('${searchTerm}', '${word}', '${pos}', ${index})">
+                                Add MW Dictionary Entry
+                            </button>
+                        </div>
+                    </div>
+                `;
+            });
+            
+            resultsContent.innerHTML = html;
+            window.currentMWDictResults = data;
+            
+        } catch (error) {
+            console.error('MW Dictionary API Error:', error);
+            resultsContent.innerHTML = `
+                <div class="alert alert-danger">
+                    <i class="fas fa-exclamation-circle me-2"></i>
+                    <strong>Error searching MW Dictionary:</strong> ${error.message}
+                </div>
+            `;
+        }
+    });
+
+    // MW Thesaurus Search
+    document.getElementById('mw-thes-search-btn')?.addEventListener('click', async function() {
+        const searchTerm = document.getElementById('mw-thes-search-term').value.trim();
+        if (!searchTerm) return;
+        
+        const resultsDiv = document.getElementById('mw-thes-results');
+        const resultsContent = document.getElementById('mw-thes-results-content');
+        
+        resultsContent.innerHTML = `
+            <div class="alert alert-info">
+                <i class="fas fa-spinner fa-spin me-2"></i>
+                Searching Merriam-Webster Thesaurus for "${searchTerm}"...
+            </div>
+        `;
+        resultsDiv.style.display = 'block';
+        
+        try {
+            const res = await fetch(`/api/merriam-webster/thesaurus/${encodeURIComponent(searchTerm)}`);
+            const data = await res.json();
+            
+            if (!data.success || !data.results || data.results.length === 0) {
+                resultsContent.innerHTML = `
+                    <div class="alert alert-warning">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        No thesaurus entries found for "${searchTerm}".
+                    </div>
+                `;
+                return;
+            }
+            
+            let html = `<div class="alert alert-success"><strong>MW Thesaurus Results for "${searchTerm}"</strong></div>`;
+            
+            data.results.forEach((entry, index) => {
+                const word = entry.word || entry.id || searchTerm;
+                const pos = entry.functional_label || '';
+                const synonyms = entry.synonyms ? entry.synonyms.flat().slice(0, 10) : [];
+                const antonyms = entry.antonyms ? entry.antonyms.flat().slice(0, 5) : [];
+                
+                html += `
+                    <div class="card mb-2">
+                        <div class="card-body">
+                            <h6 class="card-title">
+                                <strong>${word}</strong>
+                                ${pos ? `<span class="badge bg-secondary ms-2">${pos}</span>` : ''}
+                            </h6>
+                `;
+                
+                if (synonyms.length > 0) {
+                    html += `<p class="small mb-1"><strong>Synonyms:</strong> ${synonyms.join(', ')}</p>`;
+                }
+                
+                if (antonyms.length > 0) {
+                    html += `<p class="small mb-2"><strong>Antonyms:</strong> ${antonyms.join(', ')}</p>`;
+                }
+                
+                html += `
+                            <button type="button" class="btn btn-sm btn-outline-primary" 
+                                    onclick="addMWThesEntry('${searchTerm}', '${word}', '${pos}', ${index})">
+                                Add MW Thesaurus Entry
+                            </button>
+                        </div>
+                    </div>
+                `;
+            });
+            
+            resultsContent.innerHTML = html;
+            window.currentMWThesResults = data;
+            
+        } catch (error) {
+            console.error('MW Thesaurus API Error:', error);
+            resultsContent.innerHTML = `
+                <div class="alert alert-danger">
+                    <i class="fas fa-exclamation-circle me-2"></i>
+                    <strong>Error searching MW Thesaurus:</strong> ${error.message}
+                </div>
+            `;
+        }
+    });
+
+    // Entry addition functions
+    window.addOEDEntry = function(searchTerm, entryId, headword, pos) {
+        const formData = new FormData();
+        formData.append('entry_id', entryId);
+        formData.append('title', `OED: ${headword}`);
+        formData.append('reference_subtype', 'oed_entry');
+        
+        fetch('/references/oed/add', {
+            method: 'POST',
+            body: formData
+        }).then(response => {
+            if (response.ok) {
+                alert(`Added OED entry: ${headword} (${entryId})`);
+                document.getElementById('oed-results').style.display = 'none';
+                document.getElementById('oed-search-term').value = '';
+            } else {
+                alert('Error adding OED entry');
+            }
+        }).catch(error => {
+            console.error('Error:', error);
+            alert('Error adding OED entry');
+        });
+    };
+
+    window.addMWDictEntry = function(searchTerm, word, pos, index) {
+        if (!window.currentMWDictResults) return;
+        
+        const entry = window.currentMWDictResults.results[index];
+        const definition = entry.definitions && entry.definitions.length > 0 ? entry.definitions[0] : '';
+        
+        const formData = new FormData();
+        formData.append('title', `MW Dict: ${word}`);
+        formData.append('content', definition);
+        formData.append('journal', 'Merriam-Webster Dictionary');
+        formData.append('reference_subtype', 'dictionary_mw');
+        formData.append('upload_type', 'dictionary');
+        
+        fetch('/references/upload_dictionary', {
+            method: 'POST',
+            body: formData
+        }).then(response => {
+            if (response.ok) {
+                alert(`Added MW Dictionary entry: ${word}`);
+                document.getElementById('mw-dict-results').style.display = 'none';
+                document.getElementById('mw-dict-search-term').value = '';
+            } else {
+                alert('Error adding MW Dictionary entry');
+            }
+        }).catch(error => {
+            console.error('Error:', error);
+            alert('Error adding MW Dictionary entry');
+        });
+    };
+
+    window.addMWThesEntry = function(searchTerm, word, pos, index) {
+        if (!window.currentMWThesResults) return;
+        
+        const entry = window.currentMWThesResults.results[index];
+        const synonyms = entry.synonyms ? entry.synonyms.flat().join(', ') : '';
+        const antonyms = entry.antonyms ? entry.antonyms.flat().join(', ') : '';
+        
+        let content = `Synonyms: ${synonyms}`;
+        if (antonyms) {
+            content += `\n\nAntonyms: ${antonyms}`;
+        }
+        
+        const formData = new FormData();
+        formData.append('title', `MW Thes: ${word}`);
+        formData.append('content', content);
+        formData.append('journal', 'Merriam-Webster Thesaurus');
+        formData.append('reference_subtype', 'thesaurus_mw');
+        formData.append('upload_type', 'dictionary');
+        
+        fetch('/references/upload_dictionary', {
+            method: 'POST',
+            body: formData
+        }).then(response => {
+            if (response.ok) {
+                alert(`Added MW Thesaurus entry: ${word}`);
+                document.getElementById('mw-thes-results').style.display = 'none';
+                document.getElementById('mw-thes-search-term').value = '';
+            } else {
+                alert('Error adding MW Thesaurus entry');
+            }
+        }).catch(error => {
+            console.error('Error:', error);
+            alert('Error adding MW Thesaurus entry');
+        });
+    };
 </script>
 
 <style>

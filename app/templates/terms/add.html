@@ -320,43 +320,17 @@
                                         <div class="col-md-6">
                                             <div class="card h-100">
                                                 <div class="card-body text-center">
-                                                    <i class="fas fa-database fa-2x text-primary mb-2"></i>
-                                                    <h6>COHA Corpus</h6>
-                                                    <p class="small text-muted">Historical American English usage patterns</p>
-                                                    <button type="button" class="btn btn-outline-primary btn-sm" id="coha-service-btn">
-                                                        Search COHA
-                                                    </button>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    
-                                    <div class="row mb-3">
-                                        <div class="col-md-6">
-                                            <div class="card h-100">
-                                                <div class="card-body text-center">
-                                                    <i class="fas fa-graduation-cap fa-2x text-success mb-2"></i>
+                                                    <i class="fas fa-sitemap fa-2x text-success mb-2"></i>
                                                     <h6>WordNet</h6>
-                                                    <p class="small text-muted">Lexical database and semantic network</p>
+                                                    <p class="small text-muted">Lexical database with semantic relationships</p>
                                                     <button type="button" class="btn btn-outline-success btn-sm" id="wordnet-service-btn">
                                                         Search WordNet
                                                     </button>
                                                 </div>
                                             </div>
                                         </div>
-                                        <div class="col-md-6">
-                                            <div class="card h-100">
-                                                <div class="card-body text-center">
-                                                    <i class="fas fa-globe fa-2x text-info mb-2"></i>
-                                                    <h6>Wikidata</h6>
-                                                    <p class="small text-muted">Structured knowledge base definitions</p>
-                                                    <button type="button" class="btn btn-outline-info btn-sm" id="wikidata-service-btn">
-                                                        Search Wikidata
-                                                    </button>
-                                                </div>
-                                            </div>
-                                        </div>
                                     </div>
+                                    
                                     
                                     <!-- Service Results -->
                                     <div id="service-results" class="mt-3" style="display: none;">
@@ -1168,6 +1142,259 @@ document.addEventListener('DOMContentLoaded', function() {
                 <i class="fas fa-check-circle me-2"></i>
                 <strong>OED Entry Selected!</strong> 
                 Term text, meaning description, context anchors, and source citation have been populated from the Oxford English Dictionary.
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+        `;
+        
+        const manualPaneElement = document.getElementById('manual-pane');
+        if (manualPaneElement) {
+            manualPaneElement.insertAdjacentHTML('afterbegin', alertHtml);
+        }
+        
+        // Auto-dismiss success message after 4 seconds
+        setTimeout(() => {
+            const alert = manualPaneElement.querySelector('.alert-success');
+            if (alert) {
+                alert.remove();
+            }
+        }, 4000);
+    }
+    
+    // WordNet Search functionality - integrated with NLTK WordNet
+    if (document.getElementById('wordnet-service-btn')) {
+        document.getElementById('wordnet-service-btn').addEventListener('click', async function() {
+            const searchTerm = prompt('Enter term to search in WordNet:');
+            if (!searchTerm) return;
+            
+            const resultsDiv = document.getElementById('service-results');
+            const resultsContent = document.getElementById('service-results-content');
+            
+            resultsContent.innerHTML = `
+                <div class="alert alert-info">
+                    <i class="fas fa-spinner fa-spin me-2"></i>
+                    Searching WordNet for "${searchTerm}"...
+                </div>
+            `;
+            resultsDiv.style.display = 'block';
+            
+            try {
+                const res = await fetch(`/references/api/wordnet/search?q=${encodeURIComponent(searchTerm)}`);
+                const data = await res.json();
+                
+                if (!data.success) {
+                    resultsContent.innerHTML = `
+                        <div class="alert alert-warning">
+                            <i class="fas fa-exclamation-triangle me-2"></i>
+                            <strong>WordNet Error:</strong> ${data.error || 'Unable to search WordNet'}
+                            <br><small>Make sure NLTK WordNet data is installed.</small>
+                        </div>
+                    `;
+                    return;
+                }
+                
+                const synsets = data.synsets || [];
+                
+                if (synsets.length === 0) {
+                    resultsContent.innerHTML = `
+                        <div class="alert alert-warning">
+                            <i class="fas fa-exclamation-triangle me-2"></i>
+                            ${data.message || `No WordNet entries found for "${searchTerm}".`}
+                            <br><small>Try a different spelling or search term.</small>
+                        </div>
+                    `;
+                    return;
+                }
+                
+                // Display the results
+                let html = `
+                    <div class="alert alert-success">
+                        <i class="fas fa-check-circle me-2"></i>
+                        <strong>WordNet Results for "${searchTerm}"</strong> (${data.total_synsets} synset${data.total_synsets > 1 ? 's' : ''})
+                    </div>
+                `;
+                
+                synsets.forEach((synset, index) => {
+                    const name = synset.name || '';
+                    const pos = synset.pos_name || synset.pos || '';
+                    const definition = synset.definition || '';
+                    const examples = synset.examples || [];
+                    const synonyms = synset.synonyms || [];
+                    const antonyms = synset.antonyms || [];
+                    
+                    html += `
+                        <div class="card mb-2">
+                            <div class="card-body">
+                                <h6 class="card-title">
+                                    <strong>${searchTerm}</strong>
+                                    ${pos ? `<span class="badge bg-secondary ms-2">${pos}</span>` : ''}
+                                    <small class="text-muted ms-2">(${name})</small>
+                                </h6>
+                    `;
+                    
+                    // Show definition
+                    if (definition) {
+                        html += `<p class="mb-2">${definition}</p>`;
+                    }
+                    
+                    // Show examples
+                    if (examples.length > 0) {
+                        html += `<div class="mb-2">
+                            <strong class="small">Examples:</strong>
+                            <ul class="small mb-2">`;
+                        examples.slice(0, 2).forEach(example => {
+                            html += `<li><em>"${example}"</em></li>`;
+                        });
+                        html += `</ul></div>`;
+                    }
+                    
+                    // Show synonyms
+                    if (synonyms.length > 0) {
+                        html += `<p class="small mb-1"><strong>Synonyms:</strong> ${synonyms.slice(0, 5).join(', ')}</p>`;
+                    }
+                    
+                    // Show antonyms
+                    if (antonyms.length > 0) {
+                        html += `<p class="small mb-2"><strong>Antonyms:</strong> ${antonyms.slice(0, 3).join(', ')}</p>`;
+                    }
+                    
+                    html += `
+                            <button type="button" class="btn btn-sm btn-outline-primary" 
+                                    onclick="selectWordNetResult('${searchTerm}', '${name}', '${pos}', '${definition}', ${index})">
+                                Use This Synset
+                            </button>
+                        </div>
+                    </div>
+                    `;
+                });
+                
+                html += `
+                    <div class="mt-3 p-2 bg-light rounded">
+                        <small><strong>Source:</strong> ${data.citation || 'WordNet: A Lexical Database for English. Princeton University.'}</small>
+                    </div>
+                `;
+                
+                resultsContent.innerHTML = html;
+                
+                // Store results for selection
+                window.currentWordNetResults = data;
+                
+            } catch (error) {
+                console.error('WordNet API Error:', error);
+                resultsContent.innerHTML = `
+                    <div class="alert alert-danger">
+                        <i class="fas fa-exclamation-circle me-2"></i>
+                        <strong>Error searching WordNet</strong>
+                        <br>${error.message}
+                        <br><small>Please check your WordNet installation and try again.</small>
+                    </div>
+                `;
+            }
+        });
+    }
+    
+    // Function to handle selecting a WordNet result
+    window.selectWordNetResult = function(searchTerm, synsetName, pos, definition, index) {
+        // Switch to Manual Entry tab
+        const manualTab = document.getElementById('manual-tab');
+        manualTab.click();
+        
+        // Populate Term Text field
+        const termTextField = document.getElementById('term_text');
+        if (termTextField) {
+            termTextField.value = searchTerm;
+        }
+        
+        // Populate Meaning Description with definition
+        const meaningDescriptionField = document.getElementById('meaning_description');
+        if (meaningDescriptionField && definition) {
+            meaningDescriptionField.value = definition;
+        }
+        
+        // Populate context anchors with synonyms and related terms from the selected synset
+        const contextAnchorField = document.getElementById('context_anchor');
+        if (contextAnchorField && window.currentWordNetResults) {
+            const synsets = window.currentWordNetResults.synsets || [];
+            if (synsets[index]) {
+                const synset = synsets[index];
+                let contextTerms = [searchTerm];
+                
+                // Add synonyms
+                if (synset.synonyms && synset.synonyms.length > 0) {
+                    contextTerms = contextTerms.concat(synset.synonyms.slice(0, 5));
+                }
+                
+                // Add hypernyms (more general terms)
+                if (synset.hypernyms && synset.hypernyms.length > 0) {
+                    synset.hypernyms.slice(0, 2).forEach(hyper => {
+                        if (hyper.lemmas && hyper.lemmas.length > 0) {
+                            contextTerms.push(hyper.lemmas[0]);
+                        }
+                    });
+                }
+                
+                // Add hyponyms (more specific terms)
+                if (synset.hyponyms && synset.hyponyms.length > 0) {
+                    synset.hyponyms.slice(0, 2).forEach(hypo => {
+                        if (hypo.lemmas && hypo.lemmas.length > 0) {
+                            contextTerms.push(hypo.lemmas[0]);
+                        }
+                    });
+                }
+                
+                // Remove duplicates
+                contextTerms = [...new Set(contextTerms)];
+                contextAnchorField.value = contextTerms.slice(0, 8).join(', ');
+            }
+        }
+        
+        // Populate source citation
+        const sourceCitationField = document.getElementById('manual-source-citation');
+        if (sourceCitationField) {
+            sourceCitationField.value = `WordNet: A Lexical Database for English. Princeton University. Synset: ${synsetName}`;
+        }
+        
+        // Set source type to dictionary
+        const sourceTypeField = document.getElementById('manual-source-type');
+        if (sourceTypeField) {
+            sourceTypeField.value = 'dictionary';
+        }
+        
+        // Set temporal period to current year (WordNet is continuously updated)
+        const singleYearRadio = document.getElementById('single-year');
+        if (singleYearRadio) {
+            singleYearRadio.checked = true;
+        }
+        
+        const referenceYearField = document.getElementById('reference-year');
+        if (referenceYearField) {
+            const currentYear = new Date().getFullYear();
+            referenceYearField.value = currentYear;
+        }
+        
+        const hiddenPeriodField = document.getElementById('temporal_period');
+        if (hiddenPeriodField) {
+            hiddenPeriodField.value = new Date().getFullYear().toString();
+        }
+        
+        // Suggest research domain based on part of speech
+        const researchDomainField = document.getElementById('research_domain');
+        if (researchDomainField && !researchDomainField.value.trim()) {
+            // Default to Linguistics for WordNet entries
+            researchDomainField.value = 'Linguistics';
+        }
+        
+        // Close the service results
+        const resultsDiv = document.getElementById('service-results');
+        if (resultsDiv) {
+            resultsDiv.style.display = 'none';
+        }
+        
+        // Show success message
+        const alertHtml = `
+            <div class="alert alert-success alert-dismissible fade show" role="alert">
+                <i class="fas fa-check-circle me-2"></i>
+                <strong>WordNet Synset Selected!</strong> 
+                Term text, meaning description, context anchors (with synonyms and related terms), and source citation have been populated from WordNet.
                 <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
             </div>
         `;

@@ -345,25 +345,24 @@ def delete_term(term_id):
 def add_version(term_id):
     """Add new temporal version to existing term"""
     term = Term.query.get_or_404(term_id)
+    form = AddVersionForm()
     
-    if request.method == 'POST':
+    if form.validate_on_submit():
         try:
-            # Parse version data
-            temporal_period = request.form.get('temporal_period', '').strip()
-            temporal_start_year = request.form.get('temporal_start_year', type=int)
-            temporal_end_year = request.form.get('temporal_end_year', type=int)
-            meaning_description = request.form.get('meaning_description', '').strip()
-            corpus_source = request.form.get('corpus_source', '').strip()
-            confidence_level = request.form.get('confidence_level', 'medium')
-            context_anchors = request.form.get('context_anchors', '').strip()
+            # Get data from form
+            temporal_period = form.temporal_period.data.strip() if form.temporal_period.data else ''
+            temporal_start_year = form.temporal_start_year.data
+            temporal_end_year = form.temporal_end_year.data
+            meaning_description = form.meaning_description.data.strip() if form.meaning_description.data else ''
+            corpus_source = form.corpus_source.data.strip() if form.corpus_source.data else ''
+            confidence_level = form.confidence_level.data if form.confidence_level.data else 'medium'
+            context_anchors = form.context_anchor.data.strip() if form.context_anchor.data else ''
+            notes = form.notes.data.strip() if form.notes.data else ''
+            fuzziness_score = form.fuzziness_score.data
+            
+            # Handle derived from and derivation type (these might not be in the form)
             was_derived_from = request.form.get('was_derived_from')
             derivation_type = request.form.get('derivation_type', 'revision')
-            certainty_notes = request.form.get('certainty_notes', '').strip()
-            
-            # Validation
-            if not temporal_period or not meaning_description:
-                flash('Temporal period and meaning description are required.', 'error')
-                return render_template('terms/add_version.html', term=term)
             
             # Get next version number
             max_version = db.session.query(func.max(TermVersion.version_number)).filter_by(term_id=term_id).scalar() or 0
@@ -383,7 +382,8 @@ def add_version(term_id):
                 meaning_description=meaning_description,
                 corpus_source=corpus_source,
                 confidence_level=confidence_level,
-                certainty_notes=certainty_notes,
+                certainty_notes=notes,
+                fuzziness_score=fuzziness_score,
                 extraction_method='manual',
                 context_anchor=anchor_list,
                 generated_at_time=datetime.utcnow(),
@@ -419,7 +419,7 @@ def add_version(term_id):
     # Get existing versions for derivation dropdown
     existing_versions = term.get_all_versions_ordered()
     
-    return render_template('terms/add_version.html', term=term, existing_versions=existing_versions)
+    return render_template('terms/add_version.html', term=term, form=form, existing_versions=existing_versions)
 
 
 @terms_bp.route('/api/context-anchors')
