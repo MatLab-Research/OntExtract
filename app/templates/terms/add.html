@@ -918,9 +918,9 @@ document.addEventListener('DOMContentLoaded', function() {
         }, 4000);
     }
     
-    // OED Search functionality (existing)
+    // OED Search functionality - integrated with existing OED API
     if (document.getElementById('oed-service-btn')) {
-        document.getElementById('oed-service-btn').addEventListener('click', function() {
+        document.getElementById('oed-service-btn').addEventListener('click', async function() {
             const searchTerm = prompt('Enter term to search in OED:');
             if (!searchTerm) return;
             
@@ -929,13 +929,261 @@ document.addEventListener('DOMContentLoaded', function() {
             
             resultsContent.innerHTML = `
                 <div class="alert alert-info">
-                    <i class="fas fa-search me-2"></i>
+                    <i class="fas fa-spinner fa-spin me-2"></i>
                     Searching OED for "${searchTerm}"...
-                    <br><small>Note: This will integrate with the existing OED reference system.</small>
                 </div>
             `;
             resultsDiv.style.display = 'block';
+            
+            try {
+                // First, get suggested entry IDs for the headword
+                const suggestRes = await fetch(`/references/api/oed/suggest?q=${encodeURIComponent(searchTerm)}`);
+                const suggestData = await suggestRes.json();
+                
+                if (!suggestData.success) {
+                    resultsContent.innerHTML = `
+                        <div class="alert alert-warning">
+                            <i class="fas fa-exclamation-triangle me-2"></i>
+                            <strong>OED API Error:</strong> ${suggestData.error || 'Unable to search OED'}
+                            <br><small>Make sure OED API is configured with OED_USE_API=true and proper credentials.</small>
+                        </div>
+                    `;
+                    return;
+                }
+                
+                const suggestions = suggestData.suggestions || [];
+                
+                if (suggestions.length === 0) {
+                    resultsContent.innerHTML = `
+                        <div class="alert alert-warning">
+                            <i class="fas fa-exclamation-triangle me-2"></i>
+                            No OED entries found for "${searchTerm}".
+                            <br><small>Try a different spelling or search term.</small>
+                        </div>
+                    `;
+                    return;
+                }
+                
+                // Display the results
+                let html = `
+                    <div class="alert alert-success">
+                        <i class="fas fa-check-circle me-2"></i>
+                        <strong>OED Results for "${searchTerm}"</strong>
+                    </div>
+                `;
+                
+                suggestions.forEach((entry, index) => {
+                    const entryId = entry.entry_id || '';
+                    const headword = entry.headword || entry.word || searchTerm;
+                    const pos = entry.pos || entry.part_of_speech || '';
+                    const senseCount = entry.sense_count || 0;
+                    
+                    html += `
+                        <div class="card mb-2">
+                            <div class="card-body">
+                                <h6 class="card-title">
+                                    <strong>${headword}</strong>
+                                    ${pos ? `<span class="badge bg-secondary ms-2">${pos}</span>` : ''}
+                                    <small class="text-muted ms-2">(${entryId})</small>
+                                </h6>
+                    `;
+                    
+                    // Show sense information if available
+                    if (entry.senses && entry.senses.length > 0) {
+                        html += `<ol class="mb-2 small">`;
+                        entry.senses.slice(0, 3).forEach(sense => {
+                            const definition = sense.definition || sense.excerpt || '';
+                            if (definition) {
+                                // Truncate long definitions
+                                const shortDef = definition.length > 150 ? 
+                                    definition.substring(0, 150) + '...' : definition;
+                                html += `<li>${shortDef}</li>`;
+                            }
+                        });
+                        if (entry.senses.length > 3) {
+                            html += `<li class="text-muted">... and ${entry.senses.length - 3} more senses</li>`;
+                        }
+                        html += `</ol>`;
+                    } else if (senseCount > 0) {
+                        html += `<p class="small text-muted mb-2">${senseCount} sense${senseCount > 1 ? 's' : ''} available</p>`;
+                    }
+                    
+                    html += `
+                            <button type="button" class="btn btn-sm btn-outline-primary" 
+                                    onclick="selectOEDResult('${searchTerm}', '${entryId}', '${headword}', '${pos}', ${index})">
+                                Use This Entry
+                            </button>
+                        </div>
+                    </div>
+                    `;
+                });
+                
+                html += `
+                    <div class="mt-3 p-2 bg-light rounded">
+                        <small><strong>Source:</strong> Oxford English Dictionary (via OED Researcher API)</small>
+                        <br><small class="text-muted">Note: Only metadata is stored; definitions are fetched on demand.</small>
+                    </div>
+                `;
+                
+                resultsContent.innerHTML = html;
+                
+                // Store results for selection
+                window.currentOEDResults = suggestions;
+                
+            } catch (error) {
+                console.error('OED API Error:', error);
+                resultsContent.innerHTML = `
+                    <div class="alert alert-danger">
+                        <i class="fas fa-exclamation-circle me-2"></i>
+                        <strong>Error searching OED</strong>
+                        <br>${error.message}
+                        <br><small>Please check your OED API configuration and try again.</small>
+                    </div>
+                `;
+            }
         });
+    }
+    
+    // Function to handle selecting an OED result
+    window.selectOEDResult = async function(searchTerm, entryId, headword, pos, index) {
+        // Switch to Manual Entry tab
+        const manualTab = document.getElementById('manual-tab');
+        manualTab.click();
+        
+        // Populate Term Text field
+        const termTextField = document.getElementById('term_text');
+        if (termTextField) {
+            termTextField.value = headword || searchTerm;
+        }
+        
+        // Try to fetch full entry details for better definition
+        try {
+            const res = await fetch(`/references/api/oed/word/${encodeURIComponent(entryId)}`);
+            const json = await res.json();
+            
+            if (json.success && json.data) {
+                const data = json.data;
+                
+                // Populate Meaning Description with first available definition
+                const meaningDescriptionField = document.getElementById('meaning_description');
+                if (meaningDescriptionField) {
+                    let meaningText = '';
+                    
+                    // Try to extract definition from senses
+                    if (data.senses && data.senses.length > 0) {
+                        const firstSense = data.senses[0];
+                        let definition = firstSense.definition || '';
+                        if (Array.isArray(definition)) {
+                            definition = definition[0] || '';
+                        }
+                        if (definition) {
+                            meaningText = definition;
+                        }
+                    }
+                    
+                    // If we have extracted_senses, use those as fallback
+                    if (!meaningText && data.extracted_senses && data.extracted_senses.length > 0) {
+                        const firstExtracted = data.extracted_senses[0];
+                        meaningText = firstExtracted.definition || firstExtracted.excerpt || '';
+                    }
+                    
+                    if (meaningText) {
+                        meaningDescriptionField.value = meaningText;
+                    }
+                }
+                
+                // Populate context anchors with related terms from OED
+                const contextAnchorField = document.getElementById('context_anchor');
+                if (contextAnchorField) {
+                    let contextTerms = [headword];
+                    
+                    // Extract etymological or related terms if available
+                    if (data.etymology) {
+                        // Simple extraction of potential related terms from etymology
+                        const etymWords = data.etymology.match(/\b[a-z]{4,}\b/gi);
+                        if (etymWords) {
+                            contextTerms = contextTerms.concat(etymWords.slice(0, 3));
+                        }
+                    }
+                    
+                    // Add variants if available
+                    if (data.variants && Array.isArray(data.variants)) {
+                        contextTerms = contextTerms.concat(data.variants.slice(0, 3));
+                    }
+                    
+                    // Remove duplicates
+                    contextTerms = [...new Set(contextTerms)];
+                    contextAnchorField.value = contextTerms.slice(0, 8).join(', ');
+                }
+            }
+        } catch (error) {
+            console.warn('Could not fetch full OED entry details:', error);
+        }
+        
+        // Populate source citation
+        const sourceCitationField = document.getElementById('manual-source-citation');
+        if (sourceCitationField) {
+            sourceCitationField.value = `Oxford English Dictionary, s.v. "${headword}" (entry ID: ${entryId}), Oxford University Press`;
+        }
+        
+        // Set source type to dictionary
+        const sourceTypeField = document.getElementById('manual-source-type');
+        if (sourceTypeField) {
+            sourceTypeField.value = 'dictionary';
+        }
+        
+        // Set temporal period to current year (OED is continuously updated)
+        const singleYearRadio = document.getElementById('single-year');
+        if (singleYearRadio) {
+            singleYearRadio.checked = true;
+        }
+        
+        const referenceYearField = document.getElementById('reference-year');
+        if (referenceYearField) {
+            const currentYear = new Date().getFullYear();
+            referenceYearField.value = currentYear;
+        }
+        
+        const hiddenPeriodField = document.getElementById('temporal_period');
+        if (hiddenPeriodField) {
+            hiddenPeriodField.value = new Date().getFullYear().toString();
+        }
+        
+        // Suggest research domain based on part of speech
+        const researchDomainField = document.getElementById('research_domain');
+        if (researchDomainField && !researchDomainField.value.trim()) {
+            // Default to Linguistics for OED entries
+            researchDomainField.value = 'Linguistics';
+        }
+        
+        // Close the service results
+        const resultsDiv = document.getElementById('service-results');
+        if (resultsDiv) {
+            resultsDiv.style.display = 'none';
+        }
+        
+        // Show success message
+        const alertHtml = `
+            <div class="alert alert-success alert-dismissible fade show" role="alert">
+                <i class="fas fa-check-circle me-2"></i>
+                <strong>OED Entry Selected!</strong> 
+                Term text, meaning description, context anchors, and source citation have been populated from the Oxford English Dictionary.
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+        `;
+        
+        const manualPaneElement = document.getElementById('manual-pane');
+        if (manualPaneElement) {
+            manualPaneElement.insertAdjacentHTML('afterbegin', alertHtml);
+        }
+        
+        // Auto-dismiss success message after 4 seconds
+        setTimeout(() => {
+            const alert = manualPaneElement.querySelector('.alert-success');
+            if (alert) {
+                alert.remove();
+            }
+        }, 4000);
     }
     
     // Auto-suggest for manual context anchor
