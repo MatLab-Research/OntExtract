@@ -264,3 +264,7 @@ archive/
 *.temp
 temp_*/
 *_temp/
+
+# Data directories (experimental data, academic papers, processing results)
+data/
+*/data/

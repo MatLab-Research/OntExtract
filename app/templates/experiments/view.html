@@ -201,6 +201,26 @@
             </div>
         </div>
     </div>
+
+    {% if experiment.experiment_type == 'temporal_evolution' %}
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5><i class="fas fa-chart-line"></i> Semantic Evolution Visualization</h5>
+                </div>
+                <div class="card-body">
+                    <p>View the semantic evolution analysis across academic anchors and temporal periods.</p>
+                    <a href="{{ url_for('experiments.semantic_evolution_visual', experiment_id=experiment.id) }}" 
+                       class="btn btn-primary">
+                        <i class="fas fa-eye"></i> View Semantic Evolution Timeline
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
 </div>
 
 <script>
