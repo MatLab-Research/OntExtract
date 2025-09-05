@@ -961,31 +961,105 @@ def fetch_temporal_data(experiment_id):
             'error': f'Server error: {str(e)}'
         }), 500
 
-def generate_time_periods(start_year: int, end_year: int, interval: Optional[int] = None) -> List[int]:
-    """Generate time periods based on start and end years."""
-    if interval is None:
-        # Auto-determine interval based on range
-        year_range = end_year - start_year
-        if year_range <= 50:
-            interval = 10
-        elif year_range <= 100:
-            interval = 20
-        elif year_range <= 200:
-            interval = 25
+
+@experiments_bp.route('/<int:experiment_id>/semantic_evolution_visual')
+@login_required  
+def semantic_evolution_visual(experiment_id):
+    """Display semantic evolution visualization for any term with academic anchors."""
+    experiment = Experiment.query.filter_by(id=experiment_id).first_or_404()
+    
+    # Get target term from URL parameter or experiment configuration
+    target_term = request.args.get('term')
+    
+    # If no term specified, get from experiment configuration
+    if not target_term:
+        config = json.loads(experiment.configuration) if experiment.configuration else {}
+        if config.get('target_term'):
+            target_term = config.get('target_term')
+        elif config.get('target_terms') and len(config['target_terms']) > 0:
+            target_term = config['target_terms'][0]
         else:
-            interval = 50
+            flash('No target term specified. Add ?term=<term> to URL or configure in experiment.', 'warning')
+            return redirect(url_for('experiments.view', experiment_id=experiment_id))
     
-    periods = []
-    current = start_year
-    while current <= end_year:
-        periods.append(current)
-        current += interval
+    # Get term from database
+    from app.models.term import Term, TermVersion
     
-    # Ensure end year is included
-    if periods[-1] != end_year:
-        periods.append(end_year)
+    term_record = Term.query.filter_by(term_text=target_term).first()
+    if not term_record:
+        flash(f'Term "{target_term}" not found in database. Create academic anchors first.', 'warning')
+        return redirect(url_for('experiments.view', experiment_id=experiment_id))
     
-    return periods
+    # Get all temporal versions for the term
+    term_versions = TermVersion.query.filter_by(term_id=term_record.id).order_by(TermVersion.temporal_start_year.asc()).all()
+    
+    if not term_versions:
+        flash(f'No temporal versions found for "{target_term}". Create academic anchors first.', 'warning')
+        return redirect(url_for('experiments.view', experiment_id=experiment_id))
+    
+    # Prepare visualization data (generic for any term)
+    academic_anchors = []
+    for version in term_versions:
+        academic_anchors.append({
+            'year': version.temporal_start_year,
+            'period': version.temporal_period,
+            'meaning': version.meaning_description,
+            'citation': version.source_citation,
+            'domain': version.extraction_method.replace('_analysis', '').replace(' analysis', ''),
+            'confidence': version.confidence_level,
+            'context_anchor': version.context_anchor or []
+        })
+    
+    # Calculate metrics
+    years = [anchor['year'] for anchor in academic_anchors]
+    temporal_span = max(years) - min(years) if years else 0
+    domains = list(set([anchor['domain'] for anchor in academic_anchors]))
+    
+    # Get reference data for this specific term
+    reference_data = {
+        'oed_data': None,
+        'legal_data': None,
+        'temporal_span': temporal_span,
+        'domain_count': len(domains),
+        'domains': domains
+    }
+    
+    # Try to load OED data
+    oed_patterns = [
+        f'data/references/oed_{target_term}_extraction_provenance.json',
+        f'data/references/{target_term}_oed_extraction.json'
+    ]
+    
+    for pattern in oed_patterns:
+        try:
+            with open(pattern, 'r') as f:
+                reference_data['oed_data'] = json.load(f)
+                break
+        except FileNotFoundError:
+            continue
+    
+    # Try to load legal data  
+    legal_patterns = [
+        f'data/references/blacks_law_{target_term}_extraction.json',
+        f'data/references/{target_term}_legal_extraction.json'
+    ]
+    
+    for pattern in legal_patterns:
+        try:
+            with open(pattern, 'r') as f:
+                reference_data['legal_data'] = json.load(f)
+                break
+        except FileNotFoundError:
+            continue
+    
+    return render_template('experiments/semantic_evolution_visual.html',
+                         experiment=experiment,
+                         target_term=target_term,
+                         term_record=term_record,
+                         academic_anchors=academic_anchors,
+                         reference_data=reference_data,
+                         temporal_span=temporal_span,
+                         domains=domains)
 
 @experiments_bp.route('/<int:experiment_id>/analyze_evolution', methods=['POST'])
 @login_required

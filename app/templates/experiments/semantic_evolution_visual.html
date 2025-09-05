@@ -1,0 +1,436 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ target_term|title }} Semantic Evolution - Database-Driven Analysis</title>
+
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- D3.js -->
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+
+    <style>
+        body {
+            background-color: #f8f9fa;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        }
+
+        .experiment-container {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            margin: 20px;
+            padding: 30px;
+        }
+
+        .timeline-header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+
+        .timeline-header h1 {
+            color: #2c3e50;
+            font-weight: 300;
+            margin-bottom: 10px;
+        }
+
+        .subtitle {
+            color: #7f8c8d;
+            font-size: 16px;
+        }
+
+        /* Academic Anchor Timeline - Card-based horizontal layout */
+        .term-card {
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            background: white;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            transition: box-shadow 0.3s ease;
+        }
+
+        .term-card:hover {
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+        }
+
+        .term-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #f0f0f0;
+        }
+
+        .term-title {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: #2c3e50;
+        }
+
+        .timeline-container {
+            display: flex;
+            overflow-x: auto;
+            gap: 15px;
+            padding: 10px 0;
+            margin-top: 15px;
+        }
+
+        .time-period-column {
+            min-width: 200px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 6px;
+            border-top: 4px solid;
+            position: relative;
+            cursor: pointer;
+            transition: transform 0.2s ease;
+        }
+
+        .time-period-column:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        }
+
+        /* Domain-specific colors for period columns */
+        .philosophy-period {
+            border-top-color: #9b59b6;
+            background: linear-gradient(180deg, #f4f1f7 0%, #f8f9fa 100%);
+        }
+
+        .economics-period {
+            border-top-color: #f39c12;
+            background: linear-gradient(180deg, #fef8f1 0%, #f8f9fa 100%);
+        }
+
+        .computer-science-period {
+            border-top-color: #27ae60;
+            background: linear-gradient(180deg, #f1f7f4 0%, #f8f9fa 100%);
+        }
+
+        .period-label {
+            font-weight: 700;
+            color: #495057;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 1.1rem;
+        }
+
+        .period-year {
+            background: white;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 0.9rem;
+        }
+
+        .definition-content {
+            padding: 10px;
+            background: white;
+            border-radius: 4px;
+            line-height: 1.6;
+            color: #212529;
+            margin-bottom: 10px;
+            min-height: 120px;
+        }
+
+        .definition-text {
+            color: #212529;
+            font-size: 0.95rem;
+            margin-bottom: 8px;
+        }
+
+        .definition-source {
+            font-size: 0.85rem;
+            color: #6c757d;
+            font-style: italic;
+            margin-top: 5px;
+            border-top: 1px solid #f0f0f0;
+            padding-top: 5px;
+        }
+
+        .timeline-arrow {
+            position: absolute;
+            right: -7px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #6c757d;
+            font-size: 1.2rem;
+        }
+
+        /* Database Info Panel */
+        .database-info {
+            background: #34495e;
+            color: white;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 20px 0;
+            font-size: 14px;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container-fluid">
+        <!-- Header -->
+        <div class="experiment-container">
+            <div class="timeline-header">
+                <h1><i class="fas fa-database"></i> {{ target_term|title }} Evolution - Live Database Data</h1>
+                <div class="subtitle">{{ experiment.name }} - Database-Driven Visualization</div>
+            </div>
+
+            <!-- Database Status -->
+            <div class="database-info">
+                <i class="fas fa-server"></i> <strong>Live Database Integration:</strong>
+                Displaying {{ academic_anchors|length }} academic anchors from Term/TermVersion records
+                | Experiment ID: {{ experiment.id }}
+                | Term: {{ target_term }}
+            </div>
+
+            <!-- Academic Anchor Timeline - Horizontal Card Layout -->
+            <div class="term-card">
+                <div class="term-header">
+                    <div class="term-title">
+                        <i class="fas fa-tag text-primary"></i> {{ target_term }}
+                    </div>
+                    <div class="text-muted">
+                        <i class="fas fa-database"></i> {{ academic_anchors|length }} Academic Anchors
+                        | <i class="fas fa-calendar-alt"></i> {{ academic_anchors[0].year if academic_anchors }} - {{
+                        academic_anchors[-1].year if academic_anchors }}
+                    </div>
+                </div>
+
+                <div class="timeline-container">
+                    {% for anchor in academic_anchors %}
+                    {% if 'philosophy' in anchor.domain.lower() %}
+                    {% set domain_class = 'philosophy-period' %}
+                    {% set domain_label = 'Philosophy' %}
+                    {% set domain_icon = 'fas fa-brain' %}
+                    {% elif 'economics' in anchor.domain.lower() %}
+                    {% set domain_class = 'economics-period' %}
+                    {% set domain_label = 'Economics' %}
+                    {% set domain_icon = 'fas fa-chart-line' %}
+                    {% else %}
+                    {% set domain_class = 'computer-science-period' %}
+                    {% set domain_label = 'Computer Science' %}
+                    {% set domain_icon = 'fas fa-laptop-code' %}
+                    {% endif %}
+
+                    <div class="time-period-column {{ domain_class }}" data-year="{{ anchor.year }}"
+                        data-title="{{ anchor.period.replace('_', ' ').title() }}"
+                        data-definition="{{ anchor.meaning }}" data-citation="{{ anchor.citation }}"
+                        data-concepts="{{ anchor.context_anchor|join(', ') if anchor.context_anchor else '' }}"
+                        data-domain="{{ domain_label }}">
+
+                        <div class="period-label">
+                            <i class="{{ domain_icon }}"></i>
+                            <span class="period-year">{{ anchor.year }}</span>
+                        </div>
+
+                        <div class="definition-content">
+                            <div class="definition-text">
+                                <strong>{{ domain_label }}:</strong> {{ anchor.meaning[:100] }}{% if
+                                anchor.meaning|length > 100 %}...{% endif %}
+                            </div>
+                            <div class="definition-source">
+                                {{ anchor.citation[:80] }}{% if anchor.citation|length > 80 %}...{% endif %}
+                            </div>
+                        </div>
+
+                        {% if not loop.last %}
+                        <span class="timeline-arrow">→</span>
+                        {% endif %}
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+        <!-- OED Historical Context -->
+        <div class="experiment-container">
+            <h3><i class="fas fa-book"></i> Oxford English Dictionary Context</h3>
+            {% if oed_data %}
+            <div class="alert alert-info">
+                <strong>OED Data Available:</strong> {{ oed_data.date_range.latest - oed_data.date_range.earliest }}
+                years
+                of evolution
+                ({{ oed_data.date_range.earliest }}-{{ oed_data.date_range.latest }}) with {{
+                oed_data.definitions|length }}
+                definitions
+            </div>
+            {% else %}
+            <div class="alert alert-warning">
+                <strong>OED Integration:</strong> Reference data available for historical context
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Database Records Summary -->
+        <div class="experiment-container">
+            <h3><i class="fas fa-chart-bar"></i> Live Database Summary</h3>
+            <div class="row">
+                <div class="col-md-3">
+                    <div class="text-center p-3 border rounded">
+                        <h4>{{ academic_anchors|length }}</h4>
+                        <small>Database Records</small>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="text-center p-3 border rounded">
+                        <h4>{{ experiment.get_document_count() }}</h4>
+                        <small>Uploaded Documents</small>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="text-center p-3 border rounded">
+                        <h4>{% if academic_anchors %}{{ academic_anchors[-1].year - academic_anchors[0].year }}{% else
+                            %}0{%
+                            endif %}</h4>
+                        <small>Year Span</small>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="text-center p-3 border rounded">
+                        <h4>{{ academic_anchors|length if academic_anchors else 0 }}</h4>
+                        <small>Domains</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Academic Anchors Detail -->
+        <div class="experiment-container">
+            <h3><i class="fas fa-list"></i> Academic Anchors from Database</h3>
+            <div class="table-responsive">
+                <table class="table table-striped">
+                    <thead>
+                        <tr>
+                            <th>Year</th>
+                            <th>Domain</th>
+                            <th>Definition Source</th>
+                            <th>Key Concepts</th>
+                            <th>Confidence</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for anchor in academic_anchors %}
+                        <tr>
+                            <td><strong>{{ anchor.year }}</strong></td>
+                            <td>{{ anchor.domain.title() }}</td>
+                            <td>{{ anchor.citation[:50] }}...</td>
+                            <td>
+                                {% if anchor.context_anchor %}
+                                {{ anchor.context_anchor[:3]|join(', ') }}
+                                {% if anchor.context_anchor|length > 3 %}...{% endif %}
+                                {% endif %}
+                            </td>
+                            <td><span class="badge bg-success">{{ anchor.confidence }}</span></td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="experiment-container">
+            <div class="text-center">
+                <p class="text-muted">
+                    <strong>🔗 Generic Semantic Evolution Framework</strong><br>
+                    Flask Route: /experiments/{{ experiment.id }}/semantic_evolution_visual<br>
+                    Database-driven via Term/TermVersion models | Supports any term<br>
+                    <small>Generated: Live from database</small>
+                </p>
+            </div>
+        </div>
+
+        <!-- Modal for Academic Anchor Details -->
+        <div class="modal fade" id="anchorModal" tabindex="-1" aria-labelledby="anchorModalLabel" aria-hidden="true">
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="anchorModalLabel">Academic Anchor Details</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="row">
+                            <div class="col-md-4">
+                                <strong>Year:</strong> <span id="modal-year"></span><br>
+                                <strong>Domain:</strong> <span id="modal-domain"></span><br>
+                                <strong>Period:</strong> <span id="modal-title"></span>
+                            </div>
+                            <div class="col-md-8">
+                                <h6>Definition:</h6>
+                                <p id="modal-definition" class="mb-3"></p>
+
+                                <h6>Academic Citation:</h6>
+                                <p id="modal-citation" class="text-muted small mb-3"></p>
+
+                                <h6>Key Concepts:</h6>
+                                <p id="modal-concepts" class="small"></p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Bootstrap JS -->
+        <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+        <script>
+            document.addEventListener('DOMContentLoaded', function () {
+                // Add interactivity to horizontal timeline columns
+                const timeColumns = document.querySelectorAll('.time-period-column');
+                const modal = new bootstrap.Modal(document.getElementById('anchorModal'));
+
+                timeColumns.forEach(column => {
+                    column.addEventListener('click', function () {
+                        // Get data from data attributes
+                        const year = this.getAttribute('data-year');
+                        const title = this.getAttribute('data-title');
+                        const definition = this.getAttribute('data-definition');
+                        const citation = this.getAttribute('data-citation');
+                        const concepts = this.getAttribute('data-concepts');
+                        const domain = this.getAttribute('data-domain');
+
+                        // Populate modal with data
+                        document.getElementById('modal-year').textContent = year;
+                        document.getElementById('modal-title').textContent = title;
+                        document.getElementById('modal-definition').textContent = definition;
+                        document.getElementById('modal-citation').textContent = citation;
+                        document.getElementById('modal-concepts').textContent = concepts || 'None specified';
+                        document.getElementById('modal-domain').textContent = domain;
+
+                        // Update modal title to show the specific anchor
+                        document.getElementById('anchorModalLabel').textContent = `${year} ${domain} - Academic Anchor Details`;
+
+                        // Show modal
+                        modal.show();
+                    });
+                });
+
+                // Show database integration info
+                console.log('🔗 Flask Route Active: Database-driven visualization');
+                console.log('📊 Academic Anchors:', {{ academic_anchors| length }});
+            console.log('🗄️ Experiment ID:', {{ experiment.id }});
+            console.log('🎯 Layout: Horizontal card timeline (manage_temporal_terms style)');
+
+            {% if term_record %}
+            console.log('📝 Term ID:', '{{ term_record.id }}');
+            {% endif %}
+            });
+        </script>
+
+</body>
+
+</html>
