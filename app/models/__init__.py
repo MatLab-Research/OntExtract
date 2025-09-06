@@ -14,6 +14,12 @@ from .term import Term, TermVersion, FuzzinessAdjustment
 from .context_anchor import ContextAnchor
 from .semantic_drift import SemanticDriftActivity, AnalysisAgent, ProvenanceChain
 
+# LLM Orchestration logging models
+from .orchestration_logs import OrchestrationDecision, ToolExecutionLog, MultiModelConsensus
+
+# Human-in-the-Loop feedback models
+from .orchestration_feedback import OrchestrationFeedback, LearningPattern, OrchestrationOverride
+
 __all__ = [
     'User', 
     'Document', 
@@ -29,5 +35,13 @@ __all__ = [
     'ContextAnchor',
     'SemanticDriftActivity',
     'AnalysisAgent',
-    'ProvenanceChain'
+    'ProvenanceChain',
+    # LLM Orchestration models
+    'OrchestrationDecision',
+    'ToolExecutionLog',
+    'MultiModelConsensus',
+    # Human-in-the-Loop models
+    'OrchestrationFeedback',
+    'LearningPattern', 
+    'OrchestrationOverride'
 ]

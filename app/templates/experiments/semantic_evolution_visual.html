@@ -264,9 +264,188 @@
                 oed_data.definitions|length }}
                 definitions
             </div>
+
+            <!-- Etymology Section -->
+            {% if oed_data.etymology %}
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5><i class="fas fa-seedling"></i> Etymology & Origin</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <p><strong>Origin:</strong> {{ oed_data.etymology['origin_language'] or 'Unknown' }}</p>
+                            <p><strong>First Recorded:</strong> {{ oed_data.etymology['first_recorded_year'] or
+                                'Unknown' }}</p>
+                            {% if oed_data.etymology['language_family'] %}
+                            <p><strong>Language Family:</strong> {{ oed_data.etymology['language_family']['family'] }}
+                                ({{ oed_data.etymology['language_family']['branch'] }})</p>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-6">
+                            {% if oed_data.etymology['etymology_text'] %}
+                            <p><strong>Etymology:</strong></p>
+                            <p class="text-muted small">{{ oed_data.etymology['etymology_text'][:200] }}{% if
+                                oed_data.etymology['etymology_text']|length > 200 %}...{% endif %}</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Historical Statistics -->
+            {% if oed_data.historical_stats %}
+            <div class="row mb-4">
+                {% for stat in oed_data.historical_stats %}
+                <div class="col-md-4 mb-3">
+                    <div class="card">
+                        <div class="card-body text-center">
+                            <h6>{{ stat['time_period'].replace('_', ' ').title() }}</h6>
+                            <p class="mb-1"><strong>{{ stat['definition_count'] }}</strong> definitions</p>
+                            <p class="mb-1"><strong>{{ stat['quotation_span_years'] or 0 }}</strong> year span</p>
+                            {% if stat['semantic_stability_score'] %}
+                            <div class="progress mb-2">
+                                <div class="progress-bar" role="progressbar"
+                                    style="width: {{ (stat['semantic_stability_score'] * 100)|round }}%"
+                                    aria-valuenow="{{ (stat['semantic_stability_score'] * 100)|round }}"
+                                    aria-valuemin="0" aria-valuemax="100">
+                                    {{ (stat['semantic_stability_score'] * 100)|round }}%
+                                </div>
+                            </div>
+                            <small class="text-muted">Semantic Stability</small>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+
             {% else %}
             <div class="alert alert-warning">
                 <strong>OED Integration:</strong> Reference data available for historical context
+                <button class="btn btn-sm btn-primary ms-2" onclick="enrichWithOED()">
+                    <i class="fas fa-plus"></i> Enrich with OED Data
+                </button>
+            </div>
+            {% endif %}
+
+            <!-- OED Definitions by Time Period -->
+            {% if oed_data and oed_data.definitions %}
+            <div class="card">
+                <div class="card-header">
+                    <h5><i class="fas fa-list-ol"></i> OED Definitions by Analysis Period</h5>
+                </div>
+                <div class="card-body">
+                    <!-- Get unique years from academic anchors -->
+                    {% set analysis_years = academic_anchors|map(attribute='year')|list|unique|sort %}
+
+                    <!-- Create a section for each analysis year -->
+                    {% for year in analysis_years %}
+                    <div class="mb-4">
+                        <h6 class="border-bottom pb-2 mb-3">
+                            <i class="fas fa-calendar-alt"></i> {{ year }} Period
+                        </h6>
+
+                        <!-- Find definitions relevant to this year -->
+                        {% set relevant_defs = [] %}
+                        {% for definition in oed_data.definitions %}
+                        {% if definition.get('relevant_periods') and year in definition.get('relevant_periods', []) %}
+                        {% set _ = relevant_defs.append(definition) %}
+                        {% endif %}
+                        {% endfor %}
+
+                        {% if relevant_defs %}
+                        {% for definition in relevant_defs %}
+                        <div
+                            class="timeline-item mb-3 p-3 border-start border-3 
+                                        {% if definition['status'] == 'current' %}border-success{% elif definition['status'] == 'historical' %}border-warning{% else %}border-secondary{% endif %}">
+                            <div class="d-flex justify-content-between align-items-start mb-2">
+                                <h6 class="mb-1">Definition {{ definition['definition_number'] }}
+                                    {% if definition['part_of_speech'] %}({{ definition['part_of_speech'] }}){% endif %}
+                                </h6>
+                                <span
+                                    class="badge 
+                                          {% if definition['status'] == 'current' %}bg-success{% elif definition['status'] == 'historical' %}bg-warning{% else %}bg-secondary{% endif %}">
+                                    {{ definition['status'] }}
+                                </span>
+                            </div>
+
+                            <!-- Definition excerpt -->
+                            <div class="mb-2">
+                                {% if definition.get('period_relevant_excerpt') %}
+                                <p class="text-muted mb-2" style="font-style: italic;">{{
+                                    definition['period_relevant_excerpt'] }}</p>
+                                {% else %}
+                                {% set def_text = definition.get('definition_excerpt', '') or
+                                definition.get('definition_text', '') or definition.get('text', '') or '' %}
+                                <p class="mb-2">{{ def_text }}</p>
+                                {% endif %}
+
+                                {% if definition.get('oed_url') %}
+                                <a href="{{ definition['oed_url'] }}" target="_blank"
+                                    class="btn btn-sm btn-outline-primary">
+                                    <i class="fas fa-external-link-alt me-1"></i>View Full Definition on OED
+                                </a>
+                                {% endif %}
+                            </div>
+
+                            <div class="text-muted small">
+                                {% if definition['first_cited_year'] %}
+                                <span><i class="fas fa-calendar"></i> Active: {{ definition['first_cited_year'] }}{% if
+                                    definition['last_cited_year'] and definition['last_cited_year'] !=
+                                    definition['first_cited_year'] %} - {{ definition['last_cited_year'] }}{% else %} -
+                                    present{% endif %}</span>
+                                {% endif %}
+                                {% if definition['quotation_count'] %}
+                                <span class="ms-3"><i class="fas fa-quote-right"></i> {{ definition['quotation_count']
+                                    }} quotations</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                        {% endfor %}
+                        {% else %}
+                        <p class="text-muted">No OED definitions specifically relevant to {{ year }}</p>
+                        {% endif %}
+                    </div>
+                    {% endfor %}
+
+                    <!-- Show any definitions without period matches -->
+                    {% set unmatched_defs = [] %}
+                    {% for definition in oed_data.definitions %}
+                    {% if not definition.get('relevant_periods') or definition.get('relevant_periods')|length == 0 %}
+                    {% set _ = unmatched_defs.append(definition) %}
+                    {% endif %}
+                    {% endfor %}
+
+                    {% if unmatched_defs %}
+                    <div class="mt-4 pt-3 border-top">
+                        <h6 class="text-muted mb-3">
+                            <i class="fas fa-history"></i> Historical Definitions (outside analysis periods)
+                        </h6>
+                        {% for definition in unmatched_defs %}
+                        <div class="timeline-item mb-3 p-3 border-start border-3 border-secondary">
+                            <div class="d-flex justify-content-between align-items-start mb-2">
+                                <h6 class="mb-1">Definition {{ definition['definition_number'] }}
+                                    {% if definition['part_of_speech'] %}({{ definition['part_of_speech'] }}){% endif %}
+                                </h6>
+                                <span class="badge bg-secondary">historical</span>
+                            </div>
+                            <p class="text-muted small mb-2">{{ definition.get('definition_excerpt',
+                                definition.get('definition_text', ''))[:200] }}...</p>
+                            <div class="text-muted small">
+                                {% if definition['first_cited_year'] %}
+                                <span><i class="fas fa-calendar"></i> {{ definition['first_cited_year'] }}{% if
+                                    definition['last_cited_year'] %} - {{ definition['last_cited_year'] }}{% endif
+                                    %}</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+                </div>
             </div>
             {% endif %}
         </div>
@@ -429,6 +608,49 @@
             console.log('📝 Term ID:', '{{ term_record.id }}');
             {% endif %}
             });
+
+            // Function to enrich term with OED data
+            function enrichWithOED() {
+                const termText = '{{ target_term }}';
+                const experimentId = {{ experiment.id }};
+
+                // Show loading state
+                const button = event.target;
+                const originalText = button.innerHTML;
+                button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Enriching...';
+                button.disabled = true;
+
+                // Make AJAX request to enrich endpoint
+                fetch(`/api/terms/enrich-oed`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        term_text: termText,
+                        experiment_id: experimentId
+                    })
+                })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            // Show success message and reload page
+                            alert(`Successfully enriched "${termText}" with OED data!\n\nAdded:\n- ${data.etymology_created ? '1 etymology record' : '0 etymology records'}\n- ${data.definitions_created} definition records\n- ${data.quotation_summaries_created} quotation summaries\n- ${data.historical_stats_created} historical statistics`);
+                            window.location.reload();
+                        } else {
+                            alert(`Failed to enrich with OED data: ${data.error}`);
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        alert('An error occurred while enriching with OED data');
+                    })
+                    .finally(() => {
+                        // Restore button state
+                        button.innerHTML = originalText;
+                        button.disabled = false;
+                    });
+            }
         </script>
 
 </body>
