@@ -24,9 +24,50 @@ logger = logging.getLogger(__name__)
 bp = Blueprint('orchestration_feedback', __name__, url_prefix='/orchestration')
 
 
+@bp.route('/')
+@bp.route('/dashboard')
+@login_required
+def dashboard():
+    """Orchestration dashboard showing recent activity and key metrics"""
+    
+    # Get recent decisions
+    recent_decisions = OrchestrationDecision.query.order_by(
+        OrchestrationDecision.created_at.desc()
+    ).limit(10).all()
+    
+    # Get pending feedback count
+    pending_feedback = OrchestrationFeedback.query.filter_by(
+        feedback_status='pending'
+    ).count()
+    
+    # Get active learning patterns
+    active_patterns = LearningPattern.query.filter_by(
+        pattern_status='active'
+    ).limit(5).all()
+    
+    # Get recent overrides
+    recent_overrides = OrchestrationOverride.query.order_by(
+        OrchestrationOverride.applied_at.desc()
+    ).limit(5).all()
+    
+    # Basic analytics
+    total_decisions = OrchestrationDecision.query.count()
+    total_feedback = OrchestrationFeedback.query.count()
+    total_patterns = LearningPattern.query.count()
+    
+    return render_template('orchestration/dashboard.html',
+                         recent_decisions=recent_decisions,
+                         pending_feedback=pending_feedback,
+                         active_patterns=active_patterns,
+                         recent_overrides=recent_overrides,
+                         total_decisions=total_decisions,
+                         total_feedback=total_feedback,
+                         total_patterns=total_patterns)
+
+
 @bp.route('/decisions', methods=['GET'])
 @login_required
-def list_decisions():
+def decisions():
     """List recent orchestration decisions for feedback"""
     
     page = request.args.get('page', 1, type=int)
@@ -65,8 +106,8 @@ def list_decisions():
                     'embedding_model': decision.embedding_model,
                     'confidence': float(decision.decision_confidence) if decision.decision_confidence else None,
                     'created_at': decision.created_at.isoformat() if decision.created_at else None,
-                    'feedback_count': len(decision.feedback_entries),
-                    'has_override': len(decision.manual_overrides) > 0
+                    'feedback_count': len(decision.feedback_entries) if hasattr(decision, 'feedback_entries') and decision.feedback_entries else 0,
+                    'has_override': len(decision.manual_overrides) > 0 if hasattr(decision, 'manual_overrides') and decision.manual_overrides else False
                 }
                 for decision in decisions.items
             ],
@@ -83,7 +124,7 @@ def list_decisions():
 
 @bp.route('/decisions/<decision_id>', methods=['GET'])
 @login_required  
-def view_decision(decision_id):
+def get_decision(decision_id):
     """View detailed orchestration decision for feedback"""
     
     decision = OrchestrationDecision.query.get_or_404(decision_id)
@@ -301,7 +342,7 @@ def apply_override(decision_id):
 
 @bp.route('/learning-patterns', methods=['GET'])
 @login_required
-def list_learning_patterns():
+def learning_patterns():
     """List active learning patterns derived from researcher feedback"""
     
     patterns = LearningPattern.query.filter_by(pattern_status='active').order_by(

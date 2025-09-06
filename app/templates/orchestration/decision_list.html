@@ -1,0 +1,284 @@
+{% extends "base.html" %}
+
+{% block title %}Orchestration Decisions - OntExtract{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4">
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h3 class="mb-0">
+                        <i class="fas fa-list me-2"></i>Orchestration Decisions
+                    </h3>
+                    <div>
+                        <a href="{{ url_for('orchestration_feedback.dashboard') }}" class="btn btn-outline-secondary">
+                            <i class="fas fa-tachometer-alt me-1"></i>Dashboard
+                        </a>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <!-- Filters Row -->
+                    <div class="row mb-3">
+                        <div class="col-md-12">
+                            <form method="GET" class="row g-3">
+                                <div class="col-md-3">
+                                    <label for="term" class="form-label">Term</label>
+                                    <input type="text" class="form-control" id="term" name="term" 
+                                           value="{{ request.args.get('term', '') }}" placeholder="Search by term...">
+                                </div>
+                                <div class="col-md-3">
+                                    <label for="experiment_id" class="form-label">Experiment ID</label>
+                                    <input type="number" class="form-control" id="experiment_id" name="experiment_id" 
+                                           value="{{ request.args.get('experiment_id', '') }}" placeholder="Experiment ID">
+                                </div>
+                                <div class="col-md-3">
+                                    <label for="min_confidence" class="form-label">Min Confidence</label>
+                                    <select class="form-select" id="min_confidence" name="min_confidence">
+                                        <option value="">All</option>
+                                        <option value="0.9" {% if request.args.get('min_confidence') == '0.9' %}selected{% endif %}>90%+</option>
+                                        <option value="0.8" {% if request.args.get('min_confidence') == '0.8' %}selected{% endif %}>80%+</option>
+                                        <option value="0.7" {% if request.args.get('min_confidence') == '0.7' %}selected{% endif %}>70%+</option>
+                                        <option value="0.5" {% if request.args.get('min_confidence') == '0.5' %}selected{% endif %}>50%+</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-3 d-flex align-items-end">
+                                    <button type="submit" class="btn btn-primary me-2">
+                                        <i class="fas fa-search"></i> Filter
+                                    </button>
+                                    <a href="{{ url_for('orchestration_feedback.decisions') }}" class="btn btn-outline-secondary">
+                                        <i class="fas fa-times"></i> Clear
+                                    </a>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+
+                    <!-- Decisions Table -->
+                    {% if decisions.items %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Term</th>
+                                    <th>Tools Selected</th>
+                                    <th>Confidence</th>
+                                    <th>Experiment</th>
+                                    <th>Created</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for decision in decisions.items %}
+                                <tr>
+                                    <td>
+                                        <strong>{{ decision.term_text }}</strong>
+                                        <br>
+                                        <small class="text-muted">{{ decision.id|string|truncate(8, True, '') }}...</small>
+                                    </td>
+                                    <td>
+                                        {% if decision.selected_tools %}
+                                            {% for tool in decision.selected_tools %}
+                                                <span class="badge bg-secondary me-1">{{ tool }}</span>
+                                            {% endfor %}
+                                        {% else %}
+                                            <span class="text-muted">None</span>
+                                        {% endif %}
+                                        {% if decision.embedding_model %}
+                                            <br><small class="text-muted">Model: {{ decision.embedding_model }}</small>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if decision.decision_confidence %}
+                                            <span class="badge bg-{{ 'success' if decision.decision_confidence > 0.8 else 'warning' if decision.decision_confidence > 0.6 else 'danger' }}">
+                                                {{ "%.0f" | format(decision.decision_confidence * 100) }}%
+                                            </span>
+                                        {% else %}
+                                            <span class="text-muted">Unknown</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if decision.experiment_id %}
+                                            <a href="{{ url_for('experiments.view', experiment_id=decision.experiment_id) }}" class="text-decoration-none">
+                                                Experiment #{{ decision.experiment_id }}
+                                            </a>
+                                        {% else %}
+                                            <span class="text-muted">No experiment</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <small>{{ decision.created_at.strftime('%Y-%m-%d %H:%M') if decision.created_at else 'Unknown' }}</small>
+                                    </td>
+                                    <td>
+                                        {% if decision.feedback_entries %}
+                                            <span class="badge bg-info">
+                                                {{ decision.feedback_entries|length }} feedback
+                                            </span>
+                                        {% endif %}
+                                        {% if decision.manual_overrides %}
+                                            <span class="badge bg-warning">
+                                                Override
+                                            </span>
+                                        {% endif %}
+                                        {% if not decision.feedback_entries and not decision.manual_overrides %}
+                                            <span class="badge bg-secondary">No feedback</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <div class="btn-group" role="group">
+                                            <a href="{{ url_for('orchestration_feedback.get_decision', decision_id=decision.id) }}" 
+                                               class="btn btn-sm btn-outline-primary">
+                                                <i class="fas fa-eye"></i>
+                                            </a>
+                                            <button type="button" class="btn btn-sm btn-outline-success" 
+                                                    onclick="showFeedbackModal('{{ decision.id }}', '{{ decision.term_text }}')">
+                                                <i class="fas fa-comment"></i>
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Pagination -->
+                    {% if decisions.pages > 1 %}
+                    <nav aria-label="Decisions pagination">
+                        <ul class="pagination justify-content-center">
+                            {% if decisions.has_prev %}
+                                <li class="page-item">
+                                    <a class="page-link" href="{{ url_for('orchestration_feedback.decisions', page=decisions.prev_num) }}">Previous</a>
+                                </li>
+                            {% endif %}
+                            
+                            {% for page_num in decisions.iter_pages() %}
+                                {% if page_num %}
+                                    {% if page_num != decisions.page %}
+                                        <li class="page-item">
+                                            <a class="page-link" href="{{ url_for('orchestration_feedback.decisions', page=page_num) }}">{{ page_num }}</a>
+                                        </li>
+                                    {% else %}
+                                        <li class="page-item active">
+                                            <span class="page-link">{{ page_num }}</span>
+                                        </li>
+                                    {% endif %}
+                                {% else %}
+                                    <li class="page-item disabled">
+                                        <span class="page-link">...</span>
+                                    </li>
+                                {% endif %}
+                            {% endfor %}
+                            
+                            {% if decisions.has_next %}
+                                <li class="page-item">
+                                    <a class="page-link" href="{{ url_for('orchestration_feedback.decisions', page=decisions.next_num) }}">Next</a>
+                                </li>
+                            {% endif %}
+                        </ul>
+                    </nav>
+                    {% endif %}
+
+                    {% else %}
+                    <div class="text-center py-5">
+                        <i class="fas fa-robot fa-3x text-muted mb-3"></i>
+                        <h5 class="text-muted">No orchestration decisions found</h5>
+                        <p class="text-muted">
+                            Orchestration decisions will appear here as experiments are processed.
+                        </p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Quick Feedback Modal -->
+<div class="modal fade" id="feedbackModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Provide Feedback</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="quickFeedbackForm">
+                    <input type="hidden" id="feedbackDecisionId">
+                    <div class="mb-3">
+                        <label class="form-label">Term: <strong id="feedbackTerm"></strong></label>
+                    </div>
+                    <div class="mb-3">
+                        <label for="agreementLevel" class="form-label">Agreement with Decision</label>
+                        <select class="form-select" id="agreementLevel" required>
+                            <option value="">Choose...</option>
+                            <option value="strongly_agree">Strongly Agree</option>
+                            <option value="agree">Agree</option>
+                            <option value="neutral">Neutral</option>
+                            <option value="disagree">Disagree</option>
+                            <option value="strongly_disagree">Strongly Disagree</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="feedbackReasoning" class="form-label">Reasoning</label>
+                        <textarea class="form-control" id="feedbackReasoning" rows="3" 
+                                  placeholder="Explain your assessment..." required></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="submitQuickFeedback()">Submit Feedback</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function showFeedbackModal(decisionId, termText) {
+    document.getElementById('feedbackDecisionId').value = decisionId;
+    document.getElementById('feedbackTerm').textContent = termText;
+    document.getElementById('quickFeedbackForm').reset();
+    new bootstrap.Modal(document.getElementById('feedbackModal')).show();
+}
+
+function submitQuickFeedback() {
+    const decisionId = document.getElementById('feedbackDecisionId').value;
+    const agreementLevel = document.getElementById('agreementLevel').value;
+    const reasoning = document.getElementById('feedbackReasoning').value;
+    
+    if (!agreementLevel || !reasoning) {
+        alert('Please fill in all fields');
+        return;
+    }
+    
+    fetch(`/orchestration/decisions/${decisionId}/feedback`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            feedback_type: 'assessment',
+            feedback_scope: 'overall_decision', 
+            agreement_level: agreementLevel,
+            reasoning: reasoning,
+            confidence_assessment: 0.8
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.message) {
+            bootstrap.Modal.getInstance(document.getElementById('feedbackModal')).hide();
+            location.reload(); // Refresh to show updated status
+        } else {
+            alert('Error submitting feedback: ' + (data.error || 'Unknown error'));
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Error submitting feedback');
+    });
+}
+</script>
+{% endblock %}

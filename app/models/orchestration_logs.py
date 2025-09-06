@@ -29,8 +29,8 @@ class OrchestrationDecision(db.Model):
     activity_status = db.Column(db.String(20), default='completed', index=True)
     
     # Document context
-    document_id = db.Column(UUID(as_uuid=True), db.ForeignKey('documents.id'), index=True)
-    experiment_id = db.Column(UUID(as_uuid=True), db.ForeignKey('experiments.id'), index=True)
+    document_id = db.Column(db.Integer, db.ForeignKey('documents.id'), index=True)
+    experiment_id = db.Column(db.Integer, db.ForeignKey('experiments.id'), index=True)
     term_text = db.Column(db.String(255), index=True)
     
     # Input metadata that influenced decision

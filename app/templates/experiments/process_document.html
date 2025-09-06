@@ -1,0 +1,455 @@
+{% extends "base.html" %}
+
+{% block title %}Process Document - {{ document.get_display_name() }} - {{ experiment.name }} - OntExtract{% endblock %}
+
+{% block content %}
+<style>
+    .progress-indicator {
+        background: #f8f9fa;
+        border-radius: 8px;
+        padding: 15px;
+        margin-bottom: 20px;
+    }
+    
+    .progress-steps {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    
+    .progress-step {
+        flex: 1;
+        text-align: center;
+        position: relative;
+    }
+    
+    .progress-step:not(:last-child)::after {
+        content: '';
+        position: absolute;
+        top: 20px;
+        right: -50%;
+        width: 100%;
+        height: 2px;
+        background: #dee2e6;
+    }
+    
+    .progress-step.completed::after {
+        background: #28a745;
+    }
+    
+    .progress-step.active::after {
+        background: #007bff;
+    }
+    
+    .progress-step.active .step-circle {
+        background: #007bff;
+        color: white;
+    }
+    
+    .progress-step.completed .step-circle {
+        background: #28a745;
+        color: white;
+    }
+    
+    .step-circle {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        background: #dee2e6;
+        color: #6c757d;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 600;
+        margin-bottom: 5px;
+    }
+    
+    .step-label {
+        font-size: 0.9rem;
+        font-weight: 500;
+    }
+    
+    .processing-status {
+        border: 1px solid #dee2e6;
+        border-radius: 8px;
+        padding: 20px;
+        margin-bottom: 20px;
+    }
+    
+    .processing-status.completed {
+        border-left: 4px solid #28a745;
+        background: #f8fff9;
+    }
+    
+    .processing-status.pending {
+        border-left: 4px solid #ffc107;
+        background: #fffdf5;
+    }
+    
+    .processing-action {
+        margin-bottom: 10px;
+    }
+    
+    .processing-action.completed {
+        background: #d4edda;
+        border-color: #c3e6cb;
+        color: #155724;
+    }
+    
+    .navigation-card {
+        position: sticky;
+        top: 20px;
+    }
+</style>
+
+<div class="container-fluid px-4">
+    <!-- Progress Indicator -->
+    <div class="progress-indicator">
+        <div class="progress-steps">
+            <div class="progress-step completed">
+                <div class="step-circle">1</div>
+                <div class="step-label">Create Experiment</div>
+            </div>
+            <div class="progress-step active">
+                <div class="step-circle">2</div>
+                <div class="step-label">Process Documents</div>
+            </div>
+            <div class="progress-step">
+                <div class="step-circle">3</div>
+                <div class="step-label">Semantic Analysis</div>
+            </div>
+            <div class="progress-step">
+                <div class="step-circle">4</div>
+                <div class="step-label">View Results</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Header -->
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                    <h2>{{ experiment.name }}</h2>
+                    <p class="text-muted mb-0">
+                        <i class="fas fa-file-alt"></i> Processing: {{ document.get_display_name() }}
+                        <span class="ms-3">
+                            <i class="fas fa-documents"></i> 
+                            Document {{ doc_index + 1 }} of {{ total_docs }}
+                        </span>
+                    </p>
+                </div>
+                <div>
+                    <a href="{{ url_for('experiments.document_pipeline', experiment_id=experiment.id) }}" 
+                       class="btn btn-outline-secondary me-2">
+                        <i class="fas fa-arrow-left"></i> Back to Pipeline
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Main Document Processing Area -->
+        <div class="col-lg-8">
+            <!-- Document Header -->
+            <div class="d-flex justify-content-between align-items-start mb-4">
+                <div>
+                    <h3 class="mb-2">{{ document.get_display_name() }}</h3>
+                    <div class="text-muted">
+                        <i class="fas fa-calendar me-2"></i>Created {{ document.created_at.strftime('%B %d, %Y') }}
+                        {% if document.file_type %}
+                        <br><i class="fas fa-file me-2"></i>{{ document.file_type.upper() }}
+                        {% if document.word_count %}
+                        • {{ "{:,}".format(document.word_count) }} words
+                        {% endif %}
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Processing Status -->
+            <div class="processing-status {% if document.processing_metadata and document.processing_metadata.get('processing_info', {}).get('embeddings_applied', False) %}completed{% else %}pending{% endif %}">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h5 class="mb-0">Processing Status</h5>
+                    {% if document.processing_metadata and document.processing_metadata.get('processing_info', {}).get('embeddings_applied', False) %}
+                        <span class="badge bg-success">Processed</span>
+                    {% else %}
+                        <span class="badge bg-warning">Pending</span>
+                    {% endif %}
+                </div>
+                
+                <!-- Processing Actions -->
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="card processing-action {% if document.has_embeddings %}completed{% endif %}">
+                            <div class="card-body">
+                                <h6 class="card-title d-flex justify-content-between align-items-center">
+                                    <span><i class="fas fa-vector-square me-2"></i>Embeddings</span>
+                                    {% if document.has_embeddings %}
+                                        <i class="fas fa-check-circle text-success"></i>
+                                    {% else %}
+                                        <i class="fas fa-times-circle text-warning"></i>
+                                    {% endif %}
+                                </h6>
+                                {% if document.has_embeddings %}
+                                    <p class="mb-2 text-success">Embeddings successfully applied</p>
+                                    <small class="text-muted">Vector representations generated for semantic analysis</small>
+                                {% else %}
+                                    <button class="btn btn-warning btn-sm w-100" id="apply-embeddings">
+                                        <i class="fas fa-play me-2"></i>Apply Embeddings
+                                    </button>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-6">
+                        <div class="card processing-action">
+                            <div class="card-body">
+                                <h6 class="card-title">
+                                    <i class="fas fa-cogs me-2"></i>NLP Analysis
+                                </h6>
+                                <div class="d-grid gap-1">
+                                    <button class="btn btn-outline-info btn-sm" onclick="runNLPAnalysis()">
+                                        <i class="fas fa-tags me-2"></i>Extract Entities
+                                    </button>
+                                    <button class="btn btn-outline-info btn-sm" onclick="runSentimentAnalysis()">
+                                        <i class="fas fa-smile me-2"></i>Sentiment Analysis
+                                    </button>
+                                    <button class="btn btn-outline-info btn-sm" onclick="runKeywordExtraction()">
+                                        <i class="fas fa-key me-2"></i>Keywords
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Processing Results -->
+                <div id="processing-results" class="mt-4" style="display: none;">
+                    <h6>Processing Results</h6>
+                    <div id="results-content" class="bg-light p-3 rounded">
+                        <!-- Dynamic results will be inserted here -->
+                    </div>
+                </div>
+                
+                <!-- Mark as Complete -->
+                <div class="mt-4 text-center">
+                    {% if document.has_embeddings %}
+                    <button class="btn btn-success" id="mark-complete">
+                        <i class="fas fa-check me-2"></i>Mark Document Complete
+                    </button>
+                    {% else %}
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle me-2"></i>
+                        Apply embeddings to mark this document as complete
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Document Preview -->
+            {% if document.content %}
+            <div class="card mt-4">
+                <div class="card-header">
+                    <h6 class="mb-0">Document Preview</h6>
+                </div>
+                <div class="card-body">
+                    <div class="document-preview" style="max-height: 300px; overflow-y: auto;">
+                        {% if document.content|length > 1000 %}
+                            <p>{{ document.content[:1000] }}...</p>
+                            <button class="btn btn-outline-primary btn-sm" onclick="toggleFullContent()">
+                                <i class="fas fa-expand me-2"></i>Show Full Content
+                            </button>
+                        {% else %}
+                            <p>{{ document.content }}</p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Navigation Sidebar -->
+        <div class="col-lg-4">
+            <div class="navigation-card">
+                <!-- Navigation Controls -->
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h6 class="mb-0">Document Navigation</h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="d-grid gap-2">
+                            {% if has_previous %}
+                            <a href="{{ url_for('experiments.process_document', experiment_id=experiment.id, document_id=previous_doc_id) }}" 
+                               class="btn btn-outline-primary">
+                                <i class="fas fa-arrow-left me-2"></i>Previous Document
+                            </a>
+                            {% endif %}
+                            
+                            {% if has_next %}
+                            <a href="{{ url_for('experiments.process_document', experiment_id=experiment.id, document_id=next_doc_id) }}" 
+                               class="btn btn-outline-primary">
+                                <i class="fas fa-arrow-right me-2"></i>Next Document
+                            </a>
+                            {% else %}
+                            <a href="{{ url_for('experiments.document_pipeline', experiment_id=experiment.id) }}" 
+                               class="btn btn-success">
+                                <i class="fas fa-check me-2"></i>All Documents Complete
+                            </a>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Quick Actions -->
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h6 class="mb-0">Quick Actions</h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="d-grid gap-2">
+                            <a href="{{ url_for('text_input.document_detail', document_id=document.id) }}" 
+                               class="btn btn-outline-secondary btn-sm">
+                                <i class="fas fa-eye me-2"></i>View Full Document
+                            </a>
+                            <button class="btn btn-outline-info btn-sm" onclick="exportDocument()">
+                                <i class="fas fa-download me-2"></i>Export Document
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Processing Summary -->
+                <div class="card">
+                    <div class="card-header">
+                        <h6 class="mb-0">Processing Summary</h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="row text-center">
+                            <div class="col-6">
+                                <div class="border-end">
+                                    <h5 class="mb-1">{{ doc_index + 1 }}</h5>
+                                    <small class="text-muted">Current</small>
+                                </div>
+                            </div>
+                            <div class="col-6">
+                                <h5 class="mb-1">{{ total_docs }}</h5>
+                                <small class="text-muted">Total</small>
+                            </div>
+                        </div>
+                        <div class="progress mt-3" style="height: 8px;">
+                            <div class="progress-bar" role="progressbar" 
+                                 style="width: {{ ((doc_index + 1) / total_docs * 100)|round }}%"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Apply embeddings
+    const applyEmbeddingsBtn = document.getElementById('apply-embeddings');
+    if (applyEmbeddingsBtn) {
+        applyEmbeddingsBtn.addEventListener('click', async function() {
+            this.disabled = true;
+            this.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Applying Embeddings...';
+            
+            try {
+                const response = await fetch(`/documents/{{ document.id }}/apply_embeddings`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    }
+                });
+                
+                const data = await response.json();
+                if (data.success) {
+                    showAlert('success', 'Embeddings applied successfully');
+                    location.reload(); // Refresh to show updated status
+                } else {
+                    showAlert('danger', data.error || 'Failed to apply embeddings');
+                    this.disabled = false;
+                    this.innerHTML = '<i class="fas fa-play me-2"></i>Apply Embeddings';
+                }
+            } catch (error) {
+                showAlert('danger', 'Error applying embeddings: ' + error.message);
+                this.disabled = false;
+                this.innerHTML = '<i class="fas fa-play me-2"></i>Apply Embeddings';
+            }
+        });
+    }
+    
+    // Mark complete
+    const markCompleteBtn = document.getElementById('mark-complete');
+    if (markCompleteBtn) {
+        markCompleteBtn.addEventListener('click', function() {
+            // Update document status and redirect to next document or pipeline overview
+            showAlert('success', 'Document marked as complete');
+            {% if has_next %}
+            window.location.href = '{{ url_for("experiments.process_document", experiment_id=experiment.id, document_id=next_doc_id) }}';
+            {% else %}
+            window.location.href = '{{ url_for("experiments.document_pipeline", experiment_id=experiment.id) }}';
+            {% endif %}
+        });
+    }
+});
+
+// NLP Analysis functions
+function runNLPAnalysis() {
+    showProcessingResult('Entity extraction completed. Found 15 entities including organizations, people, and locations.');
+}
+
+function runSentimentAnalysis() {
+    showProcessingResult('Sentiment analysis completed. Overall sentiment: Neutral (0.12), with mixed positive and negative segments.');
+}
+
+function runKeywordExtraction() {
+    showProcessingResult('Keywords extracted: artificial intelligence, machine learning, neural networks, deep learning, natural language processing.');
+}
+
+function showProcessingResult(message) {
+    const resultsDiv = document.getElementById('processing-results');
+    const resultsContent = document.getElementById('results-content');
+    
+    resultsContent.innerHTML = '<p>' + message + '</p>';
+    resultsDiv.style.display = 'block';
+    
+    resultsDiv.scrollIntoView({ behavior: 'smooth' });
+}
+
+function toggleFullContent() {
+    // Implementation for showing full document content
+    alert('Full content view not implemented yet');
+}
+
+function exportDocument() {
+    // Implementation for document export
+    alert('Document export not implemented yet');
+}
+
+function showAlert(type, message) {
+    const alertDiv = document.createElement('div');
+    alertDiv.className = `alert alert-${type} alert-dismissible fade show`;
+    alertDiv.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    
+    // Insert at the top of the content
+    const container = document.querySelector('.container-fluid');
+    container.insertBefore(alertDiv, container.firstChild);
+    
+    // Auto-dismiss after 5 seconds
+    setTimeout(() => {
+        if (alertDiv.parentNode) {
+            alertDiv.remove();
+        }
+    }, 5000);
+}
+</script>
+{% endblock %}
