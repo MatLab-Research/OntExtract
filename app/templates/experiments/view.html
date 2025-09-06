@@ -68,6 +68,13 @@
                                 </a>
                                 {% endif %}
                                 
+                                {% if experiment.get_document_count() > 0 %}
+                                <a href="{{ url_for('experiments.document_pipeline', experiment_id=experiment.id) }}" 
+                                   class="btn btn-outline-info text-start">
+                                    <i class="fas fa-file-text"></i> Document Processing Pipeline
+                                </a>
+                                {% endif %}
+                                
                                 {% if experiment.can_run() %}
                                 <button class="btn btn-outline-success text-start" id="run-experiment">
                                     <i class="fas fa-play"></i> Run Experiment

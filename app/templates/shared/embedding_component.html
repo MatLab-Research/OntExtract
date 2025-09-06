@@ -14,7 +14,7 @@
                 <i class="fas fa-vector-square me-2"></i>Generate Embeddings
             </button>
             <button class="btn btn-outline-info btn-sm"
-                onclick="segmentDocument({{ document.id }})">
+                onclick="showSegmentationOptions({{ document.id }})">
                 <i class="fas fa-cut me-2"></i>Segment Document
             </button>
             <button class="btn btn-outline-warning btn-sm"
@@ -164,13 +164,41 @@
 </div>
 {% endif %}
 
+<!-- Modal CSS Fix -->
+<style>
+.modal {
+    z-index: 10050 !important;
+    position: fixed !important;
+}
+.modal-dialog {
+    z-index: 10051 !important;
+    position: relative;
+    margin: 1.75rem auto !important;
+}
+.modal-content {
+    z-index: 10052 !important;
+    position: relative;
+}
+.modal-backdrop {
+    z-index: 10040 !important;
+    position: fixed !important;
+}
+.modal.show {
+    z-index: 10050 !important;
+}
+/* Ensure modals aren't affected by sticky parent containers */
+body.modal-open .modal {
+    position: fixed !important;
+}
+</style>
+
 <!-- Embedding Options Modal -->
 <div class="modal fade" id="embeddingModal" tabindex="-1">
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title"><i class="fas fa-vector-square me-2"></i>Generate Embeddings</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                <button type="button" class="btn-close" onclick="closeEmbeddingModal()"></button>
             </div>
             <div class="modal-body">
                 <p>Choose an embedding method for this document:</p>
@@ -224,10 +252,76 @@
                 </div>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-secondary" onclick="closeEmbeddingModal()">Cancel</button>
                 <button type="button" class="btn btn-primary" id="generateEmbeddingsBtn"
                     onclick="generateEmbeddingsWithMethod()">
                     <i class="fas fa-play me-2"></i>Generate Embeddings
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Segmentation Options Modal -->
+<div class="modal fade" id="segmentationModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="fas fa-cut me-2"></i>Segment Document</h5>
+                <button type="button" class="btn-close" onclick="closeSegmentationModal()"></button>
+            </div>
+            <div class="modal-body">
+                <p>Choose a segmentation method for this document:</p>
+
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <div class="card segment-option" data-method="paragraph" onclick="selectSegmentationMethod('paragraph')">
+                            <div class="card-body text-center">
+                                <i class="fas fa-paragraph fa-2x text-primary mb-2"></i>
+                                <h6>Paragraph</h6>
+                                <p class="small text-muted mb-0">Split by paragraphs<br>Natural boundaries<br>Recommended</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <div class="card segment-option" data-method="sentence" onclick="selectSegmentationMethod('sentence')">
+                            <div class="card-body text-center">
+                                <i class="fas fa-list-ol fa-2x text-success mb-2"></i>
+                                <h6>Sentence</h6>
+                                <p class="small text-muted mb-0">Split by sentences<br>Fine granularity<br>Detailed Analysis</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <div class="card segment-option" data-method="semantic" onclick="selectSegmentationMethod('semantic')">
+                            <div class="card-body text-center">
+                                <i class="fas fa-brain fa-2x text-warning mb-2"></i>
+                                <h6>Semantic</h6>
+                                <p class="small text-muted mb-0">LLM-powered<br>Topic boundaries<br>Intelligent</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <div class="card segment-option" data-method="hybrid" onclick="selectSegmentationMethod('hybrid')">
+                            <div class="card-body text-center">
+                                <i class="fas fa-layer-group fa-2x text-info mb-2"></i>
+                                <h6>Hybrid</h6>
+                                <p class="small text-muted mb-0">Rule + LLM<br>Best of both<br>Advanced</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="alert alert-info mt-3">
+                    <i class="fas fa-info-circle me-2"></i>
+                    <strong>Paragraph method</strong> is recommended for most documents and provides good balance between granularity and context.
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="closeSegmentationModal()">Cancel</button>
+                <button type="button" class="btn btn-primary" id="segmentDocumentBtn"
+                    onclick="segmentDocumentWithMethod()">
+                    <i class="fas fa-play me-2"></i>Segment Document
                 </button>
             </div>
         </div>

@@ -1,11 +1,14 @@
 // Shared Embedding Component JavaScript
 // Include this in templates that use the embedding component
 
-// Embedding options modal
+// Embedding and segmentation options modal
 let currentDocumentId = null;
 let selectedEmbeddingMethod = 'local';
+let selectedSegmentationMethod = 'paragraph';
 
 function showEmbeddingOptions(documentId) {
+    console.log('showEmbeddingOptions called for document:', documentId);
+    
     currentDocumentId = documentId;
     selectedEmbeddingMethod = 'local'; // Default selection
 
@@ -20,8 +23,41 @@ function showEmbeddingOptions(documentId) {
         defaultOption.classList.add('border-primary', 'bg-light');
     }
 
-    // Show modal
-    new bootstrap.Modal(document.getElementById('embeddingModal')).show();
+    // Ensure modal is properly positioned and remove any existing instances
+    const modalElement = document.getElementById('embeddingModal');
+    if (!modalElement) {
+        console.error('Embedding modal element not found');
+        return;
+    }
+    
+    console.log('Modal element found, Bootstrap available:', typeof bootstrap !== 'undefined');
+    
+    // Clean up any existing modal instances
+    const existingModal = bootstrap.Modal.getInstance(modalElement);
+    if (existingModal) {
+        existingModal.dispose();
+    }
+    
+    // Remove any leftover backdrops
+    document.querySelectorAll('.modal-backdrop').forEach(backdrop => backdrop.remove());
+    
+    // Remove modal-open class from body
+    document.body.classList.remove('modal-open');
+    
+    // Force modal visibility and positioning
+    modalElement.style.display = 'block';
+    modalElement.style.position = 'fixed';
+    modalElement.style.zIndex = '10050';
+    modalElement.style.top = '0';
+    modalElement.style.left = '0';
+    modalElement.style.width = '100%';
+    modalElement.style.height = '100%';
+    modalElement.classList.add('show');
+    
+    // Add modal-open class to body
+    document.body.classList.add('modal-open');
+    
+    console.log('Modal should be visible now');
 }
 
 function selectEmbeddingMethod(method) {
@@ -46,10 +82,32 @@ function generateEmbeddingsWithMethod() {
     }
 
     // Close modal
-    bootstrap.Modal.getInstance(document.getElementById('embeddingModal')).hide();
+    const modalElement = document.getElementById('embeddingModal');
+    const modal = bootstrap.Modal.getInstance(modalElement);
+    if (modal) {
+        modal.hide();
+    } else {
+        modalElement.style.display = 'none';
+        document.body.classList.remove('modal-open');
+        const backdrop = document.querySelector('.modal-backdrop');
+        if (backdrop) backdrop.remove();
+    }
 
     // Call the actual embedding generation with method
     generateEmbeddings(currentDocumentId, selectedEmbeddingMethod);
+}
+
+function closeEmbeddingModal() {
+    const modalElement = document.getElementById('embeddingModal');
+    const modal = bootstrap.Modal.getInstance(modalElement);
+    if (modal) {
+        modal.hide();
+    } else {
+        modalElement.style.display = 'none';
+        document.body.classList.remove('modal-open');
+        const backdrop = document.querySelector('.modal-backdrop');
+        if (backdrop) backdrop.remove();
+    }
 }
 
 // Processing options functions
@@ -82,14 +140,122 @@ function generateEmbeddings(documentId, method = 'local') {
         });
 }
 
-function segmentDocument(documentId) {
+// Segmentation options modal functions
+function showSegmentationOptions(documentId) {
+    console.log('showSegmentationOptions called for document:', documentId);
+    
+    currentDocumentId = documentId;
+    selectedSegmentationMethod = 'paragraph'; // Default selection
+
+    // Clear previous selections
+    document.querySelectorAll('.segment-option').forEach(option => {
+        option.classList.remove('border-primary', 'bg-light');
+    });
+
+    // Select default method
+    const defaultOption = document.querySelector('.segment-option[data-method="paragraph"]');
+    if (defaultOption) {
+        defaultOption.classList.add('border-primary', 'bg-light');
+    }
+
+    // Ensure modal is properly positioned and remove any existing instances
+    const modalElement = document.getElementById('segmentationModal');
+    if (!modalElement) {
+        console.error('Segmentation modal element not found');
+        return;
+    }
+    
+    console.log('Segmentation modal element found');
+    
+    // Clean up any existing modal instances
+    const existingModal = bootstrap.Modal.getInstance(modalElement);
+    if (existingModal) {
+        existingModal.dispose();
+    }
+    
+    // Remove any leftover backdrops
+    document.querySelectorAll('.modal-backdrop').forEach(backdrop => backdrop.remove());
+    
+    // Remove modal-open class from body
+    document.body.classList.remove('modal-open');
+    
+    // Force modal visibility and positioning
+    modalElement.style.display = 'block';
+    modalElement.style.position = 'fixed';
+    modalElement.style.zIndex = '10050';
+    modalElement.style.top = '0';
+    modalElement.style.left = '0';
+    modalElement.style.width = '100%';
+    modalElement.style.height = '100%';
+    modalElement.classList.add('show');
+    
+    // Add modal-open class to body
+    document.body.classList.add('modal-open');
+    
+    console.log('Segmentation modal should be visible now');
+}
+
+function selectSegmentationMethod(method) {
+    selectedSegmentationMethod = method;
+
+    // Clear all selections
+    document.querySelectorAll('.segment-option').forEach(option => {
+        option.classList.remove('border-primary', 'bg-light');
+    });
+
+    // Highlight selected method
+    const selectedOption = document.querySelector(`[data-method="${method}"]`);
+    if (selectedOption) {
+        selectedOption.classList.add('border-primary', 'bg-light');
+    }
+}
+
+function segmentDocumentWithMethod() {
+    if (!currentDocumentId || !selectedSegmentationMethod) {
+        alert('Please select a segmentation method');
+        return;
+    }
+
+    // Close modal
+    const modalElement = document.getElementById('segmentationModal');
+    const modal = bootstrap.Modal.getInstance(modalElement);
+    if (modal) {
+        modal.hide();
+    } else {
+        modalElement.style.display = 'none';
+        document.body.classList.remove('modal-open');
+        const backdrop = document.querySelector('.modal-backdrop');
+        if (backdrop) backdrop.remove();
+    }
+
+    // Call the actual segmentation with method
+    segmentDocument(currentDocumentId, selectedSegmentationMethod);
+}
+
+function closeSegmentationModal() {
+    const modalElement = document.getElementById('segmentationModal');
+    const modal = bootstrap.Modal.getInstance(modalElement);
+    if (modal) {
+        modal.hide();
+    } else {
+        modalElement.style.display = 'none';
+        document.body.classList.remove('modal-open');
+        const backdrop = document.querySelector('.modal-backdrop');
+        if (backdrop) backdrop.remove();
+    }
+}
+
+function segmentDocument(documentId, method = 'paragraph') {
     showLoading('Segmenting document...');
 
     fetch(`/process/document/${documentId}/segment`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
-        }
+        },
+        body: JSON.stringify({
+            'method': method
+        })
     })
         .then(response => response.json())
         .then(data => {
