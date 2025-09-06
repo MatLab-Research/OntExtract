@@ -71,31 +71,8 @@
                     </div>
                 </div>
                 <div class="col-md-6">
-                    <div class="card">
-                        <div class="card-body">
-                            <h6 class="card-title">
-                                <i class="fas fa-cogs me-2"></i>Processing Options
-                            </h6>
-                            <div class="d-grid gap-2">
-                                <button class="btn btn-outline-success btn-sm"
-                                    onclick="showEmbeddingOptions({{ document.id }})">
-                                    <i class="fas fa-vector-square me-2"></i>Generate Embeddings
-                                </button>
-                                <button class="btn btn-outline-info btn-sm"
-                                    onclick="segmentDocument({{ document.id }})">
-                                    <i class="fas fa-cut me-2"></i>Segment Document
-                                </button>
-                                <button class="btn btn-outline-warning btn-sm"
-                                    onclick="extractEntities({{ document.id }})">
-                                    <i class="fas fa-tags me-2"></i>Extract Entities
-                                </button>
-                                <button class="btn btn-outline-secondary btn-sm"
-                                    onclick="analyzeMetadata({{ document.id }})">
-                                    <i class="fas fa-info-circle me-2"></i>Analyze Metadata
-                                </button>
-                            </div>
-                        </div>
-                    </div>
+                    <!-- Use shared embedding component -->
+                    {% include 'shared/embedding_component.html' %}
                 </div>
             </div>
 
@@ -520,78 +497,12 @@
     </div>
 </div>
 
-<!-- Embedding Options Modal -->
-<div class="modal fade" id="embeddingModal" tabindex="-1">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title"><i class="fas fa-vector-square me-2"></i>Generate Embeddings</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body">
-                <p>Choose an embedding method for this document:</p>
-
-                <div class="row">
-                    <div class="col-md-6 mb-3">
-                        <div class="card method-option" data-method="local" onclick="selectEmbeddingMethod('local')">
-                            <div class="card-body text-center">
-                                <i class="fas fa-desktop fa-2x text-primary mb-2"></i>
-                                <h6>Local</h6>
-                                <p class="small text-muted mb-0">sentence-transformers<br>384 dimensions<br>Fast & Free
-                                </p>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-md-6 mb-3">
-                        <div class="card method-option" data-method="openai" onclick="selectEmbeddingMethod('openai')">
-                            <div class="card-body text-center">
-                                <i class="fas fa-cloud fa-2x text-success mb-2"></i>
-                                <h6>OpenAI</h6>
-                                <p class="small text-muted mb-0">text-embedding-3-small<br>1536 dimensions<br>High
-                                    Quality</p>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-md-6 mb-3">
-                        <div class="card method-option" data-method="claude" onclick="selectEmbeddingMethod('claude')">
-                            <div class="card-body text-center">
-                                <i class="fas fa-robot fa-2x text-warning mb-2"></i>
-                                <h6>Claude</h6>
-                                <p class="small text-muted mb-0">Anthropic embeddings<br>1536 dimensions<br>Contextual
-                                </p>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-md-6 mb-3">
-                        <div class="card method-option" data-method="huggingface"
-                            onclick="selectEmbeddingMethod('huggingface')">
-                            <div class="card-body text-center">
-                                <i class="fas fa-hdd fa-2x text-info mb-2"></i>
-                                <h6>HuggingFace</h6>
-                                <p class="small text-muted mb-0">Various models<br>Configurable<br>Research Grade</p>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="alert alert-info mt-3">
-                    <i class="fas fa-info-circle me-2"></i>
-                    <strong>Local method</strong> is recommended for testing and doesn't require API keys.
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                <button type="button" class="btn btn-primary" id="generateEmbeddingsBtn"
-                    onclick="generateEmbeddingsWithMethod()">
-                    <i class="fas fa-play me-2"></i>Generate Embeddings
-                </button>
-            </div>
-        </div>
-    </div>
-</div>
+<!-- Embedding modal now included in shared component -->
 {% endblock %}
 
 {% block extra_js %}
+<!-- Include shared embedding component JavaScript -->
+<script src="{{ url_for('static', filename='js/shared/embedding_component.js') }}"></script>
 <script>
     function toggleFullContent() {
         const preview = document.querySelector('.content-preview');
@@ -629,164 +540,7 @@
         }
     }
 
-    // Embedding options modal
-    let currentDocumentId = null;
-    let selectedEmbeddingMethod = 'local';
-
-    function showEmbeddingOptions(documentId) {
-        currentDocumentId = documentId;
-        selectedEmbeddingMethod = 'local'; // Default selection
-
-        // Clear previous selections
-        document.querySelectorAll('.method-option').forEach(option => {
-            option.classList.remove('border-primary', 'bg-light');
-        });
-
-        // Select default method
-        const defaultOption = document.querySelector('[data-method="local"]');
-        if (defaultOption) {
-            defaultOption.classList.add('border-primary', 'bg-light');
-        }
-
-        // Show modal
-        new bootstrap.Modal(document.getElementById('embeddingModal')).show();
-    }
-
-    function selectEmbeddingMethod(method) {
-        selectedEmbeddingMethod = method;
-
-        // Clear all selections
-        document.querySelectorAll('.method-option').forEach(option => {
-            option.classList.remove('border-primary', 'bg-light');
-        });
-
-        // Highlight selected method
-        const selectedOption = document.querySelector(`[data-method="${method}"]`);
-        if (selectedOption) {
-            selectedOption.classList.add('border-primary', 'bg-light');
-        }
-    }
-
-    function generateEmbeddingsWithMethod() {
-        if (!currentDocumentId || !selectedEmbeddingMethod) {
-            alert('Please select an embedding method');
-            return;
-        }
-
-        // Close modal
-        bootstrap.Modal.getInstance(document.getElementById('embeddingModal')).hide();
-
-        // Call the actual embedding generation with method
-        generateEmbeddings(currentDocumentId, selectedEmbeddingMethod);
-    }
-
-    // Processing options functions
-    function generateEmbeddings(documentId, method = 'local') {
-        showLoading('Generating embeddings...');
-
-        fetch(`/process/document/${documentId}/embeddings`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                'method': method
-            })
-        })
-            .then(response => response.json())
-            .then(data => {
-                hideLoading();
-                if (data.success) {
-                    alert('Embeddings generated successfully!');
-                    location.reload(); // Refresh to show updated statistics
-                } else {
-                    alert('Error generating embeddings: ' + (data.error || 'Unknown error'));
-                }
-            })
-            .catch(error => {
-                hideLoading();
-                console.error('Error:', error);
-                alert('Error generating embeddings');
-            });
-    }
-
-    function segmentDocument(documentId) {
-        showLoading('Segmenting document...');
-
-        fetch(`/process/document/${documentId}/segment`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            }
-        })
-            .then(response => response.json())
-            .then(data => {
-                hideLoading();
-                if (data.success) {
-                    alert('Document segmented successfully!');
-                    location.reload(); // Refresh to show segments
-                } else {
-                    alert('Error segmenting document: ' + (data.error || 'Unknown error'));
-                }
-            })
-            .catch(error => {
-                hideLoading();
-                console.error('Error:', error);
-                alert('Error segmenting document');
-            });
-    }
-
-    function extractEntities(documentId) {
-        showLoading('Extracting entities...');
-
-        fetch(`/process/document/${documentId}/entities`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            }
-        })
-            .then(response => response.json())
-            .then(data => {
-                hideLoading();
-                if (data.success) {
-                    alert('Entities extracted successfully!');
-                    location.reload(); // Refresh to show updated statistics
-                } else {
-                    alert('Error extracting entities: ' + (data.error || 'Unknown error'));
-                }
-            })
-            .catch(error => {
-                hideLoading();
-                console.error('Error:', error);
-                alert('Error extracting entities');
-            });
-    }
-
-    function analyzeMetadata(documentId) {
-        showLoading('Analyzing metadata...');
-
-        fetch(`/process/document/${documentId}/metadata`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            }
-        })
-            .then(response => response.json())
-            .then(data => {
-                hideLoading();
-                if (data.success) {
-                    alert('Metadata analyzed successfully!');
-                    location.reload(); // Refresh to show updated information
-                } else {
-                    alert('Error analyzing metadata: ' + (data.error || 'Unknown error'));
-                }
-            })
-            .catch(error => {
-                hideLoading();
-                console.error('Error:', error);
-                alert('Error analyzing metadata');
-            });
-    }
+    // Shared embedding functionality is now included via external script
 
     // View embedding details function
     function viewEmbeddingDetails(documentId) {

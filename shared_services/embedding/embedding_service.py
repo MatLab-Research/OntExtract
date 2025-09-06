@@ -356,3 +356,40 @@ class EmbeddingService:
         """
         return {name: provider.is_available() 
                 for name, provider in self.providers.items()}
+    
+    def get_model_name(self) -> str:
+        """
+        Get the name of the currently active model/provider.
+        
+        Returns:
+            String identifying the active model
+        """
+        # Return the first available provider's model info
+        for provider_name in self.provider_priority:
+            if provider_name not in self.providers:
+                continue
+                
+            provider = self.providers[provider_name]
+            if not provider.is_available():
+                continue
+            
+            # Return provider-specific model information
+            if provider_name == "local":
+                return f"local:{provider.model_name}"
+            elif provider_name == "openai":
+                return f"openai:{provider.model}"
+            elif provider_name == "claude":
+                return f"claude:{provider.model}"
+            else:
+                return f"{provider_name}:unknown"
+        
+        return "fallback:random"
+    
+    def get_dimension(self) -> int:
+        """
+        Get the embedding dimension.
+        
+        Returns:
+            Embedding vector dimension
+        """
+        return self.embedding_dimension

@@ -113,23 +113,65 @@ def generate_embeddings(document_id):
         db.session.add(job)
         db.session.commit()
         
-        # TODO: Replace with actual embedding generation
-        # For now, simulate processing with correct dimensions per method
-        dimensions_map = {
-            'local': 384,      # sentence-transformers default
-            'openai': 1536,    # text-embedding-3-small
-            'claude': 1024,    # Anthropic embeddings  
-            'huggingface': 768 # bert-base default
-        }
-        
-        job.status = 'completed'
-        job.set_result_data({
-            'embedding_method': embedding_method,
-            'embedding_dimensions': dimensions_map.get(embedding_method, 384),
-            'chunk_count': len(document.content.split()) // 100 + 1,
-            'processing_time': 2.5
-        })
-        db.session.commit()
+        # Use actual EmbeddingService
+        try:
+            from shared_services.embedding.embedding_service import EmbeddingService
+            from datetime import datetime
+            import time
+            
+            # Initialize embedding service
+            embedding_service = EmbeddingService()
+            
+            # Record start time
+            start_time = time.time()
+            
+            # Process document content in chunks if too long
+            content = document.content
+            max_length = 8000  # Conservative limit for most embedding models
+            
+            if len(content) > max_length:
+                # Split into chunks and embed each
+                chunks = [content[i:i+max_length] for i in range(0, len(content), max_length)]
+                embeddings = []
+                for chunk in chunks:
+                    chunk_embedding = embedding_service.get_embedding(chunk)
+                    embeddings.append(chunk_embedding)
+                
+                chunk_count = len(chunks)
+            else:
+                # Single embedding for short documents
+                embeddings = [embedding_service.get_embedding(content)]
+                chunk_count = 1
+            
+            # Calculate processing time
+            processing_time = time.time() - start_time
+            
+            # Get actual model info
+            model_name = embedding_service.get_model_name()
+            dimension = embedding_service.get_dimension()
+            
+            job.status = 'completed'
+            job.processing_time = processing_time
+            job.set_result_data({
+                'embedding_method': embedding_method,
+                'embedding_dimensions': dimension,
+                'chunk_count': chunk_count,
+                'processing_time': processing_time,
+                'model_used': model_name,
+                'total_embeddings': len(embeddings),
+                'content_length': len(content)
+            })
+            db.session.commit()
+            
+        except Exception as e:
+            job.status = 'failed'
+            job.set_result_data({
+                'error': str(e),
+                'embedding_method': embedding_method,
+                'processing_time': time.time() - start_time if 'start_time' in locals() else 0
+            })
+            db.session.commit()
+            raise e
         
         return jsonify({
             'success': True,

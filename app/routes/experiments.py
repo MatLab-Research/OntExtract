@@ -1,7 +1,8 @@
-from flask import Blueprint, render_template, request, jsonify, flash, redirect, url_for
+from flask import Blueprint, render_template, request, jsonify, flash, redirect, url_for, current_app
 from flask_login import login_required, current_user
+from sqlalchemy import text
 from app import db
-from app.models import Document, Experiment
+from app.models import Document, Experiment, ExperimentDocument, ProcessingJob
 from datetime import datetime
 import json
 from typing import List, Optional
@@ -1404,23 +1405,40 @@ def document_pipeline(experiment_id):
     """Step 2: Document Processing Pipeline Overview"""
     experiment = Experiment.query.filter_by(id=experiment_id).first_or_404()
     
-    # Get all documents for this experiment
-    documents = experiment.documents
+    # Get experiment-specific document processing data using raw SQL
+    query = """
+        SELECT d.id, d.title, d.original_filename, d.file_type, d.content_type, 
+               d.word_count, d.created_at,
+               COALESCE(ed.processing_status, 'pending') as processing_status,
+               COALESCE(ed.embeddings_applied, false) as embeddings_applied,
+               COALESCE(ed.segments_created, false) as segments_created,
+               COALESCE(ed.nlp_analysis_completed, false) as nlp_analysis_completed
+        FROM documents d
+        JOIN experiment_documents ed ON d.id = ed.document_id
+        WHERE ed.experiment_id = :experiment_id
+        ORDER BY d.created_at
+    """
     
-    # Check processing status for each document
+    result = db.session.execute(text(query), {'experiment_id': experiment_id})
+    rows = result.fetchall()
+    
+    # Build processed documents list with experiment-specific data
     processed_docs = []
-    for doc in documents:
-        # Check if document has embeddings/processing metadata
-        has_processing = doc.processing_metadata and doc.processing_metadata.get('processing_info', {}).get('embeddings_applied', False)
+    for row in rows:
+        # Calculate processing progress
+        total_steps = 3  # embeddings, segmentation, nlp_analysis
+        completed_steps = sum([row.embeddings_applied, row.segments_created, row.nlp_analysis_completed])
+        processing_progress = int((completed_steps / total_steps) * 100)
         
         processed_docs.append({
-            'id': doc.id,
-            'name': doc.get_display_name(),
-            'file_type': doc.file_type or doc.content_type,
-            'word_count': doc.word_count or 0,
-            'has_embeddings': has_processing,
-            'status': 'completed' if has_processing else 'pending',
-            'created_at': doc.created_at
+            'id': row.id,
+            'name': row.original_filename or row.title,
+            'file_type': row.file_type or row.content_type,
+            'word_count': row.word_count or 0,
+            'has_embeddings': row.embeddings_applied,
+            'status': row.processing_status,
+            'processing_progress': processing_progress,
+            'created_at': row.created_at
         })
     
     # Calculate overall progress
@@ -1439,37 +1457,130 @@ def document_pipeline(experiment_id):
 @experiments_bp.route('/<int:experiment_id>/process_document/<int:document_id>')
 @login_required  
 def process_document(experiment_id, document_id):
-    """Process a specific document with LLM orchestration"""
+    """Process a specific document with experiment-specific context"""
     experiment = Experiment.query.filter_by(id=experiment_id).first_or_404()
     
-    # Verify document belongs to this experiment
-    document = None
-    for doc in experiment.documents:
-        if doc.id == document_id:
-            document = doc
-            break
+    # Get the experiment-document association
+    exp_doc = ExperimentDocument.query.filter_by(
+        experiment_id=experiment_id, 
+        document_id=document_id
+    ).first_or_404()
     
-    if not document:
+    document = exp_doc.document
+    
+    # Get all experiment documents for navigation
+    all_exp_docs = ExperimentDocument.query.filter_by(experiment_id=experiment_id).all()
+    all_doc_ids = [ed.document_id for ed in all_exp_docs]
+    
+    try:
+        doc_index = all_doc_ids.index(document_id)
+    except ValueError:
         flash('Document not found in this experiment', 'error')
         return redirect(url_for('experiments.document_pipeline', experiment_id=experiment_id))
     
-    # Get all documents to show navigation
-    all_docs = list(experiment.documents)
-    doc_index = next(i for i, doc in enumerate(all_docs) if doc.id == document_id)
-    
     # Prepare navigation info
     has_previous = doc_index > 0
-    has_next = doc_index < len(all_docs) - 1
-    previous_doc_id = all_docs[doc_index - 1].id if has_previous else None
-    next_doc_id = all_docs[doc_index + 1].id if has_next else None
+    has_next = doc_index < len(all_doc_ids) - 1
+    previous_doc_id = all_doc_ids[doc_index - 1] if has_previous else None
+    next_doc_id = all_doc_ids[doc_index + 1] if has_next else None
+    
+    # Get processing jobs for this document (for shared component)
+    processing_jobs = document.processing_jobs.order_by(ProcessingJob.created_at.desc()).limit(5).all()
     
     return render_template('experiments/process_document.html',
                          experiment=experiment,
                          document=document,
+                         experiment_document=exp_doc,
+                         processing_jobs=processing_jobs,
                          doc_index=doc_index,
-                         total_docs=len(all_docs),
+                         total_docs=len(all_doc_ids),
                          has_previous=has_previous,
                          has_next=has_next,
                          previous_doc_id=previous_doc_id,
                          next_doc_id=next_doc_id)
+
+
+@experiments_bp.route('/<int:experiment_id>/document/<int:document_id>/apply_embeddings', methods=['POST'])
+@login_required
+def apply_embeddings_to_experiment_document(experiment_id, document_id):
+    """Apply embeddings to a document for a specific experiment"""
+    try:
+        # Get the experiment-document association
+        exp_doc = ExperimentDocument.query.filter_by(
+            experiment_id=experiment_id, 
+            document_id=document_id
+        ).first_or_404()
+        
+        document = exp_doc.document
+        
+        if not document.content:
+            return jsonify({'error': 'Document has no content to process'}), 400
+        
+        # Initialize embedding service
+        try:
+            from shared_services.embedding.embedding_service import EmbeddingService
+            embedding_service = EmbeddingService()
+        except ImportError:
+            # Fallback to basic implementation if shared services not available
+            return jsonify({'error': 'Embedding service not available'}), 500
+        
+        # Generate embeddings
+        try:
+            # Process document content in chunks if too long
+            content = document.content
+            max_length = 8000  # Conservative limit for most embedding models
+            
+            if len(content) > max_length:
+                # Split into chunks and embed each
+                chunks = [content[i:i+max_length] for i in range(0, len(content), max_length)]
+                embeddings = []
+                for chunk in chunks:
+                    chunk_embedding = embedding_service.get_embedding(chunk)
+                    embeddings.append(chunk_embedding)
+                
+                # Store metadata about chunked processing
+                embedding_info = {
+                    'type': 'chunked',
+                    'chunks': len(chunks),
+                    'chunk_size': max_length,
+                    'model': embedding_service.get_model_name(),
+                    'dimension': embedding_service.get_dimension(),
+                    'experiment_id': experiment_id
+                }
+            else:
+                # Single embedding for short documents
+                embeddings = [embedding_service.get_embedding(content)]
+                embedding_info = {
+                    'type': 'single',
+                    'model': embedding_service.get_model_name(),
+                    'dimension': embedding_service.get_dimension(),
+                    'experiment_id': experiment_id
+                }
+            
+            # Mark embeddings as applied for this experiment
+            exp_doc.mark_embeddings_applied(embedding_info)
+            
+            # Update word count if not set on original document
+            if not document.word_count:
+                document.word_count = len(content.split())
+                document.updated_at = datetime.utcnow()
+            
+            db.session.commit()
+            
+            return jsonify({
+                'success': True,
+                'message': 'Embeddings applied successfully for this experiment',
+                'embedding_info': embedding_info,
+                'processing_progress': exp_doc.processing_progress
+            })
+            
+        except Exception as e:
+            current_app.logger.error(f"Error generating embeddings: {str(e)}")
+            return jsonify({'error': f'Failed to generate embeddings: {str(e)}'}), 500
+        
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"Error applying embeddings to experiment document: {str(e)}")
+        return jsonify({'error': 'An error occurred while applying embeddings'}), 500
+
 
