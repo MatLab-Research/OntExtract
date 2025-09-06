@@ -9,6 +9,9 @@ from .ontology_mapping import OntologyMapping
 from .text_segment import TextSegment
 from .experiment import Experiment
 
+# Experiment-document relationship model
+from .experiment_document import ExperimentDocument
+
 # Term management models
 from .term import Term, TermVersion, FuzzinessAdjustment
 from .context_anchor import ContextAnchor
@@ -28,6 +31,7 @@ __all__ = [
     'OntologyMapping', 
     'TextSegment',
     'Experiment',
+    'ExperimentDocument',
     # Term management models
     'Term',
     'TermVersion', 

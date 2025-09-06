@@ -72,9 +72,19 @@ class Experiment(db.Model):
                 setattr(self, key, value)
     
     def add_document(self, document):
-        """Add a document to the experiment"""
+        """Add a document to the experiment with versioned processing support"""
         if not self.is_document_in_experiment(document):
+            # Add to the traditional many-to-many relationship
             self.documents.append(document)
+            
+            # Also create an ExperimentDocument for processing tracking
+            from app.models.experiment_document import ExperimentDocument
+            exp_doc = ExperimentDocument(
+                experiment_id=self.id,
+                document_id=document.id,
+                processing_status='pending'
+            )
+            db.session.add(exp_doc)
     
     def remove_document(self, document):
         """Remove a document from the experiment"""

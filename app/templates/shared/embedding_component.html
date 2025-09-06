@@ -1,0 +1,235 @@
+<!-- Shared Embedding Component -->
+<!-- Usage: include this template in other templates that have a 'document' variable -->
+<!-- Expects 'document' variable to be available in template context -->
+
+<!-- Processing Options Section -->
+<div class="card">
+    <div class="card-body">
+        <h6 class="card-title">
+            <i class="fas fa-cogs me-2"></i>Processing Options
+        </h6>
+        <div class="d-grid gap-2">
+            <button class="btn btn-outline-success btn-sm"
+                onclick="showEmbeddingOptions({{ document.id }})">
+                <i class="fas fa-vector-square me-2"></i>Generate Embeddings
+            </button>
+            <button class="btn btn-outline-info btn-sm"
+                onclick="segmentDocument({{ document.id }})">
+                <i class="fas fa-cut me-2"></i>Segment Document
+            </button>
+            <button class="btn btn-outline-warning btn-sm"
+                onclick="extractEntities({{ document.id }})">
+                <i class="fas fa-tags me-2"></i>Extract Entities
+            </button>
+            <button class="btn btn-outline-secondary btn-sm"
+                onclick="analyzeMetadata({{ document.id }})">
+                <i class="fas fa-info-circle me-2"></i>Analyze Metadata
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Recent Processing Jobs -->
+<!-- Check if processing_jobs is available, either as a passed variable or via document relationship -->
+{% if processing_jobs is defined and processing_jobs %}
+{% set recent_jobs = processing_jobs %}
+{% elif document.processing_jobs %}
+{% set recent_jobs = document.processing_jobs.limit(5).all() %}
+{% else %}
+{% set recent_jobs = [] %}
+{% endif %}
+
+{% if recent_jobs %}
+<div class="card mt-4">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h6 class="mb-0">
+            <i class="fas fa-history me-2"></i>Recent Processing
+        </h6>
+        <button class="btn btn-outline-danger btn-sm" onclick="clearProcessingHistory({{ document.id }})">
+            <i class="fas fa-trash me-1"></i>Clear History
+        </button>
+    </div>
+    <div class="card-body">
+        {% for job in recent_jobs %}
+        <div class="border rounded p-3 mb-3">
+            <div class="d-flex justify-content-between align-items-start mb-2">
+                <div class="flex-grow-1">
+                    <div class="d-flex align-items-center">
+                        <strong class="text-primary">{{ job.job_type.replace('_', ' ').title() }}</strong>
+                        <span class="badge ms-2
+                            {% if job.status == 'completed' %}bg-success
+                            {% elif job.status == 'processing' %}bg-warning
+                            {% elif job.status == 'error' %}bg-danger
+                            {% else %}bg-secondary{% endif %}">
+                            {{ job.status.title() }}
+                        </span>
+                    </div>
+                    <small class="text-muted">
+                        {{ job.created_at.strftime('%B %d, %Y at %I:%M %p') }}
+                        {% if job.processing_time %}
+                        • {{ "%.1f"|format(job.processing_time) }}s
+                        {% endif %}
+                    </small>
+                </div>
+            </div>
+
+            <!-- Job Parameters -->
+            {% set params = job.get_parameters() %}
+            {% if params %}
+            <div class="mb-2">
+                <small class="text-muted">Parameters:</small>
+                <div class="d-flex flex-wrap gap-1">
+                    {% for key, value in params.items() %}
+                    <span class="badge bg-light text-dark">{{ key }}: {{ value }}</span>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Job Results -->
+            {% if job.status == 'completed' %}
+            {% set results = job.get_result_data() %}
+            {% if results %}
+            <div class="mt-2">
+                <small class="text-muted">Results:</small>
+                <div class="row text-center mt-1">
+                    {% if results.embedding_method %}
+                    <div class="col-4">
+                        <div class="small">
+                            <strong class="text-success">{{ results.embedding_method.title() }}</strong>
+                            <br><span class="text-muted">Method</span>
+                        </div>
+                    </div>
+                    {% endif %}
+                    {% if results.embedding_dimensions %}
+                    <div class="col-4">
+                        <div class="small">
+                            <strong class="text-info">{{ results.embedding_dimensions }}</strong>
+                            <br><span class="text-muted">Dimensions</span>
+                        </div>
+                    </div>
+                    {% endif %}
+                    {% if results.chunk_count %}
+                    <div class="col-4">
+                        <div class="small">
+                            <strong class="text-warning">{{ results.chunk_count }}</strong>
+                            <br><span class="text-muted">Chunks</span>
+                        </div>
+                    </div>
+                    {% elif results.segment_count %}
+                    <div class="col-4">
+                        <div class="small">
+                            <strong class="text-warning">{{ results.segment_count }}</strong>
+                            <br><span class="text-muted">Segments</span>
+                        </div>
+                    </div>
+                    {% elif results.entities_found %}
+                    <div class="col-4">
+                        <div class="small">
+                            <strong class="text-warning">{{ results.entities_found }}</strong>
+                            <br><span class="text-muted">Entities</span>
+                        </div>
+                    </div>
+                    {% elif results.fields_enhanced %}
+                    <div class="col-4">
+                        <div class="small">
+                            <strong class="text-warning">{{ results.fields_enhanced }}</strong>
+                            <br><span class="text-muted">Fields</span>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+
+                <!-- View Details Button for Embeddings -->
+                {% if job.job_type == 'generate_embeddings' and results.embedding_method %}
+                <div class="text-center mt-2">
+                    <button class="btn btn-outline-primary btn-sm"
+                        onclick="viewEmbeddingDetails({{ document.id }})">
+                        <i class="fas fa-eye me-1"></i>View Embedding Details
+                    </button>
+                </div>
+                {% endif %}
+            </div>
+            {% endif %}
+            {% endif %}
+
+            {% if job.result_summary %}
+            <div class="mt-2">
+                <small class="text-muted">{{ job.result_summary }}</small>
+            </div>
+            {% endif %}
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
+<!-- Embedding Options Modal -->
+<div class="modal fade" id="embeddingModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="fas fa-vector-square me-2"></i>Generate Embeddings</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Choose an embedding method for this document:</p>
+
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <div class="card method-option" data-method="local" onclick="selectEmbeddingMethod('local')">
+                            <div class="card-body text-center">
+                                <i class="fas fa-desktop fa-2x text-primary mb-2"></i>
+                                <h6>Local</h6>
+                                <p class="small text-muted mb-0">sentence-transformers<br>384 dimensions<br>Fast & Free
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <div class="card method-option" data-method="openai" onclick="selectEmbeddingMethod('openai')">
+                            <div class="card-body text-center">
+                                <i class="fas fa-cloud fa-2x text-success mb-2"></i>
+                                <h6>OpenAI</h6>
+                                <p class="small text-muted mb-0">text-embedding-ada-002<br>1536 dimensions<br>High
+                                    Quality</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <div class="card method-option" data-method="claude" onclick="selectEmbeddingMethod('claude')">
+                            <div class="card-body text-center">
+                                <i class="fas fa-robot fa-2x text-warning mb-2"></i>
+                                <h6>Claude</h6>
+                                <p class="small text-muted mb-0">Anthropic embeddings<br>1536 dimensions<br>Contextual
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <div class="card method-option" data-method="huggingface"
+                            onclick="selectEmbeddingMethod('huggingface')">
+                            <div class="card-body text-center">
+                                <i class="fas fa-hdd fa-2x text-info mb-2"></i>
+                                <h6>HuggingFace</h6>
+                                <p class="small text-muted mb-0">Various models<br>Configurable<br>Research Grade</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="alert alert-info mt-3">
+                    <i class="fas fa-info-circle me-2"></i>
+                    <strong>Local method</strong> is recommended for testing and doesn't require API keys.
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="generateEmbeddingsBtn"
+                    onclick="generateEmbeddingsWithMethod()">
+                    <i class="fas fa-play me-2"></i>Generate Embeddings
+                </button>
+            </div>
+        </div>
+    </div>
+</div>

@@ -331,14 +331,16 @@ def apply_embeddings(document_id):
                     'type': 'chunked',
                     'chunks': len(chunks),
                     'chunk_size': max_length,
-                    'model': embedding_service.get_model_name()
+                    'model': embedding_service.get_model_name(),
+                    'dimension': embedding_service.get_dimension()
                 }
             else:
                 # Single embedding for short documents
                 embeddings = [embedding_service.get_embedding(content)]
                 embedding_info = {
                     'type': 'single',
-                    'model': embedding_service.get_model_name()
+                    'model': embedding_service.get_model_name(),
+                    'dimension': embedding_service.get_dimension()
                 }
             
             # Update document metadata
