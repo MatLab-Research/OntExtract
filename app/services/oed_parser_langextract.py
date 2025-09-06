@@ -139,34 +139,33 @@ class OEDParserLangExtract:
         ]
         
         try:
-            # Use LangExtract to extract structured data
-            if hasattr(self, 'use_anthropic_fallback'):
-                # For now, fall back to the existing approach for Anthropic
-                # as LangExtract primarily supports Gemini
+            # Use LangExtract with Gemini if API key available
+            if os.environ.get('GOOGLE_GEMINI_API_KEY'):
+                # Extract using LangExtract with Gemini
+                annotated_doc = lx.extract(
+                    text_or_documents=text[:20000],  # Limit text length for processing
+                    prompt_description=prompt_description,
+                    examples=examples,
+                    model_id=self.model_id,
+                    api_key=self.api_key,
+                    language_model_type=self.language_model_type,
+                    format_type=data.FormatType.JSON,
+                    temperature=0.1,  # Low temperature for consistent extraction
+                    fence_output=False,
+                    use_schema_constraints=True,
+                    extraction_passes=2,  # Multiple passes to catch all quotations
+                    max_char_buffer=2000,  # Process in larger chunks
+                    batch_length=5,
+                    max_workers=5
+                )
+                
+                # Process the extracted data
+                result = self._process_langextract_results(annotated_doc, text)
+                return result
+            else:
+                # Fall back to Anthropic if Gemini API key not available
+                logger.warning("GOOGLE_GEMINI_API_KEY not found, falling back to Anthropic Claude")
                 return self._parse_with_anthropic_fallback(text)
-            
-            # Extract using LangExtract with Gemini
-            annotated_doc = lx.extract(
-                text_or_documents=text[:20000],  # Limit text length for processing
-                prompt_description=prompt_description,
-                examples=examples,
-                model_id=self.model_id,
-                api_key=self.api_key,
-                language_model_type=self.language_model_type,
-                format_type=data.FormatType.JSON,
-                temperature=0.1,  # Low temperature for consistent extraction
-                fence_output=False,
-                use_schema_constraints=True,
-                extraction_passes=2,  # Multiple passes to catch all quotations
-                max_char_buffer=2000,  # Process in larger chunks
-                batch_length=5,
-                max_workers=5
-            )
-            
-            # Process the extracted data
-            result = self._process_langextract_results(annotated_doc, text)
-            
-            return result
             
         except Exception as e:
             logger.error(f"Error using LangExtract: {e}")

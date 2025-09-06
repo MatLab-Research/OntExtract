@@ -2,6 +2,11 @@ from sqlalchemy.dialects.postgresql import UUID, JSON, ARRAY
 from datetime import datetime
 from app import db
 import uuid
+import numpy as np
+from typing import List, Dict, Any, Optional, Tuple
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class SemanticDriftActivity(db.Model):
@@ -161,6 +166,218 @@ class SemanticDriftActivity(db.Model):
             (SemanticDriftActivity.used_entity.in_(version_ids)) |
             (SemanticDriftActivity.generated_entity.in_(version_ids))
         ).all()
+    
+    # Vector-based semantic drift calculations (JCDL paper implementation)
+    
+    @staticmethod
+    def calculate_vector_drift(embeddings1: List[List[float]], 
+                              embeddings2: List[List[float]], 
+                              method: str = 'centroid_cosine') -> Dict[str, Any]:
+        """
+        Calculate semantic drift between periods using vector operations.
+        
+        From JCDL paper Section 3.3: "embedding-based drift calculation uses 
+        period-appropriate models to measure how term usage shifts across time 
+        periods through cosine similarity and neighborhood analysis."
+        
+        Args:
+            embeddings1: Embeddings from first period
+            embeddings2: Embeddings from second period
+            method: Calculation method ('centroid_cosine', 'average_pairwise', etc.)
+            
+        Returns:
+            Dictionary with drift metrics and confidence scores
+        """
+        if not embeddings1 or not embeddings2:
+            return {
+                'drift_magnitude': 0.0,
+                'confidence': 0.0,
+                'error': 'Insufficient embeddings for comparison'
+            }
+        
+        try:
+            # Convert to numpy arrays
+            emb1 = np.array(embeddings1)
+            emb2 = np.array(embeddings2)
+            
+            if method == 'centroid_cosine':
+                return SemanticDriftActivity._calculate_centroid_drift(emb1, emb2)
+            elif method == 'average_pairwise':
+                return SemanticDriftActivity._calculate_pairwise_drift(emb1, emb2)
+            else:
+                raise ValueError(f"Unknown drift calculation method: {method}")
+                
+        except Exception as e:
+            logger.error(f"Error calculating vector drift: {e}")
+            return {
+                'drift_magnitude': 0.0,
+                'confidence': 0.0,
+                'error': str(e)
+            }
+    
+    @staticmethod
+    def _calculate_centroid_drift(emb1: np.ndarray, emb2: np.ndarray) -> Dict[str, Any]:
+        """
+        Calculate drift using centroid comparison (primary JCDL method).
+        
+        Computes cosine distance between the centroids of embeddings from each period.
+        """
+        # Calculate centroids
+        centroid1 = np.mean(emb1, axis=0)
+        centroid2 = np.mean(emb2, axis=0)
+        
+        # Calculate cosine similarity and distance
+        cosine_sim = np.dot(centroid1, centroid2) / (
+            np.linalg.norm(centroid1) * np.linalg.norm(centroid2)
+        )
+        cosine_distance = 1 - cosine_sim
+        
+        # Calculate additional metrics
+        euclidean_distance = np.linalg.norm(centroid1 - centroid2)
+        
+        # Intra-period variance for confidence estimation
+        var1 = np.mean(np.var(emb1, axis=0))
+        var2 = np.mean(np.var(emb2, axis=0))
+        avg_variance = (var1 + var2) / 2
+        
+        # Confidence based on sample sizes and consistency
+        confidence = SemanticDriftActivity._calculate_drift_confidence(
+            len(emb1), len(emb2), cosine_distance, avg_variance
+        )
+        
+        # Classification based on drift magnitude
+        classification = SemanticDriftActivity._classify_drift_magnitude(cosine_distance)
+        
+        return {
+            'drift_magnitude': float(cosine_distance),
+            'cosine_distance': float(cosine_distance),
+            'cosine_similarity': float(cosine_sim),
+            'euclidean_distance': float(euclidean_distance),
+            'classification': classification,
+            'confidence': confidence,
+            'sample_size_1': len(emb1),
+            'sample_size_2': len(emb2),
+            'method': 'centroid_cosine_distance',
+            'intra_period_variance': float(avg_variance)
+        }
+    
+    @staticmethod
+    def _calculate_pairwise_drift(emb1: np.ndarray, emb2: np.ndarray) -> Dict[str, Any]:
+        """
+        Calculate drift using average pairwise cosine distances.
+        
+        More comprehensive but computationally expensive method.
+        """
+        distances = []
+        
+        # Calculate pairwise cosine distances (sample if datasets are large)
+        max_samples = 100  # Limit for computational efficiency
+        
+        sample1 = emb1 if len(emb1) <= max_samples else emb1[np.random.choice(len(emb1), max_samples, replace=False)]
+        sample2 = emb2 if len(emb2) <= max_samples else emb2[np.random.choice(len(emb2), max_samples, replace=False)]
+        
+        for e1 in sample1:
+            for e2 in sample2:
+                cosine_sim = np.dot(e1, e2) / (np.linalg.norm(e1) * np.linalg.norm(e2))
+                distances.append(1 - cosine_sim)
+        
+        # Calculate statistics
+        avg_distance = np.mean(distances)
+        std_distance = np.std(distances)
+        median_distance = np.median(distances)
+        
+        # Confidence based on consistency of pairwise comparisons
+        confidence = max(0.1, 1.0 - (std_distance / max(avg_distance, 0.001)))
+        
+        classification = SemanticDriftActivity._classify_drift_magnitude(avg_distance)
+        
+        return {
+            'drift_magnitude': float(avg_distance),
+            'average_pairwise_distance': float(avg_distance),
+            'median_pairwise_distance': float(median_distance),
+            'pairwise_std': float(std_distance),
+            'classification': classification,
+            'confidence': float(confidence),
+            'pairwise_comparisons': len(distances),
+            'sample_size_1': len(sample1),
+            'sample_size_2': len(sample2),
+            'method': 'average_pairwise_cosine'
+        }
+    
+    @staticmethod
+    def _calculate_drift_confidence(n1: int, n2: int, drift_magnitude: float, variance: float) -> float:
+        """
+        Calculate confidence score for drift measurement.
+        
+        Considers sample sizes, drift magnitude, and embedding consistency.
+        """
+        # Sample size confidence (more samples = higher confidence)
+        min_sample = min(n1, n2)
+        size_confidence = min(1.0, min_sample / 20)  # Assume 20+ samples for full confidence
+        
+        # Drift magnitude confidence (extreme values may indicate noise)
+        if drift_magnitude < 0.1:
+            magnitude_confidence = 0.5  # Very low drift might be noise
+        elif drift_magnitude > 0.9:
+            magnitude_confidence = 0.7  # Very high drift might indicate data issues
+        else:
+            magnitude_confidence = 1.0  # Moderate drift is most reliable
+        
+        # Variance confidence (lower variance = more consistent embeddings)
+        variance_confidence = max(0.2, 1.0 - min(variance, 1.0))
+        
+        # Combined confidence
+        confidence = (size_confidence + magnitude_confidence + variance_confidence) / 3
+        return max(0.1, min(1.0, confidence))
+    
+    @staticmethod
+    def _classify_drift_magnitude(drift_score: float) -> str:
+        """
+        Classify drift magnitude into categories.
+        
+        Based on empirical analysis of semantic shift patterns.
+        """
+        if drift_score > 0.7:
+            return 'major_shift'
+        elif drift_score > 0.4:
+            return 'moderate_drift'
+        elif drift_score > 0.2:
+            return 'minor_change'
+        else:
+            return 'stable'
+    
+    def calculate_and_store_vector_drift(self, 
+                                       embeddings1: List[List[float]],
+                                       embeddings2: List[List[float]], 
+                                       method: str = 'centroid_cosine') -> None:
+        """
+        Calculate vector-based drift and store results in this activity record.
+        
+        Updates the drift_metrics field with vector analysis results.
+        """
+        drift_result = self.calculate_vector_drift(embeddings1, embeddings2, method)
+        
+        # Store in drift_metrics field
+        current_metrics = self.drift_metrics or {}
+        current_metrics.update({
+            'vector_analysis': drift_result,
+            'vector_method': method,
+            'calculated_at': datetime.utcnow().isoformat()
+        })
+        
+        self.drift_metrics = current_metrics
+        self.drift_magnitude = drift_result.get('drift_magnitude', 0.0)
+        self.detection_algorithm = f'vector_{method}'
+        
+        # Update overall activity status
+        if drift_result.get('error'):
+            self.activity_status = 'error'
+            self.completion_notes = f"Vector calculation error: {drift_result['error']}"
+        else:
+            self.activity_status = 'completed'
+            self.completion_notes = f"Vector drift calculated: {drift_result['classification']}"
+        
+        self.completed_at = datetime.utcnow()
     
     def __repr__(self):
         return f'<SemanticDriftActivity {self.start_period}→{self.end_period}>'
