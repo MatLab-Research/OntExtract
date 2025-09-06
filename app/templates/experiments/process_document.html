@@ -67,6 +67,17 @@
     .step-label {
         font-size: 0.9rem;
         font-weight: 500;
+        color: #495057;
+    }
+    
+    .progress-step.active .step-label {
+        color: #007bff;
+        font-weight: 600;
+    }
+    
+    .progress-step.completed .step-label {
+        color: #28a745;
+        font-weight: 600;
     }
     
     .processing-status {
@@ -178,30 +189,48 @@
                 </div>
             </div>
 
-            <!-- Document Status with Navigation -->
+            <!-- Document Status with Navigation and Progress -->
             <div class="card mb-4">
                 <div class="card-body">
-                    <h6 class="card-title">
-                        <i class="fas fa-info-circle me-2"></i>Document Status
-                    </h6>
-                    <div class="d-flex align-items-center mb-3">
-                        {% if document.status == 'uploaded' %}
-                        <span class="badge bg-primary">Uploaded</span>
-                        {% elif document.status == 'processing' %}
-                        <span class="badge bg-warning">Processing</span>
-                        {% elif document.status == 'completed' %}
-                        <span class="badge bg-success">Completed</span>
-                        {% elif document.status == 'error' %}
-                        <span class="badge bg-danger">Error</span>
-                        {% endif %}
-                        <span class="ms-2 text-muted">
-                            {% if document.detected_language %}
-                            • {{ document.detected_language.upper() }}
-                            {% if document.language_confidence %}
-                            ({{ "%.0f"|format(document.language_confidence * 100) }}% confidence)
-                            {% endif %}
-                            {% endif %}
-                        </span>
+                    <div class="row mb-3">
+                        <div class="col-md-8">
+                            <h6 class="card-title mb-2">
+                                <i class="fas fa-info-circle me-2"></i>Document Status
+                            </h6>
+                            <div class="d-flex align-items-center">
+                                {% if document.status == 'uploaded' %}
+                                <span class="badge bg-primary">Uploaded</span>
+                                {% elif document.status == 'processing' %}
+                                <span class="badge bg-warning">Processing</span>
+                                {% elif document.status == 'completed' %}
+                                <span class="badge bg-success">Completed</span>
+                                {% elif document.status == 'error' %}
+                                <span class="badge bg-danger">Error</span>
+                                {% endif %}
+                                <span class="ms-2 text-muted">
+                                    {% if document.detected_language %}
+                                    • {{ document.detected_language.upper() }}
+                                    {% if document.language_confidence %}
+                                    ({{ "%.0f"|format(document.language_confidence * 100) }}% confidence)
+                                    {% endif %}
+                                    {% endif %}
+                                </span>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="d-flex align-items-center justify-content-between mb-2">
+                                <small class="text-muted">Progress:</small>
+                                <span class="badge bg-secondary">{{ doc_index + 1 }} of {{ total_docs }}</span>
+                            </div>
+                            <div class="progress mb-2" style="height: 4px;">
+                                <div class="progress-bar" role="progressbar" 
+                                     style="width: {{ ((doc_index + 1) / total_docs * 100)|round }}%"></div>
+                            </div>
+                            <a href="{{ url_for('text_input.document_detail', document_id=document.id) }}" 
+                               class="btn btn-outline-secondary btn-sm w-100">
+                                <i class="fas fa-eye me-1"></i>View Full
+                            </a>
+                        </div>
                     </div>
                     
                     <!-- Document Navigation -->
@@ -293,39 +322,6 @@
             <div class="navigation-card">
                 <!-- Processing Options -->
                 {% include 'shared/embedding_component.html' %}
-                
-                <!-- Processing Progress -->
-                <div class="card">
-                    <div class="card-header">
-                        <h6 class="mb-0">Processing Progress</h6>
-                    </div>
-                    <div class="card-body">
-                        <div class="row text-center mb-3">
-                            <div class="col-6">
-                                <div class="border-end">
-                                    <h5 class="mb-1">{{ doc_index + 1 }}</h5>
-                                    <small class="text-muted">Current</small>
-                                </div>
-                            </div>
-                            <div class="col-6">
-                                <h5 class="mb-1">{{ total_docs }}</h5>
-                                <small class="text-muted">Total</small>
-                            </div>
-                        </div>
-                        <div class="progress mb-3" style="height: 8px;">
-                            <div class="progress-bar" role="progressbar" 
-                                 style="width: {{ ((doc_index + 1) / total_docs * 100)|round }}%"></div>
-                        </div>
-                        
-                        <!-- Document Actions -->
-                        <div class="d-grid gap-2">
-                            <a href="{{ url_for('text_input.document_detail', document_id=document.id) }}" 
-                               class="btn btn-outline-secondary btn-sm">
-                                <i class="fas fa-eye me-2"></i>View Full Document
-                            </a>
-                        </div>
-                    </div>
-                </div>
             </div>
         </div>
     </div>
@@ -348,6 +344,15 @@ document.addEventListener('DOMContentLoaded', function() {
             window.location.href = '{{ url_for("experiments.document_pipeline", experiment_id=experiment.id) }}';
             {% endif %}
         });
+    }
+    
+    // Debug: Check if modals exist
+    console.log('Embedding modal exists:', !!document.getElementById('embeddingModal'));
+    console.log('Segmentation modal exists:', !!document.getElementById('segmentationModal'));
+    
+    // Ensure Bootstrap is loaded
+    if (typeof bootstrap === 'undefined') {
+        console.error('Bootstrap is not loaded!');
     }
 });
 
