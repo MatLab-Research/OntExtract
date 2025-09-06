@@ -1015,28 +1015,80 @@ def semantic_evolution_visual(experiment_id):
     temporal_span = max(years) - min(years) if years else 0
     domains = list(set([anchor['domain'] for anchor in academic_anchors]))
     
+    # Get OED data from database
+    from app.models.oed_models import OEDEtymology, OEDDefinition, OEDHistoricalStats, OEDQuotationSummary
+    
+    oed_data = None
+    etymology = OEDEtymology.query.filter_by(term_id=term_record.id).first()
+    definitions = OEDDefinition.query.filter_by(term_id=term_record.id).order_by(OEDDefinition.first_cited_year.asc()).all()
+    historical_stats = OEDHistoricalStats.query.filter_by(term_id=term_record.id).order_by(OEDHistoricalStats.start_year.asc()).all()
+    quotation_summaries = OEDQuotationSummary.query.filter_by(term_id=term_record.id).order_by(OEDQuotationSummary.quotation_year.asc()).all()
+    
+    if etymology or definitions or historical_stats:
+        oed_data = {
+            'etymology': etymology.to_dict() if etymology else None,
+            'definitions': [d.to_dict() for d in definitions],
+            'historical_stats': [s.to_dict() for s in historical_stats],
+            'quotation_summaries': [q.to_dict() for q in quotation_summaries],
+            'date_range': {
+                'earliest': min([d.first_cited_year for d in definitions if d.first_cited_year], default=None),
+                'latest': max([d.last_cited_year for d in definitions if d.last_cited_year], default=None)
+            }
+        }
+    else:
+        # Fallback: Try to load OED data from files
+        oed_patterns = [
+            f'data/references/oed_{target_term}_extraction_provenance.json',
+            f'data/references/{target_term}_oed_extraction.json'
+        ]
+        
+        for pattern in oed_patterns:
+            try:
+                with open(pattern, 'r') as f:
+                    oed_data = json.load(f)
+                    break
+            except FileNotFoundError:
+                continue
+    
+    # Apply period-aware matching and excerpt extraction to OED definitions
+    if oed_data and oed_data.get('definitions'):
+        from app.services.period_matching_service import PeriodMatchingService
+        
+        # Get the target years from term_versions (already loaded above)
+        target_years = []
+        for version in term_versions:
+            if version.temporal_start_year:
+                target_years.append(version.temporal_start_year)
+        
+        if target_years:
+            matching_service = PeriodMatchingService()
+            try:
+                # Match definitions to their relevant periods based on date ranges
+                enhanced_definitions = matching_service.enhance_definitions_with_period_matching(
+                    oed_data['definitions'], target_years, target_term
+                )
+                oed_data['definitions'] = enhanced_definitions
+                print(f"Matched {len(enhanced_definitions)} definitions to relevant periods from: {target_years}")
+                
+                # Log the matching results for debugging
+                for def_idx, definition in enumerate(enhanced_definitions):
+                    relevant_periods = definition.get('relevant_periods', [])
+                    first_year = definition.get('first_cited_year')
+                    last_year = definition.get('last_cited_year')
+                    print(f"  Definition {def_idx + 1} ({first_year}-{last_year or 'present'}): matched to years {relevant_periods}")
+                    
+            except Exception as e:
+                print(f"Failed to match definitions with periods: {str(e)}")
+                # Continue with original definitions
+    
     # Get reference data for this specific term
     reference_data = {
-        'oed_data': None,
+        'oed_data': oed_data,
         'legal_data': None,
         'temporal_span': temporal_span,
         'domain_count': len(domains),
         'domains': domains
     }
-    
-    # Try to load OED data
-    oed_patterns = [
-        f'data/references/oed_{target_term}_extraction_provenance.json',
-        f'data/references/{target_term}_oed_extraction.json'
-    ]
-    
-    for pattern in oed_patterns:
-        try:
-            with open(pattern, 'r') as f:
-                reference_data['oed_data'] = json.load(f)
-                break
-        except FileNotFoundError:
-            continue
     
     # Try to load legal data  
     legal_patterns = [
@@ -1057,6 +1109,7 @@ def semantic_evolution_visual(experiment_id):
                          target_term=target_term,
                          term_record=term_record,
                          academic_anchors=academic_anchors,
+                         oed_data=oed_data,
                          reference_data=reference_data,
                          temporal_span=temporal_span,
                          domains=domains)
