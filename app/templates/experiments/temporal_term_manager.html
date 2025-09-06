@@ -314,8 +314,12 @@
                     <button class="btn btn-outline-secondary me-2" onclick="saveTerms()">
                         <i class="fas fa-save"></i> Save Progress
                     </button>
+                    <a href="{{ url_for('experiments.orchestrated_analysis', experiment_id=experiment.id) }}" 
+                       class="btn btn-success me-2">
+                        <i class="fas fa-robot"></i> Human-in-the-Loop Analysis
+                    </a>
                     <button class="btn btn-primary" onclick="proceedToAnalysis()">
-                        Continue to Analysis <i class="fas fa-arrow-right"></i>
+                        Continue to Traditional Analysis <i class="fas fa-arrow-right"></i>
                     </button>
                 </div>
             </div>
@@ -356,6 +360,64 @@
             </div>
         </div>
     </div>
+
+    <!-- Orchestration Decisions (Step 2 Preview) -->
+    {% if orchestration_decisions %}
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">
+                        <span class="badge bg-success">Step 2</span> Recent Orchestration Decisions
+                    </h5>
+                    <a href="{{ url_for('experiments.orchestrated_analysis', experiment_id=experiment.id) }}" 
+                       class="btn btn-sm btn-outline-primary">
+                        View Full Analysis Interface
+                    </a>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted mb-3">
+                        LLM orchestration decisions for intelligent tool selection and analysis configuration.
+                    </p>
+                    
+                    <div class="row">
+                        {% for decision in orchestration_decisions[:3] %}
+                        <div class="col-md-4 mb-3">
+                            <div class="card h-100 border-left-success">
+                                <div class="card-body">
+                                    <h6 class="card-title">{{ decision.term_text }}</h6>
+                                    <div class="mb-2">
+                                        {% if decision.selected_tools %}
+                                            {% for tool in decision.selected_tools %}
+                                                <span class="badge bg-secondary me-1">{{ tool }}</span>
+                                            {% endfor %}
+                                        {% endif %}
+                                    </div>
+                                    <div class="mb-2">
+                                        <small class="text-muted">Model: <code>{{ decision.embedding_model or 'N/A' }}</code></small>
+                                    </div>
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <span class="badge bg-{{ 'success' if decision.decision_confidence > 0.8 else 'warning' if decision.decision_confidence > 0.6 else 'danger' }}">
+                                            {{ "%.0f" | format(decision.decision_confidence * 100) }}% confident
+                                        </span>
+                                        <small class="text-muted">{{ decision.created_at.strftime('%m/%d') if decision.created_at else 'N/A' }}</small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    
+                    {% if orchestration_decisions|length > 3 %}
+                    <div class="text-center mt-3">
+                        <small class="text-muted">Showing 3 of {{ orchestration_decisions|length }} decisions</small>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
 
     <!-- Term Cards -->
     <div id="terms-container">

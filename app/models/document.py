@@ -47,6 +47,7 @@ class Document(db.Model):
     # Metadata
     word_count = db.Column(db.Integer)
     character_count = db.Column(db.Integer)
+    processing_metadata = db.Column(db.JSON)  # General metadata for processing info, embeddings, etc.
     
     # Timestamps
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
@@ -182,6 +183,15 @@ class Document(db.Model):
         if source_info:
             return f"{source_info}. {self.title}"
         return self.title
+    
+    @property
+    def has_embeddings(self):
+        """Check if document has embeddings applied"""
+        if not self.processing_metadata:
+            return False
+        
+        processing_info = self.processing_metadata.get('processing_info', {})
+        return processing_info.get('embeddings_applied', False)
     
     def to_dict(self, include_content=False):
         """Convert document to dictionary for API responses"""

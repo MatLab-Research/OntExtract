@@ -74,10 +74,33 @@
                                 </button>
                                 {% endif %}
                                 
+                                <!-- Human-in-the-Loop Orchestration Workflow -->
+                                {% if experiment.experiment_type == 'temporal_evolution' %}
+                                <a href="{{ url_for('experiments.manage_temporal_terms', experiment_id=experiment.id) }}" 
+                                   class="btn btn-outline-primary text-start">
+                                    <i class="fas fa-cog"></i> Manage Terms & Configuration
+                                </a>
+                                
+                                <a href="{{ url_for('experiments.orchestrated_analysis', experiment_id=experiment.id) }}" 
+                                   class="btn btn-outline-success text-start">
+                                    <i class="fas fa-robot"></i> Human-in-the-Loop Analysis
+                                </a>
+                                {% elif experiment.experiment_type == 'domain_comparison' %}
+                                <a href="{{ url_for('experiments.manage_terms', experiment_id=experiment.id) }}" 
+                                   class="btn btn-outline-primary text-start">
+                                    <i class="fas fa-cog"></i> Manage Terms & Domains
+                                </a>
+                                
+                                <a href="{{ url_for('experiments.orchestrated_analysis', experiment_id=experiment.id) }}" 
+                                   class="btn btn-outline-success text-start">
+                                    <i class="fas fa-robot"></i> Human-in-the-Loop Analysis
+                                </a>
+                                {% endif %}
+                                
                                 {% if experiment.status == 'completed' %}
                                 <a href="{{ url_for('experiments.results', experiment_id=experiment.id) }}" 
                                    class="btn btn-outline-info text-start">
-                                    <i class="fas fa-chart-bar"></i> View Results
+                                    <i class="fas fa-chart-line"></i> View Semantic Evolution Timeline
                                 </a>
                                 {% endif %}
                                 

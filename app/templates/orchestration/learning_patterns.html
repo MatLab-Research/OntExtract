@@ -1,0 +1,268 @@
+{% extends "base.html" %}
+
+{% block title %}Learning Patterns - OntExtract{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4">
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h3 class="mb-0">
+                        <i class="fas fa-lightbulb me-2"></i>Learning Patterns
+                    </h3>
+                    <div>
+                        <a href="{{ url_for('orchestration_feedback.dashboard') }}" class="btn btn-outline-secondary">
+                            <i class="fas fa-tachometer-alt me-1"></i>Dashboard
+                        </a>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted mb-4">
+                        Learning patterns are automatically derived from researcher feedback to improve future orchestration decisions.
+                    </p>
+
+                    {% if patterns %}
+                    <div class="row">
+                        {% for pattern in patterns %}
+                        <div class="col-lg-6 mb-4">
+                            <div class="card h-100">
+                                <div class="card-header d-flex justify-content-between align-items-center">
+                                    <h5 class="mb-0">{{ pattern.pattern_name }}</h5>
+                                    <div>
+                                        <span class="badge bg-{{ 'success' if pattern.pattern_status == 'active' else 'secondary' }}">
+                                            {{ pattern.pattern_status | title }}
+                                        </span>
+                                        {% if pattern.confidence %}
+                                            <span class="badge bg-primary">
+                                                {{ "%.0f" | format(pattern.confidence * 100) }}% confidence
+                                            </span>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                <div class="card-body">
+                                    <p class="text-muted mb-2">
+                                        <strong>Type:</strong> {{ pattern.pattern_type | title }}
+                                    </p>
+                                    
+                                    {% if pattern.context_signature %}
+                                    <p class="text-muted mb-2">
+                                        <strong>Context:</strong> {{ pattern.context_signature }}
+                                    </p>
+                                    {% endif %}
+
+                                    <!-- Performance Stats -->
+                                    <div class="row mb-3">
+                                        <div class="col-6">
+                                            <div class="text-center">
+                                                <h4 class="text-primary">{{ pattern.times_applied }}</h4>
+                                                <small class="text-muted">Times Applied</small>
+                                            </div>
+                                        </div>
+                                        <div class="col-6">
+                                            <div class="text-center">
+                                                {% if pattern.success_rate %}
+                                                    <h4 class="text-success">{{ "%.0f" | format(pattern.success_rate * 100) }}%</h4>
+                                                    <small class="text-muted">Success Rate</small>
+                                                {% else %}
+                                                    <h4 class="text-muted">N/A</h4>
+                                                    <small class="text-muted">Success Rate</small>
+                                                {% endif %}
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Conditions (if available) -->
+                                    {% if pattern.conditions %}
+                                    <div class="mb-3">
+                                        <h6>Conditions</h6>
+                                        <div class="bg-light p-2 rounded">
+                                            {% for key, value in pattern.conditions.items() %}
+                                                <div class="mb-1">
+                                                    <strong>{{ key.replace('_', ' ').title() }}:</strong>
+                                                    {% if value is iterable and value is not string %}
+                                                        {{ value | join(', ') }}
+                                                    {% else %}
+                                                        {{ value }}
+                                                    {% endif %}
+                                                </div>
+                                            {% endfor %}
+                                        </div>
+                                    </div>
+                                    {% endif %}
+
+                                    <!-- Recommendations -->
+                                    {% if pattern.recommendations %}
+                                    <div class="mb-3">
+                                        <h6>Recommendations</h6>
+                                        <div class="bg-info bg-opacity-10 p-2 rounded">
+                                            {% if pattern.recommendations.tools %}
+                                            <div class="mb-2">
+                                                <strong>Tools:</strong>
+                                                {% for tool in pattern.recommendations.tools %}
+                                                    <span class="badge bg-secondary me-1">{{ tool }}</span>
+                                                {% endfor %}
+                                            </div>
+                                            {% endif %}
+                                            {% if pattern.recommendations.embedding_model %}
+                                            <div class="mb-2">
+                                                <strong>Model:</strong> 
+                                                <code>{{ pattern.recommendations.embedding_model }}</code>
+                                            </div>
+                                            {% endif %}
+                                            {% if pattern.recommendations.reasoning %}
+                                            <div>
+                                                <strong>Reasoning:</strong> {{ pattern.recommendations.reasoning }}
+                                            </div>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                    {% endif %}
+
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <small class="text-muted">
+                                            Created: {{ pattern.created_at.strftime('%Y-%m-%d %H:%M') if pattern.created_at else 'Unknown' }}
+                                        </small>
+                                        <div class="btn-group" role="group">
+                                            <button class="btn btn-sm btn-outline-{{ 'success' if pattern.pattern_status == 'active' else 'warning' }}"
+                                                    onclick="togglePattern('{{ pattern.id }}', '{{ pattern.pattern_status }}')">
+                                                {% if pattern.pattern_status == 'active' %}
+                                                    <i class="fas fa-pause me-1"></i>Deactivate
+                                                {% else %}
+                                                    <i class="fas fa-play me-1"></i>Activate
+                                                {% endif %}
+                                            </button>
+                                            <button class="btn btn-sm btn-outline-info" onclick="viewPatternDetail('{{ pattern.id }}')">
+                                                <i class="fas fa-eye"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+
+                    {% else %}
+                    <div class="text-center py-5">
+                        <i class="fas fa-lightbulb fa-3x text-muted mb-3"></i>
+                        <h5 class="text-muted">No Learning Patterns Yet</h5>
+                        <p class="text-muted">
+                            Learning patterns are automatically created when researchers provide feedback on orchestration decisions.
+                            <br>
+                            Start by reviewing decisions and providing feedback to help the system learn your preferences.
+                        </p>
+                        <a href="{{ url_for('orchestration_feedback.decisions') }}" class="btn btn-primary mt-3">
+                            <i class="fas fa-list me-2"></i>Review Decisions
+                        </a>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Pattern Detail Modal -->
+<div class="modal fade" id="patternDetailModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Learning Pattern Details</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div id="patternDetailContent">
+                    <!-- Content will be loaded via JavaScript -->
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function togglePattern(patternId, currentStatus) {
+    const newStatus = currentStatus === 'active' ? 'inactive' : 'active';
+    
+    fetch(`/orchestration/learning-patterns/${patternId}/toggle`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            status: newStatus
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.message) {
+            location.reload(); // Refresh to show updated status
+        } else {
+            alert('Error toggling pattern: ' + (data.error || 'Unknown error'));
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Error toggling pattern');
+    });
+}
+
+function viewPatternDetail(patternId) {
+    fetch(`/orchestration/learning-patterns/${patternId}`, {
+        headers: {
+            'Accept': 'application/json'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.pattern) {
+            const pattern = data.pattern;
+            const content = `
+                <h6>${pattern.pattern_name}</h6>
+                <p class="text-muted">${pattern.pattern_type} pattern</p>
+                
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <strong>Confidence:</strong> ${Math.round(pattern.confidence * 100)}%
+                    </div>
+                    <div class="col-md-6">
+                        <strong>Times Applied:</strong> ${pattern.times_applied}
+                    </div>
+                </div>
+                
+                ${pattern.conditions ? `
+                    <div class="mb-3">
+                        <strong>Conditions:</strong>
+                        <pre class="bg-light p-2 rounded mt-1"><code>${JSON.stringify(pattern.conditions, null, 2)}</code></pre>
+                    </div>
+                ` : ''}
+                
+                ${pattern.recommendations ? `
+                    <div class="mb-3">
+                        <strong>Recommendations:</strong>
+                        <pre class="bg-light p-2 rounded mt-1"><code>${JSON.stringify(pattern.recommendations, null, 2)}</code></pre>
+                    </div>
+                ` : ''}
+                
+                ${pattern.researcher_authority ? `
+                    <div class="mb-3">
+                        <strong>Authority Level:</strong>
+                        <pre class="bg-light p-2 rounded mt-1"><code>${JSON.stringify(pattern.researcher_authority, null, 2)}</code></pre>
+                    </div>
+                ` : ''}
+            `;
+            
+            document.getElementById('patternDetailContent').innerHTML = content;
+            new bootstrap.Modal(document.getElementById('patternDetailModal')).show();
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Error loading pattern details');
+    });
+}
+</script>
+{% endblock %}

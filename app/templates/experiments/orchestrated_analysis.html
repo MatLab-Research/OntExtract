@@ -1,0 +1,358 @@
+{% extends "base.html" %}
+
+{% block title %}Orchestrated Analysis - {{ experiment.name }} - OntExtract{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4">
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <div>
+                        <h3 class="mb-0">Human-in-the-Loop Orchestrated Analysis</h3>
+                        <p class="mb-0 text-muted">{{ experiment.name }}</p>
+                    </div>
+                    <div>
+                        <a href="{{ url_for('experiments.view', experiment_id=experiment.id) }}" 
+                           class="btn btn-outline-secondary">
+                            <i class="fas fa-arrow-left me-1"></i>Back to Experiment
+                        </a>
+                    </div>
+                </div>
+                <div class="card-body">
+                    
+                    <!-- Step 3: LLM Orchestration & Real-time Analysis -->
+                    <div class="mb-5">
+                        <h4><span class="badge bg-primary">Step 3</span> LLM-Orchestrated Analysis</h4>
+                        <p class="text-muted">Run analysis with intelligent tool selection, real-time LLM responses, and performance metrics.</p>
+                        
+                        <div class="row">
+                            <div class="col-lg-6">
+                                <div class="card">
+                                    <div class="card-header">
+                                        <h5 class="mb-0">Analysis Configuration</h5>
+                                    </div>
+                                    <div class="card-body">
+                                        <div class="mb-3">
+                                            <label for="analysis-terms" class="form-label">Terms to Analyze</label>
+                                            <div id="analysis-terms">
+                                                {% for term in terms %}
+                                                <div class="form-check">
+                                                    <input class="form-check-input" type="checkbox" value="{{ term }}" 
+                                                           id="term-{{ loop.index }}" checked>
+                                                    <label class="form-check-label" for="term-{{ loop.index }}">
+                                                        {{ term }}
+                                                    </label>
+                                                </div>
+                                                {% endfor %}
+                                                
+                                                {% if not terms %}
+                                                <div class="alert alert-warning">
+                                                    <i class="fas fa-exclamation-triangle me-2"></i>
+                                                    No terms configured for this experiment. 
+                                                    <a href="{{ url_for('experiments.manage_temporal_terms', experiment_id=experiment.id) }}">
+                                                        Manage Terms
+                                                    </a>
+                                                </div>
+                                                {% endif %}
+                                            </div>
+                                        </div>
+                                        
+                                        <div class="mb-3">
+                                            <label for="orchestration-mode" class="form-label">Orchestration Mode</label>
+                                            <select id="orchestration-mode" class="form-select">
+                                                <option value="adaptive">Adaptive (Use Learning Patterns)</option>
+                                                <option value="manual">Manual (Create Decisions for Feedback)</option>
+                                                <option value="comparative">Comparative (Multiple Models)</option>
+                                            </select>
+                                        </div>
+                                        
+                                        <button id="run-orchestrated-analysis" class="btn btn-success w-100">
+                                            <i class="fas fa-robot me-2"></i>Run Orchestrated Analysis
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="col-lg-6">
+                                <div class="card">
+                                    <div class="card-header">
+                                        <h5 class="mb-0">Active Learning Patterns</h5>
+                                    </div>
+                                    <div class="card-body">
+                                        {% if patterns %}
+                                            {% for pattern in patterns %}
+                                            <div class="border-bottom pb-2 mb-2">
+                                                <div class="d-flex justify-content-between align-items-start">
+                                                    <div>
+                                                        <h6 class="mb-1">{{ pattern.pattern_name }}</h6>
+                                                        <small class="text-muted">{{ pattern.pattern_type | title }}</small>
+                                                        {% if pattern.recommendations %}
+                                                            <br>
+                                                            <small class="text-info">
+                                                                {% if pattern.recommendations.tools %}
+                                                                    Tools: {{ pattern.recommendations.tools | join(', ') }}
+                                                                {% endif %}
+                                                                {% if pattern.recommendations.embedding_model %}
+                                                                    | Model: {{ pattern.recommendations.embedding_model }}
+                                                                {% endif %}
+                                                            </small>
+                                                        {% endif %}
+                                                    </div>
+                                                    <div class="text-end">
+                                                        <span class="badge bg-primary">
+                                                            {{ "%.0f" | format(pattern.confidence * 100) }}%
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            {% endfor %}
+                                        {% else %}
+                                            <p class="text-muted">
+                                                No active learning patterns. Provide feedback on orchestration decisions to help the system learn.
+                                            </p>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Real-time Analysis Results -->
+                    <div class="mb-5" id="analysis-results" style="display: none;">
+                        <h4><span class="badge bg-success">Results</span> Analysis Output & Metrics</h4>
+                        <div id="results-container">
+                            <!-- Dynamic content will be inserted here -->
+                        </div>
+                    </div>
+                    
+                    <!-- Orchestration Decisions for Feedback -->
+                    <div class="mb-5">
+                        <h4><span class="badge bg-info">Decisions</span> Orchestration Decisions & Feedback</h4>
+                        <p class="text-muted">Review LLM orchestration decisions and provide feedback to improve future analysis.</p>
+                        
+                        {% if decisions %}
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>Term</th>
+                                        <th>Tools Selected</th>
+                                        <th>Model</th>
+                                        <th>Confidence</th>
+                                        <th>Created</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for decision in decisions %}
+                                    <tr>
+                                        <td>
+                                            <strong>{{ decision.term_text }}</strong>
+                                            <br>
+                                            <small class="text-muted">{{ decision.id|string|truncate(8, True, '') }}...</small>
+                                        </td>
+                                        <td>
+                                            {% if decision.selected_tools %}
+                                                {% for tool in decision.selected_tools %}
+                                                    <span class="badge bg-secondary me-1">{{ tool }}</span>
+                                                {% endfor %}
+                                            {% else %}
+                                                <span class="text-muted">None</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            <code class="small">{{ decision.embedding_model or 'N/A' }}</code>
+                                        </td>
+                                        <td>
+                                            {% if decision.decision_confidence %}
+                                                <span class="badge bg-{{ 'success' if decision.decision_confidence > 0.8 else 'warning' if decision.decision_confidence > 0.6 else 'danger' }}">
+                                                    {{ "%.0f" | format(decision.decision_confidence * 100) }}%
+                                                </span>
+                                            {% else %}
+                                                <span class="text-muted">N/A</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            <small>{{ decision.created_at.strftime('%Y-%m-%d %H:%M') if decision.created_at else 'Unknown' }}</small>
+                                        </td>
+                                        <td>
+                                            <a href="{{ url_for('orchestration_feedback.get_decision', decision_id=decision.id) }}" 
+                                               class="btn btn-sm btn-outline-primary">
+                                                <i class="fas fa-comment me-1"></i>Feedback
+                                            </a>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                        {% else %}
+                        <div class="alert alert-info">
+                            <i class="fas fa-info-circle me-2"></i>
+                            No orchestration decisions yet. Run analysis above to generate decisions for feedback.
+                        </div>
+                        {% endif %}
+                    </div>
+                    
+                    <!-- Quick Actions -->
+                    <div class="row">
+                        <div class="col-12">
+                            <div class="card">
+                                <div class="card-body text-center">
+                                    <h5 class="mb-3">Next Steps</h5>
+                                    <div class="d-flex justify-content-center gap-3">
+                                        <a href="{{ url_for('experiments.manage_temporal_terms', experiment_id=experiment.id) }}" 
+                                           class="btn btn-outline-primary">
+                                            <i class="fas fa-cog me-2"></i>Manage Terms & Configuration
+                                        </a>
+                                        <a href="{{ url_for('orchestration_feedback.dashboard') }}" 
+                                           class="btn btn-outline-success">
+                                            <i class="fas fa-brain me-2"></i>Orchestration Dashboard
+                                        </a>
+                                        {% if experiment.status == 'completed' %}
+                                        <a href="{{ url_for('experiments.results', experiment_id=experiment.id) }}" 
+                                           class="btn btn-primary">
+                                            <i class="fas fa-chart-line me-2"></i>View Semantic Evolution Timeline
+                                        </a>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const runButton = document.getElementById('run-orchestrated-analysis');
+    const resultsSection = document.getElementById('analysis-results');
+    const resultsContainer = document.getElementById('results-container');
+    
+    runButton.addEventListener('click', async function() {
+        // Get selected terms
+        const termCheckboxes = document.querySelectorAll('#analysis-terms input[type="checkbox"]:checked');
+        const selectedTerms = Array.from(termCheckboxes).map(cb => cb.value);
+        
+        if (selectedTerms.length === 0) {
+            alert('Please select at least one term to analyze.');
+            return;
+        }
+        
+        // Update button state
+        runButton.disabled = true;
+        runButton.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Running Analysis...';
+        
+        try {
+            const response = await fetch(`/experiments/{{ experiment.id }}/run_orchestrated_analysis`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    terms: selectedTerms,
+                    mode: document.getElementById('orchestration-mode').value
+                })
+            });
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                // Show results
+                resultsSection.style.display = 'block';
+                resultsContainer.innerHTML = generateResultsHTML(data.results);
+                
+                // Scroll to results
+                resultsSection.scrollIntoView({ behavior: 'smooth' });
+                
+                // Show success message
+                showAlert('success', data.message);
+                
+                // Reload page after a delay to show updated decisions
+                setTimeout(() => {
+                    window.location.reload();
+                }, 3000);
+            } else {
+                showAlert('danger', data.error || 'Analysis failed');
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            showAlert('danger', 'Network error occurred');
+        } finally {
+            // Reset button
+            runButton.disabled = false;
+            runButton.innerHTML = '<i class="fas fa-robot me-2"></i>Run Orchestrated Analysis';
+        }
+    });
+});
+
+function generateResultsHTML(results) {
+    let html = '<div class="row">';
+    
+    results.forEach((result, index) => {
+        html += `
+            <div class="col-md-6 mb-3">
+                <div class="card h-100">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h6 class="mb-0">${result.term}</h6>
+                        <span class="badge bg-success">${Math.round(result.confidence * 100)}%</span>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-2">
+                            <strong>Tools Used:</strong>
+                            ${result.tools_used.map(tool => `<span class="badge bg-secondary me-1">${tool}</span>`).join('')}
+                        </div>
+                        <div class="mb-2">
+                            <strong>Embedding Model:</strong> <code class="small">${result.embedding_model}</code>
+                        </div>
+                        <div class="mb-2">
+                            <strong>Processing Time:</strong> ${result.processing_time}
+                        </div>
+                        <div class="mb-3">
+                            <strong>Semantic Drift:</strong> 
+                            <span class="badge ${result.semantic_drift_detected ? 'bg-warning' : 'bg-success'}">
+                                ${result.semantic_drift_detected ? 'Detected' : 'Stable'}
+                            </span>
+                            ${result.drift_magnitude ? `(${result.drift_magnitude})` : ''}
+                        </div>
+                        <div>
+                            <strong>Key Insights:</strong>
+                            <ul class="small mt-1">
+                                ${result.insights.map(insight => `<li>${insight}</li>`).join('')}
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+    });
+    
+    html += '</div>';
+    return html;
+}
+
+function showAlert(type, message) {
+    const alertDiv = document.createElement('div');
+    alertDiv.className = `alert alert-${type} alert-dismissible fade show`;
+    alertDiv.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    
+    // Insert at the top of the content
+    const container = document.querySelector('.container-fluid');
+    container.insertBefore(alertDiv, container.firstChild);
+    
+    // Auto-dismiss after 5 seconds
+    setTimeout(() => {
+        if (alertDiv.parentNode) {
+            alertDiv.remove();
+        }
+    }, 5000);
+}
+</script>
+{% endblock %}
