@@ -127,8 +127,17 @@ function generateEmbeddings(documentId, method = 'local') {
         .then(data => {
             hideLoading();
             if (data.success) {
-                alert('Embeddings generated successfully!');
-                location.reload(); // Refresh to show updated statistics
+                // Check for redirect information (inheritance versioning)
+                if (data.latest_version_id) {
+                    console.log('Redirecting to new version:', data.latest_version_id);
+                    window.location.replace(`/input/document/${data.latest_version_id}`);
+                } else if (data.redirect_url) {
+                    console.log('Redirecting to:', data.redirect_url);
+                    window.location.replace(data.redirect_url);
+                } else {
+                    console.log('No redirect info, reloading page');
+                    location.reload(); // Fallback: refresh to show updated statistics
+                }
             } else {
                 alert('Error generating embeddings: ' + (data.error || 'Unknown error'));
             }
@@ -261,8 +270,17 @@ function segmentDocument(documentId, method = 'paragraph') {
         .then(data => {
             hideLoading();
             if (data.success) {
-                alert('Document segmented successfully!');
-                location.reload(); // Refresh to show segments
+                // Check for redirect information (inheritance versioning)
+                if (data.latest_version_id) {
+                    console.log('Redirecting to new version:', data.latest_version_id);
+                    window.location.replace(`/input/document/${data.latest_version_id}`);
+                } else if (data.redirect_url) {
+                    console.log('Redirecting to:', data.redirect_url);
+                    window.location.replace(data.redirect_url);
+                } else {
+                    console.log('No redirect info, reloading page');
+                    location.reload(); // Fallback: refresh to show segments
+                }
             } else {
                 alert('Error segmenting document: ' + (data.error || 'Unknown error'));
             }

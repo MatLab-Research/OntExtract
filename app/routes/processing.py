@@ -1,5 +1,6 @@
-from flask import Blueprint, render_template, request, jsonify
+from flask import Blueprint, render_template, request, jsonify, current_app as app
 from flask_login import login_required, current_user
+from app.utils.auth_decorators import ajax_login_required
 from sqlalchemy import func
 import os
 from app import db
@@ -81,7 +82,7 @@ def start_processing(document_id):
     return jsonify({'message': 'Processing will be implemented in phase 2'})
 
 @processing_bp.route('/document/<int:document_id>/embeddings', methods=['POST'])
-@login_required
+@ajax_login_required
 def generate_embeddings(document_id):
     """Generate embeddings for a document (creates new version)"""
     try:
@@ -263,7 +264,7 @@ def generate_embeddings(document_id):
         # Get base document ID for consistent redirection
         base_document_id = InheritanceVersioningService._get_base_document_id(original_document)
         
-        return jsonify({
+        response_data = {
             'success': True,
             'job_id': job.id,
             'method': embedding_method,
@@ -273,13 +274,17 @@ def generate_embeddings(document_id):
             'version_number': processing_version.version_number,
             'message': f'Embeddings generated using {embedding_method} method (version {processing_version.version_number} with inherited processing)',
             'redirect_url': f'/input/document/{processing_version.id}'
-        })
+        }
+        
+        print(f"DEBUG: Embeddings response data: {response_data}")
+        app.logger.error(f"EMBEDDINGS RESPONSE: latest_version_id={processing_version.id}, redirect_url={response_data['redirect_url']}")
+        return jsonify(response_data)
         
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
 
 @processing_bp.route('/document/<int:document_id>/segment', methods=['POST'])
-@login_required 
+@ajax_login_required 
 def segment_document(document_id):
     """Segment a document into chunks and create TextSegment objects (creates new version)"""
     try:
@@ -600,7 +605,7 @@ def segment_document(document_id):
         # Get base document ID for consistent redirection
         base_document_id = InheritanceVersioningService._get_base_document_id(original_document)
         
-        return jsonify({
+        response_data = {
             'success': True,
             'job_id': job.id,
             'segments_created': segment_count,
@@ -610,13 +615,17 @@ def segment_document(document_id):
             'version_number': processing_version.version_number,
             'message': f'Document segmented into {segment_count} chunks (version {processing_version.version_number} with inherited processing)',
             'redirect_url': f'/input/document/{processing_version.id}'
-        })
+        }
+        
+        print(f"DEBUG: Segmentation response data: {response_data}")
+        app.logger.error(f"SEGMENTATION RESPONSE: latest_version_id={processing_version.id}, redirect_url={response_data['redirect_url']}")
+        return jsonify(response_data)
         
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
 
 @processing_bp.route('/document/<int:document_id>/segments', methods=['DELETE'])
-@login_required
+@ajax_login_required
 def delete_document_segments(document_id):
     """Delete all segments for a document"""
     try:
@@ -785,7 +794,7 @@ def clear_document_jobs(document_id):
 
 
 @processing_bp.route('/document/<int:document_id>/enhanced', methods=['POST'])
-@login_required
+@ajax_login_required
 def enhanced_document_processing(document_id):
     """Enhanced document processing with term extraction and OED enrichment"""
     try:
