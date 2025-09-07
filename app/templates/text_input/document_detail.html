@@ -1117,21 +1117,35 @@
             console.log('Processing response:', data);  // Debug logging
             
             if (data.success) {
-                // Show success message
-                alert(data.message);
+                console.log('=== PROCESSING SUCCESS RESPONSE ===');
+                console.log('Full response data:', JSON.stringify(data, null, 2));
                 
-                // Force redirect to latest version - more robust approach
+                // Determine redirect URL FIRST
+                let redirectUrl = null;
                 if (data.latest_version_id) {
-                    console.log(`Redirecting to latest version: ${data.latest_version_id}`);
-                    window.location.href = `/input/document/${data.latest_version_id}`;
+                    redirectUrl = `/input/document/${data.latest_version_id}`;
+                    console.log(`✅ FOUND latest_version_id: ${data.latest_version_id}`);
+                    console.log(`📍 Will redirect to: ${redirectUrl}`);
                 } else if (data.processing_version_id) {
-                    console.log(`Redirecting to processing version: ${data.processing_version_id}`);
-                    window.location.href = `/input/document/${data.processing_version_id}`;
+                    redirectUrl = `/input/document/${data.processing_version_id}`;
+                    console.log(`✅ FOUND processing_version_id: ${data.processing_version_id}`);
+                    console.log(`📍 Will redirect to: ${redirectUrl}`);
                 } else if (data.redirect_url) {
-                    console.log(`Redirecting to URL: ${data.redirect_url}`);
-                    window.location.href = data.redirect_url;
+                    redirectUrl = data.redirect_url;
+                    console.log(`✅ FOUND redirect_url: ${data.redirect_url}`);
+                    console.log(`📍 Will redirect to: ${redirectUrl}`);
                 } else {
-                    console.log('No redirect info found, reloading page');
+                    console.log('❌ NO REDIRECT DATA FOUND');
+                    console.log('Available fields:', Object.keys(data));
+                }
+                
+                // Show success message and redirect immediately
+                if (redirectUrl) {
+                    console.log(`🚀 EXECUTING REDIRECT TO: ${redirectUrl}`);
+                    console.log(`🚀 CALLING window.location.replace(${redirectUrl})`);
+                    window.location.replace(redirectUrl);
+                } else {
+                    console.log('❌ NO REDIRECT - reloading page');
                     location.reload();
                 }
             } else {
@@ -1141,7 +1155,8 @@
         .catch(error => {
             hideLoading();
             console.error('Error:', error);
-            alert('Processing failed: Network error');
+            alert('Processing failed: Network error or server error (500). Check browser console for details.');
+            // Don't reload on error - user needs to see the problem
         });
     }
 
@@ -1216,20 +1231,28 @@
                 if (data.method) {
                     message += `\\nMethod: ${data.method}`;
                 }
-                alert(message);
-                console.log('Processing response:', data);  // Debug logging
+                console.log('Processing response:', data);
                 
-                // Force redirect to latest version - more robust approach
+                // Determine redirect URL FIRST
+                let redirectUrl = null;
                 if (data.latest_version_id) {
-                    console.log(`Redirecting to latest version: ${data.latest_version_id}`);
-                    window.location.href = `/input/document/${data.latest_version_id}`;
+                    redirectUrl = `/input/document/${data.latest_version_id}`;
+                    console.log(`Will redirect to latest version: ${data.latest_version_id}`);
                 } else if (data.processing_version_id) {
-                    console.log(`Redirecting to processing version: ${data.processing_version_id}`);
-                    window.location.href = `/input/document/${data.processing_version_id}`;
+                    redirectUrl = `/input/document/${data.processing_version_id}`;
+                    console.log(`Will redirect to processing version: ${data.processing_version_id}`);
                 } else if (data.redirect_url) {
-                    console.log(`Redirecting to URL: ${data.redirect_url}`);
-                    window.location.href = data.redirect_url;
+                    redirectUrl = data.redirect_url;
+                    console.log(`Will redirect to URL: ${data.redirect_url}`);
+                }
+                
+                // Show success message and redirect immediately  
+                if (redirectUrl) {
+                    console.log(`Processing complete: ${message}`);
+                    // Force redirect with page replacement (bulletproof)
+                    window.location.replace(redirectUrl);
                 } else {
+                    console.log(`Processing complete: ${message}`);
                     console.log('No redirect info found, reloading page');
                     location.reload();
                 }
@@ -1240,7 +1263,8 @@
         .catch(error => {
             hideLoading();
             console.error('Error:', error);
-            alert('Processing failed: Network error');
+            alert('Processing failed: Network error or server error (500). Check browser console for details.');
+            // Don't reload on error - user needs to see the problem
         });
     }
 
@@ -1301,112 +1325,9 @@
     }
 
     // Composite Document Functions
-    function loadCompositeInfo(documentId) {
-        fetch(`/composite/sources/${documentId}`)
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    const infoDiv = document.getElementById('compositeInfo');
-                    const processingTypes = data.available_processing;
-                    const sourceCount = data.total_sources;
-                    
-                    infoDiv.innerHTML = `
-                        <div class="row">
-                            <div class="col-md-6">
-                                <small><strong>Sources:</strong> ${sourceCount} document(s)</small>
-                            </div>
-                            <div class="col-md-6">
-                                <small><strong>Available Processing:</strong> ${processingTypes.join(', ') || 'None'}</small>
-                            </div>
-                        </div>
-                        <div class="mt-2">
-                            <button class="btn btn-sm btn-outline-info me-2" onclick="showCompositeDetails(${documentId})">
-                                View Source Details
-                            </button>
-                            <button class="btn btn-sm btn-outline-primary" onclick="updateComposite(${documentId})">
-                                Refresh Composite
-                            </button>
-                        </div>
-                    `;
-                }
-            })
-            .catch(error => {
-                console.error('Error loading composite info:', error);
-                document.getElementById('compositeInfo').innerHTML = '<small class="text-muted">Error loading composite information</small>';
-            });
-    }
+    // loadCompositeInfo function removed - using inheritance-based versioning
 
-    function loadProcessingRecommendations(documentId) {
-        fetch(`/composite/recommendations/${documentId}`)
-            .then(response => response.json())
-            .then(data => {
-                if (data.success && data.recommendations.length > 0) {
-                    const recommendationsDiv = document.getElementById('processingRecommendations');
-                    const recommendations = data.recommendations;
-                    
-                    let html = '<div class="alert alert-success" role="alert">';
-                    html += '<h6><i class="fas fa-lightbulb me-2"></i>Processing Recommendations</h6>';
-                    
-                    recommendations.forEach(rec => {
-                        html += `
-                            <div class="d-flex justify-content-between align-items-center mb-2">
-                                <div>
-                                    <strong>${rec.title}</strong><br>
-                                    <small>${rec.description}</small>
-                                </div>
-                                <div>
-                                    ${rec.action === 'create_composite' ? 
-                                        `<button class="btn btn-sm btn-success" onclick="autoCreateComposite(${documentId})">Create</button>` :
-                                        `<a href="/input/document/${rec.document_id}" class="btn btn-sm btn-info">View</a>`
-                                    }
-                                </div>
-                            </div>
-                        `;
-                    });
-                    
-                    html += '</div>';
-                    recommendationsDiv.innerHTML = html;
-                }
-            })
-            .catch(error => {
-                console.error('Error loading recommendations:', error);
-            });
-    }
-
-    function autoCreateComposite(documentId) {
-        if (!confirm('Create a composite document that combines all processing results from this document\'s versions?')) {
-            return;
-        }
-        
-        showLoading('Creating composite document...');
-        
-        fetch(`/composite/auto-create/${documentId}`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            }
-        })
-        .then(response => response.json())
-        .then(data => {
-            hideLoading();
-            if (data.success) {
-                alert('Composite document created successfully!');
-                window.location.href = data.redirect_url;
-            } else {
-                alert('Error: ' + data.error);
-            }
-        })
-        .catch(error => {
-            hideLoading();
-            console.error('Error:', error);
-            alert('Error creating composite document');
-        });
-    }
-
-    // Alias for the recommendation button
-    function createCompositeFromRecommendation(documentId) {
-        autoCreateComposite(documentId);
-    }
+    // Composite document functions removed - using inheritance-based versioning
 
     function updateComposite(compositeId) {
         showLoading('Updating composite document...');
@@ -1499,12 +1420,9 @@
         const documentId = {{ document.id }};
         
         // Load composite info if this is a composite document
-        {% if document.version_type == 'composite' %}
-        loadCompositeInfo(documentId);
-        {% endif %}
+        // Composite document loading removed - no composite documents with inheritance versioning
         
-        // Load processing recommendations for all document types
-        loadProcessingRecommendations(documentId);
+        // Processing recommendations removed - using inheritance-based versioning
     });
 </script>
 {% endblock %}
