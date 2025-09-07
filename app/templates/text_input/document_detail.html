@@ -3,19 +3,69 @@
 {% block title %}{{ document.title }} - OntExtract{% endblock %}
 
 {% block content %}
-<div class="container">
+<div class="container-fluid">
     <div class="row">
         <div class="col-lg-8">
             <!-- Document Header -->
             <div class="d-flex justify-content-between align-items-start mb-4">
                 <div>
-                    <h1 class="h3 mb-2">{{ document.title }}</h1>
+                    <div class="d-flex align-items-center mb-2">
+                        <h1 class="h3 mb-0 me-3">{{ document.title }}</h1>
+                        {% if not document.is_original() %}
+                        <span class="badge bg-secondary">
+                            Version {{ document.version_number }}
+                            {% if document.version_type == 'experimental' and document.experiment %}
+                            ({{ document.experiment.name }})
+                            {% elif document.version_type == 'processed' %}
+                            (Processed)
+                            {% endif %}
+                        </span>
+                        {% endif %}
+                    </div>
+                    
+                    <!-- Version Navigation -->
+                    {% if document.get_all_versions()|length > 1 %}
+                    <div class="mb-2">
+                        <div class="btn-group btn-group-sm" role="group">
+                            {% set all_versions = document.get_all_versions() %}
+                            {% for version in all_versions %}
+                            <a href="{{ url_for('text_input.document_detail', document_id=version.id) }}" 
+                               class="btn {% if version.id == document.id %}btn-primary{% else %}btn-outline-primary{% endif %}">
+                                v{{ version.version_number }}
+                                {% if version.version_type == 'experimental' %}
+                                <i class="fas fa-flask" title="Experimental"></i>
+                                {% elif version.version_type == 'processed' %}
+                                <i class="fas fa-cogs" title="Processed"></i>
+                                {% else %}
+                                <i class="fas fa-file" title="Original"></i>
+                                {% endif %}
+                            </a>
+                            {% endfor %}
+                        </div>
+                        {% if document.source_document_id %}
+                        <a href="{{ url_for('text_input.document_detail', document_id=document.get_root_document().id) }}" 
+                           class="btn btn-outline-secondary btn-sm ms-2">
+                            <i class="fas fa-home me-1"></i>Original
+                        </a>
+                        {% endif %}
+                    </div>
+                    {% endif %}
+                    
                     <div class="text-muted">
                         <i class="fas fa-calendar me-2"></i>Created {{ document.created_at.strftime('%B %d, %Y at %I:%M
                         %p') }}
                         {% if document.content_type == 'file' %}
                         <br><i class="fas fa-file me-2"></i>{{ document.original_filename }}
                         ({{ "%.1f"|format(document.file_size / 1024) }} KB)
+                        {% endif %}
+                        {% if document.detected_language %}
+                        <br><i class="fas fa-language me-2"></i>{{ document.detected_language.upper() }}
+                        {% if document.language_confidence %}
+                        ({{ "%.0f"|format(document.language_confidence * 100) }}% confidence)
+                        {% endif %}
+                        {% endif %}
+                        {% if document.processing_notes %}
+                        <br><i class="fas fa-sticky-note me-2"></i>{{ document.processing_notes }}
                         {% endif %}
                     </div>
                 </div>
@@ -37,42 +87,6 @@
                                 <i class="fas fa-trash me-2"></i>Delete
                             </a></li>
                     </ul>
-                </div>
-            </div>
-
-            <!-- Status and Actions -->
-            <div class="row mb-4">
-                <div class="col-md-6">
-                    <div class="card">
-                        <div class="card-body">
-                            <h6 class="card-title">
-                                <i class="fas fa-info-circle me-2"></i>Document Status
-                            </h6>
-                            <div class="d-flex align-items-center">
-                                {% if document.status == 'uploaded' %}
-                                <span class="badge bg-primary">Uploaded</span>
-                                {% elif document.status == 'processing' %}
-                                <span class="badge bg-warning">Processing</span>
-                                {% elif document.status == 'completed' %}
-                                <span class="badge bg-success">Completed</span>
-                                {% elif document.status == 'error' %}
-                                <span class="badge bg-danger">Error</span>
-                                {% endif %}
-                                <span class="ms-2 text-muted">
-                                    {% if document.detected_language %}
-                                    • {{ document.detected_language.upper() }}
-                                    {% if document.language_confidence %}
-                                    ({{ "%.0f"|format(document.language_confidence * 100) }}% confidence)
-                                    {% endif %}
-                                    {% endif %}
-                                </span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-md-6">
-                    <!-- Use shared embedding component -->
-                    {% include 'shared/embedding_component.html' %}
                 </div>
             </div>
 
@@ -345,9 +359,91 @@
                             <small class="text-muted">Jobs</small>
                         </div>
                     </div>
+                    <div class="row text-center mt-3">
+                        <div class="col-12">
+                            <div class="d-flex align-items-center justify-content-center">
+                                {% if document.status == 'uploaded' %}
+                                <span class="badge bg-primary">Uploaded</span>
+                                {% elif document.status == 'processing' %}
+                                <span class="badge bg-warning">Processing</span>
+                                {% elif document.status == 'completed' %}
+                                <span class="badge bg-success">Completed</span>
+                                {% elif document.status == 'error' %}
+                                <span class="badge bg-danger">Error</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
 
+            <!-- Processing Options -->
+            {% include 'shared/embedding_component.html' %}
+
+            <!-- Processing Actions -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h6 class="mb-0">
+                        <i class="fas fa-cogs me-2"></i>Processing Actions
+                    </h6>
+                </div>
+                <div class="card-body">
+                    {% if document.is_original() %}
+                    <div class="alert alert-info small mb-3">
+                        <i class="fas fa-info-circle me-2"></i>Processing creates new document versions. Original content is never modified.
+                    </div>
+                    {% else %}
+                    <div class="alert alert-secondary small mb-3">
+                        <i class="fas fa-code-branch me-2"></i>This is version {{ document.version_number }} 
+                        {% if document.version_type == 'processed' %}
+                        (processed from original)
+                        {% elif document.version_type == 'experimental' %}
+                        (experimental version)
+                        {% endif %}
+                        - further processing will create new versions.
+                    </div>
+                    {% endif %}
+                    
+                    <div class="d-grid gap-2">
+                        <!-- Unified Processing Interface -->
+                        <button class="btn btn-primary" onclick="showProcessingOptions({{ document.id }})">
+                            <i class="fas fa-play me-2"></i>Process Document
+                            <small class="d-block">Creates new processed version</small>
+                        </button>
+                        
+                        <!-- Experiment Processing -->
+                        <div class="dropdown">
+                            <button class="btn btn-outline-success dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                                <i class="fas fa-microscope me-2"></i>Process with Experiment
+                                <small class="d-block">Creates experimental version</small>
+                            </button>
+                            <ul class="dropdown-menu w-100">
+                                <li><h6 class="dropdown-header">Available Experiments</h6></li>
+                                <li><a class="dropdown-item" href="{{ url_for('experiments.process_document', experiment_id=41, document_id=document.id) }}">
+                                    <i class="fas fa-flask me-2"></i>Experiment 41
+                                </a></li>
+                                <li><hr class="dropdown-divider"></li>
+                                <li><a class="dropdown-item" href="{{ url_for('experiments.new') }}">
+                                    <i class="fas fa-plus me-2"></i>Create New Experiment
+                                </a></li>
+                            </ul>
+                        </div>
+                        
+                        <!-- Quick Actions -->
+                        <div class="btn-group" role="group">
+                            <button type="button" class="btn btn-outline-secondary" onclick="processDocument({{ document.id }}, 'embeddings')">
+                                <i class="fas fa-vector-square me-1"></i>Embeddings
+                            </button>
+                            <button type="button" class="btn btn-outline-secondary" onclick="processDocument({{ document.id }}, 'segment')">
+                                <i class="fas fa-cut me-1"></i>Segment
+                            </button>
+                            <button type="button" class="btn btn-outline-secondary" onclick="processDocument({{ document.id }}, 'langextract')">
+                                <i class="fas fa-brain me-1"></i>LangExtract
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
 
         </div>
     </div>
@@ -597,6 +693,252 @@
                 console.error('Error:', error);
                 alert('Error enriching with Zotero metadata');
             });
+    }
+
+    // View LangExtract details function
+    function viewLangExtractDetails(documentId, jobId) {
+        showLoading('Loading LangExtract details...');
+
+        fetch(`/api/processing/job/${jobId}/langextract-details`)
+            .then(response => response.json())
+            .then(data => {
+                hideLoading();
+                if (data.success) {
+                    showLangExtractDetailsModal(data);
+                } else {
+                    alert('Error loading LangExtract details: ' + (data.error || 'No details found'));
+                }
+            })
+            .catch(error => {
+                hideLoading();
+                console.error('Error:', error);
+                alert('Error loading LangExtract details');
+            });
+    }
+
+    function showLangExtractDetailsModal(data) {
+        const modalHtml = `
+            <div class="modal fade" id="langExtractDetailsModal" tabindex="-1">
+                <div class="modal-dialog modal-lg">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title">
+                                <i class="fas fa-microscope me-2"></i>LangExtract Analysis Details
+                            </h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                        </div>
+                        <div class="modal-body">
+                            <div class="row mb-3">
+                                <div class="col-md-4">
+                                    <div class="card bg-light">
+                                        <div class="card-body text-center">
+                                            <h4 class="text-success">${data.segments_created || 0}</h4>
+                                            <small class="text-muted">Segments Created</small>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="card bg-light">
+                                        <div class="card-body text-center">
+                                            <h4 class="text-info">${data.key_concepts_extracted || 0}</h4>
+                                            <small class="text-muted">Key Concepts</small>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="card bg-light">
+                                        <div class="card-body text-center">
+                                            <h4 class="text-warning">${data.temporal_markers_found || 0}</h4>
+                                            <small class="text-muted">Temporal Markers</small>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            ${data.key_concepts ? `
+                            <h6>Key Concepts (${data.key_concepts.length}):</h6>
+                            <div class="mb-3" style="max-height: 150px; overflow-y: auto;">
+                                <div class="d-flex flex-wrap gap-1">
+                                    ${data.key_concepts.slice(0, 50).map(concept => 
+                                        `<span class="badge bg-success">${concept}</span>`
+                                    ).join('')}
+                                    ${data.key_concepts.length > 50 ? `<span class="badge bg-secondary">+${data.key_concepts.length - 50} more</span>` : ''}
+                                </div>
+                            </div>
+                            ` : ''}
+                            
+                            ${data.temporal_markers ? `
+                            <h6>Temporal Markers (${data.temporal_markers.length}):</h6>
+                            <div class="mb-3" style="max-height: 100px; overflow-y: auto;">
+                                <div class="d-flex flex-wrap gap-1">
+                                    ${data.temporal_markers.slice(0, 30).map(marker => 
+                                        `<span class="badge bg-info">${marker}</span>`
+                                    ).join('')}
+                                    ${data.temporal_markers.length > 30 ? `<span class="badge bg-secondary">+${data.temporal_markers.length - 30} more</span>` : ''}
+                                </div>
+                            </div>
+                            ` : ''}
+                            
+                            ${data.domain_indicators ? `
+                            <h6>Domain Indicators (${data.domain_indicators.length}):</h6>
+                            <div class="mb-3">
+                                <div class="d-flex flex-wrap gap-1">
+                                    ${[...new Set(data.domain_indicators)].slice(0, 20).map(domain => 
+                                        `<span class="badge bg-warning">${domain}</span>`
+                                    ).join('')}
+                                </div>
+                            </div>
+                            ` : ''}
+                            
+                            <div class="alert alert-info">
+                                <i class="fas fa-info-circle me-2"></i>
+                                <strong>LangExtract Two-Stage Architecture:</strong> This analysis used Google Gemini for structured extraction followed by LLM orchestration for tool selection.
+                                PROV-O compliant provenance tracking ensures full audit trails.
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        // Remove any existing modal
+        const existingModal = document.getElementById('langExtractDetailsModal');
+        if (existingModal) {
+            existingModal.remove();
+        }
+
+        // Add new modal to page
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
+
+        // Show modal
+        new bootstrap.Modal(document.getElementById('langExtractDetailsModal')).show();
+    }
+
+    // Version-aware processing functions
+    function showProcessingOptions(documentId) {
+        // Show a modal with processing options
+        const modalHtml = `
+            <div class="modal fade" id="processingOptionsModal" tabindex="-1">
+                <div class="modal-dialog">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title">
+                                <i class="fas fa-cogs me-2"></i>Process Document
+                            </h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                        </div>
+                        <div class="modal-body">
+                            <div class="alert alert-info small mb-3">
+                                <i class="fas fa-info-circle me-2"></i>Processing will create a new document version. The original will remain unchanged.
+                            </div>
+                            <div class="d-grid gap-2">
+                                <button class="btn btn-outline-primary" onclick="processDocument(${documentId}, 'embeddings')">
+                                    <i class="fas fa-vector-square me-2"></i>Generate Embeddings
+                                    <small class="d-block">Create semantic vector representations</small>
+                                </button>
+                                <button class="btn btn-outline-primary" onclick="processDocument(${documentId}, 'segment')">
+                                    <i class="fas fa-cut me-2"></i>Segment Document
+                                    <small class="d-block">Split into logical sections</small>
+                                </button>
+                                <button class="btn btn-outline-primary" onclick="processDocument(${documentId}, 'langextract')">
+                                    <i class="fas fa-brain me-2"></i>LangExtract Analysis
+                                    <small class="d-block">Advanced linguistic processing</small>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        // Remove existing modal if present
+        const existingModal = document.getElementById('processingOptionsModal');
+        if (existingModal) {
+            existingModal.remove();
+        }
+        
+        // Add modal to DOM and show
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
+        new bootstrap.Modal(document.getElementById('processingOptionsModal')).show();
+    }
+
+    function processDocument(documentId, processType) {
+        // Close any open modals
+        const modals = document.querySelectorAll('.modal');
+        modals.forEach(modal => {
+            const bsModal = bootstrap.Modal.getInstance(modal);
+            if (bsModal) bsModal.hide();
+        });
+
+        let endpoint = '';
+        let payload = {};
+        
+        switch(processType) {
+            case 'embeddings':
+                endpoint = `/processing/document/${documentId}/embeddings`;
+                payload = { method: 'local' };
+                break;
+            case 'segment':
+                endpoint = `/processing/document/${documentId}/segment`;
+                payload = { method: 'paragraph' };
+                break;
+            case 'langextract':
+                endpoint = `/processing/document/${documentId}/segment`;
+                payload = { method: 'langextract' };
+                break;
+            default:
+                alert('Unknown process type');
+                return;
+        }
+
+        // Show loading state
+        showLoading('Processing document...');
+
+        fetch(endpoint, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCsrfToken()
+            },
+            body: JSON.stringify(payload)
+        })
+        .then(response => response.json())
+        .then(data => {
+            hideLoading();
+            if (data.success) {
+                // Show success message with version information
+                let message = data.message;
+                if (data.processing_version_id) {
+                    message += `\\n\\nNew version created: ${data.version_number}`;
+                    message += `\\nProcessing Version ID: ${data.processing_version_id}`;
+                }
+                alert(message);
+                
+                // Optionally navigate to the new version
+                if (data.processing_version_id && confirm('Would you like to view the new processed version?')) {
+                    window.location.href = `/input/document/${data.processing_version_id}`;
+                } else {
+                    // Reload the current page to show updated processing jobs
+                    location.reload();
+                }
+            } else {
+                alert('Processing failed: ' + (data.error || 'Unknown error'));
+            }
+        })
+        .catch(error => {
+            hideLoading();
+            console.error('Error:', error);
+            alert('Processing failed: Network error');
+        });
+    }
+
+    function getCsrfToken() {
+        // Get CSRF token from meta tag or form
+        const csrfToken = document.querySelector('meta[name="csrf-token"]');
+        return csrfToken ? csrfToken.getAttribute('content') : '';
     }
 </script>
 {% endblock %}

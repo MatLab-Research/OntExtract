@@ -107,6 +107,20 @@ class ProcessingJob(db.Model):
                 return self.error_details
         return None
     
+    def set_status(self, status, commit=True):
+        """Set job status directly"""
+        self.status = status
+        self.updated_at = datetime.utcnow()
+        if commit:
+            db.session.commit()
+    
+    def set_error_message(self, error_message, commit=True):
+        """Set error message directly"""
+        self.error_message = error_message
+        self.updated_at = datetime.utcnow()
+        if commit:
+            db.session.commit()
+    
     def start_job(self):
         """Mark job as started"""
         self.status = 'running'

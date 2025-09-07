@@ -140,12 +140,50 @@
                     {% endif %}
                 </div>
 
-                <!-- View Details Button for Embeddings -->
+                <!-- LangExtract-specific results -->
+                {% if job.job_type == 'langextract_segmentation' and params %}
+                <div class="row text-center mt-2">
+                    {% if params.get('key_concepts_extracted') %}
+                    <div class="col-4">
+                        <div class="small">
+                            <strong class="text-success">{{ params.key_concepts_extracted }}</strong>
+                            <br><span class="text-muted">Key Concepts</span>
+                        </div>
+                    </div>
+                    {% endif %}
+                    {% if params.get('temporal_markers_found') %}
+                    <div class="col-4">
+                        <div class="small">
+                            <strong class="text-info">{{ params.temporal_markers_found }}</strong>
+                            <br><span class="text-muted">Temporal Markers</span>
+                        </div>
+                    </div>
+                    {% endif %}
+                    {% if params.get('domain_indicators_identified') %}
+                    <div class="col-4">
+                        <div class="small">
+                            <strong class="text-warning">{{ params.domain_indicators_identified }}</strong>
+                            <br><span class="text-muted">Domain Indicators</span>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+                {% endif %}
+                </div>
+
+                <!-- View Details Buttons -->
                 {% if job.job_type == 'generate_embeddings' and results.embedding_method %}
                 <div class="text-center mt-2">
                     <button class="btn btn-outline-primary btn-sm"
                         onclick="viewEmbeddingDetails({{ document.id }})">
                         <i class="fas fa-eye me-1"></i>View Embedding Details
+                    </button>
+                </div>
+                {% elif job.job_type == 'langextract_segmentation' %}
+                <div class="text-center mt-2">
+                    <button class="btn btn-outline-success btn-sm"
+                        onclick="viewLangExtractDetails({{ document.id }}, '{{ job.id }}')">
+                        <i class="fas fa-microscope me-1"></i>View LangExtract Details
                     </button>
                 </div>
                 {% endif %}
@@ -310,6 +348,15 @@ body.modal-open .modal {
                             </div>
                         </div>
                     </div>
+                    <div class="col-md-6 mb-3">
+                        <div class="card segment-option" data-method="langextract" onclick="selectSegmentationMethod('langextract')">
+                            <div class="card-body text-center">
+                                <i class="fas fa-project-diagram fa-2x text-danger mb-2"></i>
+                                <h6>LangExtract</h6>
+                                <p class="small text-muted mb-0">Two-stage LLM<br>Character positions<br>JCDL Implementation</p>
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
                 <div class="alert alert-info mt-3">
@@ -327,3 +374,154 @@ body.modal-open .modal {
         </div>
     </div>
 </div>
+
+<!-- LangExtract Details Modal -->
+<div class="modal fade" id="langextractDetailsModal" tabindex="-1">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-microscope me-2"></i>LangExtract Analysis Details
+                </h5>
+                <button type="button" class="btn-close" onclick="closeLangExtractDetailsModal()"></button>
+            </div>
+            <div class="modal-body" id="langextractDetailsContent">
+                <div class="text-center p-4">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                    <p class="mt-2">Loading LangExtract details...</p>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="closeLangExtractDetailsModal()">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function showLangExtractDetailsModal(data) {
+    const modal = document.getElementById('langextractDetailsModal');
+    const content = document.getElementById('langextractDetailsContent');
+    
+    // Build the content HTML
+    let html = '<div class="container-fluid">';
+    
+    // Job Information
+    html += '<div class="row mb-4"><div class="col-12">';
+    html += '<h6 class="text-primary mb-3"><i class="fas fa-info-circle me-2"></i>Job Information</h6>';
+    html += '<div class="row">';
+    html += `<div class="col-md-3"><strong>Job ID:</strong> ${data.job_info.job_id}</div>`;
+    html += `<div class="col-md-3"><strong>Status:</strong> <span class="badge bg-success">${data.job_info.status}</span></div>`;
+    html += `<div class="col-md-3"><strong>Processing Time:</strong> ${data.job_info.processing_time ? data.job_info.processing_time.toFixed(2) + 's' : 'N/A'}</div>`;
+    html += `<div class="col-md-3"><strong>Created:</strong> ${data.job_info.created_at ? new Date(data.job_info.created_at).toLocaleString() : 'N/A'}</div>`;
+    html += '</div></div></div>';
+    
+    // Summary Statistics
+    if (data.summary) {
+        html += '<div class="row mb-4"><div class="col-12">';
+        html += '<h6 class="text-success mb-3"><i class="fas fa-chart-bar me-2"></i>Analysis Summary</h6>';
+        html += '<div class="row text-center">';
+        
+        if (data.summary.key_concepts_extracted > 0) {
+            html += `<div class="col-md-2"><div class="card border-success"><div class="card-body p-2">`;
+            html += `<h5 class="text-success mb-1">${data.summary.key_concepts_extracted}</h5>`;
+            html += `<small class="text-muted">Key Concepts</small></div></div></div>`;
+        }
+        
+        if (data.summary.temporal_markers_found > 0) {
+            html += `<div class="col-md-2"><div class="card border-info"><div class="card-body p-2">`;
+            html += `<h5 class="text-info mb-1">${data.summary.temporal_markers_found}</h5>`;
+            html += `<small class="text-muted">Temporal Markers</small></div></div></div>`;
+        }
+        
+        if (data.summary.domain_indicators_identified > 0) {
+            html += `<div class="col-md-2"><div class="card border-warning"><div class="card-body p-2">`;
+            html += `<h5 class="text-warning mb-1">${data.summary.domain_indicators_identified}</h5>`;
+            html += `<small class="text-muted">Domain Indicators</small></div></div></div>`;
+        }
+        
+        if (data.summary.segments_created > 0) {
+            html += `<div class="col-md-2"><div class="card border-primary"><div class="card-body p-2">`;
+            html += `<h5 class="text-primary mb-1">${data.summary.segments_created}</h5>`;
+            html += `<small class="text-muted">Segments Created</small></div></div></div>`;
+        }
+        
+        html += `<div class="col-md-2"><div class="card border-secondary"><div class="card-body p-2">`;
+        html += `<h5 class="text-secondary mb-1">${data.summary.character_level_positions ? 'Yes' : 'No'}</h5>`;
+        html += `<small class="text-muted">Character Positions</small></div></div></div>`;
+        
+        html += `<div class="col-md-2"><div class="card border-dark"><div class="card-body p-2">`;
+        html += `<h5 class="text-dark mb-1">${data.summary.prov_o_tracking_complete ? 'Complete' : 'Pending'}</h5>`;
+        html += `<small class="text-muted">PROV-O Tracking</small></div></div></div>`;
+        
+        html += '</div></div></div>';
+    }
+    
+    // Detailed Analysis Results
+    if (data.detailed_analysis) {
+        const analysis = data.detailed_analysis;
+        
+        // Key Concepts
+        if (analysis.key_concepts && analysis.key_concepts.length > 0) {
+            html += '<div class="row mb-4"><div class="col-12">';
+            html += '<h6 class="text-success mb-3"><i class="fas fa-lightbulb me-2"></i>Key Concepts Extracted</h6>';
+            html += '<div class="d-flex flex-wrap gap-2">';
+            analysis.key_concepts.forEach(concept => {
+                html += `<span class="badge bg-success bg-opacity-75 p-2">${concept}</span>`;
+            });
+            html += '</div></div></div>';
+        }
+        
+        // Temporal Markers
+        if (analysis.temporal_markers && analysis.temporal_markers.length > 0) {
+            html += '<div class="row mb-4"><div class="col-12">';
+            html += '<h6 class="text-info mb-3"><i class="fas fa-clock me-2"></i>Temporal Markers Found</h6>';
+            html += '<div class="d-flex flex-wrap gap-2">';
+            analysis.temporal_markers.forEach(marker => {
+                html += `<span class="badge bg-info bg-opacity-75 p-2">${marker}</span>`;
+            });
+            html += '</div></div></div>';
+        }
+        
+        // Domain Indicators
+        if (analysis.domain_indicators && analysis.domain_indicators.length > 0) {
+            html += '<div class="row mb-4"><div class="col-12">';
+            html += '<h6 class="text-warning mb-3"><i class="fas fa-tags me-2"></i>Domain Indicators Identified</h6>';
+            html += '<div class="d-flex flex-wrap gap-2">';
+            analysis.domain_indicators.forEach(indicator => {
+                html += `<span class="badge bg-warning bg-opacity-75 text-dark p-2">${indicator}</span>`;
+            });
+            html += '</div></div></div>';
+        }
+    }
+    
+    // Parameters
+    if (data.parameters && Object.keys(data.parameters).length > 0) {
+        html += '<div class="row mb-4"><div class="col-12">';
+        html += '<h6 class="text-secondary mb-3"><i class="fas fa-cog me-2"></i>Processing Parameters</h6>';
+        html += '<div class="table-responsive">';
+        html += '<table class="table table-sm table-striped">';
+        Object.entries(data.parameters).forEach(([key, value]) => {
+            html += `<tr><td><strong>${key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}:</strong></td><td>${JSON.stringify(value)}</td></tr>`;
+        });
+        html += '</table></div></div></div>';
+    }
+    
+    html += '</div>';
+    
+    content.innerHTML = html;
+    
+    // Show modal
+    const bsModal = new bootstrap.Modal(modal);
+    bsModal.show();
+}
+
+function closeLangExtractDetailsModal() {
+    const modal = bootstrap.Modal.getInstance(document.getElementById('langextractDetailsModal'));
+    if (modal) {
+        modal.hide();
+    }
+}
+</script>
