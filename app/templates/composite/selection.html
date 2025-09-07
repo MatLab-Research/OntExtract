@@ -1,0 +1,271 @@
+{% extends "base.html" %}
+
+{% block title %}Create Composite Document{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h4 class="mb-0">Create Composite Document</h4>
+                    <div>
+                        <button class="btn btn-outline-secondary me-2" onclick="selectAll()">Select All</button>
+                        <button class="btn btn-outline-secondary" onclick="clearSelection()">Clear All</button>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-info" role="alert">
+                        <strong>Composite Documents</strong> combine processing results from multiple document versions, 
+                        giving you access to all processing types (embeddings, segmentation, etc.) in one unified interface.
+                    </div>
+
+                    <form id="compositeForm" onsubmit="createComposite(event)">
+                        <div class="row mb-4">
+                            <div class="col-md-6">
+                                <label for="compositeTitle" class="form-label">Composite Document Title</label>
+                                <input type="text" class="form-control" id="compositeTitle" name="title" 
+                                       placeholder="Enter title for composite document" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="compositeStrategy" class="form-label">Processing Strategy</label>
+                                <select class="form-control" id="compositeStrategy" name="strategy">
+                                    <option value="all_processing">Include All Processing Types</option>
+                                    <option value="latest_version">Use Latest Version of Each Type</option>
+                                    <option value="selective">Selective (Choose Manually)</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <h5 class="mb-3">Select Source Documents</h5>
+                        
+                        {% for root_id, group in document_groups.items() %}
+                        <div class="card mb-3 document-group">
+                            <div class="card-header">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <h6 class="mb-0">
+                                        {% if group.original %}
+                                            {{ group.original.title }}
+                                        {% else %}
+                                            Document Group {{ root_id }}
+                                        {% endif %}
+                                    </h6>
+                                    <span class="badge bg-secondary">
+                                        {{ (group.processed | length) + (1 if group.original else 0) }} version(s)
+                                    </span>
+                                </div>
+                            </div>
+                            <div class="card-body">
+                                <div class="row">
+                                    {% if group.original %}
+                                    <div class="col-md-6 mb-2">
+                                        <div class="form-check document-option">
+                                            <input class="form-check-input" type="checkbox" 
+                                                   name="source_documents" 
+                                                   value="{{ group.original.id }}"
+                                                   id="doc_{{ group.original.id }}">
+                                            <label class="form-check-label" for="doc_{{ group.original.id }}">
+                                                <div class="document-card">
+                                                    <div class="d-flex justify-content-between">
+                                                        <strong>{{ group.original.title }}</strong>
+                                                        <span class="badge bg-primary">Original</span>
+                                                    </div>
+                                                    <small class="text-muted">
+                                                        Created: {{ group.original.created_at.strftime('%Y-%m-%d') }}
+                                                    </small>
+                                                    <div class="processing-types mt-1">
+                                                        {% set completed_jobs = group.original.processing_jobs.filter_by(status='completed').all() %}
+                                                        {% if completed_jobs %}
+                                                            <span class="text-success">
+                                                                Processing: {{ completed_jobs | map(attribute='job_type') | join(', ') }}
+                                                            </span>
+                                                        {% else %}
+                                                            <span class="text-muted">No processing applied</span>
+                                                        {% endif %}
+                                                    </div>
+                                                </div>
+                                            </label>
+                                        </div>
+                                    </div>
+                                    {% endif %}
+                                    
+                                    {% for processed_doc in group.processed %}
+                                    <div class="col-md-6 mb-2">
+                                        <div class="form-check document-option">
+                                            <input class="form-check-input" type="checkbox" 
+                                                   name="source_documents" 
+                                                   value="{{ processed_doc.id }}"
+                                                   id="doc_{{ processed_doc.id }}">
+                                            <label class="form-check-label" for="doc_{{ processed_doc.id }}">
+                                                <div class="document-card">
+                                                    <div class="d-flex justify-content-between">
+                                                        <strong>{{ processed_doc.title }}</strong>
+                                                        <span class="badge bg-info">Processed</span>
+                                                    </div>
+                                                    <small class="text-muted">
+                                                        Created: {{ processed_doc.created_at.strftime('%Y-%m-%d') }}
+                                                    </small>
+                                                    <div class="processing-types mt-1">
+                                                        {% set completed_jobs = processed_doc.processing_jobs.filter_by(status='completed').all() %}
+                                                        {% if completed_jobs %}
+                                                            <span class="text-success">
+                                                                Processing: {{ completed_jobs | map(attribute='job_type') | join(', ') }}
+                                                            </span>
+                                                        {% else %}
+                                                            <span class="text-muted">No processing applied</span>
+                                                        {% endif %}
+                                                    </div>
+                                                </div>
+                                            </label>
+                                        </div>
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                                
+                                {% if group.processed | length > 1 %}
+                                <div class="mt-2">
+                                    <button type="button" class="btn btn-sm btn-outline-primary" 
+                                            onclick="autoCreateFromGroup({{ root_id }})">
+                                        Auto-Create Composite from This Group
+                                    </button>
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        {% endfor %}
+
+                        {% if not document_groups %}
+                        <div class="alert alert-warning" role="alert">
+                            No documents available for composite creation. Upload some documents and apply processing first.
+                        </div>
+                        {% endif %}
+
+                        <div class="d-flex justify-content-between mt-4">
+                            <a href="{{ url_for('text_input.document_list') }}" class="btn btn-secondary">Cancel</a>
+                            <div>
+                                <span id="selectionCount" class="me-3 text-muted">0 documents selected</span>
+                                <button type="submit" class="btn btn-primary" id="createBtn" disabled>
+                                    Create Composite Document
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function updateSelectionCount() {
+    const checked = document.querySelectorAll('input[name="source_documents"]:checked');
+    const count = checked.length;
+    document.getElementById('selectionCount').textContent = `${count} document(s) selected`;
+    document.getElementById('createBtn').disabled = count < 2;
+}
+
+function selectAll() {
+    document.querySelectorAll('input[name="source_documents"]').forEach(cb => {
+        cb.checked = true;
+    });
+    updateSelectionCount();
+}
+
+function clearSelection() {
+    document.querySelectorAll('input[name="source_documents"]').forEach(cb => {
+        cb.checked = false;
+    });
+    updateSelectionCount();
+}
+
+function createComposite(event) {
+    event.preventDefault();
+    
+    const form = event.target;
+    const formData = new FormData(form);
+    
+    const selectedDocs = Array.from(document.querySelectorAll('input[name="source_documents"]:checked'))
+                              .map(cb => parseInt(cb.value));
+    
+    if (selectedDocs.length < 2) {
+        alert('Please select at least 2 documents to create a composite.');
+        return;
+    }
+    
+    const data = {
+        title: formData.get('title'),
+        strategy: formData.get('strategy'),
+        source_documents: selectedDocs
+    };
+    
+    fetch('{{ url_for("composite.create_composite") }}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data)
+    })
+    .then(response => response.json())
+    .then(result => {
+        if (result.success) {
+            window.location.href = result.redirect_url;
+        } else {
+            alert('Error: ' + result.error);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('An error occurred while creating the composite document.');
+    });
+}
+
+async function autoCreateFromGroup(rootId) {
+    try {
+        const response = await fetch(`{{ url_for("composite.auto_create_composite", original_document_id=0) }}`.replace('0', rootId), {
+            method: 'POST'
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            window.location.href = result.redirect_url;
+        } else {
+            alert('Error: ' + result.error);
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        alert('An error occurred while auto-creating the composite document.');
+    }
+}
+
+// Add event listeners
+document.addEventListener('DOMContentLoaded', function() {
+    document.querySelectorAll('input[name="source_documents"]').forEach(cb => {
+        cb.addEventListener('change', updateSelectionCount);
+    });
+    updateSelectionCount();
+});
+</script>
+
+<style>
+.document-card {
+    border: 1px solid #dee2e6;
+    border-radius: 0.25rem;
+    padding: 0.75rem;
+    margin-top: 0.25rem;
+    background-color: #f8f9fa;
+}
+
+.document-option:hover .document-card {
+    background-color: #e9ecef;
+}
+
+.processing-types {
+    font-size: 0.875rem;
+}
+
+.document-group {
+    border-left: 4px solid #007bff;
+}
+</style>
+{% endblock %}

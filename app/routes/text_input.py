@@ -238,10 +238,39 @@ def document_detail(document_id):
     from app.models.experiment import Experiment
     experiments = Experiment.query.order_by(Experiment.created_at.desc()).all()
     
+    # Check for composite document recommendations
+    composite_recommendation = None
+    if document.version_type == 'original':
+        # Check for processed versions
+        processed_versions = Document.query.filter(
+            Document.source_document_id == document.id,
+            Document.version_type == 'processed'
+        ).all()
+        
+        if len(processed_versions) > 1:
+            # Get unique processing types
+            processing_types = set()
+            for version in processed_versions:
+                for job in version.processing_jobs.filter(ProcessingJob.status == 'completed'):
+                    processing_types.add(job.job_type)
+            
+            if len(processing_types) > 1:
+                composite_recommendation = {
+                    'type': 'composite_creation',
+                    'title': 'Create Unified Processing Document',
+                    'description': f'Combine {len(processing_types)} processing types ({", ".join(processing_types)}) into one document',
+                    'action': 'create_composite',
+                    'priority': 'high',
+                    'benefit': 'Access all processing results simultaneously',
+                    'processing_types': list(processing_types),
+                    'source_count': len(processed_versions) + 1  # +1 for original
+                }
+    
     return render_template('text_input/document_detail.html', 
                          document=document, 
                          processing_jobs=processing_jobs,
-                         experiments=experiments)
+                         experiments=experiments,
+                         composite_recommendation=composite_recommendation)
 
 @text_input_bp.route('/document/<int:document_id>/delete', methods=['POST'])
 @login_required

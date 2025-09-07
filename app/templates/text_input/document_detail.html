@@ -51,12 +51,53 @@
                     </div>
                     {% endif %}
                     
+                    <!-- Composite Document Features -->
+                    {% if document.version_type == 'composite' %}
+                    <div class="alert alert-info mb-3" role="alert">
+                        <div class="d-flex align-items-center mb-2">
+                            <i class="fas fa-layer-group me-2"></i>
+                            <strong>Composite Document</strong>
+                            <span class="badge bg-primary ms-2">all_processing</span>
+                        </div>
+                        <div id="compositeInfo">
+                            <small>Loading composite information...</small>
+                        </div>
+                    </div>
+                    {% endif %}
+                    
+                    <!-- Processing Recommendations -->
+                    {% if composite_recommendation %}
+                    <div class="alert alert-success" role="alert">
+                        <h6><i class="fas fa-lightbulb me-2"></i>Processing Recommendation</h6>
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <strong>{{ composite_recommendation.title }}</strong><br>
+                                <small>{{ composite_recommendation.description }}</small><br>
+                                <small class="text-success"><strong>Benefit:</strong> {{ composite_recommendation.benefit }}</small>
+                            </div>
+                            <div class="text-end">
+                                <div class="mb-2">
+                                    <small class="text-muted">
+                                        Processing types: {{ composite_recommendation.processing_types | join(', ') }}<br>
+                                        Source documents: {{ composite_recommendation.source_count }}
+                                    </small>
+                                </div>
+                                <button class="btn btn-success" onclick="createCompositeFromRecommendation({{ document.id }})">
+                                    <i class="fas fa-layer-group me-1"></i>Create Composite
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+                    
                     <div class="text-muted">
                         <i class="fas fa-calendar me-2"></i>Created {{ document.created_at.strftime('%B %d, %Y at %I:%M
                         %p') }}
                         {% if document.content_type == 'file' %}
                         <br><i class="fas fa-file me-2"></i>{{ document.original_filename }}
+                        {% if document.file_size %}
                         ({{ "%.1f"|format(document.file_size / 1024) }} KB)
+                        {% endif %}
                         {% endif %}
                         {% if document.detected_language %}
                         <br><i class="fas fa-language me-2"></i>{{ document.detected_language.upper() }}
@@ -452,6 +493,153 @@
                     </div>
                 </div>
             </div>
+
+            <!-- Recent Processing Jobs -->
+            {% if processing_jobs %}
+            <div class="card mb-4">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h6 class="mb-0">
+                        <i class="fas fa-history me-2"></i>Recent Processing
+                    </h6>
+                    <button class="btn btn-outline-danger btn-sm" onclick="clearProcessingHistory({{ document.id }})">
+                        <i class="fas fa-trash me-1"></i>Clear History
+                    </button>
+                </div>
+                <div class="card-body">
+                    {% for job in processing_jobs %}
+                    <div class="border rounded p-3 mb-3">
+                        <div class="d-flex justify-content-between align-items-start mb-2">
+                            <div class="flex-grow-1">
+                                <div class="d-flex align-items-center">
+                                    <strong class="text-primary">{{ job.job_type.replace('_', ' ').title() }}</strong>
+                                    <span class="badge ms-2
+                                        {% if job.status == 'completed' %}bg-success
+                                        {% elif job.status == 'processing' %}bg-warning
+                                        {% elif job.status == 'failed' or job.status == 'error' %}bg-danger
+                                        {% else %}bg-secondary{% endif %}">
+                                        {{ job.status.title() }}
+                                    </span>
+                                </div>
+                                <small class="text-muted">
+                                    {{ job.created_at.strftime('%B %d, %Y at %I:%M %p') }}
+                                    {% if job.processing_time %}
+                                    • {{ "%.1f"|format(job.processing_time) }}s
+                                    {% endif %}
+                                </small>
+                            </div>
+                        </div>
+
+                        <!-- Job Parameters -->
+                        {% set params = job.get_parameters() %}
+                        {% if params %}
+                        <div class="mb-2">
+                            <small class="text-muted">Parameters:</small>
+                            <div class="d-flex flex-wrap gap-1">
+                                {% for key, value in params.items() %}
+                                {% if key not in ['prov_entity_id', 'prov_activity_id', 'original_document_id'] %}
+                                <span class="badge bg-light text-dark">{{ key }}: {{ value }}</span>
+                                {% endif %}
+                                {% endfor %}
+                            </div>
+                        </div>
+                        {% endif %}
+
+                        <!-- Job Results -->
+                        {% if job.status == 'completed' %}
+                        {% set results = job.get_result_data() %}
+                        {% if results %}
+                        <div class="mt-2">
+                            <small class="text-muted">Results:</small>
+                            <div class="row text-center mt-1">
+                                {% if results.embedding_method %}
+                                <div class="col-4">
+                                    <div class="small">
+                                        <strong class="text-success">{{ results.embedding_method.title() }}</strong>
+                                        <br><span class="text-muted">Method</span>
+                                    </div>
+                                </div>
+                                {% endif %}
+                                {% if results.embedding_dimensions %}
+                                <div class="col-4">
+                                    <div class="small">
+                                        <strong class="text-info">{{ results.embedding_dimensions }}</strong>
+                                        <br><span class="text-muted">Dimensions</span>
+                                    </div>
+                                </div>
+                                {% endif %}
+                                {% if results.chunk_count %}
+                                <div class="col-4">
+                                    <div class="small">
+                                        <strong class="text-warning">{{ results.chunk_count }}</strong>
+                                        <br><span class="text-muted">Chunks</span>
+                                    </div>
+                                </div>
+                                {% elif results.segment_count %}
+                                <div class="col-4">
+                                    <div class="small">
+                                        <strong class="text-warning">{{ results.segment_count }}</strong>
+                                        <br><span class="text-muted">Segments</span>
+                                    </div>
+                                </div>
+                                {% elif results.entities_found %}
+                                <div class="col-4">
+                                    <div class="small">
+                                        <strong class="text-warning">{{ results.entities_found }}</strong>
+                                        <br><span class="text-muted">Entities</span>
+                                    </div>
+                                </div>
+                                {% elif results.fields_enhanced %}
+                                <div class="col-4">
+                                    <div class="small">
+                                        <strong class="text-warning">{{ results.fields_enhanced }}</strong>
+                                        <br><span class="text-muted">Fields</span>
+                                    </div>
+                                </div>
+                                {% endif %}
+                            </div>
+
+                            <!-- View Details Buttons -->
+                            <div class="text-center mt-2">
+                                {% if job.job_type == 'generate_embeddings' and results.embedding_method %}
+                                <button class="btn btn-outline-primary btn-sm me-2"
+                                    onclick="viewEmbeddingDetails({{ document.id }})">
+                                    <i class="fas fa-eye me-1"></i>View Embedding Details
+                                </button>
+                                {% endif %}
+                                {% if job.job_type == 'langextract_segmentation' %}
+                                <button class="btn btn-outline-success btn-sm me-2"
+                                    onclick="viewLangExtractDetails({{ document.id }}, {{ job.id }})">
+                                    <i class="fas fa-microscope me-1"></i>LangExtract Details
+                                </button>
+                                {% endif %}
+                                {% if results.processing_version_id or results.original_document_id %}
+                                <button class="btn btn-outline-info btn-sm"
+                                    onclick="viewProcessingVersions({{ document.id }})">
+                                    <i class="fas fa-code-branch me-1"></i>View Versions
+                                </button>
+                                {% endif %}
+                            </div>
+                        </div>
+                        {% endif %}
+                        {% elif job.status == 'failed' or job.status == 'error' %}
+                        <div class="mt-2">
+                            <div class="alert alert-danger small mb-0">
+                                <i class="fas fa-exclamation-triangle me-1"></i>
+                                <strong>Error:</strong> {{ job.error_message if job.error_message else 'Processing failed' }}
+                            </div>
+                        </div>
+                        {% endif %}
+
+                        {% if job.result_summary %}
+                        <div class="mt-2">
+                            <small class="text-muted">{{ job.result_summary }}</small>
+                        </div>
+                        {% endif %}
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
 
         </div>
     </div>
@@ -927,16 +1115,14 @@
         .then(data => {
             hideLoading();
             if (data.success) {
-                // Show success message with version information
-                let message = data.message;
-                if (data.processing_version_id) {
-                    message += `\\n\\nNew version created: ${data.version_number}`;
-                    message += `\\nProcessing Version ID: ${data.processing_version_id}`;
-                }
-                alert(message);
+                // Show success message
+                alert(data.message);
                 
-                // Optionally navigate to the new version
-                if (data.processing_version_id && confirm('Would you like to view the new processed version?')) {
+                // Auto-redirect to composite document or processed version
+                if (data.redirect_url) {
+                    window.location.href = data.redirect_url;
+                } else if (data.processing_version_id) {
+                    // Fallback to processed version if no redirect URL
                     window.location.href = `/input/document/${data.processing_version_id}`;
                 } else {
                     // Reload the current page to show updated processing jobs
@@ -1047,5 +1233,262 @@
         const csrfToken = document.querySelector('meta[name="csrf-token"]');
         return csrfToken ? csrfToken.getAttribute('content') : '';
     }
+
+    // Clear processing history function
+    function clearProcessingHistory(documentId) {
+        if (!confirm('Are you sure you want to clear all processing history for this document? This cannot be undone.')) {
+            return;
+        }
+
+        showLoading('Clearing processing history...');
+
+        fetch(`/processing/document/${documentId}/jobs`, {
+            method: 'DELETE',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCsrfToken()
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            hideLoading();
+            if (data.success) {
+                alert(`Cleared ${data.deleted_count} processing jobs`);
+                location.reload(); // Refresh to hide the processing history section
+            } else {
+                alert('Error clearing processing history: ' + (data.error || 'Unknown error'));
+            }
+        })
+        .catch(error => {
+            hideLoading();
+            console.error('Error:', error);
+            alert('Error clearing processing history');
+        });
+    }
+
+    // View processing versions function
+    function viewProcessingVersions(documentId) {
+        showLoading('Loading document versions...');
+
+        fetch(`/input/document/${documentId}`)
+            .then(response => {
+                hideLoading();
+                // For now, just reload the page to show version navigation
+                // In the future, this could show a modal with version comparison
+                location.reload();
+            })
+            .catch(error => {
+                hideLoading();
+                console.error('Error:', error);
+                alert('Error loading document versions');
+            });
+    }
+
+    // Composite Document Functions
+    function loadCompositeInfo(documentId) {
+        fetch(`/composite/sources/${documentId}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    const infoDiv = document.getElementById('compositeInfo');
+                    const processingTypes = data.available_processing;
+                    const sourceCount = data.total_sources;
+                    
+                    infoDiv.innerHTML = `
+                        <div class="row">
+                            <div class="col-md-6">
+                                <small><strong>Sources:</strong> ${sourceCount} document(s)</small>
+                            </div>
+                            <div class="col-md-6">
+                                <small><strong>Available Processing:</strong> ${processingTypes.join(', ') || 'None'}</small>
+                            </div>
+                        </div>
+                        <div class="mt-2">
+                            <button class="btn btn-sm btn-outline-info me-2" onclick="showCompositeDetails(${documentId})">
+                                View Source Details
+                            </button>
+                            <button class="btn btn-sm btn-outline-primary" onclick="updateComposite(${documentId})">
+                                Refresh Composite
+                            </button>
+                        </div>
+                    `;
+                }
+            })
+            .catch(error => {
+                console.error('Error loading composite info:', error);
+                document.getElementById('compositeInfo').innerHTML = '<small class="text-muted">Error loading composite information</small>';
+            });
+    }
+
+    function loadProcessingRecommendations(documentId) {
+        fetch(`/composite/recommendations/${documentId}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.success && data.recommendations.length > 0) {
+                    const recommendationsDiv = document.getElementById('processingRecommendations');
+                    const recommendations = data.recommendations;
+                    
+                    let html = '<div class="alert alert-success" role="alert">';
+                    html += '<h6><i class="fas fa-lightbulb me-2"></i>Processing Recommendations</h6>';
+                    
+                    recommendations.forEach(rec => {
+                        html += `
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <div>
+                                    <strong>${rec.title}</strong><br>
+                                    <small>${rec.description}</small>
+                                </div>
+                                <div>
+                                    ${rec.action === 'create_composite' ? 
+                                        `<button class="btn btn-sm btn-success" onclick="autoCreateComposite(${documentId})">Create</button>` :
+                                        `<a href="/input/document/${rec.document_id}" class="btn btn-sm btn-info">View</a>`
+                                    }
+                                </div>
+                            </div>
+                        `;
+                    });
+                    
+                    html += '</div>';
+                    recommendationsDiv.innerHTML = html;
+                }
+            })
+            .catch(error => {
+                console.error('Error loading recommendations:', error);
+            });
+    }
+
+    function autoCreateComposite(documentId) {
+        if (!confirm('Create a composite document that combines all processing results from this document\'s versions?')) {
+            return;
+        }
+        
+        showLoading('Creating composite document...');
+        
+        fetch(`/composite/auto-create/${documentId}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            hideLoading();
+            if (data.success) {
+                alert('Composite document created successfully!');
+                window.location.href = data.redirect_url;
+            } else {
+                alert('Error: ' + data.error);
+            }
+        })
+        .catch(error => {
+            hideLoading();
+            console.error('Error:', error);
+            alert('Error creating composite document');
+        });
+    }
+
+    // Alias for the recommendation button
+    function createCompositeFromRecommendation(documentId) {
+        autoCreateComposite(documentId);
+    }
+
+    function updateComposite(compositeId) {
+        showLoading('Updating composite document...');
+        
+        fetch(`/composite/update/${compositeId}`, {
+            method: 'POST'
+        })
+        .then(response => response.json())
+        .then(data => {
+            hideLoading();
+            if (data.success) {
+                alert('Composite document updated successfully!');
+                loadCompositeInfo(compositeId);
+            } else {
+                alert('Error: ' + data.error);
+            }
+        })
+        .catch(error => {
+            hideLoading();
+            console.error('Error:', error);
+            alert('Error updating composite document');
+        });
+    }
+
+    function showCompositeDetails(compositeId) {
+        fetch(`/composite/sources/${compositeId}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    let modalContent = '<div class="modal-body">';
+                    modalContent += '<h5>Source Documents</h5>';
+                    
+                    data.source_documents.forEach(source => {
+                        modalContent += `
+                            <div class="card mb-2">
+                                <div class="card-body">
+                                    <div class="d-flex justify-content-between">
+                                        <div>
+                                            <h6>${source.title}</h6>
+                                            <small class="text-muted">Created: ${new Date(source.created_at).toLocaleDateString()}</small>
+                                        </div>
+                                        <div>
+                                            <span class="badge bg-info">${source.version_type}</span>
+                                            <a href="/input/document/${source.id}" class="btn btn-sm btn-outline-primary ms-2">View</a>
+                                        </div>
+                                    </div>
+                                    <div class="mt-2">
+                                        <strong>Processing:</strong> ${source.processing_types.join(', ') || 'None'}
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                    });
+                    
+                    modalContent += '</div>';
+                    
+                    // Create and show modal (assuming Bootstrap modal structure exists)
+                    const modal = document.createElement('div');
+                    modal.className = 'modal fade';
+                    modal.innerHTML = `
+                        <div class="modal-dialog modal-lg">
+                            <div class="modal-content">
+                                <div class="modal-header">
+                                    <h5 class="modal-title">Composite Document Sources</h5>
+                                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                </div>
+                                ${modalContent}
+                            </div>
+                        </div>
+                    `;
+                    
+                    document.body.appendChild(modal);
+                    const bootstrapModal = new bootstrap.Modal(modal);
+                    bootstrapModal.show();
+                    
+                    // Clean up modal after hiding
+                    modal.addEventListener('hidden.bs.modal', () => {
+                        document.body.removeChild(modal);
+                    });
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Error loading composite details');
+            });
+    }
+
+    // Initialize composite features on page load
+    document.addEventListener('DOMContentLoaded', function() {
+        const documentId = {{ document.id }};
+        
+        // Load composite info if this is a composite document
+        {% if document.version_type == 'composite' %}
+        loadCompositeInfo(documentId);
+        {% endif %}
+        
+        // Load processing recommendations for all document types
+        loadProcessingRecommendations(documentId);
+    });
 </script>
 {% endblock %}
