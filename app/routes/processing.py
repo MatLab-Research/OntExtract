@@ -7,6 +7,7 @@ from app.models.document import Document
 from app.models.processing_job import ProcessingJob
 from app.models.provenance import ProvenanceEntity, ProvenanceActivity
 from app.services.enhanced_document_processor import EnhancedDocumentProcessor
+from app.services.inheritance_versioning_service import InheritanceVersioningService
 
 processing_bp = Blueprint('processing', __name__)
 
@@ -120,11 +121,23 @@ def generate_embeddings(document_id):
             if auto_detect_period:
                 processing_notes += ' (auto-detect period)'
         
-        # Create a new version for processing
-        processing_version = original_document.create_version(
-            version_type='processed',
-            experiment_id=experiment_id,
-            processing_notes=processing_notes
+        # Create a new version using inheritance (includes all previous processing)
+        processing_metadata = {
+            'embedding_method': embedding_method,
+            'experiment_id': experiment_id,
+            'processing_notes': processing_notes
+        }
+        if embedding_method == 'period_aware':
+            processing_metadata.update({
+                'force_period': force_period,
+                'model_preference': model_preference,
+                'auto_detect_period': auto_detect_period
+            })
+        
+        processing_version = InheritanceVersioningService.create_new_version(
+            original_document=original_document,
+            processing_type='embeddings',
+            processing_metadata=processing_metadata
         )
         
         # Create PROV-O Entity for the new document version
@@ -247,20 +260,19 @@ def generate_embeddings(document_id):
             db.session.commit()
             raise e
         
-        # Auto-create or update composite document
-        from app.services.composite_document_service import CompositeDocumentService
-        composite_doc = CompositeDocumentService.auto_create_or_update_composite(original_document)
+        # Get base document ID for consistent redirection
+        base_document_id = InheritanceVersioningService._get_base_document_id(original_document)
         
         return jsonify({
             'success': True,
             'job_id': job.id,
             'method': embedding_method,
-            'original_document_id': original_document.id,
-            'processing_version_id': processing_version.id,
-            'composite_document_id': composite_doc.id if composite_doc else None,
+            'base_document_id': base_document_id,
+            'latest_version_id': processing_version.id,
+            'processing_version_id': processing_version.id,  # For frontend compatibility
             'version_number': processing_version.version_number,
-            'message': f'Embeddings generated using {embedding_method} method (created version {processing_version.version_number})',
-            'redirect_url': f'/input/document/{composite_doc.id}' if composite_doc else f'/input/document/{processing_version.id}'
+            'message': f'Embeddings generated using {embedding_method} method (version {processing_version.version_number} with inherited processing)',
+            'redirect_url': f'/input/document/{processing_version.id}'
         })
         
     except Exception as e:
@@ -285,11 +297,19 @@ def segment_document(document_id):
                 'error': 'Document has no content to segment'
             }), 400
         
-        # Create a new version for processing
-        processing_version = original_document.create_version(
-            version_type='processed',
-            experiment_id=experiment_id,
-            processing_notes=f'Document segmentation using {method} method'
+        # Create a new version using inheritance (includes all previous processing)
+        processing_metadata = {
+            'segmentation_method': method,
+            'chunk_size': chunk_size,
+            'overlap': overlap,
+            'experiment_id': experiment_id,
+            'processing_notes': f'Document segmentation using {method} method'
+        }
+        
+        processing_version = InheritanceVersioningService.create_new_version(
+            original_document=original_document,
+            processing_type='segmentation',
+            processing_metadata=processing_metadata
         )
         
         # Create PROV-O Entity for the new document version
@@ -577,20 +597,19 @@ def segment_document(document_id):
         
         db.session.commit()
         
-        # Auto-create or update composite document
-        from app.services.composite_document_service import CompositeDocumentService
-        composite_doc = CompositeDocumentService.auto_create_or_update_composite(original_document)
+        # Get base document ID for consistent redirection
+        base_document_id = InheritanceVersioningService._get_base_document_id(original_document)
         
         return jsonify({
             'success': True,
             'job_id': job.id,
             'segments_created': segment_count,
-            'original_document_id': original_document.id,
-            'processing_version_id': processing_version.id,
-            'composite_document_id': composite_doc.id if composite_doc else None,
+            'base_document_id': base_document_id,
+            'latest_version_id': processing_version.id,
+            'processing_version_id': processing_version.id,  # For frontend compatibility
             'version_number': processing_version.version_number,
-            'message': f'Document segmented into {segment_count} chunks (created version {processing_version.version_number})',
-            'redirect_url': f'/input/document/{composite_doc.id}' if composite_doc else f'/input/document/{processing_version.id}'
+            'message': f'Document segmented into {segment_count} chunks (version {processing_version.version_number} with inherited processing)',
+            'redirect_url': f'/input/document/{processing_version.id}'
         })
         
     except Exception as e:
