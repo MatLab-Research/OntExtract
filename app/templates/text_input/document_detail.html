@@ -419,10 +419,18 @@
                             </button>
                             <ul class="dropdown-menu w-100">
                                 <li><h6 class="dropdown-header">Available Experiments</h6></li>
-                                <li><a class="dropdown-item" href="{{ url_for('experiments.process_document', experiment_id=41, document_id=document.id) }}">
-                                    <i class="fas fa-flask me-2"></i>Experiment 41
-                                </a></li>
-                                <li><hr class="dropdown-divider"></li>
+                                {% if experiments %}
+                                    {% for experiment in experiments %}
+                                    <li><a class="dropdown-item" href="{{ url_for('experiments.process_document', experiment_id=experiment.id, document_id=document.id) }}">
+                                        <i class="fas fa-flask me-2"></i>{{ experiment.name }}
+                                        <small class="text-muted d-block">{{ experiment.experiment_type }}</small>
+                                    </a></li>
+                                    {% endfor %}
+                                    <li><hr class="dropdown-divider"></li>
+                                {% else %}
+                                    <li><span class="dropdown-item-text text-muted">No experiments available</span></li>
+                                    <li><hr class="dropdown-divider"></li>
+                                {% endif %}
                                 <li><a class="dropdown-item" href="{{ url_for('experiments.new') }}">
                                     <i class="fas fa-plus me-2"></i>Create New Experiment
                                 </a></li>

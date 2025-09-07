@@ -234,9 +234,14 @@ def document_detail(document_id):
     # Get processing jobs for this document
     processing_jobs = document.processing_jobs.order_by(ProcessingJob.created_at.desc()).limit(5).all()
     
+    # Get available experiments for dropdown
+    from app.models.experiment import Experiment
+    experiments = Experiment.query.order_by(Experiment.created_at.desc()).all()
+    
     return render_template('text_input/document_detail.html', 
                          document=document, 
-                         processing_jobs=processing_jobs)
+                         processing_jobs=processing_jobs,
+                         experiments=experiments)
 
 @text_input_bp.route('/document/<int:document_id>/delete', methods=['POST'])
 @login_required
