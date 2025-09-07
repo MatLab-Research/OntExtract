@@ -227,8 +227,6 @@ deploy.env.example
 
 # Private scripts (not for version control)
 *.private
-setup_admin.sh.private
-create_admin_wook.py
 SHARING_GUIDE.md
 *.env
 

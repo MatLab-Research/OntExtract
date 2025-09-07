@@ -247,14 +247,20 @@ def generate_embeddings(document_id):
             db.session.commit()
             raise e
         
+        # Auto-create or update composite document
+        from app.services.composite_document_service import CompositeDocumentService
+        composite_doc = CompositeDocumentService.auto_create_or_update_composite(original_document)
+        
         return jsonify({
             'success': True,
             'job_id': job.id,
             'method': embedding_method,
             'original_document_id': original_document.id,
             'processing_version_id': processing_version.id,
+            'composite_document_id': composite_doc.id if composite_doc else None,
             'version_number': processing_version.version_number,
-            'message': f'Embeddings generated using {embedding_method} method (created version {processing_version.version_number})'
+            'message': f'Embeddings generated using {embedding_method} method (created version {processing_version.version_number})',
+            'redirect_url': f'/input/document/{composite_doc.id}' if composite_doc else f'/input/document/{processing_version.id}'
         })
         
     except Exception as e:
@@ -571,14 +577,20 @@ def segment_document(document_id):
         
         db.session.commit()
         
+        # Auto-create or update composite document
+        from app.services.composite_document_service import CompositeDocumentService
+        composite_doc = CompositeDocumentService.auto_create_or_update_composite(original_document)
+        
         return jsonify({
             'success': True,
             'job_id': job.id,
             'segments_created': segment_count,
             'original_document_id': original_document.id,
             'processing_version_id': processing_version.id,
+            'composite_document_id': composite_doc.id if composite_doc else None,
             'version_number': processing_version.version_number,
-            'message': f'Document segmented into {segment_count} chunks (created version {processing_version.version_number})'
+            'message': f'Document segmented into {segment_count} chunks (created version {processing_version.version_number})',
+            'redirect_url': f'/input/document/{composite_doc.id}' if composite_doc else f'/input/document/{processing_version.id}'
         })
         
     except Exception as e:
