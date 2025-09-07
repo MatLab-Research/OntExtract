@@ -268,3 +268,6 @@ temp_*/
 # Data directories (experimental data, academic papers, processing results)
 data/
 */data/
+
+# Development review directory (temporary files for review before deletion)
+untracked_review/

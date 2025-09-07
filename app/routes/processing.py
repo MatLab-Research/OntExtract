@@ -91,8 +91,13 @@ def generate_embeddings(document_id):
         embedding_method = data.get('method', 'local')
         experiment_id = data.get('experiment_id')  # Optional experiment association
         
+        # Period-aware embedding parameters
+        force_period = data.get('force_period')
+        model_preference = data.get('model_preference')
+        auto_detect_period = data.get('auto_detect_period', False)
+        
         # Validate embedding method
-        available_methods = ['local', 'openai', 'claude', 'huggingface']
+        available_methods = ['local', 'openai', 'claude', 'huggingface', 'period_aware']
         if embedding_method not in available_methods:
             return jsonify({
                 'success': False, 
@@ -105,11 +110,21 @@ def generate_embeddings(document_id):
                 'error': 'Document has no content to generate embeddings from'
             }), 400
         
+        # Create processing notes with period-aware info
+        processing_notes = f'Embeddings processing using {embedding_method} method'
+        if embedding_method == 'period_aware':
+            if force_period:
+                processing_notes += f' (forced period: {force_period})'
+            if model_preference:
+                processing_notes += f' (preference: {model_preference})'
+            if auto_detect_period:
+                processing_notes += ' (auto-detect period)'
+        
         # Create a new version for processing
         processing_version = original_document.create_version(
             version_type='processed',
             experiment_id=experiment_id,
-            processing_notes=f'Embeddings processing using {embedding_method} method'
+            processing_notes=processing_notes
         )
         
         # Create PROV-O Entity for the new document version
@@ -122,16 +137,26 @@ def generate_embeddings(document_id):
         
         # Create PROV-O Activity for the processing
         activity_id = f'activity_embeddings_{processing_version.id}'
+        activity_metadata = {
+            'embedding_method': embedding_method,
+            'processing_start': 'pending'
+        }
+        
+        # Add period-aware metadata if applicable
+        if embedding_method == 'period_aware':
+            activity_metadata.update({
+                'force_period': force_period,
+                'model_preference': model_preference,
+                'auto_detect_period': auto_detect_period
+            })
+        
         prov_activity = ProvenanceActivity(
             prov_id=activity_id,
             prov_type='ont:EmbeddingsProcessing',
             prov_label=f'Embeddings generation for document {processing_version.id}',
             was_associated_with=f'user_{current_user.id}',
             activity_type='embeddings',
-            activity_metadata={
-                'embedding_method': embedding_method,
-                'processing_start': 'pending'
-            }
+            activity_metadata=activity_metadata
         )
         db.session.add(prov_activity)
         
