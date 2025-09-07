@@ -54,6 +54,14 @@ class Document(db.Model):
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     processed_at = db.Column(db.DateTime)
     
+    # Versioning fields for unified processing interface
+    # Note: These will fail until migration is run, but methods below provide fallbacks
+    version_number = db.Column(db.Integer, default=1, nullable=False)
+    version_type = db.Column(db.String(20), default='original', nullable=False)  # 'original', 'processed', 'experimental'
+    source_document_id = db.Column(db.Integer, db.ForeignKey('documents.id'), index=True)  # Original document this version derives from
+    experiment_id = db.Column(db.Integer, db.ForeignKey('experiments.id'), index=True)  # Associated experiment (for experimental versions)
+    processing_notes = db.Column(db.Text)  # Notes about processing operations that created this version
+
     # Foreign keys
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False, index=True)
     # Parent document (used for grouping sense-level dictionary entries under a master headword)
@@ -62,8 +70,21 @@ class Document(db.Model):
     # Relationships
     user = db.relationship('User', backref='user_documents')
     processing_jobs = db.relationship('ProcessingJob', backref='document', lazy='dynamic', cascade='all, delete-orphan')
-    # Child documents (e.g., individual OED senses)
-    children = db.relationship('Document', backref=db.backref('parent', remote_side=[id]), lazy='dynamic', cascade='all')
+    
+    # Document versioning relationships
+    versions = db.relationship('Document', 
+                              foreign_keys=[source_document_id],
+                              backref=db.backref('source_document', remote_side=[id]), 
+                              lazy='dynamic', 
+                              cascade='all')
+    experiment = db.relationship('Experiment', backref='experimental_documents')
+    
+    # Child documents (e.g., individual OED senses) - separate from versioning
+    children = db.relationship('Document', 
+                              foreign_keys=[parent_document_id],
+                              backref=db.backref('parent', remote_side=[id]), 
+                              lazy='dynamic', 
+                              cascade='all')
     text_segments = db.relationship('TextSegment', backref='document', lazy='dynamic', cascade='all, delete-orphan')
     
     # Embedding storage for RAG
@@ -183,6 +204,174 @@ class Document(db.Model):
         if source_info:
             return f"{source_info}. {self.title}"
         return self.title
+    
+    # Document versioning methods
+    
+    def create_version(self, version_type='processed', experiment_id=None, processing_notes=None, **kwargs):
+        """Create a new version of this document with PROV-O compliant provenance tracking"""
+        from datetime import datetime
+        import uuid
+        
+        # Determine the root document
+        root_doc = self.get_root_document()
+        
+        # Get the next version number for this document family
+        max_version = db.session.query(db.func.max(Document.version_number))\
+            .filter(db.or_(
+                Document.source_document_id == root_doc.id,
+                Document.id == root_doc.id
+            )).scalar() or 0
+        
+        # Generate PROV-O compliant version identifier
+        version_number = max_version + 1
+        prov_version_id = f"document_{root_doc.id}_v{version_number}"
+        
+        # Create PROV-O compliant processing notes with derivation information
+        prov_notes = {
+            'prov_type': f'prov:Derivation',
+            'prov_derived_from': f'document_{self.id}',
+            'prov_generated_at': datetime.utcnow().isoformat(),
+            'prov_activity': f'{version_type}_processing',
+            'prov_agent': f'user_{self.user_id}',
+            'processing_method': version_type,
+            'original_notes': processing_notes
+        }
+        
+        if experiment_id:
+            prov_notes['prov_experiment'] = f'experiment_{experiment_id}'
+            prov_notes['prov_plan'] = f'experiment_{experiment_id}_protocol'
+        
+        # Create new version with PROV-O metadata
+        version_data = {
+            'title': f"{root_doc.title} (v{version_number})",
+            'content_type': self.content_type,
+            'content': self.content,
+            'detected_language': self.detected_language,
+            'language_confidence': self.language_confidence,
+            'user_id': self.user_id,
+            'source_document_id': root_doc.id,
+            'version_number': version_number,
+            'version_type': version_type,
+            'experiment_id': experiment_id,
+            'processing_notes': str(prov_notes),  # Store as JSON string
+            'status': 'processing'
+        }
+        
+        # Add PROV-O metadata to processing_metadata
+        if not version_data.get('processing_metadata'):
+            version_data['processing_metadata'] = {}
+        
+        version_data['processing_metadata'] = {
+            **version_data.get('processing_metadata', {}),
+            'prov_o': {
+                'entity_id': prov_version_id,
+                'derived_from': f'document_{self.id}',
+                'generation_time': datetime.utcnow().isoformat(),
+                'derivation_type': version_type,
+                'responsible_agent': f'user_{self.user_id}',
+                'provenance_chain': self._build_provenance_chain()
+            }
+        }
+        
+        # Override with any provided kwargs
+        version_data.update(kwargs)
+        
+        new_version = Document(**version_data)
+        db.session.add(new_version)
+        db.session.flush()  # Get the ID without committing
+        
+        return new_version
+    
+    def _build_provenance_chain(self):
+        """Build PROV-O compliant provenance chain for this document"""
+        chain = []
+        current = self
+        
+        while current:
+            chain.append({
+                'entity': f'document_{current.id}',
+                'version': getattr(current, 'version_number', 1),
+                'type': getattr(current, 'version_type', 'original'),
+                'created_at': current.created_at.isoformat() if current.created_at else None,
+                'agent': f'user_{current.user_id}'
+            })
+            
+            # Navigate to source document
+            if hasattr(current, 'source_document_id') and current.source_document_id:
+                current = current.source_document
+            else:
+                break
+                
+        return list(reversed(chain))  # Return in chronological order
+    
+    def get_prov_o_metadata(self):
+        """Get PROV-O metadata for this document"""
+        base_metadata = {
+            'prov:Entity': f'document_{self.id}',
+            'prov:type': 'ont:Document',
+            'prov:label': self.title,
+            'prov:generatedAtTime': self.created_at.isoformat() if self.created_at else None,
+            'prov:wasAttributedTo': f'user_{self.user_id}'
+        }
+        
+        # Add versioning information if available
+        if hasattr(self, 'version_type') and self.version_type:
+            base_metadata['ont:versionType'] = self.version_type
+            base_metadata['ont:versionNumber'] = getattr(self, 'version_number', 1)
+            
+        # Add derivation information for non-original documents
+        if hasattr(self, 'source_document_id') and self.source_document_id:
+            base_metadata['prov:wasDerivedFrom'] = f'document_{self.source_document_id}'
+            
+        # Add experiment association for experimental versions
+        if hasattr(self, 'experiment_id') and self.experiment_id:
+            base_metadata['prov:wasGeneratedBy'] = f'experiment_{self.experiment_id}'
+            base_metadata['ont:experimentalVersion'] = True
+            
+        return base_metadata
+    
+    def get_root_document(self):
+        """Get the root document for this version chain"""
+        if self.source_document_id:
+            return self.source_document
+        return self
+    
+    def get_all_versions(self):
+        """Get all versions in this document family"""
+        root_doc = self.get_root_document()
+        return db.session.query(Document)\
+            .filter(db.or_(
+                Document.source_document_id == root_doc.id,
+                Document.id == root_doc.id
+            ))\
+            .order_by(Document.version_number)\
+            .all()
+    
+    def get_latest_version(self):
+        """Get the latest version in this document family"""
+        versions = self.get_all_versions()
+        return versions[-1] if versions else self
+    
+    def is_original(self):
+        """Check if this is the original document"""
+        return self.version_type == 'original' and self.source_document_id is None
+    
+    def is_experimental(self):
+        """Check if this is an experimental version"""
+        return self.version_type == 'experimental' and self.experiment_id is not None
+    
+    def get_version_display_name(self):
+        """Get display name including version information"""
+        if self.is_original():
+            return self.get_display_name()
+        
+        version_info = f"v{self.version_number}"
+        if self.version_type == 'experimental' and self.experiment:
+            version_info += f" ({self.experiment.name})"
+        elif self.version_type == 'processed':
+            version_info += " (processed)"
+            
+        return f"{self.get_display_name()} - {version_info}"
     
     @property
     def has_embeddings(self):

@@ -83,6 +83,7 @@ class Config:
     GOOGLE_LOCATION = os.environ.get('GOOGLE_LOCATION', 'us-central1')
     GOOGLE_LANGUAGE_SERVICE_ENABLED = os.environ.get('GOOGLE_LANGUAGE_SERVICE_ENABLED', 'True').lower() == 'true'
     GOOGLE_TRANSLATE_SERVICE_ENABLED = os.environ.get('GOOGLE_TRANSLATE_SERVICE_ENABLED', 'True').lower() == 'true'
+    GOOGLE_GEMINI_API_KEY = os.environ.get('GOOGLE_GEMINI_API_KEY')
     
     # Processing Configuration
     ENABLE_BATCH_PROCESSING = os.environ.get('ENABLE_BATCH_PROCESSING', 'True').lower() == 'true'
