@@ -1084,15 +1084,15 @@
         
         switch(processType) {
             case 'embeddings':
-                endpoint = `/processing/document/${documentId}/embeddings`;
+                endpoint = `/process/document/${documentId}/embeddings`;
                 payload = { method: 'local' };
                 break;
             case 'segment':
-                endpoint = `/processing/document/${documentId}/segment`;
+                endpoint = `/process/document/${documentId}/segment`;
                 payload = { method: 'paragraph' };
                 break;
             case 'langextract':
-                endpoint = `/processing/document/${documentId}/segment`;
+                endpoint = `/process/document/${documentId}/segment`;
                 payload = { method: 'langextract' };
                 break;
             default:
@@ -1114,18 +1114,24 @@
         .then(response => response.json())
         .then(data => {
             hideLoading();
+            console.log('Processing response:', data);  // Debug logging
+            
             if (data.success) {
                 // Show success message
                 alert(data.message);
                 
-                // Auto-redirect to composite document or processed version
-                if (data.redirect_url) {
-                    window.location.href = data.redirect_url;
+                // Force redirect to latest version - more robust approach
+                if (data.latest_version_id) {
+                    console.log(`Redirecting to latest version: ${data.latest_version_id}`);
+                    window.location.href = `/input/document/${data.latest_version_id}`;
                 } else if (data.processing_version_id) {
-                    // Fallback to processed version if no redirect URL
+                    console.log(`Redirecting to processing version: ${data.processing_version_id}`);
                     window.location.href = `/input/document/${data.processing_version_id}`;
+                } else if (data.redirect_url) {
+                    console.log(`Redirecting to URL: ${data.redirect_url}`);
+                    window.location.href = data.redirect_url;
                 } else {
-                    // Reload the current page to show updated processing jobs
+                    console.log('No redirect info found, reloading page');
                     location.reload();
                 }
             } else {
@@ -1151,7 +1157,7 @@
         let payload = {};
         
         if (processType === 'embeddings') {
-            endpoint = `/processing/document/${documentId}/embeddings`;
+            endpoint = `/process/document/${documentId}/embeddings`;
             
             // Map method to appropriate embedding configuration
             switch(method) {
@@ -1211,10 +1217,20 @@
                     message += `\\nMethod: ${data.method}`;
                 }
                 alert(message);
+                console.log('Processing response:', data);  // Debug logging
                 
-                if (data.processing_version_id && confirm('Would you like to view the new processed version?')) {
+                // Force redirect to latest version - more robust approach
+                if (data.latest_version_id) {
+                    console.log(`Redirecting to latest version: ${data.latest_version_id}`);
+                    window.location.href = `/input/document/${data.latest_version_id}`;
+                } else if (data.processing_version_id) {
+                    console.log(`Redirecting to processing version: ${data.processing_version_id}`);
                     window.location.href = `/input/document/${data.processing_version_id}`;
+                } else if (data.redirect_url) {
+                    console.log(`Redirecting to URL: ${data.redirect_url}`);
+                    window.location.href = data.redirect_url;
                 } else {
+                    console.log('No redirect info found, reloading page');
                     location.reload();
                 }
             } else {

@@ -71,9 +71,7 @@ def create_app(config_name=None):
     app.register_blueprint(api_bp)
     app.register_blueprint(orchestration_feedback_bp)
     
-    # Composite documents
-    from app.routes.composite_documents import composite_bp
-    app.register_blueprint(composite_bp)
+    # Composite documents removed - using inheritance-based versioning
     
     # Jinja filters
     @app.template_filter('number_format')
