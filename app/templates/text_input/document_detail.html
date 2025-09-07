@@ -843,10 +843,20 @@
                                 <i class="fas fa-info-circle me-2"></i>Processing will create a new document version. The original will remain unchanged.
                             </div>
                             <div class="d-grid gap-2">
-                                <button class="btn btn-outline-primary" onclick="processDocument(${documentId}, 'embeddings')">
-                                    <i class="fas fa-vector-square me-2"></i>Generate Embeddings
-                                    <small class="d-block">Create semantic vector representations</small>
-                                </button>
+                                <div class="btn-group-vertical w-100" role="group">
+                                    <button class="btn btn-outline-primary" onclick="processDocumentWithMethod(${documentId}, 'embeddings', 'period_aware')">
+                                        <i class="fas fa-vector-square me-2"></i>Period-Aware Embeddings
+                                        <small class="d-block">Automatic period-appropriate model selection</small>
+                                    </button>
+                                    <button class="btn btn-outline-secondary" onclick="processDocumentWithMethod(${documentId}, 'embeddings', 'historical_bert')">
+                                        <i class="fas fa-history me-2"></i>Historical BERT
+                                        <small class="d-block">Specialized for pre-1950 texts</small>
+                                    </button>
+                                    <button class="btn btn-outline-secondary" onclick="processDocumentWithMethod(${documentId}, 'embeddings', 'modern')">
+                                        <i class="fas fa-robot me-2"></i>Modern Embeddings
+                                        <small class="d-block">Contemporary text processing</small>
+                                    </button>
+                                </div>
                                 <button class="btn btn-outline-primary" onclick="processDocument(${documentId}, 'segment')">
                                     <i class="fas fa-cut me-2"></i>Segment Document
                                     <small class="d-block">Split into logical sections</small>
@@ -930,6 +940,95 @@
                     window.location.href = `/input/document/${data.processing_version_id}`;
                 } else {
                     // Reload the current page to show updated processing jobs
+                    location.reload();
+                }
+            } else {
+                alert('Processing failed: ' + (data.error || 'Unknown error'));
+            }
+        })
+        .catch(error => {
+            hideLoading();
+            console.error('Error:', error);
+            alert('Processing failed: Network error');
+        });
+    }
+
+    function processDocumentWithMethod(documentId, processType, method) {
+        // Close any open modals
+        const modals = document.querySelectorAll('.modal');
+        modals.forEach(modal => {
+            const bsModal = bootstrap.Modal.getInstance(modal);
+            if (bsModal) bsModal.hide();
+        });
+
+        let endpoint = '';
+        let payload = {};
+        
+        if (processType === 'embeddings') {
+            endpoint = `/processing/document/${documentId}/embeddings`;
+            
+            // Map method to appropriate embedding configuration
+            switch(method) {
+                case 'historical_bert':
+                    payload = { 
+                        method: 'period_aware',
+                        force_period: 'historical_1850_1950',
+                        model_preference: 'historical'
+                    };
+                    break;
+                case 'period_aware':
+                    payload = { 
+                        method: 'period_aware',
+                        auto_detect_period: true
+                    };
+                    break;
+                case 'modern':
+                    payload = { 
+                        method: 'period_aware',
+                        force_period: 'contemporary_2000plus',
+                        model_preference: 'modern'
+                    };
+                    break;
+                default:
+                    payload = { method: 'local' };
+            }
+        } else {
+            alert('Unknown process type');
+            return;
+        }
+
+        // Show loading state with method-specific message
+        const loadingMessages = {
+            'historical_bert': 'Processing with Historical BERT...',
+            'period_aware': 'Analyzing period and selecting appropriate model...',
+            'modern': 'Processing with modern embeddings...'
+        };
+        showLoading(loadingMessages[method] || 'Processing document...');
+
+        fetch(endpoint, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCsrfToken()
+            },
+            body: JSON.stringify(payload)
+        })
+        .then(response => response.json())
+        .then(data => {
+            hideLoading();
+            if (data.success) {
+                let message = `Processing completed successfully!\\n${data.message}`;
+                if (data.processing_version_id) {
+                    message += `\\nProcessing Version ID: ${data.processing_version_id}`;
+                }
+                if (data.method) {
+                    message += `\\nMethod: ${data.method}`;
+                }
+                alert(message);
+                
+                if (data.processing_version_id && confirm('Would you like to view the new processed version?')) {
+                    window.location.href = `/input/document/${data.processing_version_id}`;
+                } else {
                     location.reload();
                 }
             } else {
