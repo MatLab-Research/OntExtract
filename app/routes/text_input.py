@@ -10,6 +10,7 @@ from langdetect import detect
 from app import db
 from app.models.document import Document
 from app.models.processing_job import ProcessingJob
+from sqlalchemy import text
 from app.services.text_processing import TextProcessingService
 from app.utils.file_handler import FileHandler
 
