@@ -392,3 +392,71 @@ def get_embedding_preview(embedding_id):
     except Exception as e:
         logger.error(f"Error getting embedding preview for {embedding_id}: {str(e)}")
         return jsonify({'success': False, 'error': str(e)}), 500
+
+@document_api_bp.route('/<int:document_id>/segments')
+@login_required
+def get_document_segments(document_id):
+    """Get all segments for a document grouped by segmentation method."""
+    try:
+        document = Document.query.get_or_404(document_id)
+        
+        # Query segments grouped by segmentation method
+        segments_query = text("""
+            SELECT segmentation_method, segment_type, segment_number, content, 
+                   word_count, character_count, start_position, end_position,
+                   segmentation_job_id, created_at
+            FROM text_segments 
+            WHERE document_id = :doc_id 
+            ORDER BY segmentation_method, segment_number
+        """)
+        
+        result = db.session.execute(segments_query, {'doc_id': document_id})
+        segments_raw = result.fetchall()
+        
+        # Group segments by method
+        methods_dict = {}
+        for row in segments_raw:
+            method = row[0] or 'manual'
+            
+            if method not in methods_dict:
+                methods_dict[method] = []
+            
+            segment_data = {
+                'segment_type': row[1],
+                'segment_number': row[2],
+                'content': row[3],
+                'word_count': row[4],
+                'character_count': row[5],
+                'start_position': row[6],
+                'end_position': row[7],
+                'segmentation_job_id': row[8],
+                'created_at': row[9].isoformat() if row[9] else None
+            }
+            methods_dict[method].append(segment_data)
+        
+        # Convert to list format for frontend
+        segmentation_methods = []
+        for method, segments in methods_dict.items():
+            segmentation_methods.append({
+                'method': method,
+                'count': len(segments),
+                'segments': segments
+            })
+        
+        # Sort methods by count (most segments first)
+        segmentation_methods.sort(key=lambda x: x['count'], reverse=True)
+        
+        return jsonify({
+            'success': True,
+            'document_id': document_id,
+            'segmentation_methods': segmentation_methods,
+            'total_segments': sum(method['count'] for method in segmentation_methods)
+        })
+        
+    except Exception as e:
+        logger.error(f"Error getting segments for document {document_id}: {str(e)}")
+        return jsonify({
+            'success': False, 
+            'error': str(e),
+            'segmentation_methods': []
+        }), 500
