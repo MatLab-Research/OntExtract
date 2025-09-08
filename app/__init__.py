@@ -53,7 +53,7 @@ def create_app(config_name=None):
     from app.routes.terms import terms_bp
     from app.routes.merriam_webster import merriam_bp
     from app.routes.temporal_visual import temporal_visual_bp
-    from app.routes.embeddings_api import embeddings_bp
+    from app.routes.embeddings_api import embeddings_bp, document_api_bp
     from app.routes.api import api_bp
     from app.routes.orchestration_feedback import bp as orchestration_feedback_bp
     
@@ -68,6 +68,7 @@ def create_app(config_name=None):
     app.register_blueprint(merriam_bp)
     app.register_blueprint(temporal_visual_bp)
     app.register_blueprint(embeddings_bp)
+    app.register_blueprint(document_api_bp)
     app.register_blueprint(api_bp)
     app.register_blueprint(orchestration_feedback_bp)
     
