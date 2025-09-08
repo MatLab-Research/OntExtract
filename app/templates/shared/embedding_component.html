@@ -9,6 +9,33 @@
             <i class="fas fa-cogs me-2"></i>Processing Options
         </h6>
         <div class="d-grid gap-2">
+            <!-- Main Process with Experiment Button -->
+            <div class="dropdown d-grid">
+                <button class="btn btn-success dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                    <i class="fas fa-microscope me-2"></i>Process with Experiment
+                    <small class="d-block">Creates experimental version</small>
+                </button>
+                <ul class="dropdown-menu w-100">
+                    <li><h6 class="dropdown-header">Available Experiments</h6></li>
+                    {% if experiments %}
+                        {% for experiment in experiments %}
+                        <li><a class="dropdown-item" href="{{ url_for('experiments.process_document', experiment_id=experiment.id, document_id=document.id) }}">
+                            <i class="fas fa-flask me-2"></i>{{ experiment.name }}
+                            <small class="text-muted d-block">{{ experiment.experiment_type }}</small>
+                        </a></li>
+                        {% endfor %}
+                        <li><hr class="dropdown-divider"></li>
+                    {% else %}
+                        <li><span class="dropdown-item-text text-muted">No experiments available</span></li>
+                        <li><hr class="dropdown-divider"></li>
+                    {% endif %}
+                    <li><a class="dropdown-item" href="{{ url_for('experiments.new') }}">
+                        <i class="fas fa-plus me-2"></i>Create New Experiment
+                    </a></li>
+                </ul>
+            </div>
+            
+            <!-- Other Processing Options -->
             <button class="btn btn-outline-success btn-sm"
                 onclick="showEmbeddingOptions({{ document.id }})">
                 <i class="fas fa-vector-square me-2"></i>Generate Embeddings
@@ -20,10 +47,6 @@
             <button class="btn btn-outline-warning btn-sm"
                 onclick="extractEntities({{ document.id }})">
                 <i class="fas fa-tags me-2"></i>Extract Entities
-            </button>
-            <button class="btn btn-outline-secondary btn-sm"
-                onclick="analyzeMetadata({{ document.id }})">
-                <i class="fas fa-info-circle me-2"></i>Analyze Metadata
             </button>
         </div>
     </div>
@@ -273,12 +296,12 @@ body.modal-open .modal {
                         </div>
                     </div>
                     <div class="col-md-6 mb-3">
-                        <div class="card method-option" data-method="huggingface"
-                            onclick="selectEmbeddingMethod('huggingface')">
+                        <div class="card method-option disabled" style="opacity: 0.5; cursor: not-allowed;" 
+                             title="HuggingFace integration coming soon">
                             <div class="card-body text-center">
-                                <i class="fas fa-hdd fa-2x text-info mb-2"></i>
-                                <h6>HuggingFace</h6>
-                                <p class="small text-muted mb-0">Various models<br>Configurable<br>Research Grade</p>
+                                <i class="fas fa-hdd fa-2x text-muted mb-2"></i>
+                                <h6 class="text-muted">HuggingFace</h6>
+                                <p class="small text-muted mb-0">Various models<br>Configurable<br><strong>Coming Soon</strong></p>
                             </div>
                         </div>
                     </div>

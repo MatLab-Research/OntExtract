@@ -2,12 +2,16 @@ from flask import Blueprint, request, jsonify
 from flask_login import login_required, current_user
 from app import db
 from app.models import Document, ProcessingJob
+from sqlalchemy import text
 import json
 import logging
 
 logger = logging.getLogger(__name__)
 
 embeddings_bp = Blueprint('embeddings', __name__, url_prefix='/api/embeddings')
+
+# Also register a new blueprint for the document API endpoints
+document_api_bp = Blueprint('document_api', __name__, url_prefix='/api/document')
 
 @embeddings_bp.route('/document/<int:document_id>')
 @login_required
@@ -210,4 +214,181 @@ def get_job_details(job_id):
         
     except Exception as e:
         logger.error(f"Error getting job details for {job_id}: {str(e)}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+# New Document API endpoints that match our frontend calls
+
+@document_api_bp.route('/<int:document_id>/embeddings')
+@login_required
+def get_document_embeddings_new(document_id):
+    """Get all embeddings for a document - first try document_embeddings table, then fall back to processing jobs."""
+    try:
+        document = Document.query.get_or_404(document_id)
+        
+        # First try document_embeddings table directly
+        embeddings_query = text("""
+            SELECT id, document_id, term, period, model_name, context_window, 
+                   extraction_method, metadata, created_at, updated_at
+            FROM document_embeddings 
+            WHERE document_id = :doc_id 
+            ORDER BY created_at DESC
+        """)
+        
+        result = db.session.execute(embeddings_query, {'doc_id': document_id})
+        embeddings_raw = result.fetchall()
+        
+        embeddings = []
+        for row in embeddings_raw:
+            embedding_data = {
+                'id': row[0],
+                'document_id': row[1],
+                'term': row[2],
+                'period': row[3],
+                'model_name': row[4],
+                'context_window': row[5],
+                'extraction_method': row[6],
+                'metadata': row[7],
+                'created_at': row[8].isoformat() if row[8] else None,
+                'updated_at': row[9].isoformat() if row[9] else None,
+                'embedding': None  # Don't load the full vector for the list view
+            }
+            embeddings.append(embedding_data)
+        
+        # If no embeddings found in table, check processing jobs as fallback
+        if not embeddings:
+            embedding_jobs = (
+                ProcessingJob.query
+                .filter_by(document_id=document_id, job_type='generate_embeddings', status='completed')
+                .order_by(ProcessingJob.completed_at.desc())
+                .all()
+            )
+            
+            for job in embedding_jobs:
+                results = job.get_result_data() or {}
+                
+                # Create synthetic embedding data from job results
+                method = results.get('embedding_method', 'Unknown')
+                model_used = results.get('model_used', 'Unknown Model')
+                
+                # Create a clear display format: "method via model" or just the model
+                if method != 'Unknown' and model_used != 'Unknown Model':
+                    display_model = f"{model_used}"  # Show the actual model
+                    display_method = f"{method}"      # Show the method separately
+                else:
+                    display_model = model_used if model_used != 'Unknown Model' else method
+                    display_method = method
+                
+                embedding_data = {
+                    'id': f'job_{job.id}',  # Use job ID as synthetic embedding ID
+                    'document_id': document_id,
+                    'term': 'Full Document', 
+                    'period': None,
+                    'model_name': display_model,
+                    'context_window': f"Document chunks: {results.get('chunk_count', 0)}",
+                    'extraction_method': display_method,
+                    'metadata': {
+                        'source': 'processing_job',
+                        'job_id': job.id,
+                        'processing_time': results.get('processing_time'),
+                        'dimensions': results.get('embedding_dimensions', 0),
+                        'chunk_count': results.get('chunk_count', 0)
+                    },
+                    'created_at': job.completed_at.isoformat() if job.completed_at else None,
+                    'updated_at': job.updated_at.isoformat() if job.updated_at else None,
+                    'embedding': None  # No vector data available from job
+                }
+                embeddings.append(embedding_data)
+        
+        return jsonify({
+            'success': True,
+            'embeddings': embeddings,
+            'count': len(embeddings)
+        })
+        
+    except Exception as e:
+        logger.error(f"Error getting embeddings for document {document_id}: {str(e)}")
+        return jsonify({
+            'success': False, 
+            'error': str(e),
+            'embeddings': []
+        }), 500
+
+@document_api_bp.route('/embedding/<embedding_id>/preview')
+@login_required  
+def get_embedding_preview(embedding_id):
+    """Get a specific embedding with full vector data for preview."""
+    try:
+        # Handle both real embedding IDs and synthetic job-based IDs
+        if str(embedding_id).startswith('job_'):
+            # Extract job ID from synthetic ID
+            job_id = int(embedding_id.replace('job_', ''))
+            job = ProcessingJob.query.get_or_404(job_id)
+            results = job.get_result_data() or {}
+            
+            # Create synthetic preview data from job
+            embedding_data = {
+                'id': embedding_id,
+                'document_id': job.document_id,
+                'term': 'Full Document',
+                'period': None,
+                'embedding': '[]',  # No actual vector data available
+                'model_name': results.get('model_used', 'Unknown Model'),
+                'context_window': f"This embedding was generated from {results.get('chunk_count', 0)} document chunks using {results.get('embedding_method', 'unknown')} method. Processing time: {results.get('processing_time', 'N/A')}s",
+                'extraction_method': results.get('embedding_method', 'Unknown'),
+                'metadata': {
+                    'source': 'processing_job',
+                    'job_id': job.id,
+                    'processing_time': results.get('processing_time'),
+                    'dimensions': results.get('embedding_dimensions', 0),
+                    'chunk_count': results.get('chunk_count', 0),
+                    'note': 'Vector data not available - this is derived from processing job metadata'
+                },
+                'created_at': job.completed_at.isoformat() if job.completed_at else None,
+                'updated_at': job.updated_at.isoformat() if job.updated_at else None
+            }
+            
+            return jsonify({
+                'success': True,
+                'embedding': embedding_data
+            })
+        else:
+            # Query specific embedding with full vector from embeddings table
+            embedding_query = text("""
+                SELECT id, document_id, term, period, embedding, model_name, 
+                       context_window, extraction_method, metadata, created_at, updated_at
+                FROM document_embeddings 
+                WHERE id = :embedding_id
+                LIMIT 1
+            """)
+            
+            result = db.session.execute(embedding_query, {'embedding_id': int(embedding_id)})
+            row = result.fetchone()
+            
+            if not row:
+                return jsonify({
+                    'success': False,
+                    'error': 'Embedding not found'
+                }), 404
+            
+            embedding_data = {
+                'id': row[0],
+                'document_id': row[1], 
+                'term': row[2],
+                'period': row[3],
+                'embedding': str(row[4]) if row[4] else None,  # Convert vector to string
+                'model_name': row[5],
+                'context_window': row[6],
+                'extraction_method': row[7],
+                'metadata': row[8],
+                'created_at': row[9].isoformat() if row[9] else None,
+                'updated_at': row[10].isoformat() if row[10] else None
+            }
+            
+            return jsonify({
+                'success': True,
+                'embedding': embedding_data
+            })
+        
+    except Exception as e:
+        logger.error(f"Error getting embedding preview for {embedding_id}: {str(e)}")
         return jsonify({'success': False, 'error': str(e)}), 500

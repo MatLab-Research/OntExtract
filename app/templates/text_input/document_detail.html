@@ -359,6 +359,31 @@
                 </div>
             </div>
             {% endif %}
+            
+            <!-- Document Embeddings -->
+            {% set embeddings = document.embeddings if document.embeddings is defined else [] %}
+            {% if not embeddings %}
+                {% set embeddings_query = "SELECT * FROM document_embeddings WHERE document_id = " ~ document.id ~ " ORDER BY created_at DESC" %}
+            {% endif %}
+            <div class="card mb-4">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">
+                        <i class="fas fa-vector-square me-2"></i>Document Embeddings
+                        <span class="badge bg-success ms-2" id="embeddingCount">0</span>
+                    </h5>
+                    <button class="btn btn-outline-primary btn-sm" onclick="refreshEmbeddings({{ document.id }})">
+                        <i class="fas fa-sync me-1"></i>Refresh
+                    </button>
+                </div>
+                <div class="card-body" id="embeddingsContainer">
+                    <div class="text-center p-4">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Loading embeddings...</span>
+                        </div>
+                        <p class="mt-2 text-muted">Loading embeddings...</p>
+                    </div>
+                </div>
+            </div>
         </div>
 
         <div class="col-lg-4">
@@ -418,207 +443,9 @@
                 </div>
             </div>
 
-            <!-- Processing Options -->
+            <!-- Processing Options (includes Process with Experiment button) -->
             {% include 'shared/embedding_component.html' %}
 
-            <!-- Processing Actions -->
-            <div class="card mb-4">
-                <div class="card-header">
-                    <h6 class="mb-0">
-                        <i class="fas fa-cogs me-2"></i>Processing Actions
-                    </h6>
-                </div>
-                <div class="card-body">
-                    {% if document.is_original() %}
-                    <div class="alert alert-info small mb-3">
-                        <i class="fas fa-info-circle me-2"></i>Processing creates new document versions. Original content is never modified.
-                    </div>
-                    {% else %}
-                    <div class="alert alert-secondary small mb-3">
-                        <i class="fas fa-code-branch me-2"></i>This is version {{ document.version_number }} 
-                        {% if document.version_type == 'processed' %}
-                        (processed from original)
-                        {% elif document.version_type == 'experimental' %}
-                        (experimental version)
-                        {% endif %}
-                        - further processing will create new versions.
-                    </div>
-                    {% endif %}
-                    
-                    <!-- Simplified Processing Actions - Single Column -->
-                    <div class="dropdown d-grid">
-                        <button class="btn btn-success dropdown-toggle" type="button" data-bs-toggle="dropdown">
-                            <i class="fas fa-microscope me-2"></i>Process with Experiment
-                            <small class="d-block">Creates experimental version</small>
-                        </button>
-                        <ul class="dropdown-menu w-100">
-                            <li><h6 class="dropdown-header">Available Experiments</h6></li>
-                            {% if experiments %}
-                                {% for experiment in experiments %}
-                                <li><a class="dropdown-item" href="{{ url_for('experiments.process_document', experiment_id=experiment.id, document_id=document.id) }}">
-                                    <i class="fas fa-flask me-2"></i>{{ experiment.name }}
-                                    <small class="text-muted d-block">{{ experiment.experiment_type }}</small>
-                                </a></li>
-                                {% endfor %}
-                                <li><hr class="dropdown-divider"></li>
-                            {% else %}
-                                <li><span class="dropdown-item-text text-muted">No experiments available</span></li>
-                                <li><hr class="dropdown-divider"></li>
-                            {% endif %}
-                            <li><a class="dropdown-item" href="{{ url_for('experiments.new') }}">
-                                <i class="fas fa-plus me-2"></i>Create New Experiment
-                            </a></li>
-                        </ul>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Recent Processing Jobs -->
-            {% if processing_jobs %}
-            <div class="card mb-4">
-                <div class="card-header d-flex justify-content-between align-items-center">
-                    <h6 class="mb-0">
-                        <i class="fas fa-history me-2"></i>Recent Processing
-                    </h6>
-                    <button class="btn btn-outline-danger btn-sm" onclick="clearProcessingHistory({{ document.id }})">
-                        <i class="fas fa-trash me-1"></i>Clear History
-                    </button>
-                </div>
-                <div class="card-body">
-                    {% for job in processing_jobs %}
-                    <div class="border rounded p-3 mb-3">
-                        <div class="d-flex justify-content-between align-items-start mb-2">
-                            <div class="flex-grow-1">
-                                <div class="d-flex align-items-center">
-                                    <strong class="text-primary">{{ job.job_type.replace('_', ' ').title() }}</strong>
-                                    <span class="badge ms-2
-                                        {% if job.status == 'completed' %}bg-success
-                                        {% elif job.status == 'processing' %}bg-warning
-                                        {% elif job.status == 'failed' or job.status == 'error' %}bg-danger
-                                        {% else %}bg-secondary{% endif %}">
-                                        {{ job.status.title() }}
-                                    </span>
-                                </div>
-                                <small class="text-muted">
-                                    {{ job.created_at.strftime('%B %d, %Y at %I:%M %p') }}
-                                    {% if job.processing_time %}
-                                    • {{ "%.1f"|format(job.processing_time) }}s
-                                    {% endif %}
-                                </small>
-                            </div>
-                        </div>
-
-                        <!-- Job Parameters -->
-                        {% set params = job.get_parameters() %}
-                        {% if params %}
-                        <div class="mb-2">
-                            <small class="text-muted">Parameters:</small>
-                            <div class="d-flex flex-wrap gap-1">
-                                {% for key, value in params.items() %}
-                                {% if key not in ['prov_entity_id', 'prov_activity_id', 'original_document_id'] %}
-                                <span class="badge bg-light text-dark">{{ key }}: {{ value }}</span>
-                                {% endif %}
-                                {% endfor %}
-                            </div>
-                        </div>
-                        {% endif %}
-
-                        <!-- Job Results -->
-                        {% if job.status == 'completed' %}
-                        {% set results = job.get_result_data() %}
-                        {% if results %}
-                        <div class="mt-2">
-                            <small class="text-muted">Results:</small>
-                            <div class="row text-center mt-1">
-                                {% if results.embedding_method %}
-                                <div class="col-4">
-                                    <div class="small">
-                                        <strong class="text-success">{{ results.embedding_method.title() }}</strong>
-                                        <br><span class="text-muted">Method</span>
-                                    </div>
-                                </div>
-                                {% endif %}
-                                {% if results.embedding_dimensions %}
-                                <div class="col-4">
-                                    <div class="small">
-                                        <strong class="text-info">{{ results.embedding_dimensions }}</strong>
-                                        <br><span class="text-muted">Dimensions</span>
-                                    </div>
-                                </div>
-                                {% endif %}
-                                {% if results.chunk_count %}
-                                <div class="col-4">
-                                    <div class="small">
-                                        <strong class="text-warning">{{ results.chunk_count }}</strong>
-                                        <br><span class="text-muted">Chunks</span>
-                                    </div>
-                                </div>
-                                {% elif results.segment_count %}
-                                <div class="col-4">
-                                    <div class="small">
-                                        <strong class="text-warning">{{ results.segment_count }}</strong>
-                                        <br><span class="text-muted">Segments</span>
-                                    </div>
-                                </div>
-                                {% elif results.entities_found %}
-                                <div class="col-4">
-                                    <div class="small">
-                                        <strong class="text-warning">{{ results.entities_found }}</strong>
-                                        <br><span class="text-muted">Entities</span>
-                                    </div>
-                                </div>
-                                {% elif results.fields_enhanced %}
-                                <div class="col-4">
-                                    <div class="small">
-                                        <strong class="text-warning">{{ results.fields_enhanced }}</strong>
-                                        <br><span class="text-muted">Fields</span>
-                                    </div>
-                                </div>
-                                {% endif %}
-                            </div>
-
-                            <!-- View Details Buttons -->
-                            <div class="text-center mt-2">
-                                {% if job.job_type == 'generate_embeddings' and results.embedding_method %}
-                                <button class="btn btn-outline-primary btn-sm me-2"
-                                    onclick="viewEmbeddingDetails({{ document.id }})">
-                                    <i class="fas fa-eye me-1"></i>View Embedding Details
-                                </button>
-                                {% endif %}
-                                {% if job.job_type == 'langextract_segmentation' %}
-                                <button class="btn btn-outline-success btn-sm me-2"
-                                    onclick="viewLangExtractDetails({{ document.id }}, {{ job.id }})">
-                                    <i class="fas fa-microscope me-1"></i>LangExtract Details
-                                </button>
-                                {% endif %}
-                                {% if results.processing_version_id or results.original_document_id %}
-                                <button class="btn btn-outline-info btn-sm"
-                                    onclick="viewProcessingVersions({{ document.id }})">
-                                    <i class="fas fa-code-branch me-1"></i>View Versions
-                                </button>
-                                {% endif %}
-                            </div>
-                        </div>
-                        {% endif %}
-                        {% elif job.status == 'failed' or job.status == 'error' %}
-                        <div class="mt-2">
-                            <div class="alert alert-danger small mb-0">
-                                <i class="fas fa-exclamation-triangle me-1"></i>
-                                <strong>Error:</strong> {{ job.error_message if job.error_message else 'Processing failed' }}
-                            </div>
-                        </div>
-                        {% endif %}
-
-                        {% if job.result_summary %}
-                        <div class="mt-2">
-                            <small class="text-muted">{{ job.result_summary }}</small>
-                        </div>
-                        {% endif %}
-                    </div>
-                    {% endfor %}
-                </div>
-            </div>
-            {% endif %}
 
         </div>
     </div>
@@ -1394,9 +1221,252 @@
             });
     }
 
+    // Document Embeddings Functions
+    function loadDocumentEmbeddings(documentId) {
+        fetch(`/api/document/${documentId}/embeddings`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    displayEmbeddings(data.embeddings);
+                    document.getElementById('embeddingCount').textContent = data.embeddings.length;
+                } else {
+                    displayNoEmbeddings();
+                }
+            })
+            .catch(error => {
+                console.error('Error loading embeddings:', error);
+                displayNoEmbeddings();
+            });
+    }
+
+    function displayEmbeddings(embeddings) {
+        const container = document.getElementById('embeddingsContainer');
+        
+        if (!embeddings || embeddings.length === 0) {
+            displayNoEmbeddings();
+            return;
+        }
+        
+        console.log('Displaying embeddings:', embeddings); // Debug log
+        
+        let html = '<div class="row">';
+        
+        embeddings.forEach((embedding, index) => {
+            console.log(`Processing embedding ${index + 1}:`, embedding); // Debug specific embedding
+            
+            const dimensionCount = embedding.embedding ? 
+                (typeof embedding.embedding === 'string' ? 
+                    JSON.parse(embedding.embedding).length : 
+                    embedding.embedding.length) : 384;
+            
+            html += `
+                <div class="col-12 mb-3">
+                    <div class="card border-secondary">
+                        <div class="card-header d-flex justify-content-between align-items-center">
+                            <div>
+                                <strong><i class="fas fa-layer-group me-2"></i>Embedding #${index + 1}</strong>
+                                <span class="badge bg-info ms-2">${embedding.model_name || 'Unknown Model'}</span>
+                                <span class="badge bg-success ms-1">${embedding.extraction_method || 'Standard'}</span>
+                            </div>
+                            <button class="btn btn-outline-primary btn-sm" onclick="previewEmbedding('${embedding.id}', ${index + 1})">
+                                <i class="fas fa-eye me-1"></i>Preview
+                            </button>
+                        </div>
+                        <div class="card-body">
+                            <div class="row text-center">
+                                <div class="col-4">
+                                    <div class="small">
+                                        <strong class="text-primary">${embedding.term || 'Full Document'}</strong>
+                                        <br><span class="text-muted">Term/Scope</span>
+                                    </div>
+                                </div>
+                                <div class="col-4">
+                                    <div class="small">
+                                        <strong class="text-info">${dimensionCount}</strong>
+                                        <br><span class="text-muted">Dimensions</span>
+                                    </div>
+                                </div>
+                                <div class="col-4">
+                                    <div class="small">
+                                        <strong class="text-success">${embedding.period || 'N/A'}</strong>
+                                        <br><span class="text-muted">Period</span>
+                                    </div>
+                                </div>
+                            </div>
+                            ${embedding.context_window ? `
+                            <div class="mt-3">
+                                <small class="text-muted">Context Window:</small>
+                                <div class="border rounded p-2 bg-light">
+                                    <small class="text-truncate d-block">${embedding.context_window.substring(0, 150)}${embedding.context_window.length > 150 ? '...' : ''}</small>
+                                </div>
+                            </div>
+                            ` : ''}
+                            <div class="mt-2">
+                                <small class="text-muted">Created: ${new Date(embedding.created_at).toLocaleString()}</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        });
+        
+        html += '</div>';
+        container.innerHTML = html;
+    }
+
+    function displayNoEmbeddings() {
+        const container = document.getElementById('embeddingsContainer');
+        container.innerHTML = `
+            <div class="text-center p-4">
+                <i class="fas fa-vector-square fa-3x text-muted mb-3"></i>
+                <p class="text-muted">No embeddings have been generated for this document yet.</p>
+                <button class="btn btn-primary" onclick="showEmbeddingOptions({{ document.id }})">
+                    <i class="fas fa-plus me-2"></i>Generate Embeddings
+                </button>
+            </div>
+        `;
+        document.getElementById('embeddingCount').textContent = '0';
+    }
+
+    function refreshEmbeddings(documentId) {
+        const container = document.getElementById('embeddingsContainer');
+        container.innerHTML = `
+            <div class="text-center p-4">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Loading embeddings...</span>
+                </div>
+                <p class="mt-2 text-muted">Refreshing embeddings...</p>
+            </div>
+        `;
+        loadDocumentEmbeddings(documentId);
+    }
+
+    function previewEmbedding(embeddingId, embeddingNumber) {
+        fetch(`/api/document/embedding/${embeddingId}/preview`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showEmbeddingPreviewModal(data.embedding, embeddingNumber);
+                } else {
+                    alert('Error loading embedding preview: ' + (data.error || 'Unknown error'));
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Error loading embedding preview');
+            });
+    }
+
+    function showEmbeddingPreviewModal(embedding, embeddingNumber) {
+        // Parse embedding vector if it's a string
+        let vector = embedding.embedding;
+        if (typeof vector === 'string') {
+            try {
+                vector = JSON.parse(vector);
+            } catch (e) {
+                vector = [];
+            }
+        }
+        
+        // Handle empty vectors
+        if (!vector || vector.length === 0) {
+            vector = Array(embedding.metadata?.dimensions || 384).fill(0);
+        }
+        
+        const modalHtml = `
+            <div class="modal fade" id="embeddingPreviewModal" tabindex="-1">
+                <div class="modal-dialog modal-lg">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title">
+                                <i class="fas fa-vector-square me-2"></i>Embedding #${embeddingNumber} Preview
+                            </h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                        </div>
+                        <div class="modal-body">
+                            <div class="row mb-3">
+                                <div class="col-md-4">
+                                    <strong>Model:</strong> ${embedding.model_name || 'Unknown'}
+                                </div>
+                                <div class="col-md-4">
+                                    <strong>Method:</strong> ${embedding.extraction_method || 'Standard'}
+                                </div>
+                                <div class="col-md-4">
+                                    <strong>Dimensions:</strong> ${vector.length}
+                                </div>
+                            </div>
+                            
+                            ${embedding.context_window ? `
+                            <div class="mb-3">
+                                <strong>Context Window:</strong>
+                                <div class="border rounded p-2 bg-light">
+                                    <small>${embedding.context_window}</small>
+                                </div>
+                            </div>
+                            ` : ''}
+                            
+                            <div class="mb-3">
+                                <strong>Vector Preview (first 50 dimensions):</strong>
+                                <div class="border rounded p-2 bg-light" style="max-height: 200px; overflow-y: auto;">
+                                    <code>[${vector.slice(0, 50).map(v => v.toFixed(6)).join(', ')}${vector.length > 50 ? ', ...' : ''}]</code>
+                                </div>
+                            </div>
+                            
+                            <div class="row text-center">
+                                <div class="col-md-3">
+                                    <strong>Min Value:</strong><br>
+                                    <span class="text-info">${Math.min(...vector).toFixed(6)}</span>
+                                </div>
+                                <div class="col-md-3">
+                                    <strong>Max Value:</strong><br>
+                                    <span class="text-success">${Math.max(...vector).toFixed(6)}</span>
+                                </div>
+                                <div class="col-md-3">
+                                    <strong>Mean:</strong><br>
+                                    <span class="text-warning">${(vector.reduce((a, b) => a + b, 0) / vector.length).toFixed(6)}</span>
+                                </div>
+                                <div class="col-md-3">
+                                    <strong>Norm:</strong><br>
+                                    <span class="text-primary">${Math.sqrt(vector.reduce((a, b) => a + b * b, 0)).toFixed(6)}</span>
+                                </div>
+                            </div>
+                            
+                            ${embedding.metadata ? `
+                            <div class="mt-3">
+                                <strong>Metadata:</strong>
+                                <div class="border rounded p-2 bg-light">
+                                    <pre class="mb-0"><code>${JSON.stringify(embedding.metadata, null, 2)}</code></pre>
+                                </div>
+                            </div>
+                            ` : ''}
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        // Remove any existing modal
+        const existingModal = document.getElementById('embeddingPreviewModal');
+        if (existingModal) {
+            existingModal.remove();
+        }
+        
+        // Add new modal to page
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
+        
+        // Show modal
+        new bootstrap.Modal(document.getElementById('embeddingPreviewModal')).show();
+    }
+
     // Initialize composite features on page load
     document.addEventListener('DOMContentLoaded', function() {
         const documentId = {{ document.id }};
+        
+        // Load document embeddings
+        loadDocumentEmbeddings(documentId);
         
         // Load composite info if this is a composite document
         // Composite document loading removed - no composite documents with inheritance versioning
