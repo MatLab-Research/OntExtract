@@ -318,43 +318,32 @@
 
             <!-- Text Segments (if any) -->
             {% if document.text_segments.count() > 0 %}
-            <div class="card mb-4">
-                <div class="card-header d-flex justify-content-between align-items-center">
-                    <h5 class="mb-0">
-                        <i class="fas fa-puzzle-piece me-2"></i>Text Segments
-                        <span class="badge bg-info ms-2">{{ document.text_segments.count() }}</span>
-                    </h5>
-                    <button class="btn btn-outline-danger btn-sm" onclick="deleteAllSegments({{ document.id }})">
-                        <i class="fas fa-trash me-1"></i>Delete All Segments
-                    </button>
+            <div class="card mb-4" id="segmentsCard">
+                <div class="card-header">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <h5 class="mb-0">
+                            <i class="fas fa-puzzle-piece me-2"></i>Text Segments
+                            <span class="badge bg-info ms-2" id="totalSegmentsCount">{{ document.text_segments.count() }}</span>
+                        </h5>
+                        <button class="btn btn-outline-danger btn-sm" onclick="deleteAllSegments({{ document.id }})">
+                            <i class="fas fa-trash me-1"></i>Delete All Segments
+                        </button>
+                    </div>
+                    
+                    <!-- Segmentation Method Navigation -->
+                    <div class="segmentation-methods" id="segmentationMethods">
+                        <div class="btn-group btn-group-sm" role="group" aria-label="Segmentation methods">
+                            <!-- Methods will be populated by JavaScript -->
+                        </div>
+                    </div>
                 </div>
-                <div class="card-body">
-                    <div class="row">
-                        {% for segment in document.text_segments.limit(5) %}
-                        <div class="col-12 mb-3">
-                            <div class="border rounded p-3">
-                                <div class="d-flex justify-content-between align-items-start mb-2">
-                                    <span class="badge bg-light text-dark">
-                                        {{ segment.segment_type.title() }} #{{ segment.segment_number }}
-                                    </span>
-                                    <small class="text-muted">
-                                        {{ segment.word_count }} words
-                                    </small>
-                                </div>
-                                <p class="mb-0 text-muted small">
-                                    {{ segment.get_preview(150) }}
-                                </p>
-                            </div>
+                <div class="card-body" id="segmentsList">
+                    <!-- Segments will be loaded by JavaScript -->
+                    <div class="text-center p-4">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Loading segments...</span>
                         </div>
-                        {% endfor %}
-                        {% if document.text_segments.count() > 5 %}
-                        <div class="col-12 text-center">
-                            <button class="btn btn-outline-info btn-sm">
-                                <i class="fas fa-chevron-down me-2"></i>
-                                Show {{ document.text_segments.count() - 5 }} More Segments
-                            </button>
-                        </div>
-                        {% endif %}
+                        <p class="mt-2 text-muted">Loading segments...</p>
                     </div>
                 </div>
             </div>
@@ -1461,12 +1450,175 @@
         new bootstrap.Modal(document.getElementById('embeddingPreviewModal')).show();
     }
 
+    // Document Segments Functions
+    function loadDocumentSegments(documentId) {
+        fetch(`/api/document/${documentId}/segments`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    displaySegmentMethods(data.segmentation_methods);
+                    if (data.segmentation_methods.length > 0) {
+                        displaySegments(data.segmentation_methods[0].segments, data.segmentation_methods[0].method);
+                    }
+                } else {
+                    displayNoSegments();
+                }
+            })
+            .catch(error => {
+                console.error('Error loading segments:', error);
+                displayNoSegments();
+            });
+    }
+
+    function displaySegmentMethods(methods) {
+        const methodsContainer = document.getElementById('segmentationMethods');
+        const btnGroup = methodsContainer.querySelector('.btn-group');
+        
+        if (!methods || methods.length === 0) {
+            methodsContainer.style.display = 'none';
+            return;
+        }
+        
+        if (methods.length === 1) {
+            methodsContainer.style.display = 'none';
+            return;
+        }
+        
+        btnGroup.innerHTML = '';
+        
+        methods.forEach((methodData, index) => {
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.className = `btn btn-outline-secondary ${index === 0 ? 'active' : ''}`;
+            button.onclick = () => switchSegmentMethod(methodData.method, methodData.segments, button);
+            
+            button.innerHTML = `
+                <i class="fas fa-${getMethodIcon(methodData.method)} me-1"></i>
+                ${methodData.method.charAt(0).toUpperCase() + methodData.method.slice(1)}
+                <span class="badge bg-primary ms-1">${methodData.segments.length}</span>
+            `;
+            
+            btnGroup.appendChild(button);
+        });
+    }
+
+    function getMethodIcon(method) {
+        switch(method.toLowerCase()) {
+            case 'paragraph': return 'paragraph';
+            case 'sentence': return 'list-ol';
+            case 'semantic': return 'brain';
+            case 'langextract': return 'project-diagram';
+            case 'hybrid': return 'layer-group';
+            default: return 'cut';
+        }
+    }
+
+    function switchSegmentMethod(method, segments, button) {
+        // Update active button
+        document.querySelectorAll('#segmentationMethods .btn').forEach(btn => {
+            btn.classList.remove('active');
+        });
+        button.classList.add('active');
+        
+        // Display segments for this method
+        displaySegments(segments, method);
+    }
+
+    function displaySegments(segments, method) {
+        const container = document.getElementById('segmentsList');
+        
+        if (!segments || segments.length === 0) {
+            container.innerHTML = `
+                <div class="text-center p-4">
+                    <i class="fas fa-puzzle-piece fa-3x text-muted mb-3"></i>
+                    <p class="text-muted">No ${method} segments found for this document.</p>
+                </div>
+            `;
+            return;
+        }
+        
+        // Show first 5 segments with option to expand
+        const showCount = Math.min(5, segments.length);
+        const hasMore = segments.length > 5;
+        
+        let html = '<div class="row">';
+        
+        segments.slice(0, showCount).forEach((segment, index) => {
+            html += `
+                <div class="col-12 mb-3">
+                    <div class="border rounded p-3">
+                        <div class="d-flex justify-content-between align-items-start mb-2">
+                            <span class="badge bg-light text-dark">
+                                ${segment.segment_type.charAt(0).toUpperCase() + segment.segment_type.slice(1)} #${segment.segment_number}
+                            </span>
+                            <div class="text-end">
+                                <small class="text-muted d-block">${segment.word_count || 0} words</small>
+                                ${segment.character_count ? `<small class="text-muted">${segment.character_count} characters</small>` : ''}
+                            </div>
+                        </div>
+                        <p class="mb-0 text-muted small">
+                            ${segment.content.length > 150 ? segment.content.substring(0, 150) + '...' : segment.content}
+                        </p>
+                        ${segment.start_position !== null && segment.end_position !== null ? 
+                            `<div class="mt-2">
+                                <small class="text-muted">
+                                    <i class="fas fa-map-marker-alt me-1"></i>
+                                    Position: ${segment.start_position} - ${segment.end_position}
+                                </small>
+                            </div>` : ''
+                        }
+                    </div>
+                </div>
+            `;
+        });
+        
+        if (hasMore) {
+            html += `
+                <div class="col-12 text-center">
+                    <button class="btn btn-outline-info btn-sm" onclick="showAllSegments('${method}', ${segments.length})">
+                        <i class="fas fa-chevron-down me-2"></i>
+                        Show ${segments.length - showCount} More Segments
+                    </button>
+                </div>
+            `;
+        }
+        
+        html += '</div>';
+        container.innerHTML = html;
+    }
+
+    function showAllSegments(method, totalCount) {
+        // This would expand to show all segments - for now just indicate the action
+        alert(`Would show all ${totalCount} ${method} segments. This feature can be implemented to load all segments.`);
+    }
+
+    function displayNoSegments() {
+        const container = document.getElementById('segmentsList');
+        container.innerHTML = `
+            <div class="text-center p-4">
+                <i class="fas fa-puzzle-piece fa-3x text-muted mb-3"></i>
+                <p class="text-muted">No segments have been created for this document yet.</p>
+                <button class="btn btn-primary" onclick="showSegmentationOptions({{ document.id }})">
+                    <i class="fas fa-cut me-2"></i>Create Segments
+                </button>
+            </div>
+        `;
+        
+        // Hide the methods navigation
+        document.getElementById('segmentationMethods').style.display = 'none';
+    }
+
     // Initialize composite features on page load
     document.addEventListener('DOMContentLoaded', function() {
         const documentId = {{ document.id }};
         
         // Load document embeddings
         loadDocumentEmbeddings(documentId);
+        
+        // Load document segments
+        {% if document.text_segments.count() > 0 %}
+        loadDocumentSegments(documentId);
+        {% endif %}
         
         // Load composite info if this is a composite document
         // Composite document loading removed - no composite documents with inheritance versioning
