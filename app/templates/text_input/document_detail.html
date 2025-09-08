@@ -445,51 +445,30 @@
                     </div>
                     {% endif %}
                     
-                    <div class="d-grid gap-2">
-                        <!-- Unified Processing Interface -->
-                        <button class="btn btn-primary" onclick="showProcessingOptions({{ document.id }})">
-                            <i class="fas fa-play me-2"></i>Process Document
-                            <small class="d-block">Creates new processed version</small>
+                    <!-- Simplified Processing Actions - Single Column -->
+                    <div class="dropdown d-grid">
+                        <button class="btn btn-success dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                            <i class="fas fa-microscope me-2"></i>Process with Experiment
+                            <small class="d-block">Creates experimental version</small>
                         </button>
-                        
-                        <!-- Experiment Processing -->
-                        <div class="dropdown">
-                            <button class="btn btn-outline-success dropdown-toggle" type="button" data-bs-toggle="dropdown">
-                                <i class="fas fa-microscope me-2"></i>Process with Experiment
-                                <small class="d-block">Creates experimental version</small>
-                            </button>
-                            <ul class="dropdown-menu w-100">
-                                <li><h6 class="dropdown-header">Available Experiments</h6></li>
-                                {% if experiments %}
-                                    {% for experiment in experiments %}
-                                    <li><a class="dropdown-item" href="{{ url_for('experiments.process_document', experiment_id=experiment.id, document_id=document.id) }}">
-                                        <i class="fas fa-flask me-2"></i>{{ experiment.name }}
-                                        <small class="text-muted d-block">{{ experiment.experiment_type }}</small>
-                                    </a></li>
-                                    {% endfor %}
-                                    <li><hr class="dropdown-divider"></li>
-                                {% else %}
-                                    <li><span class="dropdown-item-text text-muted">No experiments available</span></li>
-                                    <li><hr class="dropdown-divider"></li>
-                                {% endif %}
-                                <li><a class="dropdown-item" href="{{ url_for('experiments.new') }}">
-                                    <i class="fas fa-plus me-2"></i>Create New Experiment
+                        <ul class="dropdown-menu w-100">
+                            <li><h6 class="dropdown-header">Available Experiments</h6></li>
+                            {% if experiments %}
+                                {% for experiment in experiments %}
+                                <li><a class="dropdown-item" href="{{ url_for('experiments.process_document', experiment_id=experiment.id, document_id=document.id) }}">
+                                    <i class="fas fa-flask me-2"></i>{{ experiment.name }}
+                                    <small class="text-muted d-block">{{ experiment.experiment_type }}</small>
                                 </a></li>
-                            </ul>
-                        </div>
-                        
-                        <!-- Quick Actions -->
-                        <div class="btn-group" role="group">
-                            <button type="button" class="btn btn-outline-secondary" onclick="processDocument({{ document.id }}, 'embeddings')">
-                                <i class="fas fa-vector-square me-1"></i>Embeddings
-                            </button>
-                            <button type="button" class="btn btn-outline-secondary" onclick="processDocument({{ document.id }}, 'segment')">
-                                <i class="fas fa-cut me-1"></i>Segment
-                            </button>
-                            <button type="button" class="btn btn-outline-secondary" onclick="processDocument({{ document.id }}, 'langextract')">
-                                <i class="fas fa-brain me-1"></i>LangExtract
-                            </button>
-                        </div>
+                                {% endfor %}
+                                <li><hr class="dropdown-divider"></li>
+                            {% else %}
+                                <li><span class="dropdown-item-text text-muted">No experiments available</span></li>
+                                <li><hr class="dropdown-divider"></li>
+                            {% endif %}
+                            <li><a class="dropdown-item" href="{{ url_for('experiments.new') }}">
+                                <i class="fas fa-plus me-2"></i>Create New Experiment
+                            </a></li>
+                        </ul>
                     </div>
                 </div>
             </div>
