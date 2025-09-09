@@ -3,7 +3,8 @@ Unified upload route for all content types.
 """
 
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, current_app
-from flask_login import login_required, current_user
+from flask_login import current_user
+from app.utils.auth_decorators import require_login_for_write, api_require_login_for_write
 from werkzeug.utils import secure_filename
 import os
 import uuid
@@ -16,14 +17,14 @@ from app.utils.file_handler import FileHandler
 upload_bp = Blueprint('upload', __name__, url_prefix='/upload')
 
 @upload_bp.route('/')
-@login_required
 def unified():
     """
-    Unified upload interface for all content types:
+    Unified upload interface for all content types - public view:
     - Documents for analysis
     - References/citations
     - Pasted text
     - Dictionary entries
+    Upload action requires login.
     """
     # Check if this is linked from an experiment
     experiment_id = request.args.get('experiment_id')
@@ -37,7 +38,7 @@ def unified():
     return render_template('upload/unified.html', experiment=experiment)
 
 @upload_bp.route('/document', methods=['POST'])
-@login_required
+@api_require_login_for_write
 def upload_document():
     """
     Unified document upload handler that processes all document types
@@ -237,7 +238,7 @@ def upload_document():
         return redirect(url_for('upload.unified'))
 
 @upload_bp.route('/redirect', methods=['GET'])
-@login_required
+@api_require_login_for_write
 def redirect_old_routes():
     """
     Redirect old upload routes to the unified interface.

@@ -1,5 +1,6 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, current_app
-from flask_login import login_required, current_user
+from flask_login import current_user
+from app.utils.auth_decorators import require_login_for_write, api_require_login_for_write
 from app import db
 from app.models import Term, TermVersion, ContextAnchor, FuzzinessAdjustment, AnalysisAgent
 from app.services.term_analysis_service import TermAnalysisService, TermAnalysisResult
@@ -28,9 +29,8 @@ def get_term_analysis_service():
 
 
 @terms_bp.route('/')
-@login_required
 def term_index():
-    """Display alphabetical index of all terms"""
+    """Display alphabetical index of all terms - public view"""
     page = request.args.get('page', 1, type=int)
     per_page = 50  # Show 50 terms per page
     
@@ -73,7 +73,7 @@ def term_index():
 
 
 @terms_bp.route('/add', methods=['GET', 'POST'])
-@login_required 
+@api_require_login_for_write 
 def add_term():
     """Add new term with WTForms validation"""
     form = AddTermForm()
@@ -170,7 +170,7 @@ def add_term():
 
 
 @terms_bp.route('/import', methods=['GET', 'POST'])
-@login_required
+@api_require_login_for_write
 def import_terms():
     """Import terms from CSV/Excel files"""
     if request.method == 'POST':
@@ -182,7 +182,7 @@ def import_terms():
 
 
 @terms_bp.route('/download', methods=['GET', 'POST'])
-@login_required
+@api_require_login_for_write
 def download_data():
     """Download terms and analysis data in various formats"""
     if request.method == 'POST':
@@ -194,7 +194,7 @@ def download_data():
 
 
 @terms_bp.route('/<uuid:term_id>')
-@login_required
+@api_require_login_for_write
 def view_term(term_id):
     """View term details and all versions"""
     term = Term.query.get_or_404(term_id)
@@ -212,7 +212,7 @@ def view_term(term_id):
 
 
 @terms_bp.route('/<uuid:term_id>/edit', methods=['GET', 'POST'])
-@login_required
+@api_require_login_for_write
 def edit_term(term_id):
     """Edit term basic information"""
     from app.forms.term_forms import EditTermForm
@@ -286,7 +286,7 @@ def edit_term(term_id):
 
 
 @terms_bp.route('/<uuid:term_id>/delete', methods=['POST'])
-@login_required
+@api_require_login_for_write
 def delete_term(term_id):
     """Delete a term (admin only)"""
     # Check if user is admin
@@ -350,7 +350,7 @@ def delete_term(term_id):
 
 
 @terms_bp.route('/<uuid:term_id>/add-version', methods=['GET', 'POST'])
-@login_required
+@api_require_login_for_write
 def add_version(term_id):
     """Add new temporal version to existing term"""
     term = Term.query.get_or_404(term_id)
@@ -432,7 +432,7 @@ def add_version(term_id):
 
 
 @terms_bp.route('/api/context-anchors')
-@login_required
+@api_require_login_for_write
 def api_context_anchors():
     """API endpoint for context anchor autocomplete"""
     query = request.args.get('query', '').strip()
@@ -448,7 +448,7 @@ def api_context_anchors():
 
 
 @terms_bp.route('/api/terms/search')
-@login_required 
+@api_require_login_for_write 
 def api_term_search():
     """API endpoint for term search autocomplete"""
     query = request.args.get('query', '').strip()
@@ -460,7 +460,7 @@ def api_term_search():
 
 
 @terms_bp.route('/<uuid:term_id>/versions/<uuid:version_id>/adjust-fuzziness', methods=['POST'])
-@login_required
+@api_require_login_for_write
 def adjust_fuzziness(term_id, version_id):
     """Adjust fuzziness score with audit trail"""
     version = TermVersion.query.get_or_404(version_id)
@@ -507,7 +507,7 @@ def adjust_fuzziness(term_id, version_id):
 
 
 @terms_bp.route('/<uuid:term_id>/analyze', methods=['POST'])
-@login_required
+@api_require_login_for_write
 def analyze_term(term_id):
     """Perform comprehensive term analysis using shared services."""
     term = Term.query.get_or_404(term_id)
@@ -573,7 +573,7 @@ def analyze_term(term_id):
 
 
 @terms_bp.route('/<uuid:term_id>/detect-drift', methods=['POST'])
-@login_required
+@api_require_login_for_write
 def detect_semantic_drift(term_id):
     """Detect semantic drift between term versions."""
     term = Term.query.get_or_404(term_id)
@@ -620,7 +620,7 @@ def detect_semantic_drift(term_id):
 
 
 @terms_bp.route('/api/discover-context-anchors')
-@login_required
+@api_require_login_for_write
 def api_discover_context_anchors():
     """API endpoint for discovering context anchors using embeddings."""
     term_text = request.args.get('term_text', '').strip()
@@ -679,7 +679,7 @@ def api_discover_context_anchors():
 
 
 @terms_bp.route('/api/calculate-fuzziness', methods=['POST'])
-@login_required
+@api_require_login_for_write
 def api_calculate_fuzziness():
     """API endpoint for calculating fuzziness score."""
     term_id = request.json.get('term_id')
@@ -712,7 +712,7 @@ def api_calculate_fuzziness():
 
 
 @terms_bp.route('/service-status')
-@login_required
+@api_require_login_for_write
 def service_status():
     """Display status of all shared services."""
     analysis_service = get_term_analysis_service()
@@ -727,7 +727,7 @@ def service_status():
 
 
 @terms_bp.route('/stats')
-@login_required
+@api_require_login_for_write
 def term_stats():
     """Display term statistics and analytics"""
     # Basic counts

@@ -4,7 +4,8 @@ Provides backend endpoints to avoid CORS restrictions.
 """
 
 from flask import Blueprint, jsonify, request, current_app
-from flask_login import login_required
+from flask_login import current_user
+from app.utils.auth_decorators import api_require_login_for_write
 import requests
 import json
 from datetime import datetime
@@ -24,7 +25,7 @@ API_URLS = {
 }
 
 @merriam_bp.route('/dictionary/<term>')
-@login_required
+@api_require_login_for_write
 def search_dictionary(term):
     """Search Merriam-Webster Collegiate Dictionary for term definition."""
     try:
@@ -90,7 +91,7 @@ def search_dictionary(term):
         }), 500
 
 @merriam_bp.route('/thesaurus/<term>')
-@login_required
+@api_require_login_for_write
 def search_thesaurus(term):
     """Search Merriam-Webster Thesaurus for synonyms and antonyms."""
     try:
@@ -154,7 +155,7 @@ def search_thesaurus(term):
         }), 500
 
 @merriam_bp.route('/test')
-@login_required
+@api_require_login_for_write
 def test_api():
     """Test endpoint to verify API connectivity."""
     return jsonify({

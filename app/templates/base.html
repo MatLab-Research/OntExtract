@@ -165,7 +165,6 @@
 
             <div class="collapse navbar-collapse" id="navbarNav">
                 <ul class="navbar-nav me-auto">
-                    {% if current_user.is_authenticated %}
                     <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
                             <i class="fas fa-folder-open me-1"></i>Library
@@ -174,22 +173,43 @@
                             <li><a class="dropdown-item" href="{{ url_for('text_input.document_list') }}">
                                     <i class="fas fa-file-text me-2"></i>All Documents
                                 </a></li>
+                            {% if current_user.is_authenticated %}
                             <li><a class="dropdown-item" href="{{ url_for('upload.unified') }}">
                                     <i class="fas fa-cloud-upload-alt me-2"></i>Add Source
                                 </a></li>
+                            {% else %}
+                            <li><a class="dropdown-item" href="{{ url_for('auth.login') }}">
+                                    <i class="fas fa-lock me-2"></i>Add Source <small class="text-muted">(Sign in
+                                        required)</small>
+                                </a></li>
+                            {% endif %}
                             <li>
                                 <hr class="dropdown-divider">
                             </li>
+                            {% if current_user.is_authenticated %}
                             <li><a class="dropdown-item" href="{{ url_for('terms.term_index') }}">
                                     <i class="fas fa-tags me-2"></i>Terms
                                 </a></li>
+                            {% else %}
+                            <li><a class="dropdown-item" href="{{ url_for('auth.login') }}">
+                                    <i class="fas fa-lock me-2"></i>Terms <small class="text-muted">(Sign in
+                                        required)</small>
+                                </a></li>
+                            {% endif %}
                         </ul>
                     </li>
                     <li class="nav-item">
+                        {% if current_user.is_authenticated %}
                         <a class="nav-link" href="{{ url_for('experiments.index') }}">
                             <i class="fas fa-flask me-1"></i>Experiments
                         </a>
+                        {% else %}
+                        <a class="nav-link" href="{{ url_for('auth.login') }}" title="Sign in required">
+                            <i class="fas fa-flask me-1"></i>Experiments <i class="fas fa-lock fa-xs"></i>
+                        </a>
+                        {% endif %}
                     </li>
+                    {% if current_user.is_authenticated %}
                     <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
                             <i class="fas fa-brain me-1"></i>Orchestration
@@ -201,28 +221,42 @@
                             <li><a class="dropdown-item" href="{{ url_for('orchestration_feedback.decisions') }}">
                                     <i class="fas fa-list me-2"></i>All Decisions
                                 </a></li>
-                            <li><a class="dropdown-item" href="{{ url_for('orchestration_feedback.learning_patterns') }}">
+                            <li><a class="dropdown-item"
+                                    href="{{ url_for('orchestration_feedback.learning_patterns') }}">
                                     <i class="fas fa-lightbulb me-2"></i>Learning Patterns
                                 </a></li>
                             <li>
                                 <hr class="dropdown-divider">
                             </li>
-                            <li><a class="dropdown-item" href="{{ url_for('orchestration_feedback.feedback_analytics') }}">
+                            <li><a class="dropdown-item"
+                                    href="{{ url_for('orchestration_feedback.feedback_analytics') }}">
                                     <i class="fas fa-chart-line me-2"></i>Analytics
                                 </a></li>
                         </ul>
                     </li>
+                    {% endif %}
                     <li class="nav-item">
+                        {% if current_user.is_authenticated %}
                         <a class="nav-link" href="{{ url_for('processing.processing_home') }}">
                             <i class="fas fa-cogs me-1"></i>Processing
                         </a>
+                        {% else %}
+                        <a class="nav-link" href="{{ url_for('auth.login') }}" title="Sign in required">
+                            <i class="fas fa-cogs me-1"></i>Processing <i class="fas fa-lock fa-xs"></i>
+                        </a>
+                        {% endif %}
                     </li>
                     <li class="nav-item">
+                        {% if current_user.is_authenticated %}
                         <a class="nav-link" href="{{ url_for('results.results_home') }}">
                             <i class="fas fa-chart-bar me-1"></i>Results
                         </a>
+                        {% else %}
+                        <a class="nav-link" href="{{ url_for('auth.login') }}" title="Sign in required">
+                            <i class="fas fa-chart-bar me-1"></i>Results <i class="fas fa-lock fa-xs"></i>
+                        </a>
+                        {% endif %}
                     </li>
-                    {% endif %}
                 </ul>
 
                 <ul class="navbar-nav">

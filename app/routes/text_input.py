@@ -13,24 +13,25 @@ from app.models.processing_job import ProcessingJob
 from sqlalchemy import text
 from app.services.text_processing import TextProcessingService
 from app.utils.file_handler import FileHandler
+from app.utils.auth_decorators import write_login_required, public_with_auth_context, api_require_login_for_write
 
 text_input_bp = Blueprint('text_input', __name__)
 
 @text_input_bp.route('/')
 @text_input_bp.route('/upload')
-@login_required
+@write_login_required  # Only require login for upload
 def upload_form():
     """Main upload form page"""
     return render_template('text_input/upload.html')
 
 @text_input_bp.route('/paste')
-@login_required
+@write_login_required  # Only require login for paste
 def paste_form():
     """Text paste form page"""
     return render_template('text_input/paste.html')
 
 @text_input_bp.route('/submit_text', methods=['POST'])
-@login_required
+@write_login_required  # Require login for submission
 def submit_text():
     """Handle pasted text submission"""
     try:
@@ -97,7 +98,7 @@ def submit_text():
         return redirect(url_for('text_input.paste_form'))
 
 @text_input_bp.route('/upload_file', methods=['POST'])
-@login_required
+@write_login_required  # Require login for upload
 def upload_file():
     """Handle file upload submission"""
     try:
@@ -213,9 +214,10 @@ def upload_file():
         return redirect(url_for('text_input.upload_form'))
 
 @text_input_bp.route('/documents')
-@login_required
+@public_with_auth_context  # Allow anonymous viewing of document list
 def document_list():
-    """List all user documents grouped by base document with version stacking"""
+    """List all documents grouped by base document with version stacking - public access"""
+    # Show all documents for everyone (public access)
     page = request.args.get('page', 1, type=int)
     per_page = 10
     
@@ -281,9 +283,10 @@ def document_list():
     return render_template('text_input/document_list.html', documents=pagination)
 
 @text_input_bp.route('/document/<int:document_id>')
-@login_required
+@public_with_auth_context  # Allow anonymous viewing of documents
 def document_detail(document_id):
     """Show document details"""
+    # Get document - public access for viewing
     document = Document.query.filter_by(id=document_id).first_or_404()
     
     # Get processing jobs for this document
@@ -328,7 +331,7 @@ def document_detail(document_id):
                          composite_recommendation=composite_recommendation)
 
 @text_input_bp.route('/document/<int:document_id>/delete', methods=['POST'])
-@login_required
+@write_login_required  # Require login for deletion
 def delete_document(document_id):
     """Delete a document"""
     document = Document.query.filter_by(id=document_id).first_or_404()
@@ -357,7 +360,7 @@ def delete_document(document_id):
         return redirect(url_for('text_input.document_detail', document_id=document_id))
 
 @text_input_bp.route('/document/<int:base_document_id>/delete-all-versions', methods=['POST'])
-@login_required
+@api_require_login_for_write
 def delete_all_versions(base_document_id):
     """Delete all versions of a document family"""
     try:
@@ -437,14 +440,14 @@ def delete_all_versions(base_document_id):
         return redirect(url_for('text_input.document_list'))
 
 @text_input_bp.route('/api/document/<int:document_id>/content')
-@login_required
+@api_require_login_for_write
 def api_document_content(document_id):
     """API endpoint to get document content"""
     document = Document.query.filter_by(id=document_id).first_or_404()
     return jsonify(document.to_dict(include_content=True))
 
 @text_input_bp.route('/api/documents')
-@login_required
+@api_require_login_for_write
 def api_document_list():
     """API endpoint to list user's documents"""
     page = request.args.get('page', 1, type=int)
@@ -464,7 +467,7 @@ def api_document_list():
     })
 
 @text_input_bp.route('/documents/<int:document_id>/apply_embeddings', methods=['POST'])
-@login_required
+@write_login_required  # Require login for processing
 def apply_embeddings(document_id):
     """Apply embeddings to a document"""
     try:

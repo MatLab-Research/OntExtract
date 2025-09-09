@@ -1,5 +1,6 @@
 from flask import Blueprint, render_template, request, jsonify, flash, redirect, url_for, current_app
-from flask_login import login_required, current_user
+from flask_login import current_user
+from app.utils.auth_decorators import require_login_for_write, api_require_login_for_write
 from sqlalchemy import text
 from app import db
 from app.models import Document, Experiment, ExperimentDocument, ProcessingJob
@@ -15,33 +16,30 @@ from app.services.experiment_domain_comparison import DomainComparisonService
 experiments_bp = Blueprint('experiments', __name__, url_prefix='/experiments')
 
 @experiments_bp.route('/')
-@login_required
 def index():
-    """List all experiments for all users"""
+    """List all experiments for all users - public view"""
     experiments = Experiment.query.order_by(Experiment.created_at.desc()).all()
     return render_template('experiments/index.html', experiments=experiments)
 
 @experiments_bp.route('/new')
-@login_required
 def new():
-    """Create a new experiment"""
+    """Show new experiment form - public view, but submit requires login"""
     # Get documents and references separately for all users
     documents = Document.query.filter_by(document_type='document').order_by(Document.created_at.desc()).all()
     references = Document.query.filter_by(document_type='reference').order_by(Document.created_at.desc()).all()
     return render_template('experiments/new.html', documents=documents, references=references)
 
 @experiments_bp.route('/wizard')
-@login_required
 def wizard():
-    """Guided wizard to create an experiment with design options (Choi-inspired)."""
+    """Guided wizard to create an experiment - public view, but submit requires login"""
     documents = Document.query.filter_by(document_type='document').order_by(Document.created_at.desc()).all()
     references = Document.query.filter_by(document_type='reference').order_by(Document.created_at.desc()).all()
     return render_template('experiments/wizard.html', documents=documents, references=references)
 
 @experiments_bp.route('/create', methods=['POST'])
-@login_required
+@api_require_login_for_write
 def create():
-    """Create a new experiment"""
+    """Create a new experiment - requires login"""
     try:
         data = request.get_json()
         
@@ -98,7 +96,7 @@ def create():
         return jsonify({'error': str(e)}), 500
 
 @experiments_bp.route('/sample', methods=['POST', 'GET'])
-@login_required
+@api_require_login_for_write
 def create_sample():
     """Create a sample domain comparison experiment using available references and a simple design."""
     try:
@@ -142,14 +140,14 @@ def create_sample():
         return redirect(url_for('experiments.index'))
 
 @experiments_bp.route('/<int:experiment_id>')
-@login_required
+@api_require_login_for_write
 def view(experiment_id):
     """View experiment details"""
     experiment = Experiment.query.filter_by(id=experiment_id).first_or_404()
     return render_template('experiments/view.html', experiment=experiment)
 
 @experiments_bp.route('/<int:experiment_id>/edit')
-@login_required
+@api_require_login_for_write
 def edit(experiment_id):
     """Edit experiment"""
     experiment = Experiment.query.filter_by(id=experiment_id).first_or_404()
@@ -171,7 +169,7 @@ def edit(experiment_id):
                          selected_doc_ids=selected_doc_ids)
 
 @experiments_bp.route('/<int:experiment_id>/update', methods=['POST'])
-@login_required
+@api_require_login_for_write
 def update(experiment_id):
     """Update experiment"""
     try:
@@ -217,7 +215,7 @@ def update(experiment_id):
         return jsonify({'error': str(e)}), 500
 
 @experiments_bp.route('/<int:experiment_id>/delete', methods=['POST'])
-@login_required
+@api_require_login_for_write
 def delete(experiment_id):
     """Delete experiment"""
     try:
@@ -240,7 +238,7 @@ def delete(experiment_id):
         return jsonify({'error': str(e)}), 500
 
 @experiments_bp.route('/<int:experiment_id>/run', methods=['POST'])
-@login_required
+@api_require_login_for_write
 def run(experiment_id):
     """Run an experiment"""
     try:
@@ -292,7 +290,7 @@ def run(experiment_id):
         return jsonify({'error': str(e)}), 500
 
 @experiments_bp.route('/<int:experiment_id>/results')
-@login_required
+@api_require_login_for_write
 def results(experiment_id):
     """View experiment results"""
     experiment = Experiment.query.filter_by(id=experiment_id).first_or_404()
@@ -322,7 +320,7 @@ def results(experiment_id):
                          config_data=config_data)
 
 @experiments_bp.route('/api/list')
-@login_required
+@api_require_login_for_write
 def api_list():
     """API endpoint to list experiments"""
     experiments = Experiment.query.order_by(Experiment.created_at.desc()).all()
@@ -331,14 +329,14 @@ def api_list():
     })
 
 @experiments_bp.route('/api/<int:experiment_id>')
-@login_required
+@api_require_login_for_write
 def api_get(experiment_id):
     """API endpoint to get experiment details"""
     experiment = Experiment.query.filter_by(id=experiment_id).first_or_404()
     return jsonify(experiment.to_dict(include_documents=True))
 
 @experiments_bp.route('/<int:experiment_id>/manage_terms')
-@login_required
+@api_require_login_for_write
 def manage_terms(experiment_id):
     """Manage terms for domain comparison experiment"""
     experiment = Experiment.query.filter_by(id=experiment_id).first_or_404()
@@ -363,7 +361,7 @@ def manage_terms(experiment_id):
                          terms=terms)
 
 @experiments_bp.route('/<int:experiment_id>/update_terms', methods=['POST'])
-@login_required
+@api_require_login_for_write
 def update_terms(experiment_id):
     """Update terms and domains for an experiment"""
     try:
@@ -391,7 +389,7 @@ def update_terms(experiment_id):
         return jsonify({'error': str(e)}), 500
 
 @experiments_bp.route('/<int:experiment_id>/get_terms')
-@login_required
+@api_require_login_for_write
 def get_terms(experiment_id):
     """Get saved terms and definitions for an experiment"""
     try:
@@ -410,7 +408,7 @@ def get_terms(experiment_id):
         return jsonify({'error': str(e)}), 500
 
 @experiments_bp.route('/<int:experiment_id>/fetch_definitions', methods=['POST'])
-@login_required
+@api_require_login_for_write
 def fetch_definitions(experiment_id):
     """Fetch definitions for a term from references and ontologies"""
     try:
@@ -493,7 +491,7 @@ def fetch_definitions(experiment_id):
         return jsonify({'error': str(e)}), 500
 
 @experiments_bp.route('/<int:experiment_id>/manage_temporal_terms')
-@login_required
+@api_require_login_for_write
 def manage_temporal_terms(experiment_id):
     """Manage terms for temporal evolution experiment"""
     experiment = Experiment.query.filter_by(id=experiment_id).first_or_404()
@@ -632,7 +630,7 @@ def manage_temporal_terms(experiment_id):
                          orchestration_decisions=orchestration_decisions)
 
 @experiments_bp.route('/<int:experiment_id>/update_temporal_terms', methods=['POST'])
-@login_required
+@api_require_login_for_write
 def update_temporal_terms(experiment_id):
     """Update terms and periods for a temporal evolution experiment"""
     try:
@@ -660,7 +658,7 @@ def update_temporal_terms(experiment_id):
         return jsonify({'error': str(e)}), 500
 
 @experiments_bp.route('/<int:experiment_id>/get_temporal_terms')
-@login_required
+@api_require_login_for_write
 def get_temporal_terms(experiment_id):
     """Get saved temporal terms and data for an experiment"""
     try:
@@ -679,7 +677,7 @@ def get_temporal_terms(experiment_id):
         return jsonify({'error': str(e)}), 500
 
 @experiments_bp.route('/<int:experiment_id>/fetch_temporal_data', methods=['POST'])
-@login_required
+@api_require_login_for_write
 def fetch_temporal_data(experiment_id):
     """Fetch temporal data for a term across time periods using advanced temporal analysis"""
     try:
@@ -957,7 +955,7 @@ def fetch_temporal_data(experiment_id):
 
 
 @experiments_bp.route('/<int:experiment_id>/semantic_evolution_visual')
-@login_required  
+@api_require_login_for_write  
 def semantic_evolution_visual(experiment_id):
     """Display semantic evolution visualization for any term with academic anchors."""
     experiment = Experiment.query.filter_by(id=experiment_id).first_or_404()
@@ -1109,7 +1107,7 @@ def semantic_evolution_visual(experiment_id):
                          domains=domains)
 
 @experiments_bp.route('/<int:experiment_id>/analyze_evolution', methods=['POST'])
-@login_required
+@api_require_login_for_write
 def analyze_evolution(experiment_id):
     """Analyze the evolution of a term over time with detailed semantic drift analysis"""
     try:
@@ -1197,7 +1195,7 @@ def analyze_evolution(experiment_id):
 # Human-in-the-Loop Orchestration Integration Routes
 
 @experiments_bp.route('/<int:experiment_id>/orchestrated_analysis')
-@login_required
+@api_require_login_for_write
 def orchestrated_analysis(experiment_id):
     """Human-in-the-loop orchestrated analysis interface"""
     experiment = Experiment.query.filter_by(id=experiment_id).first_or_404()
@@ -1227,7 +1225,7 @@ def orchestrated_analysis(experiment_id):
 
 
 @experiments_bp.route('/<int:experiment_id>/create_orchestration_decision', methods=['POST'])
-@login_required
+@api_require_login_for_write
 def create_orchestration_decision(experiment_id):
     """Create a new orchestration decision for human feedback"""
     try:
@@ -1319,7 +1317,7 @@ def create_orchestration_decision(experiment_id):
 
 
 @experiments_bp.route('/<int:experiment_id>/run_orchestrated_analysis', methods=['POST'])
-@login_required
+@api_require_login_for_write
 def run_orchestrated_analysis(experiment_id):
     """Run analysis with LLM orchestration decisions and real-time feedback"""
     try:
@@ -1400,7 +1398,7 @@ def run_orchestrated_analysis(experiment_id):
 # Document Processing Pipeline Routes
 
 @experiments_bp.route('/<int:experiment_id>/document_pipeline')
-@login_required
+@api_require_login_for_write
 def document_pipeline(experiment_id):
     """Step 2: Document Processing Pipeline Overview"""
     experiment = Experiment.query.filter_by(id=experiment_id).first_or_404()
@@ -1455,7 +1453,7 @@ def document_pipeline(experiment_id):
 
 
 @experiments_bp.route('/<int:experiment_id>/process_document/<int:document_id>')
-@login_required  
+@api_require_login_for_write  
 def process_document(experiment_id, document_id):
     """Process a specific document with experiment-specific context"""
     experiment = Experiment.query.filter_by(id=experiment_id).first_or_404()
@@ -1501,7 +1499,7 @@ def process_document(experiment_id, document_id):
 
 
 @experiments_bp.route('/<int:experiment_id>/document/<int:document_id>/apply_embeddings', methods=['POST'])
-@login_required
+@api_require_login_for_write
 def apply_embeddings_to_experiment_document(experiment_id, document_id):
     """Apply embeddings to a document for a specific experiment"""
     try:

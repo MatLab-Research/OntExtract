@@ -1,5 +1,6 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, send_file
-from flask_login import login_required, current_user
+from flask_login import current_user
+from app.utils.auth_decorators import require_login_for_write, api_require_login_for_write
 from werkzeug.utils import secure_filename
 import os
 import json
@@ -16,9 +17,8 @@ from app.services.wordnet_service import WordNetService
 references_bp = Blueprint('references', __name__, url_prefix='/references')
 
 @references_bp.route('/')
-@login_required
 def index():
-    """List all references for all users"""
+    """List all references for all users - public view"""
     references = Document.query.filter_by(
         document_type='reference'
     ).order_by(Document.created_at.desc()).all()
@@ -26,7 +26,7 @@ def index():
     return render_template('references/index.html', references=references)
 
 @references_bp.route('/<int:id>/download')
-@login_required
+@api_require_login_for_write
 def download(id: int):
     """Download the original file for a reference document if present."""
     doc = Document.query.filter_by(id=id).first_or_404()
@@ -42,7 +42,7 @@ def download(id: int):
         return redirect(url_for('references.view', id=id))
 
 @references_bp.route('/upload', methods=['GET', 'POST'])
-@login_required
+@api_require_login_for_write
 def upload():
     """Upload a new reference document"""
     # Check if we should use the new tabbed interface
@@ -187,7 +187,7 @@ def upload():
         return render_template('references/upload.html', experiment=experiment)
 
 @references_bp.route('/parse_oed_pdf', methods=['POST'])
-@login_required
+@api_require_login_for_write
 def parse_oed_pdf():
     """Parse uploaded OED PDF and return structured data"""
     import tempfile
@@ -243,7 +243,7 @@ def parse_oed_pdf():
                 pass
 
 @references_bp.route('/api/oed/entry')
-@login_required
+@api_require_login_for_write
 def api_oed_entry():
     """Lookup an OED entry by headword via OED API (if enabled)."""
     headword = request.args.get('q', '').strip()
@@ -256,7 +256,7 @@ def api_oed_entry():
     return jsonify(data), status
 
 @references_bp.route('/api/oed/word/<entry_id>')
-@login_required
+@api_require_login_for_write
 def api_oed_word(entry_id: str):
     svc = OEDService()
     data = svc.get_word(entry_id)
@@ -264,7 +264,7 @@ def api_oed_word(entry_id: str):
     return jsonify(data), status
 
 @references_bp.route('/api/oed/word/<entry_id>/quotations')
-@login_required
+@api_require_login_for_write
 def api_oed_word_quotations(entry_id: str):
     svc = OEDService()
     # Optional pagination
@@ -280,7 +280,7 @@ def api_oed_word_quotations(entry_id: str):
     return jsonify(data), status
 
 @references_bp.route('/api/oed/suggest')
-@login_required
+@api_require_login_for_write
 def api_oed_suggest():
     q = (request.args.get('q') or '').strip()
     if not q:
@@ -291,7 +291,7 @@ def api_oed_suggest():
     return jsonify(data), status
 
 @references_bp.route('/api/oed/variants')
-@login_required
+@api_require_login_for_write
 def api_oed_variants():
     q = (request.args.get('q') or '').strip()
     if not q:
@@ -302,7 +302,7 @@ def api_oed_variants():
     return jsonify(data), status
 
 @references_bp.route('/oed/new')
-@login_required
+@api_require_login_for_write
 def new_oed_reference():
     """Render a page to add an OED entry as a reference.
 
@@ -313,7 +313,7 @@ def new_oed_reference():
 
 
 @references_bp.route('/oed/add', methods=['POST'])
-@login_required
+@api_require_login_for_write
 def add_oed_reference():
     """Create a reference Document from an OED entry_id, allowing sense selection and storing minimal sense info."""
     entry_id = (request.form.get('entry_id') or '').strip()
@@ -515,7 +515,7 @@ def _build_oed_reference(entry_id: str, user_id: int, selected_sense_ids: list[s
     return doc, None
 
 @references_bp.route('/oed/add_batch', methods=['POST'])
-@login_required
+@api_require_login_for_write
 def add_oed_references_batch():
     """Batch add multiple OED entry_ids (each with all senses by default)."""
     entry_ids = request.form.getlist('entry_id')
@@ -558,7 +558,7 @@ def add_oed_references_batch():
     return redirect(url_for('references.index'))
 
 @references_bp.route('/oed/split/<int:parent_id>', methods=['POST'])
-@login_required
+@api_require_login_for_write
 def split_oed_reference(parent_id: int):
     """Create individual child reference documents for each selected sense under a master OED entry.
 
@@ -620,7 +620,7 @@ def split_oed_reference(parent_id: int):
     return redirect(url_for('references.view', id=parent_doc.id))
 
 @references_bp.route('/<int:id>')
-@login_required
+@api_require_login_for_write
 def view(id):
     """View reference details"""
     reference = Document.query.filter_by(
@@ -638,7 +638,7 @@ def view(id):
                          experiments_using=experiments_using)
 
 @references_bp.route('/<int:id>/edit', methods=['GET', 'POST'])
-@login_required
+@api_require_login_for_write
 def edit(id):
     """Edit reference metadata"""
     reference = Document.query.filter_by(
@@ -681,7 +681,7 @@ def edit(id):
     return render_template('references/edit.html', reference=reference)
 
 @references_bp.route('/<int:id>/delete', methods=['POST'])
-@login_required
+@api_require_login_for_write
 def delete(id):
     """Delete a reference"""
     reference = Document.query.filter_by(
@@ -701,7 +701,7 @@ def delete(id):
 
 # API endpoints for AJAX operations
 @references_bp.route('/api/search')
-@login_required
+@api_require_login_for_write
 def api_search():
     """Search references for autocomplete/selection"""
     query = request.args.get('q', '')
@@ -724,7 +724,7 @@ def api_search():
     } for ref in references])
 
 @references_bp.route('/upload_dictionary', methods=['POST'])
-@login_required
+@api_require_login_for_write
 def upload_dictionary():
     """Upload a dictionary entry (OED or general)"""
     # Helper cleaners to strip NULs from inputs (Postgres cannot store \x00)
@@ -835,7 +835,7 @@ def upload_dictionary():
     return redirect(url_for('references.view', id=document.id))
 
 @references_bp.route('/api/wordnet/search')
-@login_required
+@api_require_login_for_write
 def api_wordnet_search():
     """Search WordNet for a word and return synsets with definitions."""
     word = request.args.get('q', '').strip()
@@ -848,7 +848,7 @@ def api_wordnet_search():
     return jsonify(data), status
 
 @references_bp.route('/api/wordnet/similarity')
-@login_required
+@api_require_login_for_write
 def api_wordnet_similarity():
     """Calculate semantic similarity between two words using WordNet."""
     word1 = request.args.get('word1', '').strip()

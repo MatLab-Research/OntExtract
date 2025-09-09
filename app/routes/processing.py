@@ -1,6 +1,6 @@
 from flask import Blueprint, render_template, request, jsonify, current_app as app
-from flask_login import login_required, current_user
-from app.utils.auth_decorators import ajax_login_required
+from flask_login import current_user
+from app.utils.auth_decorators import require_login_for_write, api_require_login_for_write
 from sqlalchemy import func
 import os
 from app import db
@@ -13,9 +13,8 @@ from app.services.inheritance_versioning_service import InheritanceVersioningSer
 processing_bp = Blueprint('processing', __name__)
 
 @processing_bp.route('/')
-@login_required
 def processing_home():
-    """Processing pipeline home page"""
+    """Processing pipeline home page - public view"""
     # Aggregate document stats
     doc_total = db.session.query(func.count(Document.id)).scalar() or 0
     doc_uploaded = db.session.query(func.count(Document.id)).filter(Document.status == 'uploaded').scalar() or 0
@@ -63,9 +62,8 @@ def processing_home():
     return render_template('processing/index.html', stats=stats, recent_documents=recent_documents, recent_jobs=recent_jobs)
 
 @processing_bp.route('/jobs')
-@login_required
 def job_list():
-    """List processing jobs"""
+    """List processing jobs - public view"""
     jobs = (
         db.session.query(ProcessingJob)
         .order_by(ProcessingJob.created_at.desc())
@@ -75,14 +73,14 @@ def job_list():
     return render_template('processing/jobs.html', jobs=jobs)
 
 @processing_bp.route('/start/<int:document_id>')
-@login_required
+@require_login_for_write
 def start_processing(document_id):
-    """Start processing a document"""
+    """Start processing a document - requires login"""
     # Placeholder for now
     return jsonify({'message': 'Processing will be implemented in phase 2'})
 
 @processing_bp.route('/document/<int:document_id>/embeddings', methods=['POST'])
-@ajax_login_required
+@api_require_login_for_write
 def generate_embeddings(document_id):
     """Generate embeddings for a document (creates new version)"""
     try:
@@ -284,7 +282,7 @@ def generate_embeddings(document_id):
         return jsonify({'success': False, 'error': str(e)}), 500
 
 @processing_bp.route('/document/<int:document_id>/segment', methods=['POST'])
-@ajax_login_required 
+@api_require_login_for_write 
 def segment_document(document_id):
     """Segment a document into chunks and create TextSegment objects (creates new version)"""
     try:
@@ -625,7 +623,7 @@ def segment_document(document_id):
         return jsonify({'success': False, 'error': str(e)}), 500
 
 @processing_bp.route('/document/<int:document_id>/segments', methods=['DELETE'])
-@ajax_login_required
+@api_require_login_for_write
 def delete_document_segments(document_id):
     """Delete all segments for a document"""
     try:
@@ -670,7 +668,7 @@ def delete_document_segments(document_id):
         return jsonify({'success': False, 'error': str(e)}), 500
 
 @processing_bp.route('/document/<int:document_id>/entities', methods=['POST'])
-@login_required
+@api_require_login_for_write
 def extract_entities(document_id):
     """Extract entities from a document"""
     try:
@@ -721,7 +719,7 @@ def extract_entities(document_id):
         return jsonify({'success': False, 'error': str(e)}), 500
 
 @processing_bp.route('/document/<int:document_id>/metadata', methods=['POST'])
-@login_required
+@api_require_login_for_write
 def analyze_metadata(document_id):
     """Analyze and enhance document metadata"""
     try:
@@ -768,7 +766,7 @@ def analyze_metadata(document_id):
         return jsonify({'success': False, 'error': str(e)}), 500
 
 @processing_bp.route('/document/<int:document_id>/clear-jobs', methods=['POST'])
-@login_required
+@api_require_login_for_write
 def clear_document_jobs(document_id):
     """Clear all processing jobs for a document (for testing purposes)"""
     try:
@@ -794,7 +792,7 @@ def clear_document_jobs(document_id):
 
 
 @processing_bp.route('/document/<int:document_id>/enhanced', methods=['POST'])
-@ajax_login_required
+@api_require_login_for_write
 def enhanced_document_processing(document_id):
     """Enhanced document processing with term extraction and OED enrichment"""
     try:
@@ -870,7 +868,7 @@ def enhanced_document_processing(document_id):
 
 
 @processing_bp.route('/batch/enhanced', methods=['POST'])
-@login_required
+@api_require_login_for_write
 def batch_enhanced_processing():
     """Process multiple documents with enhanced processing and OED enrichment"""
     try:
@@ -961,7 +959,7 @@ def batch_enhanced_processing():
 
 
 @processing_bp.route('/api/processing/job/<int:job_id>/langextract-details')
-@login_required
+@api_require_login_for_write
 def get_langextract_details(job_id):
     """Get detailed LangExtract analysis results for a specific job"""
     try:
