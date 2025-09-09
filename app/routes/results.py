@@ -1,16 +1,17 @@
 from flask import Blueprint, render_template, request, jsonify
-from flask_login import login_required, current_user
+from flask_login import current_user
+from app.utils.auth_decorators import api_require_login_for_write
 
 results_bp = Blueprint('results', __name__)
 
 @results_bp.route('/')
-@login_required
+@api_require_login_for_write
 def results_home():
     """Results dashboard"""
     return render_template('results/index.html')
 
 @results_bp.route('/reports')
-@login_required
+@api_require_login_for_write
 def reports():
     """View analysis reports and summaries"""
     # TODO: Implement reports dashboard
@@ -18,7 +19,7 @@ def reports():
 
 
 @results_bp.route('/job/<int:job_id>')
-@login_required
+@api_require_login_for_write
 def job_results(job_id):
     """Show results for a specific processing job"""
     # Placeholder for now

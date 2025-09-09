@@ -659,45 +659,68 @@
         }
     });
 
+    // Authentication check function
+    function checkAuthForAction(callback, loginMessage = 'Please sign in to perform this action.') {
+        {% if current_user.is_authenticated %}
+        callback();
+        {% else %}
+        if (confirm(loginMessage + '\n\nClick OK to go to login page.')) {
+            window.location.href = "{{ url_for('auth.login', next=request.url) }}";
+        }
+        {% endif %}
+    }
+
     // Form submission handlers
     document.getElementById('documentUploadForm')?.addEventListener('submit', function (e) {
         e.preventDefault();
-        this.action = "{{ url_for('upload.upload_document') }}";
-        this.submit();
+        const form = this;
+        checkAuthForAction(() => {
+            form.action = "{{ url_for('upload.upload_document') }}";
+            form.submit();
+        }, 'Please sign in to upload documents.');
     });
 
     document.getElementById('pasteTextForm')?.addEventListener('submit', function (e) {
         e.preventDefault();
+        const form = this;
         const contentType = document.getElementById('content_type').value;
-        if (contentType === 'reference') {
-            // Convert to reference format
-            const formData = new FormData(this);
-            formData.set('reference_subtype', 'other');
-            // Submit as reference
-            fetch("{{ url_for('references.upload_dictionary') }}", {
-                method: 'POST',
-                body: formData
-            }).then(response => {
-                if (response.ok) {
-                    window.location.href = "{{ url_for('references.index') }}";
-                }
-            });
-        } else {
-            this.action = "{{ url_for('text_input.submit_text') }}";
-            this.submit();
-        }
+        checkAuthForAction(() => {
+            if (contentType === 'reference') {
+                // Convert to reference format
+                const formData = new FormData(form);
+                formData.set('reference_subtype', 'other');
+                // Submit as reference
+                fetch("{{ url_for('references.upload_dictionary') }}", {
+                    method: 'POST',
+                    body: formData
+                }).then(response => {
+                    if (response.ok) {
+                        window.location.href = "{{ url_for('references.index') }}";
+                    }
+                });
+            } else {
+                form.action = "{{ url_for('text_input.submit_text') }}";
+                form.submit();
+            }
+        }, 'Please sign in to save text content.');
     });
 
     document.getElementById('oedForm')?.addEventListener('submit', function (e) {
         e.preventDefault();
-        this.action = "{{ url_for('references.upload_dictionary') }}";
-        this.submit();
+        const form = this;
+        checkAuthForAction(() => {
+            form.action = "{{ url_for('references.upload_dictionary') }}";
+            form.submit();
+        }, 'Please sign in to save dictionary entries.');
     });
 
     document.getElementById('generalDictForm')?.addEventListener('submit', function (e) {
         e.preventDefault();
-        this.action = "{{ url_for('references.upload_dictionary') }}";
-        this.submit();
+        const form = this;
+        checkAuthForAction(() => {
+            form.action = "{{ url_for('references.upload_dictionary') }}";
+            form.submit();
+        }, 'Please sign in to save dictionary entries.');
     });
 
     // OED PDF Parser

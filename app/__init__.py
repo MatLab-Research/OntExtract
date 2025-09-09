@@ -85,13 +85,13 @@ def create_app(config_name=None):
             except Exception:
                 return value
 
-    # Main route
+    # Main route - PUBLIC ACCESS
     @app.route('/')
     def index():
         from flask import render_template
         from flask_login import current_user
         
-        # Get user's dashboard data
+        # Get user's dashboard data (only if authenticated)
         dashboard_data = {
             'recent_term': None,
             'term_counts': {
@@ -161,3 +161,84 @@ def register_cli(app: Flask) -> None:
             _db.session.add(user)
             _db.session.commit()
             click.echo(f"Admin user '{username}' created.")
+
+    @app.cli.command("create-demo-documents")
+    def create_demo_documents_command():
+        """Create demo documents for anonymous viewing."""
+        from app import db as _db
+        from app.models.document import Document
+        from app.models.user import User
+        from datetime import datetime
+        
+        with app.app_context():
+            # Get or create a demo user
+            demo_user = User.query.filter_by(username='demo_user').first()
+            if not demo_user:
+                demo_user = User(
+                    username='demo_user',
+                    email='demo@example.com',
+                    password='demo_password_not_for_login',
+                    is_active=False  # Prevent login
+                )
+                _db.session.add(demo_user)
+                _db.session.commit()
+                click.echo("Created demo user.")
+            
+            # Create demo documents if they don't exist
+            existing_demos = Document.query.filter(Document.title.like('[DEMO]%')).count()
+            if existing_demos > 0:
+                click.echo(f"Demo documents already exist ({existing_demos} found).")
+                return
+            
+            demo_docs = [
+                {
+                    'title': 'Semantic Evolution in Computing Terms',
+                    'content': """The term "cloud" in computing has undergone significant semantic drift since the 1960s.
+                    Originally used metaphorically in network diagrams to represent undefined network space,
+                    it evolved through the 1990s to describe distributed computing resources, and by the 2000s
+                    became synonymous with on-demand internet-based services. This evolution demonstrates
+                    how technical terminology adapts to technological advancement while maintaining conceptual
+                    continuity through metaphorical extension.""",
+                    'detected_language': 'en',
+                    'language_confidence': 0.99,
+                    'status': 'completed'
+                },
+                {
+                    'title': 'Historical Analysis of "Algorithm"',
+                    'content': """The word "algorithm" derives from the name of 9th-century mathematician
+                    al-Khwarizmi, originally referring to arithmetic procedures. Through the 20th century,
+                    it broadened to encompass any systematic procedure for calculation. With the advent
+                    of computer science, it specialized to mean precise computational procedures, yet
+                    recent usage in phrases like "social media algorithm" shows renewed semantic expansion
+                    into non-technical domains, illustrating cyclical patterns in terminological evolution.""",
+                    'detected_language': 'en',
+                    'language_confidence': 0.98,
+                    'status': 'completed'
+                },
+                {
+                    'title': 'PROV-O Tracking Example',
+                    'content': """This document demonstrates PROV-O provenance tracking in OntExtract.
+                    Each analytical operation creates traceable records following W3C standards.
+                    When this document is processed, the system captures: (1) the agent performing
+                    the analysis, (2) the activity type and parameters, (3) the resulting entities,
+                    and (4) the derivation relationships between versions. This ensures complete
+                    reproducibility and transparency in semantic analysis workflows.""",
+                    'detected_language': 'en',
+                    'language_confidence': 0.97,
+                    'status': 'completed'
+                }
+            ]
+            
+            for doc_data in demo_docs:
+                doc = Document(
+                    **doc_data,
+                    content_type='text',
+                    user_id=demo_user.id,
+                    word_count=len(doc_data['content'].split()),
+                    character_count=len(doc_data['content']),
+                    created_at=datetime.utcnow()
+                )
+                _db.session.add(doc)
+            
+            _db.session.commit()
+            click.echo(f"Created {len(demo_docs)} demo documents.")

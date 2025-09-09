@@ -13,33 +13,39 @@
             <p class="lead mb-4">
                 Semantic Change Analysis through Term-Centric Research
             </p>
-            
-            {% if current_user.is_authenticated %}
-                <!-- All Actions in One Row -->
-                <div class="d-flex justify-content-center gap-2 flex-nowrap">
-                    <a href="{{ url_for('terms.add_term') }}" class="btn btn-primary">
-                        <i class="fas fa-plus-circle me-1"></i>Add Term
-                    </a>
-                    <a href="{{ url_for('terms.import_terms') }}" class="btn btn-warning">
-                        <i class="fas fa-upload me-1"></i>Import
-                    </a>
-                    <a href="{{ url_for('terms.term_index') }}" class="btn btn-success">
-                        <i class="fas fa-list me-1"></i>Browse
-                    </a>
-                    <a href="{{ url_for('terms.download_data') }}" class="btn btn-outline-info">
-                        <i class="fas fa-download me-1"></i>Download
-                    </a>
-                </div>
-            {% else %}
-                <div class="d-flex justify-content-center gap-2 flex-nowrap">
-                    <a href="{{ url_for('auth.register') }}" class="btn btn-primary">
-                        <i class="fas fa-user-plus me-1"></i>Get Started
-                    </a>
-                    <a href="{{ url_for('auth.login') }}" class="btn btn-outline-light">
-                        <i class="fas fa-sign-in-alt me-1"></i>Sign In
-                    </a>
-                </div>
-            {% endif %}
+
+            <!-- Action Buttons - Same for All Users -->
+            <div class="d-flex justify-content-center gap-2 flex-wrap">
+                {% if current_user.is_authenticated %}
+                <a href="{{ url_for('terms.add_term') }}" class="btn btn-primary">
+                    <i class="fas fa-plus-circle me-1"></i>Add Term
+                </a>
+                <a href="{{ url_for('terms.import_terms') }}" class="btn btn-warning">
+                    <i class="fas fa-upload me-1"></i>Import
+                </a>
+                <a href="{{ url_for('terms.term_index') }}" class="btn btn-success">
+                    <i class="fas fa-list me-1"></i>Browse
+                </a>
+                <a href="{{ url_for('terms.download_data') }}" class="btn btn-outline-info">
+                    <i class="fas fa-download me-1"></i>Download
+                </a>
+                {% else %}
+                <!-- Same buttons for anonymous users - login will be required when clicked -->
+                <a href="{{ url_for('auth.login') }}?next={{ url_for('terms.add_term') }}" class="btn btn-primary">
+                    <i class="fas fa-plus-circle me-1"></i>Add Term
+                </a>
+                <a href="{{ url_for('auth.login') }}?next={{ url_for('terms.import_terms') }}" class="btn btn-warning">
+                    <i class="fas fa-upload me-1"></i>Import
+                </a>
+                <a href="{{ url_for('terms.term_index') }}" class="btn btn-success">
+                    <i class="fas fa-list me-1"></i>Browse
+                </a>
+                <a href="{{ url_for('auth.login') }}?next={{ url_for('terms.download_data') }}"
+                    class="btn btn-outline-info">
+                    <i class="fas fa-download me-1"></i>Download
+                </a>
+                {% endif %}
+            </div>
         </div>
     </div>
 
@@ -53,14 +59,14 @@
                         Academic Anchors
                     </h5>
                     <p class="text-muted mb-0">
-                        Ground semantic evolution in foundational scholarly works across 
-                        disciplines, using peer-reviewed literature rather than corpus 
+                        Ground semantic evolution in foundational scholarly works across
+                        disciplines, using peer-reviewed literature rather than corpus
                         statistics alone for authoritative meaning fixation.
                     </p>
                 </div>
             </div>
         </div>
-        
+
         <div class="col-lg-4 col-md-6 mb-3">
             <div class="card h-100">
                 <div class="card-body">
@@ -69,13 +75,13 @@
                         Vector-Based Drift
                     </h5>
                     <p class="text-muted mb-0">
-                        Calculate semantic drift using pgvector cosine similarity between 
+                        Calculate semantic drift using pgvector cosine similarity between
                         period embeddings with centroid comparison and pairwise distance analysis.
                     </p>
                 </div>
             </div>
         </div>
-        
+
         <div class="col-lg-4 col-md-6 mb-3">
             <div class="card h-100">
                 <div class="card-body">
@@ -84,13 +90,13 @@
                         Period-Aware Models
                     </h5>
                     <p class="text-muted mb-0">
-                        Select embedding models based on temporal context including 
+                        Select embedding models based on temporal context including
                         historical pre-1850, modern 1950-2000, and contemporary post-2000 periods.
                     </p>
                 </div>
             </div>
         </div>
-        
+
         <div class="col-lg-4 col-md-6 mb-3">
             <div class="card h-100">
                 <div class="card-body">
@@ -99,13 +105,13 @@
                         LLM Orchestration
                     </h5>
                     <p class="text-muted mb-0">
-                        Intelligent tool selection and document analysis coordination 
+                        Intelligent tool selection and document analysis coordination
                         using shared multi-provider LLM infrastructure with automatic fallback.
                     </p>
                 </div>
             </div>
         </div>
-        
+
         <div class="col-lg-4 col-md-6 mb-3">
             <div class="card h-100">
                 <div class="card-body">
@@ -114,13 +120,13 @@
                         PROV-O Provenance
                     </h5>
                     <p class="text-muted mb-0">
-                        Document complete audit trails using W3C Provenance Ontology 
+                        Document complete audit trails using W3C Provenance Ontology
                         for traceable semantic change detection with temporal metadata.
                     </p>
                 </div>
             </div>
         </div>
-        
+
         <div class="col-lg-4 col-md-6 mb-3">
             <div class="card h-100">
                 <div class="card-body">
@@ -129,7 +135,7 @@
                         Temporal Modeling
                     </h5>
                     <p class="text-muted mb-0">
-                        Version-controlled semantic histories with temporal scope tracking 
+                        Version-controlled semantic histories with temporal scope tracking
                         and Allen's interval algebra for precise period relationships.
                     </p>
                 </div>
@@ -143,7 +149,7 @@
         <div class="col-12">
             <h4 class="text-center mb-3">Research Dashboard</h4>
         </div>
-        
+
         <div class="col-lg-3 col-md-6 mb-3">
             <div class="card stats-card">
                 <div class="card-body text-center">
@@ -153,7 +159,7 @@
                 </div>
             </div>
         </div>
-        
+
         <div class="col-lg-3 col-md-6 mb-3">
             <div class="card stats-card">
                 <div class="card-body text-center">
@@ -163,7 +169,7 @@
                 </div>
             </div>
         </div>
-        
+
         <div class="col-lg-3 col-md-6 mb-3">
             <div class="card stats-card">
                 <div class="card-body text-center">
@@ -173,7 +179,7 @@
                 </div>
             </div>
         </div>
-        
+
         <div class="col-lg-3 col-md-6 mb-3">
             <div class="card stats-card">
                 <div class="card-body text-center">
@@ -185,7 +191,7 @@
         </div>
     </div>
     {% endif %}
-    
+
     {% if current_user.is_authenticated %}
     <!-- Recent Activity -->
     <div class="row">
@@ -200,9 +206,9 @@
                             <h6>Most Recent</h6>
                             <p class="text-muted">
                                 {% if recent_term %}
-                                    "{{ recent_term.term_text }}" - {{ recent_term.created_at.strftime('%b %d, %Y') }}
+                                "{{ recent_term.term_text }}" - {{ recent_term.created_at.strftime('%b %d, %Y') }}
                                 {% else %}
-                                    No terms created yet
+                                No terms created yet
                                 {% endif %}
                             </p>
                         </div>
@@ -232,8 +238,8 @@
                 <div class="card-body p-5">
                     <h3 class="mb-3">Research Access</h3>
                     <p class="mb-4">
-                        Register for access to begin ontological text analysis 
-                        using computational linguistics and semantic extraction methods.
+                        Test document upload and processing.<br>
+                        <small class="opacity-75">Early beta - your feedback helps improve the system.</small>
                     </p>
                     <a href="{{ url_for('auth.register') }}" class="btn btn-light btn-lg">
                         <i class="fas fa-user-plus me-2"></i>Register for Access

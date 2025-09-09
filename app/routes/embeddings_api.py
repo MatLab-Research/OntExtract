@@ -1,5 +1,6 @@
 from flask import Blueprint, request, jsonify
-from flask_login import login_required, current_user
+from flask_login import current_user
+from app.utils.auth_decorators import api_require_login_for_write
 from app import db
 from app.models import Document, ProcessingJob
 from sqlalchemy import text
@@ -14,7 +15,7 @@ embeddings_bp = Blueprint('embeddings', __name__, url_prefix='/api/embeddings')
 document_api_bp = Blueprint('document_api', __name__, url_prefix='/api/document')
 
 @embeddings_bp.route('/document/<int:document_id>')
-@login_required
+@api_require_login_for_write
 def get_document_embeddings(document_id):
     """Get embedding information for a document (metadata only, not raw vectors)."""
     try:
@@ -70,7 +71,7 @@ def get_document_embeddings(document_id):
         }), 500
 
 @embeddings_bp.route('/document/<int:document_id>/sample')
-@login_required  
+@api_require_login_for_write  
 def get_embedding_sample(document_id):
     """Get a sample of embeddings for preview (first few chunks and vectors)."""
     try:
@@ -134,7 +135,7 @@ def get_embedding_sample(document_id):
         return jsonify({'success': False, 'error': str(e)}), 500
 
 @embeddings_bp.route('/document/<int:document_id>/verify')
-@login_required
+@api_require_login_for_write
 def verify_embeddings(document_id):
     """Verify embeddings exist and provide validation metrics."""
     try:
@@ -190,7 +191,7 @@ def verify_embeddings(document_id):
         return jsonify({'success': False, 'error': str(e)}), 500
 
 @embeddings_bp.route('/jobs/<int:job_id>')
-@login_required
+@api_require_login_for_write
 def get_job_details(job_id):
     """Get detailed information about a specific embedding job."""
     try:
@@ -219,7 +220,7 @@ def get_job_details(job_id):
 # New Document API endpoints that match our frontend calls
 
 @document_api_bp.route('/<int:document_id>/embeddings')
-@login_required
+@api_require_login_for_write
 def get_document_embeddings_new(document_id):
     """Get all embeddings for a document - first try document_embeddings table, then fall back to processing jobs."""
     try:
@@ -314,7 +315,7 @@ def get_document_embeddings_new(document_id):
         }), 500
 
 @document_api_bp.route('/embedding/<embedding_id>/preview')
-@login_required  
+@api_require_login_for_write  
 def get_embedding_preview(embedding_id):
     """Get a specific embedding with full vector data for preview."""
     try:
@@ -394,7 +395,7 @@ def get_embedding_preview(embedding_id):
         return jsonify({'success': False, 'error': str(e)}), 500
 
 @document_api_bp.route('/<int:document_id>/segments')
-@login_required
+@api_require_login_for_write
 def get_document_segments(document_id):
     """Get all segments for a document grouped by segmentation method."""
     try:

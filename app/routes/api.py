@@ -3,7 +3,8 @@ API routes for OntExtract - handles AJAX requests and API endpoints
 """
 
 from flask import Blueprint, request, jsonify
-from flask_login import login_required, current_user
+from flask_login import current_user
+from app.utils.auth_decorators import api_require_login_for_write
 from app import db
 from app.models.term import Term
 from app.services.oed_enrichment_service import OEDEnrichmentService
@@ -11,7 +12,7 @@ from app.services.oed_enrichment_service import OEDEnrichmentService
 api_bp = Blueprint('api', __name__, url_prefix='/api')
 
 @api_bp.route('/terms/enrich-oed', methods=['POST'])
-@login_required
+@api_require_login_for_write
 def enrich_term_with_oed():
     """
     API endpoint to enrich a term with OED data
@@ -61,7 +62,7 @@ def enrich_term_with_oed():
 
 
 @api_bp.route('/terms/<term_id>/oed-data', methods=['GET'])
-@login_required
+@api_require_login_for_write
 def get_term_oed_data(term_id):
     """Get OED data for a specific term"""
     try:
@@ -105,7 +106,7 @@ def get_term_oed_data(term_id):
 
 
 @api_bp.route('/terms/search-oed', methods=['GET'])
-@login_required  
+@api_require_login_for_write  
 def search_oed_entries():
     """Search for OED entries for a term"""
     try:

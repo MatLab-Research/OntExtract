@@ -6,7 +6,8 @@ and apply manual overrides for continuous system improvement.
 """
 
 from flask import Blueprint, request, jsonify, render_template, flash, redirect, url_for
-from flask_login import login_required, current_user
+from flask_login import current_user
+from app.utils.auth_decorators import api_require_login_for_write
 from app import db
 from app.models.orchestration_logs import OrchestrationDecision
 from app.models.orchestration_feedback import (
@@ -26,7 +27,7 @@ bp = Blueprint('orchestration_feedback', __name__, url_prefix='/orchestration')
 
 @bp.route('/')
 @bp.route('/dashboard')
-@login_required
+@api_require_login_for_write
 def dashboard():
     """Orchestration dashboard showing recent activity and key metrics"""
     
@@ -66,7 +67,7 @@ def dashboard():
 
 
 @bp.route('/decisions', methods=['GET'])
-@login_required
+@api_require_login_for_write
 def decisions():
     """List recent orchestration decisions for feedback"""
     
@@ -123,7 +124,7 @@ def decisions():
 
 
 @bp.route('/decisions/<decision_id>', methods=['GET'])
-@login_required  
+@api_require_login_for_write  
 def get_decision(decision_id):
     """View detailed orchestration decision for feedback"""
     
@@ -180,7 +181,7 @@ def get_decision(decision_id):
 
 
 @bp.route('/decisions/<decision_id>/feedback', methods=['POST'])
-@login_required
+@api_require_login_for_write
 def provide_feedback(decision_id):
     """Provide feedback on an orchestration decision"""
     
@@ -266,7 +267,7 @@ def provide_feedback(decision_id):
 
 
 @bp.route('/decisions/<decision_id>/override', methods=['POST'])
-@login_required
+@api_require_login_for_write
 def apply_override(decision_id):
     """Apply manual override to orchestration decision"""
     
@@ -341,7 +342,7 @@ def apply_override(decision_id):
 
 
 @bp.route('/learning-patterns', methods=['GET'])
-@login_required
+@api_require_login_for_write
 def learning_patterns():
     """List active learning patterns derived from researcher feedback"""
     
@@ -372,7 +373,7 @@ def learning_patterns():
 
 
 @bp.route('/learning-patterns/<pattern_id>/toggle', methods=['POST'])
-@login_required
+@api_require_login_for_write
 def toggle_learning_pattern(pattern_id):
     """Enable/disable a learning pattern"""
     
@@ -393,7 +394,7 @@ def toggle_learning_pattern(pattern_id):
 
 
 @bp.route('/feedback-analytics', methods=['GET'])
-@login_required
+@api_require_login_for_write
 def feedback_analytics():
     """Analytics dashboard for orchestration feedback and improvements"""
     
@@ -449,7 +450,7 @@ def feedback_analytics():
 
 
 @bp.route('/researchers/<researcher_id>/expertise', methods=['PUT'])
-@login_required  
+@api_require_login_for_write  
 def update_researcher_expertise(researcher_id):
     """Update researcher expertise profile for better feedback weighting"""
     
