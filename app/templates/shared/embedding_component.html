@@ -340,7 +340,7 @@ body.modal-open .modal {
                             <div class="card-body text-center">
                                 <i class="fas fa-paragraph fa-2x text-primary mb-2"></i>
                                 <h6>Paragraph</h6>
-                                <p class="small text-muted mb-0">Split by paragraphs<br>Natural boundaries<br>Recommended</p>
+                                <p class="small text-muted mb-0">Natural text boundaries</p>
                             </div>
                         </div>
                     </div>
@@ -349,7 +349,7 @@ body.modal-open .modal {
                             <div class="card-body text-center">
                                 <i class="fas fa-list-ol fa-2x text-success mb-2"></i>
                                 <h6>Sentence</h6>
-                                <p class="small text-muted mb-0">Split by sentences<br>Fine granularity<br>Detailed Analysis</p>
+                                <p class="small text-muted mb-0">Fine-grained segmentation</p>
                             </div>
                         </div>
                     </div>
@@ -358,16 +358,7 @@ body.modal-open .modal {
                             <div class="card-body text-center">
                                 <i class="fas fa-brain fa-2x text-warning mb-2"></i>
                                 <h6>Semantic</h6>
-                                <p class="small text-muted mb-0">LLM-powered<br>Topic boundaries<br>Intelligent</p>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-md-6 mb-3">
-                        <div class="card segment-option" data-method="hybrid" onclick="selectSegmentationMethod('hybrid')">
-                            <div class="card-body text-center">
-                                <i class="fas fa-layer-group fa-2x text-info mb-2"></i>
-                                <h6>Hybrid</h6>
-                                <p class="small text-muted mb-0">Rule + LLM<br>Best of both<br>Advanced</p>
+                                <p class="small text-muted mb-0">LLM topic detection</p>
                             </div>
                         </div>
                     </div>
@@ -376,7 +367,7 @@ body.modal-open .modal {
                             <div class="card-body text-center">
                                 <i class="fas fa-project-diagram fa-2x text-danger mb-2"></i>
                                 <h6>LangExtract</h6>
-                                <p class="small text-muted mb-0">Two-stage LLM<br>Character positions<br>JCDL Implementation</p>
+                                <p class="small text-muted mb-0">Structured extraction</p>
                             </div>
                         </div>
                     </div>
@@ -384,7 +375,7 @@ body.modal-open .modal {
 
                 <div class="alert alert-info mt-3">
                     <i class="fas fa-info-circle me-2"></i>
-                    <strong>Paragraph method</strong> is recommended for most documents and provides good balance between granularity and context.
+                    Select a segmentation method based on your analysis requirements.
                 </div>
             </div>
             <div class="modal-footer">
