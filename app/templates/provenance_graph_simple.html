@@ -6,6 +6,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>PROV-O Provenance Graph for Paper</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/cytoscape/3.30.0/cytoscape.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <style>
         body {
             font-family: 'Times New Roman', Times, serif;
@@ -19,6 +21,11 @@
             margin: 0 auto;
         }
 
+        #export-container {
+            background: white;
+            padding: 10px;
+        }
+
         h1 {
             text-align: center;
             color: #000;
@@ -29,38 +36,48 @@
 
         #cy {
             width: 100%;
-            height: 280px;  /* Slightly taller for better layout */
+            height: 300px;  /* Slightly taller for better spacing */
             border: 1px solid #333;
             background: white;
         }
 
         .legend {
             margin-top: 8px;
-            padding: 6px;
+            padding: 8px;
             background: #f9f9f9;
             border: 1px solid #666;
             font-size: 9px;
         }
 
         .legend h3 {
-            margin: 0 0 4px 0;
+            margin: 0 0 6px 0;
             font-size: 10px;
             color: #000;
+            font-weight: bold;
+        }
+
+        .legend-section {
+            margin-bottom: 8px;
         }
 
         .legend-item {
             display: inline-block;
-            margin: 2px 8px 2px 0;
+            margin: 2px 10px 2px 0;
             font-size: 9px;
         }
 
         .legend-color {
             display: inline-block;
-            width: 10px;
-            height: 10px;
-            margin-right: 3px;
+            width: 12px;
+            height: 12px;
+            margin-right: 4px;
             vertical-align: middle;
             border: 1px solid #333;
+        }
+
+        .legend-relationship {
+            margin: 2px 0;
+            font-size: 9px;
         }
 
         .controls {
@@ -80,98 +97,110 @@
         button:hover {
             background: #555;
         }
+
+        /* Hide controls in export */
+        .export-hidden {
+            display: none !important;
+        }
     </style>
 </head>
 
 <body>
     <div class="container">
-        <h1>Figure 1: PROV-O Provenance with LLM Orchestration</h1>
+        <div id="export-container">
+            <h1>Figure 1: PROV-O Provenance with LLM Orchestration</h1>
 
-        <div id="cy"></div>
+            <div id="cy"></div>
 
-        <div class="legend">
-            <h3>PROV-O Elements</h3>
-            <div>
-                <div class="legend-item">
-                    <span class="legend-color" style="background: #FFE6B3;"></span>
-                    prov:Entity
+            <div class="legend">
+                <div class="legend-section">
+                    <h3>PROV-O Elements (Table 1)</h3>
+                    <div>
+                        <div class="legend-item">
+                            <span class="legend-color" style="background: #C8E6C9;"></span>
+                            <strong>prov:Agent</strong> - LLM orchestrator, tools
+                        </div><br>
+                        <div class="legend-item">
+                            <span class="legend-color" style="background: #B3D9FF;"></span>
+                            <strong>prov:Activity</strong> - Tool selection, processing
+                        </div><br>
+                        <div class="legend-item">
+                            <span class="legend-color" style="background: #FFE6B3;"></span>
+                            <strong>prov:Entity</strong> - Document versions
+                        </div>
+                    </div>
                 </div>
-                <div class="legend-item">
-                    <span class="legend-color" style="background: #B3D9FF;"></span>
-                    prov:Activity
-                </div>
-                <div class="legend-item">
-                    <span class="legend-color" style="background: #C8E6C9;"></span>
-                    prov:Agent
-                </div>
-            </div>
-            <div style="margin-top: 4px; font-size: 8px;">
-                <div class="legend-item">
-                    <span style="color: #CC3300;">→</span> generates
-                </div>
-                <div class="legend-item">
-                    <span style="color: #6600CC;">→</span> derivedTo
-                </div>
-                <div class="legend-item">
-                    <span style="color: #009900;">→</span> executedBy
-                </div>
-                <div class="legend-item">
-                    <span style="color: #0066CC;">→</span> usedBy
-                </div>
-                <div class="legend-item">
-                    <span style="color: #FF6600;">⋯→</span> informs
+                
+                <div class="legend-section">
+                    <h3>PROV-O Relationships</h3>
+                    <div style="line-height: 1.4;">
+                        <div class="legend-relationship">
+                            <span style="color: #CC3300; font-weight: bold;">━━→</span> <strong>prov:wasGeneratedBy</strong> - Links outputs to activities
+                        </div>
+                        <div class="legend-relationship">
+                            <span style="color: #6600CC; font-weight: bold;">━━→</span> <strong>prov:wasDerivedFrom</strong> - Multi-source synthesis, lineage
+                        </div>
+                        <div class="legend-relationship">
+                            <span style="color: #009900; font-weight: bold;">━━→</span> <strong>prov:wasAssociatedWith</strong> - Attribution to agents
+                        </div>
+                        <div class="legend-relationship">
+                            <span style="color: #0066CC; font-weight: bold;">━━→</span> <strong>used</strong> - Input consumption
+                        </div>
+                        <div class="legend-relationship">
+                            <span style="color: #FF6600; font-weight: bold;">┅┅→</span> <strong>prov:wasInformedBy</strong> - Activity coordination
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
 
         <div class="controls">
-            <button onclick="exportPNG()">Export High-Resolution PNG</button>
+            <button onclick="exportHighRes()">Export High-Resolution PNG (with Legend)</button>
+            <button onclick="exportPDF()">Export as PDF (Quarter Page)</button>
         </div>
     </div>
 
     <script>
         document.addEventListener('DOMContentLoaded', function () {
-            // Create the graph with proper PROV-O relationships
+            // Create the graph with proper PROV-O relationships matching Table 1
             const elements = {
                 nodes: [
-                    // prov:Entity - Document states
+                    // prov:Entity - Document states (versioned documents as per table)
                     { data: { id: 'doc1', label: 'Original\nDocument', type: 'entity' } },
                     { data: { id: 'doc2', label: 'Segmented\nDocument', type: 'entity' } },
                     { data: { id: 'doc3', label: 'Document with\nEmbeddings', type: 'entity' } },
                     
-                    // prov:Activity - Processing operations
-                    { data: { id: 'act1', label: 'Segmentation\nActivity', type: 'activity' } },
-                    { data: { id: 'act2', label: 'Embedding\nActivity', type: 'activity' } },
-                    { data: { id: 'orch', label: 'Tool Selection\nActivity', type: 'activity' } },
+                    // prov:Activity - Tool selection and execution (as per table)
+                    { data: { id: 'act1', label: 'Segmentation', type: 'activity' } },
+                    { data: { id: 'act2', label: 'Embedding\nGeneration', type: 'activity' } },
+                    { data: { id: 'orch', label: 'Tool\nSelection', type: 'activity' } },
                     
-                    // prov:Agent - Actors in the system
-                    { data: { id: 'llm', label: 'Gemini LLM\n(Orchestrator)', type: 'agent' } },
-                    { data: { id: 'langext', label: 'LangExtract\n(Tool)', type: 'agent' } },
-                    { data: { id: 'spacy', label: 'spaCy\n(Tool)', type: 'agent' } }
+                    // prov:Agent - LLM orchestrator and selected tools (as per table)
+                    { data: { id: 'llm', label: 'Gemini LLM\nOrchestrator', type: 'agent' } },
+                    { data: { id: 'langext', label: 'LangExtract', type: 'agent' } },
+                    { data: { id: 'spacy', label: 'spaCy', type: 'agent' } }
                 ],
                 edges: [
-                    // Activities generate documents (activity -> document)
-                    { data: { id: 'e1', source: 'act1', target: 'doc2', label: 'generates', type: 'generation' } },
-                    { data: { id: 'e2', source: 'act2', target: 'doc3', label: 'generates', type: 'generation' } },
+                    // prov:wasGeneratedBy - Links outputs to their generating activities
+                    { data: { id: 'e1', source: 'doc2', target: 'act1', type: 'generation' } },
+                    { data: { id: 'e2', source: 'doc3', target: 'act2', type: 'generation' } },
                     
-                    // Document derivation chain (source -> derived)
-                    { data: { id: 'e3', source: 'doc1', target: 'doc2', label: 'derivedTo', type: 'derivation' } },
-                    { data: { id: 'e4', source: 'doc2', target: 'doc3', label: 'derivedTo', type: 'derivation' } },
+                    // prov:wasDerivedFrom - Lineage and multi-source synthesis
+                    { data: { id: 'e3', source: 'doc2', target: 'doc1', type: 'derivation' } },
+                    { data: { id: 'e4', source: 'doc3', target: 'doc2', type: 'derivation' } },
                     
-                    // Activities use documents (document -> activity)
-                    { data: { id: 'e5', source: 'doc1', target: 'act1', label: 'usedBy', type: 'usage' } },
-                    { data: { id: 'e6', source: 'doc2', target: 'act2', label: 'usedBy', type: 'usage' } },
+                    // used - Activities consume input documents
+                    { data: { id: 'e5', source: 'act1', target: 'doc1', type: 'usage' } },
+                    { data: { id: 'e6', source: 'act2', target: 'doc2', type: 'usage' } },
                     
-                    // LLM Orchestration - the key differentiator
-                    // Orchestration activity controlled by LLM (activity -> agent)
-                    { data: { id: 'e7', source: 'orch', target: 'llm', label: 'controlledBy', type: 'association' } },
-                    // Orchestration informs processing activities (orchestration -> activities)
-                    { data: { id: 'e8', source: 'orch', target: 'act1', label: 'informs', type: 'communication' } },
-                    { data: { id: 'e9', source: 'orch', target: 'act2', label: 'informs', type: 'communication' } },
+                    // prov:wasAssociatedWith - Attribution of activities to agents
+                    { data: { id: 'e7', source: 'orch', target: 'llm', type: 'association' } },
+                    { data: { id: 'e10', source: 'act1', target: 'langext', type: 'association' } },
+                    { data: { id: 'e11', source: 'act2', target: 'spacy', type: 'association' } },
                     
-                    // Activities executed by tools (activity -> agent)
-                    { data: { id: 'e10', source: 'act1', target: 'langext', label: 'executedBy', type: 'association' } },
-                    { data: { id: 'e11', source: 'act2', target: 'spacy', label: 'executedBy', type: 'association' } }
+                    // prov:wasInformedBy - Records LLM reasoning for tool choice
+                    { data: { id: 'e8', source: 'act1', target: 'orch', type: 'communication' } },
+                    { data: { id: 'e9', source: 'act2', target: 'orch', type: 'communication' } }
                 ]
             };
 
@@ -185,15 +214,18 @@
                             'label': 'data(label)',
                             'text-valign': 'center',
                             'text-halign': 'center',
-                            'font-size': '8px',
+                            'font-size': '11px',
                             'font-family': 'Arial, sans-serif',
-                            'font-weight': 'normal',
+                            'font-weight': 'bold',
                             'text-wrap': 'wrap',
-                            'text-max-width': '55px',
-                            'width': '65px',
-                            'height': '40px',
-                            'border-width': 1.5,
-                            'padding': '3px'
+                            'text-max-width': '70px',
+                            'width': '80px',
+                            'height': '55px',
+                            'border-width': 2,
+                            'padding': '4px',
+                            'color': '#000000',
+                            'text-outline-width': 1,
+                            'text-outline-color': '#ffffff'
                         }
                     },
                     {
@@ -221,31 +253,29 @@
                             'background-color': '#C8E6C9',
                             'border-color': '#009900',
                             'color': '#000000',
-                            'width': '70px',
-                            'height': '45px'
+                            'width': '85px',
+                            'height': '60px'
                         }
                     },
-                    // Highlight the orchestrator
+                    // Highlight the LLM orchestrator as the key innovation
                     {
                         selector: '#llm',
                         style: {
                             'background-color': '#FFD700',
                             'border-color': '#B8860B',
-                            'border-width': 2.5,
-                            'font-weight': 'bold'
+                            'border-width': 3,
+                            'font-weight': 'bold',
+                            'font-size': '12px'
                         }
                     },
                     {
                         selector: 'edge',
                         style: {
-                            'width': 1.8,
+                            'width': 2,
                             'target-arrow-shape': 'triangle',
-                            'target-arrow-size': '8px',
+                            'target-arrow-size': '10px',
                             'curve-style': 'bezier',
-                            'control-point-step-size': '30px',
-                            'font-size': '7px',
-                            'text-rotation': 'autorotate',
-                            'text-margin-y': -8
+                            'control-point-step-size': '30px'
                         }
                     },
                     {
@@ -253,7 +283,8 @@
                         style: {
                             'line-color': '#CC3300',
                             'target-arrow-color': '#CC3300',
-                            'line-style': 'solid'
+                            'line-style': 'solid',
+                            'width': 2.5
                         }
                     },
                     {
@@ -261,7 +292,8 @@
                         style: {
                             'line-color': '#6600CC',
                             'target-arrow-color': '#6600CC',
-                            'line-style': 'solid'
+                            'line-style': 'solid',
+                            'width': 2.5
                         }
                     },
                     {
@@ -269,7 +301,8 @@
                         style: {
                             'line-color': '#009900',
                             'target-arrow-color': '#009900',
-                            'line-style': 'solid'
+                            'line-style': 'solid',
+                            'width': 2.5
                         }
                     },
                     {
@@ -277,7 +310,8 @@
                         style: {
                             'line-color': '#0066CC',
                             'target-arrow-color': '#0066CC',
-                            'line-style': 'solid'
+                            'line-style': 'solid',
+                            'width': 2.5
                         }
                     },
                     {
@@ -286,7 +320,8 @@
                             'line-color': '#FF6600',
                             'target-arrow-color': '#FF6600',
                             'line-style': 'dashed',
-                            'line-dash-pattern': [5, 3]
+                            'line-dash-pattern': [6, 4],
+                            'width': 2.5
                         }
                     }
                 ],
@@ -329,23 +364,79 @@
             cy.center();
         });
 
-        function exportPNG() {
-            if (window.cy) {
-                // Export at high resolution for paper
-                const png64 = window.cy.png({
-                    output: 'blob',
-                    bg: 'white',
-                    scale: 4,  // High resolution
-                    full: true
+        function exportHighRes() {
+            // Hide the export buttons
+            document.querySelector('.controls').style.display = 'none';
+            
+            // Use html2canvas to capture the entire container including legend
+            html2canvas(document.getElementById('export-container'), {
+                scale: 4, // Even higher resolution for clearer text
+                backgroundColor: 'white',
+                logging: false,
+                useCORS: true
+            }).then(canvas => {
+                // Convert to blob and download
+                canvas.toBlob(function(blob) {
+                    const link = document.createElement('a');
+                    link.href = URL.createObjectURL(blob);
+                    link.download = 'prov_o_with_legend.png';
+                    link.click();
+                    
+                    // Show the buttons again
+                    document.querySelector('.controls').style.display = 'block';
                 });
+            });
+        }
 
-                const link = document.createElement('a');
-                link.href = URL.createObjectURL(png64);
-                link.download = 'prov_o_orchestration_figure.png';
-                link.click();
-            } else {
-                alert('Graph not yet loaded. Please wait a moment and try again.');
-            }
+        function exportPDF() {
+            // Hide the export buttons
+            document.querySelector('.controls').style.display = 'none';
+            
+            // Use html2canvas to capture the entire container including legend
+            html2canvas(document.getElementById('export-container'), {
+                scale: 3, // Good resolution for PDF
+                backgroundColor: 'white',
+                logging: false,
+                useCORS: true
+            }).then(canvas => {
+                try {
+                    // Create PDF with quarter page dimensions
+                    // US Letter: 8.5" x 11" (215.9mm x 279.4mm)
+                    // Quarter page: approximately 4.25" x 5.5" (107.95mm x 139.7mm)
+                    const pdf = new window.jspdf.jsPDF({
+                        orientation: 'portrait',
+                        unit: 'mm',
+                        format: [108, 140] // Quarter page size
+                    });
+                    
+                    // Calculate dimensions to fit the image
+                    const imgWidth = 100;  // Leave 4mm margins on each side
+                    const imgHeight = (canvas.height * imgWidth) / canvas.width;
+                    
+                    // Add the image to PDF
+                    const imgData = canvas.toDataURL('image/png');
+                    pdf.addImage(imgData, 'PNG', 4, 4, imgWidth, imgHeight);
+                    
+                    // Download the PDF
+                    pdf.save('prov_o_figure_quarter_page.pdf');
+                } catch (error) {
+                    console.error('PDF export failed:', error);
+                    // Fallback to PNG export
+                    canvas.toBlob(function(blob) {
+                        const link = document.createElement('a');
+                        link.href = URL.createObjectURL(blob);
+                        link.download = 'prov_o_figure_for_paper.png';
+                        link.click();
+                    });
+                    alert('PDF export failed. Downloaded as PNG instead.');
+                }
+                
+                // Show the buttons again
+                document.querySelector('.controls').style.display = 'block';
+            }).catch(error => {
+                console.error('Canvas capture failed:', error);
+                document.querySelector('.controls').style.display = 'block';
+            });
         }
     </script>
 </body>
