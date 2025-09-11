@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PROV-O Document Processing Workflow</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/cytoscape/3.30.0/cytoscape.min.js"></script>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: white;
+        }
+
+        .container {
+            max-width: 650px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            text-align: center;
+            color: #333;
+            font-size: 16px;
+            margin-bottom: 10px;
+        }
+
+        #cy {
+            width: 100%;
+            height: 350px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            background: white;
+        }
+
+        .legend {
+            margin-top: 12px;
+            padding: 10px;
+            background: #f8f9fa;
+            border-radius: 4px;
+            border: 1px solid #e0e0e0;
+        }
+
+        .legend h3 {
+            margin-top: 0;
+            font-size: 13px;
+            color: #333;
+        }
+
+        .legend-item {
+            display: inline-block;
+            margin: 3px 10px 3px 0;
+            font-size: 10px;
+        }
+
+        .legend-color {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            margin-right: 4px;
+            vertical-align: middle;
+            border-radius: 2px;
+        }
+
+        .controls {
+            text-align: center;
+            margin: 12px 0;
+        }
+
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 6px 14px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 11px;
+        }
+
+        button:hover {
+            background: #0056b3;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1>PROV-O Document Processing Workflow</h1>
+
+        <div id="cy"></div>
+
+        <div class="legend">
+            <h3>PROV-O Elements</h3>
+            <div>
+                <div class="legend-item">
+                    <span class="legend-color" style="background: #FFE6B3;"></span>
+                    <strong>Entity:</strong> Documents
+                </div>
+                <div class="legend-item">
+                    <span class="legend-color" style="background: #B3D9FF;"></span>
+                    <strong>Activity:</strong> Processing
+                </div>
+                <div class="legend-item">
+                    <span class="legend-color" style="background: #C8E6C9;"></span>
+                    <strong>Agent:</strong> Tools
+                </div>
+            </div>
+            <div style="margin-top: 6px;">
+                <div class="legend-item">
+                    <span style="color: #2196F3;">━━</span> wasDerivedFrom
+                </div>
+                <div class="legend-item">
+                    <span style="color: #FF5722;">━━</span> wasGeneratedBy
+                </div>
+                <div class="legend-item">
+                    <span style="color: #4CAF50;">┅┅</span> wasAssociatedWith
+                </div>
+            </div>
+        </div>
+
+        <div class="controls">
+            <button onclick="exportPNG()">Export PNG for Paper</button>
+        </div>
+    </div>
+
+    <script>
+        // Wait for page load
+        document.addEventListener('DOMContentLoaded', function () {
+            // Correct PROV-O workflow based on the paper
+            const elements = [
+                // Entities (Document versions) - Linear flow
+                {
+                    data: { id: 'doc1', label: 'Original\nDocument', type: 'entity' },
+                    position: { x: 100, y: 175 }
+                },
+                {
+                    data: { id: 'doc2', label: 'Segmented\nDocument', type: 'entity' },
+                    position: { x: 350, y: 175 }
+                },
+                {
+                    data: { id: 'doc3', label: 'Document with\nEmbeddings', type: 'entity' },
+                    position: { x: 600, y: 175 }
+                },
+
+                // Activities (Processing operations) - Above the flow
+                {
+                    data: { id: 'seg', label: 'Segmentation', type: 'activity' },
+                    position: { x: 225, y: 75 }
+                },
+                {
+                    data: { id: 'embed', label: 'Embedding\nGeneration', type: 'activity' },
+                    position: { x: 475, y: 75 }
+                },
+
+                // Agents (Tools) - Below the flow
+                {
+                    data: { id: 'langextract', label: 'LangExtract /\nspaCy', type: 'agent' },
+                    position: { x: 225, y: 275 }
+                },
+                {
+                    data: { id: 'transformers', label: 'Sentence\nTransformers', type: 'agent' },
+                    position: { x: 475, y: 275 }
+                },
+
+                // CORRECT Relationships based on PROV-O semantics
+
+                // wasDerivedFrom - shows lineage between document versions
+                {
+                    data: {
+                        source: 'doc2',
+                        target: 'doc1',
+                        label: 'wasDerivedFrom',
+                        type: 'derivation'
+                    }
+                },
+                {
+                    data: {
+                        source: 'doc3',
+                        target: 'doc2',
+                        label: 'wasDerivedFrom',
+                        type: 'derivation'
+                    }
+                },
+
+                // wasGeneratedBy - outputs point to their generating activities
+                {
+                    data: {
+                        source: 'doc2',
+                        target: 'seg',
+                        label: 'wasGeneratedBy',
+                        type: 'generation'
+                    }
+                },
+                {
+                    data: {
+                        source: 'doc3',
+                        target: 'embed',
+                        label: 'wasGeneratedBy',
+                        type: 'generation'
+                    }
+                },
+
+                // wasAssociatedWith - activities point to agents that performed them
+                {
+                    data: {
+                        source: 'seg',
+                        target: 'langextract',
+                        label: 'wasAssociatedWith',
+                        type: 'association'
+                    }
+                },
+                {
+                    data: {
+                        source: 'embed',
+                        target: 'transformers',
+                        label: 'wasAssociatedWith',
+                        type: 'association'
+                    }
+                }
+            ];
+
+            window.cy = cytoscape({
+                container: document.getElementById('cy'),
+                elements: elements,
+                style: [
+                    {
+                        selector: 'node',
+                        style: {
+                            'label': 'data(label)',
+                            'text-valign': 'center',
+                            'text-halign': 'center',
+                            'font-size': '10px',
+                            'font-weight': 'bold',
+                            'text-wrap': 'wrap',
+                            'text-max-width': '70px',
+                            'width': '80px',
+                            'height': '50px',
+                            'border-width': 2,
+                            'padding': '6px'
+                        }
+                    },
+                    {
+                        selector: 'node[type="entity"]',
+                        style: {
+                            'shape': 'round-rectangle',
+                            'background-color': '#FFE6B3',
+                            'border-color': '#FF9800',
+                            'color': '#5D4037'
+                        }
+                    },
+                    {
+                        selector: 'node[type="activity"]',
+                        style: {
+                            'shape': 'ellipse',
+                            'background-color': '#B3D9FF',
+                            'border-color': '#2196F3',
+                            'color': '#0D47A1'
+                        }
+                    },
+                    {
+                        selector: 'node[type="agent"]',
+                        style: {
+                            'shape': 'diamond',
+                            'background-color': '#C8E6C9',
+                            'border-color': '#4CAF50',
+                            'color': '#1B5E20',
+                            'width': '90px',
+                            'height': '60px'
+                        }
+                    },
+                    {
+                        selector: 'edge',
+                        style: {
+                            'width': 2,
+                            'target-arrow-shape': 'triangle',
+                            'target-arrow-size': '6px',
+                            'curve-style': 'bezier',
+                            'control-point-step-size': 40
+                        }
+                    },
+                    {
+                        selector: 'edge[type="derivation"]',
+                        style: {
+                            'line-color': '#2196F3',
+                            'target-arrow-color': '#2196F3',
+                            'line-style': 'solid'
+                        }
+                    },
+                    {
+                        selector: 'edge[type="generation"]',
+                        style: {
+                            'line-color': '#FF5722',
+                            'target-arrow-color': '#FF5722',
+                            'line-style': 'solid'
+                        }
+                    },
+                    {
+                        selector: 'edge[type="association"]',
+                        style: {
+                            'line-color': '#4CAF50',
+                            'target-arrow-color': '#4CAF50',
+                            'line-style': 'dashed',
+                            'line-dash-pattern': [6, 3]
+                        }
+                    }
+                ],
+                layout: {
+                    name: 'preset'  // Use preset positions for exact control
+                },
+                minZoom: 0.5,
+                maxZoom: 2,
+                wheelSensitivity: 0.1,
+                userZoomingEnabled: false,
+                userPanningEnabled: false,
+                boxSelectionEnabled: false
+            });
+
+            // Fit and center
+            window.cy.fit();
+            window.cy.center();
+        });
+
+        function exportPNG() {
+            if (window.cy) {
+                const png64 = window.cy.png({
+                    output: 'blob',
+                    bg: 'white',
+                    scale: 3  // High resolution for print
+                });
+
+                const link = document.createElement('a');
+                link.href = URL.createObjectURL(png64);
+                link.download = 'prov_o_workflow.png';
+                link.click();

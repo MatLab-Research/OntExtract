@@ -1,0 +1,704 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PROV-O Provenance Graph - OntExtract</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+
+    <!-- Cytoscape core -->
+    <script src="https://unpkg.com/cytoscape@3.21.0/dist/cytoscape.min.js"></script>
+    <!-- Dagre layout for hierarchical visualization -->
+    <script src="https://unpkg.com/dagre@0.8.5/dist/dagre.min.js"></script>
+    <script src="https://unpkg.com/cytoscape-dagre@2.4.0/cytoscape-dagre.js"></script>
+
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f8f9fa;
+        }
+
+        .navbar {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .container-fluid {
+            padding: 20px;
+        }
+
+        #cy {
+            width: 100%;
+            height: 600px;
+            background: #ffffff;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .control-panel {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+            margin-bottom: 20px;
+        }
+
+        .stats-panel {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .legend-color {
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            margin-right: 10px;
+            border: 2px solid #fff;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .entity-color {
+            background-color: #FFE5B4;
+        }
+
+        .activity-color {
+            background-color: #B4D7FF;
+        }
+
+        .agent-color {
+            background-color: #D4F1D4;
+        }
+
+        .relationship-line {
+            height: 3px;
+            width: 40px;
+            margin-right: 10px;
+        }
+
+        .derived-line {
+            background-color: #2196F3;
+        }
+
+        .generated-line {
+            background-color: #F44336;
+        }
+
+        .associated-line {
+            background: repeating-linear-gradient(90deg,
+                    #4CAF50,
+                    #4CAF50 5px,
+                    transparent 5px,
+                    transparent 10px);
+        }
+
+        .info-box {
+            background: #e3f2fd;
+            border-left: 4px solid #2196F3;
+            padding: 15px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+        }
+
+        .detail-card {
+            position: sticky;
+            top: 20px;
+        }
+
+        /* Tooltip styles */
+        .node-tooltip {
+            position: absolute;
+            background: rgba(0, 0, 0, 0.9);
+            color: white;
+            padding: 10px;
+            border-radius: 6px;
+            font-size: 12px;
+            pointer-events: none;
+            z-index: 1000;
+            max-width: 300px;
+            display: none;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border: none;
+        }
+
+        .btn-primary:hover {
+            background: linear-gradient(135deg, #764ba2 0%, #667eea 100%);
+        }
+    </style>
+</head>
+
+<body>
+    <nav class="navbar navbar-dark">
+        <div class="container-fluid">
+            <span class="navbar-brand mb-0 h1">
+                <i class="fas fa-project-diagram me-2"></i>
+                OntExtract PROV-O Provenance Graph
+            </span>
+            <div class="d-flex">
+                <button class="btn btn-light btn-sm me-2" onclick="exportImage()">
+                    <i class="fas fa-download me-1"></i>Export PNG
+                </button>
+                <button class="btn btn-light btn-sm" onclick="fitToScreen()">
+                    <i class="fas fa-expand me-1"></i>Fit Screen
+                </button>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container-fluid">
+        <div class="row">
+            <!-- Left Panel - Controls and Legend -->
+            <div class="col-md-3">
+                <div class="control-panel">
+                    <h5><i class="fas fa-sliders-h me-2"></i>Controls</h5>
+                    <div class="mb-3">
+                        <label class="form-label">Layout</label>
+                        <select class="form-select" id="layoutSelect" onchange="applyLayout()">
+                            <option value="dagre" selected>Hierarchical (Dagre)</option>
+                            <option value="breadthfirst">Breadth First</option>
+                            <option value="cose">Force Directed</option>
+                            <option value="circle">Circular</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Processing Scenario</label>
+                        <select class="form-select" id="scenarioSelect" onchange="loadScenario()">
+                            <option value="complete">Complete Workflow</option>
+                            <option value="simple">Simple Processing</option>
+                            <option value="multi-version">Multi-Version Analysis</option>
+                        </select>
+                    </div>
+                    <button class="btn btn-primary btn-sm w-100 mb-2" onclick="highlightPath()">
+                        <i class="fas fa-route me-1"></i>Highlight Provenance Path
+                    </button>
+                    <button class="btn btn-secondary btn-sm w-100" onclick="resetView()">
+                        <i class="fas fa-undo me-1"></i>Reset View
+                    </button>
+                </div>
+
+                <div class="control-panel">
+                    <h5><i class="fas fa-palette me-2"></i>Legend</h5>
+
+                    <h6 class="text-muted mb-3">PROV-O Elements</h6>
+                    <div class="legend-item">
+                        <div class="legend-color entity-color"></div>
+                        <div>
+                            <strong>prov:Entity</strong><br>
+                            <small>Document versions & outputs</small>
+                        </div>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color activity-color"></div>
+                        <div>
+                            <strong>prov:Activity</strong><br>
+                            <small>Processing operations</small>
+                        </div>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color agent-color"></div>
+                        <div>
+                            <strong>prov:Agent</strong><br>
+                            <small>Tools & orchestrators</small>
+                        </div>
+                    </div>
+
+                    <h6 class="text-muted mb-3 mt-4">Relationships</h6>
+                    <div class="legend-item">
+                        <div class="relationship-line derived-line"></div>
+                        <div>
+                            <strong>wasDerivedFrom</strong><br>
+                            <small>Entity lineage</small>
+                        </div>
+                    </div>
+                    <div class="legend-item">
+                        <div class="relationship-line generated-line"></div>
+                        <div>
+                            <strong>wasGeneratedBy</strong><br>
+                            <small>Activity outputs</small>
+                        </div>
+                    </div>
+                    <div class="legend-item">
+                        <div class="relationship-line associated-line"></div>
+                        <div>
+                            <strong>wasAssociatedWith</strong><br>
+                            <small>Agent responsibility</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Center - Graph Visualization -->
+            <div class="col-md-6">
+                <div class="info-box">
+                    <i class="fas fa-info-circle me-2"></i>
+                    <strong>Interactive PROV-O Graph:</strong> This visualization shows how OntExtract tracks document
+                    processing
+                    workflows using W3C PROV-O standard. Click nodes to see details, drag to pan, scroll to zoom.
+                </div>
+                <div id="cy"></div>
+            </div>
+
+            <!-- Right Panel - Details -->
+            <div class="col-md-3">
+                <div class="card detail-card">
+                    <div class="card-header bg-primary text-white">
+                        <h6 class="mb-0"><i class="fas fa-info-circle me-2"></i>Element Details</h6>
+                    </div>
+                    <div class="card-body" id="detailsPanel">
+                        <p class="text-muted">Click on any node to see details</p>
+                    </div>
+                </div>
+
+                <div class="stats-panel mt-3">
+                    <h6><i class="fas fa-chart-bar me-2"></i>Statistics</h6>
+                    <div class="row text-center">
+                        <div class="col-4">
+                            <div class="h4 text-primary" id="entityCount">0</div>
+                            <small>Entities</small>
+                        </div>
+                        <div class="col-4">
+                            <div class="h4 text-info" id="activityCount">0</div>
+                            <small>Activities</small>
+                        </div>
+                        <div class="col-4">
+                            <div class="h4 text-success" id="agentCount">0</div>
+                            <small>Agents</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="node-tooltip" id="tooltip"></div>
+
+    <script>
+        // Register dagre layout
+        cytoscape.use(cytoscapeDagre);
+
+        let cy; // Cytoscape instance
+        let currentScenario = 'complete';
+
+        // Initialize Cytoscape
+        function initCytoscape() {
+            cy = cytoscape({
+                container: document.getElementById('cy'),
+
+                style: [
+                    // Entity nodes (Document versions)
+                    {
+                        selector: 'node.entity',
+                        style: {
+                            'background-color': '#FFE5B4',
+                            'label': 'data(label)',
+                            'text-valign': 'center',
+                            'text-halign': 'center',
+                            'width': 120,
+                            'height': 60,
+                            'shape': 'roundrectangle',
+                            'border-width': 2,
+                            'border-color': '#FFA500',
+                            'font-size': '11px',
+                            'text-wrap': 'wrap',
+                            'text-max-width': '100px'
+                        }
+                    },
+                    // Activity nodes (Processing steps)
+                    {
+                        selector: 'node.activity',
+                        style: {
+                            'background-color': '#B4D7FF',
+                            'label': 'data(label)',
+                            'text-valign': 'center',
+                            'text-halign': 'center',
+                            'width': 80,
+                            'height': 80,
+                            'shape': 'ellipse',
+                            'border-width': 2,
+                            'border-color': '#2196F3',
+                            'font-size': '10px'
+                        }
+                    },
+                    // Agent nodes (Tools, LLMs, etc.)
+                    {
+                        selector: 'node.agent',
+                        style: {
+                            'background-color': '#D4F1D4',
+                            'label': 'data(label)',
+                            'text-valign': 'center',
+                            'text-halign': 'center',
+                            'width': 100,
+                            'height': 50,
+                            'shape': 'diamond',
+                            'border-width': 2,
+                            'border-color': '#4CAF50',
+                            'font-size': '10px'
+                        }
+                    },
+                    // wasDerivedFrom edges
+                    {
+                        selector: 'edge.derived',
+                        style: {
+                            'width': 3,
+                            'line-color': '#2196F3',
+                            'target-arrow-color': '#2196F3',
+                            'target-arrow-shape': 'triangle',
+                            'curve-style': 'bezier',
+                            'control-point-step-size': 40,
+                            'edge-distances': 'node-position'
+                            // Removed label to reduce clutter
+                        }
+                    },
+                    // wasGeneratedBy edges
+                    {
+                        selector: 'edge.generated',
+                        style: {
+                            'width': 2.5,
+                            'line-color': '#F44336',
+                            'target-arrow-color': '#F44336',
+                            'target-arrow-shape': 'triangle',
+                            'curve-style': 'bezier',
+                            'control-point-step-size': 40,
+                            'edge-distances': 'node-position'
+                            // Removed label to reduce clutter
+                        }
+                    },
+                    // wasAssociatedWith edges
+                    {
+                        selector: 'edge.associated',
+                        style: {
+                            'width': 2,
+                            'line-color': '#4CAF50',
+                            'target-arrow-color': '#4CAF50',
+                            'target-arrow-shape': 'triangle',
+                            'line-style': 'dashed',
+                            'curve-style': 'bezier',
+                            'control-point-step-size': 40,
+                            'edge-distances': 'node-position'
+                            // Removed label to reduce clutter
+                        }
+                    },
+                    // Highlighted elements
+                    {
+                        selector: '.highlighted',
+                        style: {
+                            'border-width': 4,
+                            'border-color': '#FFD700',
+                            'background-color': '#FFF9C4',
+                            'line-color': '#FFD700',
+                            'target-arrow-color': '#FFD700',
+                            'width': 5
+                        }
+                    }
+                ],
+
+                layout: {
+                    name: 'dagre',
+                    rankDir: 'LR',
+                    animate: true,
+                    animationDuration: 500,
+                    nodeSep: 150,  // Increased spacing between nodes
+                    rankSep: 200,  // Increased spacing between ranks
+                    edgeSep: 50    // Added edge separation
+                },
+
+                wheelSensitivity: 0.2,
+                maxZoom: 3,
+                minZoom: 0.3
+            });
+
+            // Event handlers
+            cy.on('tap', 'node', function (evt) {
+                showNodeDetails(evt.target);
+            });
+
+            cy.on('mouseover', 'node', function (evt) {
+                showTooltip(evt);
+            });
+
+            cy.on('mouseout', 'node', function (evt) {
+                hideTooltip();
+            });
+        }
+
+        // Load provenance data
+        function loadScenario() {
+            const scenario = document.getElementById('scenarioSelect').value;
+            let elements = [];
+
+            if (scenario === 'complete') {
+                // Complete workflow scenario
+                elements = [
+                    // Entities
+                    { data: { id: 'doc_original', label: 'Original Document\n(research_paper.pdf)', type: 'entity', description: 'User uploaded PDF document' }, classes: 'entity' },
+                    { data: { id: 'doc_v1', label: 'Version 1\n(LangExtract)', type: 'entity', description: 'Structured extraction with Gemini' }, classes: 'entity' },
+                    { data: { id: 'doc_v2', label: 'Version 2\n(Semantic Segments)', type: 'entity', description: 'Semantic segmentation results' }, classes: 'entity' },
+                    { data: { id: 'doc_v3', label: 'Version 3\n(Named Entities)', type: 'entity', description: 'spaCy NER results' }, classes: 'entity' },
+                    { data: { id: 'embeddings', label: 'Embeddings\n(pgvector)', type: 'entity', description: 'Vector embeddings for similarity' }, classes: 'entity' },
+                    { data: { id: 'drift_analysis', label: 'Drift Analysis\n(Synthesized)', type: 'entity', description: 'Semantic drift detection results' }, classes: 'entity' },
+
+                    // Activities
+                    { data: { id: 'act_upload', label: 'Upload', type: 'activity', description: 'Document upload process' }, classes: 'activity' },
+                    { data: { id: 'act_extract', label: 'Extract\n(LangExtract)', type: 'activity', description: 'Two-stage extraction' }, classes: 'activity' },
+                    { data: { id: 'act_segment', label: 'Segment', type: 'activity', description: 'Semantic segmentation' }, classes: 'activity' },
+                    { data: { id: 'act_ner', label: 'NER', type: 'activity', description: 'Named entity recognition' }, classes: 'activity' },
+                    { data: { id: 'act_embed', label: 'Generate\nEmbeddings', type: 'activity', description: 'Create vector embeddings' }, classes: 'activity' },
+                    { data: { id: 'act_synthesize', label: 'Synthesize', type: 'activity', description: 'Multi-source synthesis' }, classes: 'activity' },
+
+                    // Agents
+                    { data: { id: 'agent_user', label: 'Researcher', type: 'agent', description: 'Human user/curator' }, classes: 'agent' },
+                    { data: { id: 'agent_gemini', label: 'Gemini LLM', type: 'agent', description: 'Google Gemini API' }, classes: 'agent' },
+                    { data: { id: 'agent_spacy', label: 'spaCy NLP', type: 'agent', description: 'spaCy NER pipeline' }, classes: 'agent' },
+                    { data: { id: 'agent_transformer', label: 'Sentence\nTransformers', type: 'agent', description: 'Embedding model' }, classes: 'agent' },
+                    { data: { id: 'agent_orchestrator', label: 'LLM\nOrchestrator', type: 'agent', description: 'Tool selection engine' }, classes: 'agent' },
+
+                    // Relationships - wasDerivedFrom
+                    { data: { id: 'e1', source: 'doc_v1', target: 'doc_original', label: 'wasDerivedFrom' }, classes: 'derived' },
+                    { data: { id: 'e2', source: 'doc_v2', target: 'doc_original', label: 'wasDerivedFrom' }, classes: 'derived' },
+                    { data: { id: 'e3', source: 'doc_v3', target: 'doc_original', label: 'wasDerivedFrom' }, classes: 'derived' },
+                    { data: { id: 'e4', source: 'embeddings', target: 'doc_v2', label: 'wasDerivedFrom' }, classes: 'derived' },
+                    { data: { id: 'e5', source: 'drift_analysis', target: 'doc_v1', label: 'wasDerivedFrom' }, classes: 'derived' },
+                    { data: { id: 'e6', source: 'drift_analysis', target: 'doc_v2', label: 'wasDerivedFrom' }, classes: 'derived' },
+                    { data: { id: 'e7', source: 'drift_analysis', target: 'doc_v3', label: 'wasDerivedFrom' }, classes: 'derived' },
+
+                    // Relationships - wasGeneratedBy
+                    { data: { id: 'e8', source: 'doc_original', target: 'act_upload', label: 'wasGeneratedBy' }, classes: 'generated' },
+                    { data: { id: 'e9', source: 'doc_v1', target: 'act_extract', label: 'wasGeneratedBy' }, classes: 'generated' },
+                    { data: { id: 'e10', source: 'doc_v2', target: 'act_segment', label: 'wasGeneratedBy' }, classes: 'generated' },
+                    { data: { id: 'e11', source: 'doc_v3', target: 'act_ner', label: 'wasGeneratedBy' }, classes: 'generated' },
+                    { data: { id: 'e12', source: 'embeddings', target: 'act_embed', label: 'wasGeneratedBy' }, classes: 'generated' },
+                    { data: { id: 'e13', source: 'drift_analysis', target: 'act_synthesize', label: 'wasGeneratedBy' }, classes: 'generated' },
+
+                    // Relationships - wasAssociatedWith
+                    { data: { id: 'e14', source: 'act_upload', target: 'agent_user', label: 'wasAssociatedWith' }, classes: 'associated' },
+                    { data: { id: 'e15', source: 'act_extract', target: 'agent_gemini', label: 'wasAssociatedWith' }, classes: 'associated' },
+                    { data: { id: 'e16', source: 'act_segment', target: 'agent_transformer', label: 'wasAssociatedWith' }, classes: 'associated' },
+                    { data: { id: 'e17', source: 'act_ner', target: 'agent_spacy', label: 'wasAssociatedWith' }, classes: 'associated' },
+                    { data: { id: 'e18', source: 'act_embed', target: 'agent_transformer', label: 'wasAssociatedWith' }, classes: 'associated' },
+                    { data: { id: 'e19', source: 'act_synthesize', target: 'agent_orchestrator', label: 'wasAssociatedWith' }, classes: 'associated' },
+                ];
+            } else if (scenario === 'simple') {
+                // Simplified scenario
+                elements = [
+                    // Entities
+                    { data: { id: 'doc_original', label: 'Original Document', type: 'entity' }, classes: 'entity' },
+                    { data: { id: 'doc_processed', label: 'Processed Version', type: 'entity' }, classes: 'entity' },
+                    { data: { id: 'analysis', label: 'Analysis Results', type: 'entity' }, classes: 'entity' },
+
+                    // Activities
+                    { data: { id: 'act_process', label: 'Process', type: 'activity' }, classes: 'activity' },
+                    { data: { id: 'act_analyze', label: 'Analyze', type: 'activity' }, classes: 'activity' },
+
+                    // Agents
+                    { data: { id: 'agent_llm', label: 'LLM', type: 'agent' }, classes: 'agent' },
+
+                    // Relationships
+                    { data: { id: 'e1', source: 'doc_processed', target: 'doc_original', label: 'wasDerivedFrom' }, classes: 'derived' },
+                    { data: { id: 'e2', source: 'analysis', target: 'doc_processed', label: 'wasDerivedFrom' }, classes: 'derived' },
+                    { data: { id: 'e3', source: 'doc_processed', target: 'act_process', label: 'wasGeneratedBy' }, classes: 'generated' },
+                    { data: { id: 'e4', source: 'analysis', target: 'act_analyze', label: 'wasGeneratedBy' }, classes: 'generated' },
+                    { data: { id: 'e5', source: 'act_process', target: 'agent_llm', label: 'wasAssociatedWith' }, classes: 'associated' },
+                    { data: { id: 'e6', source: 'act_analyze', target: 'agent_llm', label: 'wasAssociatedWith' }, classes: 'associated' },
+                ];
+            } else if (scenario === 'multi-version') {
+                // Multi-version tracking scenario
+                elements = [
+                    // Entities - Multiple versions
+                    { data: { id: 'doc_original', label: 'Original Document\nv1.0', type: 'entity' }, classes: 'entity' },
+                    { data: { id: 'doc_v1_1', label: 'Version 1.1\n(Segmented)', type: 'entity' }, classes: 'entity' },
+                    { data: { id: 'doc_v1_2', label: 'Version 1.2\n(Entities)', type: 'entity' }, classes: 'entity' },
+                    { data: { id: 'doc_v2_0', label: 'Version 2.0\n(Enhanced)', type: 'entity' }, classes: 'entity' },
+                    { data: { id: 'comparison', label: 'Version\nComparison', type: 'entity' }, classes: 'entity' },
+
+                    // Activities
+                    { data: { id: 'act_segment', label: 'Segment', type: 'activity' }, classes: 'activity' },
+                    { data: { id: 'act_extract', label: 'Extract\nEntities', type: 'activity' }, classes: 'activity' },
+                    { data: { id: 'act_enhance', label: 'Enhance', type: 'activity' }, classes: 'activity' },
+                    { data: { id: 'act_compare', label: 'Compare\nVersions', type: 'activity' }, classes: 'activity' },
+
+                    // Agents
+                    { data: { id: 'agent_nltk', label: 'NLTK', type: 'agent' }, classes: 'agent' },
+                    { data: { id: 'agent_spacy', label: 'spaCy', type: 'agent' }, classes: 'agent' },
+                    { data: { id: 'agent_gemini', label: 'Gemini', type: 'agent' }, classes: 'agent' },
+
+                    // Version lineage
+                    { data: { id: 'e1', source: 'doc_v1_1', target: 'doc_original', label: 'wasDerivedFrom' }, classes: 'derived' },
+                    { data: { id: 'e2', source: 'doc_v1_2', target: 'doc_v1_1', label: 'wasDerivedFrom' }, classes: 'derived' },
+                    { data: { id: 'e3', source: 'doc_v2_0', target: 'doc_v1_2', label: 'wasDerivedFrom' }, classes: 'derived' },
+                    { data: { id: 'e4', source: 'comparison', target: 'doc_v1_2', label: 'wasDerivedFrom' }, classes: 'derived' },
+                    { data: { id: 'e5', source: 'comparison', target: 'doc_v2_0', label: 'wasDerivedFrom' }, classes: 'derived' },
+
+                    // Generation relationships
+                    { data: { id: 'e6', source: 'doc_v1_1', target: 'act_segment', label: 'wasGeneratedBy' }, classes: 'generated' },
+                    { data: { id: 'e7', source: 'doc_v1_2', target: 'act_extract', label: 'wasGeneratedBy' }, classes: 'generated' },
+                    { data: { id: 'e8', source: 'doc_v2_0', target: 'act_enhance', label: 'wasGeneratedBy' }, classes: 'generated' },
+                    { data: { id: 'e9', source: 'comparison', target: 'act_compare', label: 'wasGeneratedBy' }, classes: 'generated' },
+
+                    // Agent associations
+                    { data: { id: 'e10', source: 'act_segment', target: 'agent_nltk', label: 'wasAssociatedWith' }, classes: 'associated' },
+                    { data: { id: 'e11', source: 'act_extract', target: 'agent_spacy', label: 'wasAssociatedWith' }, classes: 'associated' },
+                    { data: { id: 'e12', source: 'act_enhance', target: 'agent_gemini', label: 'wasAssociatedWith' }, classes: 'associated' },
+                    { data: { id: 'e13', source: 'act_compare', target: 'agent_gemini', label: 'wasAssociatedWith' }, classes: 'associated' },
+                ];
+            }
+
+            // Clear existing elements and add new ones
+            cy.elements().remove();
+            cy.add(elements);
+            applyLayout();
+            updateStatistics();
+        }
+
+        // Show node details
+        function showNodeDetails(node) {
+            const data = node.data();
+            let html = `
+                <h6>${data.label.replace(/\n/g, ' ')}</h6>
+                <p><strong>Type:</strong> ${data.type}</p>
+                ${data.description ? `<p><strong>Description:</strong> ${data.description}</p>` : ''}
+            `;
+
+            if (data.type === 'entity') {
+                const incoming = node.incomers('edge');
+                const outgoing = node.outgoers('edge');
+                if (incoming.length > 0) {
+                    html += '<p><strong>Generated by:</strong> ' +
+                        incoming.sources().map(n => n.data('label')).join(', ') + '</p>';
+                }
+                if (outgoing.length > 0) {
+                    html += '<p><strong>Derived from:</strong> ' +
+                        outgoing.targets().map(n => n.data('label')).join(', ') + '</p>';
+                }
+            }
+
+            document.getElementById('detailsPanel').innerHTML = html;
+        }
+
+        // Show tooltip
+        function showTooltip(evt) {
+            const node = evt.target;
+            const tooltip = document.getElementById('tooltip');
+            const pos = evt.renderedPosition || evt.cyRenderedPosition;
+
+            tooltip.innerHTML = `
+                <strong>${node.data('label').replace(/\n/g, ' ')}</strong><br>
+                Type: ${node.data('type')}
+            `;
+
+            tooltip.style.left = pos.x + 10 + 'px';
+            tooltip.style.top = pos.y - 20 + 'px';
+            tooltip.style.display = 'block';
+        }
+
+        // Hide tooltip
+        function hideTooltip() {
+            document.getElementById('tooltip').style.display = 'none';
+        }
+
+        // Apply layout
+        function applyLayout() {
+            const layoutName = document.getElementById('layoutSelect').value;
+            let layout = {
+                name: layoutName,
+                animate: true,
+                animationDuration: 500
+            };
+
+            if (layoutName === 'dagre') {
+                layout.rankDir = 'LR';
+                layout.nodeSep = 150;  // Increased spacing
+                layout.rankSep = 200;  // Increased spacing
+                layout.edgeSep = 50;   // Added edge separation
+            } else if (layoutName === 'breadthfirst') {
+                layout.directed = true;
+                layout.spacingFactor = 2.0;  // Increased spacing factor
+            } else if (layoutName === 'cose') {
+                layout.nodeRepulsion = 8000;  // Increase repulsion for better spacing
+                layout.idealEdgeLength = 150;
+                layout.edgeElasticity = 100;
+            }
+
+            cy.layout(layout).run();
+        }
+
+        // Highlight provenance path
+        function highlightPath() {
+            // Reset all highlights
+            cy.elements().removeClass('highlighted');
+
+            // Find the drift analysis node and trace back its provenance
+            const driftNode = cy.$('#drift_analysis');
+            if (driftNode.length > 0) {
+                // Highlight the node itself
+                driftNode.addClass('highlighted');
+
+                // Recursively highlight predecessors
+                function highlightPredecessors(node) {
+                    const incoming = node.incomers();
+                    incoming.addClass('highlighted');
+                    incoming.nodes().forEach(n => highlightPredecessors(n));
+                }
+
+                highlightPredecessors(driftNode);
+            }
+        }
+
+        // Reset view
+        function resetView() {
+            cy.elements().removeClass('highlighted');
+            cy.fit();
+        }
+
+        // Fit to screen
+        function fitToScreen() {
+            cy.fit();
+        }
+
+        // Export image
+        function exportImage() {
+            const png64 = cy.png({
+                output: 'blob',
+                bg: 'white',
+                full: true,
+                scale: 2
+            });
+
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(png64);
+            a.download = 'prov-o-graph.png';
+            a.click();
+        }
+
+        // Update statistics
+        function updateStatistics() {
+            const entities = cy.nodes('.entity').length;
+            const activities = cy.nodes('.activity').length;
+            const agents = cy.nodes('.agent').length;
+
+            document.getElementById('entityCount').textContent = entities;
+            document.getElementById('activityCount').textContent = activities;
+            document.getElementById('agentCount').textContent = agents;
+        }
+
+        // Initialize on page load
+        document.addEventListener('DOMContentLoaded', function () {
+            initCytoscape();
+            loadScenario();
+        });
+    </script>
+</body>
+
+</html>
