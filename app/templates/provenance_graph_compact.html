@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PROV-O Provenance Graph - Compact Version for Paper</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/cytoscape/3.30.0/cytoscape.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/dagre@0.8.5/dist/dagre.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/cytoscape-dagre@2.5.0/cytoscape-dagre.js"></script>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: white;
+        }
+
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            text-align: center;
+            color: #333;
+            font-size: 18px;
+            margin-bottom: 10px;
+        }
+
+        #cy {
+            width: 100%;
+            height: 400px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            background: white;
+        }
+
+        .legend {
+            margin-top: 15px;
+            padding: 12px;
+            background: #f8f9fa;
+            border-radius: 4px;
+            border: 1px solid #e0e0e0;
+        }
+
+        .legend h3 {
+            margin-top: 0;
+            font-size: 14px;
+            color: #333;
+        }
+
+        .legend-item {
+            display: inline-block;
+            margin: 4px 12px 4px 0;
+            font-size: 11px;
+        }
+
+        .legend-color {
+            display: inline-block;
+            width: 14px;
+            height: 14px;
+            margin-right: 4px;
+            vertical-align: middle;
+            border-radius: 3px;
+        }
+
+        .controls {
+            text-align: center;
+            margin: 15px 0;
+        }
+
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            margin: 0 5px;
+        }
+
+        button:hover {
+            background: #0056b3;
+        }
+
+        .note {
+            font-size: 11px;
+            color: #666;
+            text-align: center;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1>PROV-O Document Processing Workflow</h1>
+
+        <div id="cy"></div>
+
+        <div class="legend">
+            <h3>🔍 PROV-O Elements</h3>
+            <div>
+                <div class="legend-item">
+                    <span class="legend-color" style="background: #FFE6B3;"></span>
+                    <strong>Entity:</strong> Documents
+                </div>
+                <div class="legend-item">
+                    <span class="legend-color" style="background: #B3D9FF;"></span>
+                    <strong>Activity:</strong> Processing
+                </div>
+                <div class="legend-item">
+                    <span class="legend-color" style="background: #C8E6C9;"></span>
+                    <strong>Agent:</strong> Tools
+                </div>
+            </div>
+            <div style="margin-top: 8px;">
+                <div class="legend-item">
+                    <span style="color: #2196F3;">━━</span> wasDerivedFrom
+                </div>
+                <div class="legend-item">
+                    <span style="color: #FF5722;">━━</span> wasGeneratedBy
+                </div>
+                <div class="legend-item">
+                    <span style="color: #4CAF50;">┅┅</span> wasAssociatedWith
+                </div>
+            </div>
+        </div>
+
+        <div class="controls">
+            <button onclick="exportPNG()">Export PNG for Paper</button>
+            <button onclick="resetZoom()">Reset View</button>
+        </div>
+    </div>
+
+    <script>
+        // Initialize dagre with cytoscape
+        cytoscape.use(cytoscapeDagre);
+
+        // Compact focused workflow for paper
+        const elements = [
+            // Entities (Document versions)
+            { data: { id: 'doc1', label: 'Original\nDocument', type: 'entity' } },
+            { data: { id: 'doc2', label: 'Segmented\nDocument', type: 'entity' } },
+            { data: { id: 'doc3', label: 'Document with\nEmbeddings', type: 'entity' } },
+
+            // Activities (Processing operations)
+            { data: { id: 'seg', label: 'Segmentation', type: 'activity' } },
+            { data: { id: 'embed', label: 'Embedding\nGeneration', type: 'activity' } },
+
+            // Agents (Tools)
+            { data: { id: 'langextract', label: 'LangExtract', type: 'agent' } },
+            { data: { id: 'gemini', label: 'Gemini LLM', type: 'agent' } },
+
+            // Relationships
+            // wasDerivedFrom
+            { data: { source: 'doc2', target: 'doc1', label: 'wasDerivedFrom', type: 'derivation' } },
+            { data: { source: 'doc3', target: 'doc2', label: 'wasDerivedFrom', type: 'derivation' } },
+
+            // wasGeneratedBy
+            { data: { source: 'doc2', target: 'seg', label: 'wasGeneratedBy', type: 'generation' } },
+            { data: { source: 'doc3', target: 'embed', label: 'wasGeneratedBy', type: 'generation' } },
+
+            // wasAssociatedWith
+            { data: { source: 'seg', target: 'langextract', label: 'wasAssociatedWith', type: 'association' } },
+            { data: { source: 'embed', target: 'gemini', label: 'wasAssociatedWith', type: 'association' } }
+        ];
+
+        const cy = cytoscape({
+            container: document.getElementById('cy'),
+            elements: elements,
+            style: [
+                {
+                    selector: 'node',
+                    style: {
+                        'label': 'data(label)',
+                        'text-valign': 'center',
+                        'text-halign': 'center',
+                        'font-size': '11px',
+                        'font-weight': 'bold',
+                        'text-wrap': 'wrap',
+                        'text-max-width': '80px',
+                        'width': '90px',
+                        'height': '60px',
+                        'border-width': 2,
+                        'padding': '8px'
+                    }
+                },
+                {
+                    selector: 'node[type="entity"]',
+                    style: {
+                        'shape': 'round-rectangle',
+                        'background-color': '#FFE6B3',
+                        'border-color': '#FF9800',
+                        'color': '#5D4037'
+                    }
+                },
+                {
+                    selector: 'node[type="activity"]',
+                    style: {
+                        'shape': 'ellipse',
+                        'background-color': '#B3D9FF',
+                        'border-color': '#2196F3',
+                        'color': '#0D47A1'
+                    }
+                },
+                {
+                    selector: 'node[type="agent"]',
+                    style: {
+                        'shape': 'diamond',
+                        'background-color': '#C8E6C9',
+                        'border-color': '#4CAF50',
+                        'color': '#1B5E20'
+                    }
+                },
+                {
+                    selector: 'edge',
+                    style: {
+                        'width': 2.5,
+                        'target-arrow-shape': 'triangle',
+                        'target-arrow-size': '8px',
+                        'curve-style': 'bezier'
+                    }
+                },
+                {
+                    selector: 'edge[type="derivation"]',
+                    style: {
+                        'line-color': '#2196F3',
+                        'target-arrow-color': '#2196F3',
+                        'line-style': 'solid'
+                    }
+                },
+                {
+                    selector: 'edge[type="generation"]',
+                    style: {
+                        'line-color': '#FF5722',
+                        'target-arrow-color': '#FF5722',
+                        'line-style': 'solid'
+                    }
+                },
+                {
+                    selector: 'edge[type="association"]',
+                    style: {
+                        'line-color': '#4CAF50',
+                        'target-arrow-color': '#4CAF50',
+                        'line-style': 'dashed',
+                        'line-dash-pattern': [8, 4]
+                    }
+                }
+            ],
+            layout: {
+                name: 'dagre',
+                rankDir: 'LR',  // Left to right for compact horizontal layout
+                nodeSep: 40,    // Reduced spacing for compact view
+                rankSep: 80,    // Reduced spacing between ranks
+                padding: 20,
+                animate: true,
+                animationDuration: 500
+            },
+            minZoom: 0.5,
+            maxZoom: 2,
+            wheelSensitivity: 0.1
+        });
+
+        function exportPNG() {
+            const png64 = cy.png({
+                output: 'blob',
+                bg: 'white',
+                scale: 3  // High resolution for print
+            });
+
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(png64);
+            link.download = 'prov_o_compact_diagram.png';
+            link.click();
+        }
+
+        function resetZoom() {
+            cy.fit();
+            cy.center();
+        }
+
+        // Auto-fit on load and ensure rendering
+        window.addEventListener('load', function () {
+            setTimeout(function () {
+                cy.fit();
+                cy.center();
+                cy.resize();
+                cy.forceRender();
+            }, 100);
+        });
+    </script>
+</body>
+
+</html>

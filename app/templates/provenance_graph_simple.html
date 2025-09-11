@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PROV-O Provenance Graph for Paper</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/cytoscape/3.30.0/cytoscape.min.js"></script>
+    <style>
+        body {
+            font-family: 'Times New Roman', Times, serif;
+            margin: 0;
+            padding: 10px;
+            background: white;
+        }
+
+        .container {
+            max-width: 400px;  /* Quarter page width for two-column paper */
+            margin: 0 auto;
+        }
+
+        h1 {
+            text-align: center;
+            color: #000;
+            font-size: 14px;
+            margin-bottom: 8px;
+            font-weight: bold;
+        }
+
+        #cy {
+            width: 100%;
+            height: 280px;  /* Slightly taller for better layout */
+            border: 1px solid #333;
+            background: white;
+        }
+
+        .legend {
+            margin-top: 8px;
+            padding: 6px;
+            background: #f9f9f9;
+            border: 1px solid #666;
+            font-size: 9px;
+        }
+
+        .legend h3 {
+            margin: 0 0 4px 0;
+            font-size: 10px;
+            color: #000;
+        }
+
+        .legend-item {
+            display: inline-block;
+            margin: 2px 8px 2px 0;
+            font-size: 9px;
+        }
+
+        .legend-color {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            margin-right: 3px;
+            vertical-align: middle;
+            border: 1px solid #333;
+        }
+
+        .controls {
+            text-align: center;
+            margin: 10px 0;
+        }
+
+        button {
+            background: #333;
+            color: white;
+            border: none;
+            padding: 6px 12px;
+            cursor: pointer;
+            font-size: 11px;
+        }
+
+        button:hover {
+            background: #555;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1>Figure 1: PROV-O Provenance with LLM Orchestration</h1>
+
+        <div id="cy"></div>
+
+        <div class="legend">
+            <h3>PROV-O Elements</h3>
+            <div>
+                <div class="legend-item">
+                    <span class="legend-color" style="background: #FFE6B3;"></span>
+                    prov:Entity
+                </div>
+                <div class="legend-item">
+                    <span class="legend-color" style="background: #B3D9FF;"></span>
+                    prov:Activity
+                </div>
+                <div class="legend-item">
+                    <span class="legend-color" style="background: #C8E6C9;"></span>
+                    prov:Agent
+                </div>
+            </div>
+            <div style="margin-top: 4px; font-size: 8px;">
+                <div class="legend-item">
+                    <span style="color: #CC3300;">→</span> generates
+                </div>
+                <div class="legend-item">
+                    <span style="color: #6600CC;">→</span> derivedTo
+                </div>
+                <div class="legend-item">
+                    <span style="color: #009900;">→</span> executedBy
+                </div>
+                <div class="legend-item">
+                    <span style="color: #0066CC;">→</span> usedBy
+                </div>
+                <div class="legend-item">
+                    <span style="color: #FF6600;">⋯→</span> informs
+                </div>
+            </div>
+        </div>
+
+        <div class="controls">
+            <button onclick="exportPNG()">Export High-Resolution PNG</button>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            // Create the graph with proper PROV-O relationships
+            const elements = {
+                nodes: [
+                    // prov:Entity - Document states
+                    { data: { id: 'doc1', label: 'Original\nDocument', type: 'entity' } },
+                    { data: { id: 'doc2', label: 'Segmented\nDocument', type: 'entity' } },
+                    { data: { id: 'doc3', label: 'Document with\nEmbeddings', type: 'entity' } },
+                    
+                    // prov:Activity - Processing operations
+                    { data: { id: 'act1', label: 'Segmentation\nActivity', type: 'activity' } },
+                    { data: { id: 'act2', label: 'Embedding\nActivity', type: 'activity' } },
+                    { data: { id: 'orch', label: 'Tool Selection\nActivity', type: 'activity' } },
+                    
+                    // prov:Agent - Actors in the system
+                    { data: { id: 'llm', label: 'Gemini LLM\n(Orchestrator)', type: 'agent' } },
+                    { data: { id: 'langext', label: 'LangExtract\n(Tool)', type: 'agent' } },
+                    { data: { id: 'spacy', label: 'spaCy\n(Tool)', type: 'agent' } }
+                ],
+                edges: [
+                    // Activities generate documents (activity -> document)
+                    { data: { id: 'e1', source: 'act1', target: 'doc2', label: 'generates', type: 'generation' } },
+                    { data: { id: 'e2', source: 'act2', target: 'doc3', label: 'generates', type: 'generation' } },
+                    
+                    // Document derivation chain (source -> derived)
+                    { data: { id: 'e3', source: 'doc1', target: 'doc2', label: 'derivedTo', type: 'derivation' } },
+                    { data: { id: 'e4', source: 'doc2', target: 'doc3', label: 'derivedTo', type: 'derivation' } },
+                    
+                    // Activities use documents (document -> activity)
+                    { data: { id: 'e5', source: 'doc1', target: 'act1', label: 'usedBy', type: 'usage' } },
+                    { data: { id: 'e6', source: 'doc2', target: 'act2', label: 'usedBy', type: 'usage' } },
+                    
+                    // LLM Orchestration - the key differentiator
+                    // Orchestration activity controlled by LLM (activity -> agent)
+                    { data: { id: 'e7', source: 'orch', target: 'llm', label: 'controlledBy', type: 'association' } },
+                    // Orchestration informs processing activities (orchestration -> activities)
+                    { data: { id: 'e8', source: 'orch', target: 'act1', label: 'informs', type: 'communication' } },
+                    { data: { id: 'e9', source: 'orch', target: 'act2', label: 'informs', type: 'communication' } },
+                    
+                    // Activities executed by tools (activity -> agent)
+                    { data: { id: 'e10', source: 'act1', target: 'langext', label: 'executedBy', type: 'association' } },
+                    { data: { id: 'e11', source: 'act2', target: 'spacy', label: 'executedBy', type: 'association' } }
+                ]
+            };
+
+            window.cy = cytoscape({
+                container: document.getElementById('cy'),
+                elements: elements,
+                style: [
+                    {
+                        selector: 'node',
+                        style: {
+                            'label': 'data(label)',
+                            'text-valign': 'center',
+                            'text-halign': 'center',
+                            'font-size': '8px',
+                            'font-family': 'Arial, sans-serif',
+                            'font-weight': 'normal',
+                            'text-wrap': 'wrap',
+                            'text-max-width': '55px',
+                            'width': '65px',
+                            'height': '40px',
+                            'border-width': 1.5,
+                            'padding': '3px'
+                        }
+                    },
+                    {
+                        selector: 'node[type="entity"]',
+                        style: {
+                            'shape': 'round-rectangle',
+                            'background-color': '#FFE6B3',
+                            'border-color': '#CC8800',
+                            'color': '#000000'
+                        }
+                    },
+                    {
+                        selector: 'node[type="activity"]',
+                        style: {
+                            'shape': 'ellipse',
+                            'background-color': '#B3D9FF',
+                            'border-color': '#0066CC',
+                            'color': '#000000'
+                        }
+                    },
+                    {
+                        selector: 'node[type="agent"]',
+                        style: {
+                            'shape': 'diamond',
+                            'background-color': '#C8E6C9',
+                            'border-color': '#009900',
+                            'color': '#000000',
+                            'width': '70px',
+                            'height': '45px'
+                        }
+                    },
+                    // Highlight the orchestrator
+                    {
+                        selector: '#llm',
+                        style: {
+                            'background-color': '#FFD700',
+                            'border-color': '#B8860B',
+                            'border-width': 2.5,
+                            'font-weight': 'bold'
+                        }
+                    },
+                    {
+                        selector: 'edge',
+                        style: {
+                            'width': 1.8,
+                            'target-arrow-shape': 'triangle',
+                            'target-arrow-size': '8px',
+                            'curve-style': 'bezier',
+                            'control-point-step-size': '30px',
+                            'font-size': '7px',
+                            'text-rotation': 'autorotate',
+                            'text-margin-y': -8
+                        }
+                    },
+                    {
+                        selector: 'edge[type="generation"]',
+                        style: {
+                            'line-color': '#CC3300',
+                            'target-arrow-color': '#CC3300',
+                            'line-style': 'solid'
+                        }
+                    },
+                    {
+                        selector: 'edge[type="derivation"]',
+                        style: {
+                            'line-color': '#6600CC',
+                            'target-arrow-color': '#6600CC',
+                            'line-style': 'solid'
+                        }
+                    },
+                    {
+                        selector: 'edge[type="association"]',
+                        style: {
+                            'line-color': '#009900',
+                            'target-arrow-color': '#009900',
+                            'line-style': 'solid'
+                        }
+                    },
+                    {
+                        selector: 'edge[type="usage"]',
+                        style: {
+                            'line-color': '#0066CC',
+                            'target-arrow-color': '#0066CC',
+                            'line-style': 'solid'
+                        }
+                    },
+                    {
+                        selector: 'edge[type="communication"]',
+                        style: {
+                            'line-color': '#FF6600',
+                            'target-arrow-color': '#FF6600',
+                            'line-style': 'dashed',
+                            'line-dash-pattern': [5, 3]
+                        }
+                    }
+                ],
+                layout: {
+                    name: 'preset',
+                    positions: node => {
+                        // Manual positioning for clarity
+                        const positions = {
+                            // Documents flow left to right
+                            'doc1': { x: 50, y: 140 },
+                            'doc2': { x: 200, y: 140 },
+                            'doc3': { x: 350, y: 140 },
+                            
+                            // Activities above documents
+                            'act1': { x: 125, y: 80 },
+                            'act2': { x: 275, y: 80 },
+                            
+                            // Orchestration at top center
+                            'orch': { x: 200, y: 20 },
+                            
+                            // LLM orchestrator prominently at top
+                            'llm': { x: 200, y: -30 },
+                            
+                            // Tools at bottom
+                            'langext': { x: 125, y: 210 },
+                            'spacy': { x: 275, y: 210 }
+                        };
+                        return positions[node.id()];
+                    }
+                },
+                minZoom: 0.5,
+                maxZoom: 3,
+                wheelSensitivity: 0.1,
+                userZoomingEnabled: false,
+                userPanningEnabled: false
+            });
+
+            // Fit to viewport
+            cy.fit();
+            cy.center();
+        });
+
+        function exportPNG() {
+            if (window.cy) {
+                // Export at high resolution for paper
+                const png64 = window.cy.png({
+                    output: 'blob',
+                    bg: 'white',
+                    scale: 4,  // High resolution
+                    full: true
+                });
+
+                const link = document.createElement('a');
+                link.href = URL.createObjectURL(png64);
+                link.download = 'prov_o_orchestration_figure.png';
+                link.click();
+            } else {
+                alert('Graph not yet loaded. Please wait a moment and try again.');
+            }
+        }
+    </script>
+</body>
+
+</html>
