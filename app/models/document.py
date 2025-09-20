@@ -57,10 +57,14 @@ class Document(db.Model):
     # Versioning fields for unified processing interface
     # Note: These will fail until migration is run, but methods below provide fallbacks
     version_number = db.Column(db.Integer, default=1, nullable=False)
-    version_type = db.Column(db.String(20), default='original', nullable=False)  # 'original', 'processed', 'experimental'
+    version_type = db.Column(db.String(20), default='original', nullable=False)  # 'original', 'processed', 'experimental', 'composite'
     source_document_id = db.Column(db.Integer, db.ForeignKey('documents.id'), index=True)  # Original document this version derives from
     experiment_id = db.Column(db.Integer, db.ForeignKey('experiments.id'), index=True)  # Associated experiment (for experimental versions)
     processing_notes = db.Column(db.Text)  # Notes about processing operations that created this version
+    
+    # Composite versioning fields
+    composite_sources = db.Column(db.JSON)  # List of document IDs that contribute to this composite
+    composite_metadata = db.Column(db.JSON)  # Metadata about how the composite was created
 
     # Foreign keys
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False, index=True)
@@ -370,8 +374,67 @@ class Document(db.Model):
             version_info += f" ({self.experiment.name})"
         elif self.version_type == 'processed':
             version_info += " (processed)"
+        elif self.version_type == 'composite':
+            version_info += " (composite)"
             
         return f"{self.get_display_name()} - {version_info}"
+    
+    # Composite versioning methods
+    
+    def create_composite_version(self, source_versions, composite_metadata=None):
+        """Create a composite version that combines multiple source versions"""
+        from datetime import datetime
+        
+        root_doc = self.get_root_document()
+        
+        # Get next version number
+        max_version = db.session.query(db.func.max(Document.version_number))\
+            .filter(db.or_(
+                Document.source_document_id == root_doc.id,
+                Document.id == root_doc.id
+            )).scalar() or 0
+        
+        version_number = max_version + 1
+        
+        # Create composite document
+        composite_doc = Document(
+            title=f"{root_doc.title} (Composite v{version_number})",
+            content_type=root_doc.content_type,
+            content=root_doc.content,  # Start with original content
+            detected_language=root_doc.detected_language,
+            language_confidence=root_doc.language_confidence,
+            user_id=root_doc.user_id,
+            source_document_id=root_doc.id,
+            version_number=version_number,
+            version_type='composite',
+            composite_sources=[v.id for v in source_versions],
+            composite_metadata=composite_metadata or {
+                'created_at': datetime.utcnow().isoformat(),
+                'source_version_ids': [v.id for v in source_versions],
+                'source_version_types': [v.version_type for v in source_versions],
+                'processing_summary': f"Composite of {len(source_versions)} versions"
+            },
+            processing_notes=f"Composite version combining {len(source_versions)} processing approaches",
+            status='active'
+        )
+        
+        db.session.add(composite_doc)
+        db.session.flush()
+        
+        return composite_doc
+    
+    def get_composite_sources(self):
+        """Get the source documents that contribute to this composite"""
+        if not self.composite_sources:
+            return []
+        
+        return db.session.query(Document)\
+            .filter(Document.id.in_(self.composite_sources))\
+            .all()
+    
+    def is_composite(self):
+        """Check if this is a composite version"""
+        return self.version_type == 'composite'
     
     @property
     def has_embeddings(self):

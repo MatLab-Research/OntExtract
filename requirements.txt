@@ -1,7 +1,7 @@
 # Core Flask dependencies
 Flask==3.0.0
 Flask-SQLAlchemy==3.1.1
-Flask-Migrate==4.0.5
+Flask-Migrate==4.0.7
 Flask-Login==0.6.3
 Flask-WTF==1.2.1
 Flask-CORS==4.0.0
@@ -11,8 +11,8 @@ psycopg2-binary==2.9.9
 pgvector==0.2.4
 
 # Authentication & Security
-Werkzeug==3.0.1
-WTForms==3.1.1
+Werkzeug==3.0.3
+WTForms==3.1.2
 bcrypt==4.3.0
 
 # LLM Providers
@@ -23,6 +23,7 @@ anthropic==0.7.8
 
 # Text Processing & Analysis
 nltk==3.8.1
+spacy==3.7.5
 langdetect==1.0.9
 beautifulsoup4==4.13.4
 python-docx==1.2.0
@@ -38,15 +39,15 @@ rdflib==7.0.0
 owlrl==6.0.2
 
 # Web & HTTP
-requests==2.31.0
+requests==2.32.3
 urllib3==2.1.0
 httpx==0.27.2
-Jinja2==3.1.2
+Jinja2==3.1.4
 
 # Development & Utilities
-python-dotenv==1.0.0
+python-dotenv==1.0.1
 click==8.1.7
-gunicorn==21.2.0
+gunicorn==22.0.0
 
 # File handling
 python-magic==0.4.27

@@ -4,8 +4,26 @@ import sys
 import logging
 from typing import List, Dict, Any, Optional
 
+import nltk
+import spacy
 from app import db
 from app.models.text_segment import TextSegment
+from app.text_utils import clean_jstor_boilerplate
+
+# Download NLTK data if not present
+try:
+    nltk.data.find('tokenizers/punkt')
+except nltk.downloader.DownloadError:
+    nltk.download('punkt')
+
+# Load spacy model
+try:
+    nlp = spacy.load('en_core_web_sm')
+except OSError:
+    print('Downloading spacy model...')
+    from spacy.cli import download
+    download('en_core_web_sm')
+    nlp = spacy.load('en_core_web_sm')
 
 # Add shared services to path
 shared_services_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..', 'shared_services')
@@ -49,7 +67,7 @@ class TextProcessingService:
     def create_initial_segments(self, document):
         """Create basic paragraph-level segments for a document"""
         try:
-            content = document.content
+            content = clean_jstor_boilerplate(document.content)
             if not content:
                 return
             
@@ -87,31 +105,81 @@ class TextProcessingService:
             raise e
     
     def split_into_paragraphs(self, text: str) -> List[str]:
-        """Split text into paragraphs"""
-        # Split by double newlines or more
+        """Split text into paragraphs using NLTK's sentence tokenizer as a base."""
+        # A robust way to handle paragraphs is to split by newlines,
+        # but also consider sentence structure to avoid splitting in the middle of one.
         paragraphs = self.paragraph_separator.split(text)
         return [p.strip() for p in paragraphs if p.strip()]
+
+    def segment_by_paragraphs(self, document):
+        """Create paragraph-level segments for a document using NLTK."""
+        try:
+            content = clean_jstor_boilerplate(document.content)
+            if not content:
+                return
+
+            paragraphs = self.split_into_paragraphs(content)
+            
+            current_position = 0
+            for i, paragraph_text in enumerate(paragraphs):
+                if paragraph_text.strip():
+                    start_pos = content.find(paragraph_text, current_position)
+                    if start_pos == -1:
+                        start_pos = current_position
+                    end_pos = start_pos + len(paragraph_text)
+                    
+                    segment = TextSegment(
+                        document_id=document.id,
+                        content=paragraph_text,
+                        segment_type='paragraph',
+                        segment_number=i + 1,
+                        start_position=start_pos,
+                        end_position=end_pos,
+                        level=0,
+                        language=document.detected_language
+                    )
+                    
+                    db.session.add(segment)
+                    current_position = end_pos
+            
+            db.session.commit()
+            
+        except Exception as e:
+            db.session.rollback()
+            raise e
+
+    def segment_by_sentences(self, document):
+        """Create sentence-level segments for a document using spaCy."""
+        try:
+            content = clean_jstor_boilerplate(document.content)
+            if not content:
+                return
+
+            doc = nlp(content)
+            
+            for i, sent in enumerate(doc.sents):
+                segment = TextSegment(
+                    document_id=document.id,
+                    content=sent.text,
+                    segment_type='sentence',
+                    segment_number=i + 1,
+                    start_position=sent.start_char,
+                    end_position=sent.end_char,
+                    level=1, # Sentences are a level below paragraphs
+                    language=document.detected_language
+                )
+                db.session.add(segment)
+            
+            db.session.commit()
+            
+        except Exception as e:
+            db.session.rollback()
+            raise e
     
     def split_into_sentences(self, text: str) -> List[str]:
-        """Split text into sentences"""
-        # Simple sentence splitting - can be improved with NLP libraries
-        sentences = self.sentence_endings.split(text)
-        result = []
-        
-        for i, sentence in enumerate(sentences):
-            sentence = sentence.strip()
-            if sentence:
-                # Add back the sentence ending (except for the last one)
-                if i < len(sentences) - 1:
-                    # Look for the original ending
-                    next_char_pos = text.find(sentence) + len(sentence)
-                    if next_char_pos < len(text):
-                        ending = text[next_char_pos]
-                        if ending in '.!?':
-                            sentence += ending
-                result.append(sentence)
-        
-        return result
+        """Split text into sentences using spaCy for better accuracy."""
+        doc = nlp(text)
+        return [sent.text for sent in doc.sents]
     
     def extract_keywords(self, text: str) -> List[str]:
         """Extract basic keywords from text"""
