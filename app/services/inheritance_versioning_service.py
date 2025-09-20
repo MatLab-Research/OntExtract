@@ -20,71 +20,67 @@ class InheritanceVersioningService:
     @staticmethod
     def create_new_version(original_document, processing_type, processing_metadata=None):
         """
-        Create a new version of a document that inherits all processing from the latest version.
+        Creates a new, isolated "Processed Version" of a document for a specific analysis type.
+        This version links back to the source document but does NOT inherit any prior processing.
         
         Args:
-            original_document: The base document (can be any version)
-            processing_type: Type of processing being added (e.g., 'embeddings', 'segments')
-            processing_metadata: Additional metadata for this version
+            original_document: The document being processed.
+            processing_type: A string describing the analysis (e.g., 'sentence_segmentation', 'paragraph_segmentation').
+            processing_metadata: Additional metadata about the processing run.
             
         Returns:
-            new_document: The new document version with inherited processing
+            new_document: The new, isolated Processed Version document.
         """
         try:
-            # Find the base document ID (original document)
-            base_document_id = InheritanceVersioningService._get_base_document_id(original_document)
+            # 1. Find the absolute root document (the original source).
+            source_document = original_document.get_root_document()
             
-            # Find the latest version to inherit from  
-            latest_version_doc = InheritanceVersioningService._get_latest_version(base_document_id)
-            latest_version_number = latest_version_doc.version_number if latest_version_doc else 0
+            # 2. Determine the next version number in the family.
+            latest_version_in_family = InheritanceVersioningService._get_latest_version(source_document.id)
+            new_version_number = (latest_version_in_family.version_number if latest_version_in_family else 0) + 1
             
-            # Create new document version
-            new_version_number = latest_version_number + 1
+            # 3. Create the new document object. It's based on the SOURCE content.
             new_document = Document(
-                title=f"{InheritanceVersioningService._get_base_title(base_document_id)} (v{new_version_number})",
-                content_type=original_document.content_type,
-                document_type=original_document.document_type,
-                reference_subtype=original_document.reference_subtype,
-                file_type=original_document.file_type,
-                content=original_document.content,  # Always inherit original content
-                content_preview=original_document.content_preview,
-                detected_language=original_document.detected_language,
-                language_confidence=original_document.language_confidence,
+                title=f"{source_document.title} ({processing_type})",
+                content_type=source_document.content_type,
+                document_type=source_document.document_type,
+                reference_subtype=source_document.reference_subtype,
+                file_type=source_document.file_type,
+                content=source_document.content,  # CRITICAL: Always use original content
+                content_preview=source_document.content_preview,
+                detected_language=source_document.detected_language,
+                language_confidence=source_document.language_confidence,
                 status='active',
-                word_count=original_document.word_count,
-                character_count=original_document.character_count,
-                user_id=original_document.user_id,
+                word_count=source_document.word_count,
+                character_count=source_document.character_count,
+                user_id=source_document.user_id,
                 version_number=new_version_number,
-                version_type='processed',
-                source_document_id=base_document_id,
-                processing_metadata=processing_metadata or {}
+                version_type='processed', # This is a processed version
+                source_document_id=source_document.id, # CRITICAL: Link back to the root
+                processing_metadata=processing_metadata or {'type': processing_type}
             )
             
             db.session.add(new_document)
             db.session.flush()  # Get the ID
             
-            # Inherit all processing from the latest version if it exists
-            if latest_version_doc:
-                InheritanceVersioningService._inherit_processing_data(
-                    latest_version_doc.id, 
-                    new_document.id
-                )
+            # CRITICAL CHANGE: Do NOT inherit processing data from the previous version.
+            # Each processed version is clean and only contains its own analysis.
             
             # Record what's being added in this version
             InheritanceVersioningService._record_version_change(
                 new_document.id,
                 new_version_number,
                 processing_type,
-                f"Added {processing_type} processing to version {new_version_number}",
-                latest_version_number if latest_version_doc else None,
-                original_document.user_id,
+                f"Created isolated processed version with {processing_type}",
+                source_document.version_number,
+                source_document.user_id,
                 processing_metadata
             )
             
             db.session.commit()
             
-            logger.info(f"Created new document version {new_version_number} (ID: {new_document.id}) "
-                       f"inheriting from version {latest_version_number}")
+            logger.info(f"Created new ISOLATED document version {new_version_number} (ID: {new_document.id}) "
+                       f"from source {source_document.id} for processing: {processing_type}")
             
             return new_document
             

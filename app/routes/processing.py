@@ -551,6 +551,17 @@ def segment_document(document_id):
                 }), 500
             
         # Handle traditional segmentation methods (paragraph, sentence, semantic, hybrid)
+        from app.services.text_processing import TextProcessingService
+        processing_service = TextProcessingService()
+
+        if method == 'paragraph':
+            processing_service.segment_by_paragraphs(processing_version)
+        elif method == 'sentence':
+            processing_service.segment_by_sentences(processing_version)
+        else:
+            # Default to paragraph if method is unknown
+            processing_service.segment_by_paragraphs(processing_version)
+
         # Create processing job linked to processing version
         job = ProcessingJob(
             document_id=processing_version.id,  # Link to processing version
@@ -571,12 +582,7 @@ def segment_document(document_id):
         db.session.commit()
         
         # Import here to avoid circular imports
-        from app.services.text_processing import TextProcessingService
         from app.models.text_segment import TextSegment
-        
-        # Actually create TextSegment objects for the processing version
-        processing_service = TextProcessingService()
-        processing_service.create_initial_segments(processing_version)
         
         # Count created segments
         segment_count = processing_version.text_segments.count()
@@ -586,7 +592,7 @@ def segment_document(document_id):
             'segment_count': segment_count,
             'chunk_size': chunk_size,
             'overlap': overlap,
-            'total_words': len(processing_version.content.split())
+            'total_words': len(processing_version.content.split()) if processing_version.content else 0
         })
         
         # Complete PROV-O Activity
@@ -595,7 +601,7 @@ def segment_document(document_id):
             'segments_created': segment_count,
             'chunk_size': chunk_size,
             'overlap': overlap,
-            'total_words': len(processing_version.content.split())
+            'total_words': len(processing_version.content.split()) if processing_version.content else 0
         })
         
         db.session.commit()
@@ -620,6 +626,7 @@ def segment_document(document_id):
         return jsonify(response_data)
         
     except Exception as e:
+        db.session.rollback()
         return jsonify({'success': False, 'error': str(e)}), 500
 
 @processing_bp.route('/document/<int:document_id>/segments', methods=['DELETE'])
