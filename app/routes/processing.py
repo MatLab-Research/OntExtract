@@ -14,20 +14,25 @@ processing_bp = Blueprint('processing', __name__)
 
 @processing_bp.route('/')
 def processing_home():
-    """Processing pipeline home page - public view"""
-    # Aggregate document stats
+    """Processing pipeline home page - shows live experiment processing status"""
+    # Import experiment models
+    from app.models.experiment_processing import ExperimentDocumentProcessing
+    from app.models.experiment import Experiment
+    from app.models.experiment_document import ExperimentDocument
+
+    # Aggregate document stats (total documents in system)
     doc_total = db.session.query(func.count(Document.id)).scalar() or 0
     doc_uploaded = db.session.query(func.count(Document.id)).filter(Document.status == 'uploaded').scalar() or 0
     doc_processing = db.session.query(func.count(Document.id)).filter(Document.status == 'processing').scalar() or 0
     doc_completed = db.session.query(func.count(Document.id)).filter(Document.status == 'completed').scalar() or 0
     doc_error = db.session.query(func.count(Document.id)).filter(Document.status == 'error').scalar() or 0
 
-    # Aggregate job stats
-    job_total = db.session.query(func.count(ProcessingJob.id)).scalar() or 0
-    job_running = db.session.query(func.count(ProcessingJob.id)).filter(getattr(ProcessingJob, 'status') == 'running').scalar() or 0
-    job_pending = db.session.query(func.count(ProcessingJob.id)).filter(getattr(ProcessingJob, 'status') == 'pending').scalar() or 0
-    job_completed = db.session.query(func.count(ProcessingJob.id)).filter(getattr(ProcessingJob, 'status') == 'completed').scalar() or 0
-    job_failed = db.session.query(func.count(ProcessingJob.id)).filter(getattr(ProcessingJob, 'status') == 'failed').scalar() or 0
+    # Aggregate experiment processing stats (actual live processing operations)
+    processing_total = db.session.query(func.count(ExperimentDocumentProcessing.id)).scalar() or 0
+    processing_pending = db.session.query(func.count(ExperimentDocumentProcessing.id)).filter(ExperimentDocumentProcessing.status == 'pending').scalar() or 0
+    processing_running = db.session.query(func.count(ExperimentDocumentProcessing.id)).filter(ExperimentDocumentProcessing.status == 'running').scalar() or 0
+    processing_completed = db.session.query(func.count(ExperimentDocumentProcessing.id)).filter(ExperimentDocumentProcessing.status == 'completed').scalar() or 0
+    processing_failed = db.session.query(func.count(ExperimentDocumentProcessing.id)).filter(ExperimentDocumentProcessing.status == 'failed').scalar() or 0
 
     stats = {
         'documents': {
@@ -37,40 +42,65 @@ def processing_home():
             'completed': doc_completed,
             'error': doc_error,
         },
-        'jobs': {
-            'total': job_total,
-            'pending': job_pending,
-            'running': job_running,
-            'completed': job_completed,
-            'failed': job_failed,
+        'processing_operations': {
+            'total': processing_total,
+            'pending': processing_pending,
+            'running': processing_running,
+            'completed': processing_completed,
+            'failed': processing_failed,
         }
     }
 
+    # Recent documents from experiments
     recent_documents = (
         db.session.query(Document)
-        .order_by(Document.created_at.desc())
-        .limit(10)
-        .all()
-    )
-    recent_jobs = (
-        db.session.query(ProcessingJob)
-        .order_by(ProcessingJob.created_at.desc())
+        .join(ExperimentDocument, Document.id == ExperimentDocument.document_id)
+        .order_by(ExperimentDocument.added_at.desc())
         .limit(10)
         .all()
     )
 
-    return render_template('processing/index.html', stats=stats, recent_documents=recent_documents, recent_jobs=recent_jobs)
+    # Recent processing operations instead of old processing jobs
+    recent_processing = (
+        db.session.query(ExperimentDocumentProcessing)
+        .join(ExperimentDocument, ExperimentDocumentProcessing.experiment_document_id == ExperimentDocument.id)
+        .join(Document, ExperimentDocument.document_id == Document.id)
+        .join(Experiment, ExperimentDocument.experiment_id == Experiment.id)
+        .order_by(ExperimentDocumentProcessing.created_at.desc())
+        .limit(10)
+        .all()
+    )
+
+    return render_template('processing/index.html', stats=stats, recent_documents=recent_documents, recent_processing=recent_processing)
 
 @processing_bp.route('/jobs')
 def job_list():
-    """List processing jobs - public view"""
-    jobs = (
+    """List processing operations - public view"""
+    # Import experiment models
+    from app.models.experiment_processing import ExperimentDocumentProcessing
+    from app.models.experiment import Experiment
+    from app.models.experiment_document import ExperimentDocument
+
+    # Get processing operations from experiments
+    processing_operations = (
+        db.session.query(ExperimentDocumentProcessing)
+        .join(ExperimentDocument, ExperimentDocumentProcessing.experiment_document_id == ExperimentDocument.id)
+        .join(Document, ExperimentDocument.document_id == Document.id)
+        .join(Experiment, ExperimentDocument.experiment_id == Experiment.id)
+        .order_by(ExperimentDocumentProcessing.created_at.desc())
+        .limit(100)
+        .all()
+    )
+
+    # Also get legacy processing jobs if any exist
+    legacy_jobs = (
         db.session.query(ProcessingJob)
         .order_by(ProcessingJob.created_at.desc())
         .limit(50)
         .all()
     )
-    return render_template('processing/jobs.html', jobs=jobs)
+
+    return render_template('processing/jobs.html', processing_operations=processing_operations, legacy_jobs=legacy_jobs)
 
 @processing_bp.route('/start/<int:document_id>')
 @require_login_for_write

@@ -396,3 +396,153 @@ class LangExtractDocumentAnalyzer:
         ordered.extend(remaining)
         
         return ordered
+
+    def _extract_entities_with_positions(self, text: str) -> Dict[str, Any]:
+        """
+        Specialized entity extraction using LangExtract with character-level positioning
+
+        Args:
+            text: Document text to analyze for entities
+
+        Returns:
+            Structured entity extraction results
+        """
+        clean_text = self._clean_text(text)
+
+        # Define entity-focused extraction schema
+        prompt_description = """
+        Extract named entities and key concepts from this document with precise character positions.
+
+        Focus on extracting:
+        1. NAMED_ENTITIES: People, organizations, locations, dates, technical terms
+        2. KEY_CONCEPTS: Important domain-specific terms and concepts
+        3. TECHNICAL_TERMS: Specialized vocabulary and jargon
+
+        For each entity/concept:
+        - Provide exact character positions [start, end]
+        - Assign entity type (PERSON, ORG, LOCATION, DATE, CONCEPT, TECHNICAL)
+        - Include confidence score (0.0-1.0)
+        - Provide surrounding context (±30 characters)
+        """
+
+        # Entity extraction examples
+        examples = [
+            data.ExampleData(
+                text="""In 1957, Anscombe developed her theory of intentionality at Oxford University.
+                The concept revolutionized moral philosophy and influenced agency theory.""",
+                extractions=[
+                    data.Extraction(
+                        extraction_class="entity_extraction",
+                        extraction_text="entities_and_concepts",
+                        attributes={
+                            "named_entities": [
+                                {"entity": "Anscombe", "type": "PERSON", "position": [8, 16], "confidence": 0.95, "context": "In 1957, Anscombe developed"},
+                                {"entity": "1957", "type": "DATE", "position": [3, 7], "confidence": 0.99, "context": "In 1957, Anscombe developed"},
+                                {"entity": "Oxford University", "type": "ORG", "position": [53, 70], "confidence": 0.90, "context": "intentionality at Oxford University. The"}
+                            ],
+                            "key_concepts": [
+                                {"term": "intentionality", "position": [39, 52], "confidence": 0.85, "context": "theory of intentionality at Oxford"},
+                                {"term": "moral philosophy", "position": [109, 125], "confidence": 0.88, "context": "revolutionized moral philosophy and influenced"},
+                                {"term": "agency theory", "position": [141, 154], "confidence": 0.82, "context": "influenced agency theory."}
+                            ]
+                        }
+                    )
+                ]
+            )
+        ]
+
+        try:
+            # Perform LangExtract analysis
+            language_model = self.language_model_type(api_key=self.api_key, model_id=self.model_id)
+
+            extraction_schema = data.ExtractionSchema(
+                [data.ExtractionType("entity_extraction", prompt_description)],
+                examples=examples
+            )
+
+            extractions = extraction_schema.extract(
+                text=clean_text,
+                model=language_model
+            )
+
+            return {
+                'success': True,
+                'structured_extractions': extractions,
+                'extraction_method': 'langextract_entity_focused',
+                'character_positions': True
+            }
+
+        except Exception as e:
+            logger.error(f"LangExtract entity extraction failed: {e}")
+            # Return fallback entity extraction
+            return self._fallback_entity_extraction(clean_text)
+
+    def _fallback_entity_extraction(self, text: str) -> Dict[str, Any]:
+        """Fallback entity extraction using pattern matching when LangExtract fails"""
+        import re
+
+        extracted_entities = []
+        extracted_concepts = []
+
+        # Pattern-based entity extraction
+        patterns = {
+            'PERSON': r'\b(?:Dr|Prof|Mr|Ms|Mrs)\.?\s+[A-Z][a-z]+(?:\s+[A-Z][a-z]+)*\b',
+            'ORG': r'\b[A-Z][a-z]+(?:\s+[A-Z][a-z]+)*\s+(?:Inc|Corp|LLC|Ltd|Company|University|Institute|Foundation)\b',
+            'DATE': r'\b(?:1[0-9]{3}|20[0-2][0-9])\b',
+            'ACRONYM': r'\b[A-Z]{2,}\b'
+        }
+
+        for entity_type, pattern in patterns.items():
+            matches = re.finditer(pattern, text)
+            for match in matches:
+                entity_text = match.group().strip()
+                start_pos = match.start()
+                end_pos = match.end()
+
+                # Create context
+                context_start = max(0, start_pos - 30)
+                context_end = min(len(text), end_pos + 30)
+                context = text[context_start:context_end].strip()
+
+                extracted_entities.append({
+                    'entity': entity_text,
+                    'type': entity_type,
+                    'position': [start_pos, end_pos],
+                    'confidence': 0.60,
+                    'context': context
+                })
+
+        # Simple concept extraction (capitalized terms)
+        concept_pattern = r'\b[A-Z][a-z]+(?:\s+[a-z]+)*\b'
+        concept_matches = re.finditer(concept_pattern, text)
+        for match in concept_matches:
+            concept_text = match.group().strip()
+            if len(concept_text) > 3:  # Filter short terms
+                start_pos = match.start()
+                end_pos = match.end()
+
+                context_start = max(0, start_pos - 30)
+                context_end = min(len(text), end_pos + 30)
+                context = text[context_start:context_end].strip()
+
+                extracted_concepts.append({
+                    'term': concept_text,
+                    'position': [start_pos, end_pos],
+                    'confidence': 0.50,
+                    'context': context
+                })
+
+        # Create mock extraction structure to match expected format
+        mock_extraction = type('Extraction', (), {
+            'attributes': {
+                'named_entities': extracted_entities,
+                'key_concepts': extracted_concepts[:10]  # Limit concepts
+            }
+        })()
+
+        return {
+            'success': True,
+            'structured_extractions': [mock_extraction],
+            'extraction_method': 'fallback_pattern_matching',
+            'character_positions': True
+        }

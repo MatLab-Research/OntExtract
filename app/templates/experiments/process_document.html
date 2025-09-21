@@ -503,6 +503,28 @@
                                         </span>
                                     </div>
                                     {% if results %}
+                                    <!-- Service/Model Information -->
+                                    {% if results.service_used or results.model_info %}
+                                    <div class="mb-3 p-2 bg-light rounded">
+                                        <small class="text-muted d-block">
+                                            <i class="fas fa-cogs me-1"></i>
+                                            <strong>Service:</strong> {{ results.service_used or 'Unknown' }}
+                                        </small>
+                                        {% if results.model_info %}
+                                        <small class="text-muted d-block">
+                                            <i class="fas fa-microchip me-1"></i>
+                                            <strong>Model:</strong> {{ results.model_info }}
+                                        </small>
+                                        {% endif %}
+                                        {% if results.avg_confidence %}
+                                        <small class="text-muted d-block">
+                                            <i class="fas fa-percentage me-1"></i>
+                                            <strong>Avg Confidence:</strong> {{ "%.0f"|format(results.avg_confidence * 100) }}%
+                                        </small>
+                                        {% endif %}
+                                    </div>
+                                    {% endif %}
+
                                     <div class="row text-center">
                                         {% if results.entities_found %}
                                         <div class="col-md-4 mb-2">
@@ -520,11 +542,11 @@
                                             </div>
                                         </div>
                                         {% endif %}
-                                        {% if results.model_used %}
+                                        {% if results.avg_confidence %}
                                         <div class="col-md-4 mb-2">
                                             <div class="border rounded p-2">
-                                                <strong class="text-secondary">{{ results.model_used }}</strong>
-                                                <br><small class="text-muted">Model</small>
+                                                <strong class="text-warning">{{ "%.0f"|format(results.avg_confidence * 100) }}%</strong>
+                                                <br><small class="text-muted">Confidence</small>
                                             </div>
                                         </div>
                                         {% endif %}
