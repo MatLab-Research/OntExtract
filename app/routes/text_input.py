@@ -285,50 +285,47 @@ def document_list():
 @text_input_bp.route('/document/<int:document_id>')
 @public_with_auth_context  # Allow anonymous viewing of documents
 def document_detail(document_id):
-    """Show document details"""
+    """Show document details - simplified experiment-centric view"""
     # Get document - public access for viewing
     document = Document.query.filter_by(id=document_id).first_or_404()
-    
-    # Get processing jobs for this document
-    processing_jobs = document.processing_jobs.order_by(ProcessingJob.created_at.desc()).limit(5).all()
-    
-    # Get available experiments for dropdown
-    from app.models.experiment import Experiment
-    experiments = Experiment.query.order_by(Experiment.created_at.desc()).all()
-    
-    # Check for composite document recommendations
-    composite_recommendation = None
-    if document.version_type == 'original':
-        # Check for processed versions
-        processed_versions = Document.query.filter(
-            Document.source_document_id == document.id,
-            Document.version_type == 'processed'
+
+    # Get experiments that include this document with their processing results
+    from app.models.experiment_document import ExperimentDocument
+    from app.models.experiment_processing import DocumentProcessingIndex
+
+    # Get all experiment-document relationships for this document
+    experiment_documents = ExperimentDocument.query.filter_by(document_id=document_id).all()
+
+    # Enrich with processing information
+    document_experiments = []
+    total_processing_count = 0
+
+    for exp_doc in experiment_documents:
+        # Get processing operations for this experiment-document pair
+        processing_results = DocumentProcessingIndex.query.filter_by(
+            document_id=document_id,
+            experiment_id=exp_doc.experiment_id
         ).all()
-        
-        if len(processed_versions) > 1:
-            # Get unique processing types
-            processing_types = set()
-            for version in processed_versions:
-                for job in version.processing_jobs.filter(ProcessingJob.status == 'completed'):
-                    processing_types.add(job.job_type)
-            
-            if len(processing_types) > 1:
-                composite_recommendation = {
-                    'type': 'composite_creation',
-                    'title': 'Create Unified Processing Document',
-                    'description': f'Combine {len(processing_types)} processing types ({", ".join(processing_types)}) into one document',
-                    'action': 'create_composite',
-                    'priority': 'high',
-                    'benefit': 'Access all processing results simultaneously',
-                    'processing_types': list(processing_types),
-                    'source_count': len(processed_versions) + 1  # +1 for original
+
+        # Create a data structure for the template
+        exp_data = {
+            'experiment': exp_doc.experiment,
+            'processing_results': [
+                {
+                    'processing_type': proc.processing_type,
+                    'processing_method': proc.processing_method,
+                    'status': proc.status
                 }
-    
-    return render_template('text_input/document_detail.html', 
-                         document=document, 
-                         processing_jobs=processing_jobs,
-                         experiments=experiments,
-                         composite_recommendation=composite_recommendation)
+                for proc in processing_results
+            ]
+        }
+        document_experiments.append(exp_data)
+        total_processing_count += len(processing_results)
+
+    return render_template('text_input/document_detail.html',
+                         document=document,
+                         document_experiments=document_experiments,
+                         total_processing_count=total_processing_count)
 
 @text_input_bp.route('/document/<int:document_id>/delete', methods=['POST'])
 @write_login_required  # Require login for deletion

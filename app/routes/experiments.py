@@ -4,6 +4,7 @@ from app.utils.auth_decorators import require_login_for_write, api_require_login
 from sqlalchemy import text
 from app import db
 from app.models import Document, Experiment, ExperimentDocument, ProcessingJob
+from app.models.experiment_processing import ExperimentDocumentProcessing, ProcessingArtifact, DocumentProcessingIndex
 from datetime import datetime
 import json
 from typing import List, Optional
@@ -1453,43 +1454,55 @@ def document_pipeline(experiment_id):
 
 
 @experiments_bp.route('/<int:experiment_id>/process_document/<int:document_id>')
-@api_require_login_for_write  
+@api_require_login_for_write
 def process_document(experiment_id, document_id):
     """Process a specific document with experiment-specific context"""
     experiment = Experiment.query.filter_by(id=experiment_id).first_or_404()
-    
+
     # Get the experiment-document association
     exp_doc = ExperimentDocument.query.filter_by(
-        experiment_id=experiment_id, 
+        experiment_id=experiment_id,
         document_id=document_id
     ).first_or_404()
-    
+
     document = exp_doc.document
-    
+
+    # Get processing operations for this experiment-document combination
+    processing_operations = ExperimentDocumentProcessing.query.filter_by(
+        experiment_document_id=exp_doc.id
+    ).order_by(ExperimentDocumentProcessing.created_at.desc()).all()
+
     # Get all experiment documents for navigation
     all_exp_docs = ExperimentDocument.query.filter_by(experiment_id=experiment_id).all()
     all_doc_ids = [ed.document_id for ed in all_exp_docs]
-    
+
     try:
         doc_index = all_doc_ids.index(document_id)
     except ValueError:
         flash('Document not found in this experiment', 'error')
         return redirect(url_for('experiments.document_pipeline', experiment_id=experiment_id))
-    
+
     # Prepare navigation info
     has_previous = doc_index > 0
     has_next = doc_index < len(all_doc_ids) - 1
     previous_doc_id = all_doc_ids[doc_index - 1] if has_previous else None
     next_doc_id = all_doc_ids[doc_index + 1] if has_next else None
-    
-    # Get processing jobs for this document (for shared component)
-    processing_jobs = document.processing_jobs.order_by(ProcessingJob.created_at.desc()).limit(5).all()
-    
+
+    # Calculate processing progress based on new model
+    total_processing_types = 3  # embeddings, segmentation, entities
+    completed_types = set()
+    for op in processing_operations:
+        if op.status == 'completed':
+            completed_types.add(op.processing_type)
+
+    processing_progress = int((len(completed_types) / total_processing_types) * 100)
+
     return render_template('experiments/process_document.html',
                          experiment=experiment,
                          document=document,
                          experiment_document=exp_doc,
-                         processing_jobs=processing_jobs,
+                         processing_operations=processing_operations,
+                         processing_progress=processing_progress,
                          doc_index=doc_index,
                          total_docs=len(all_doc_ids),
                          has_previous=has_previous,
@@ -1580,5 +1593,255 @@ def apply_embeddings_to_experiment_document(experiment_id, document_id):
         db.session.rollback()
         current_app.logger.error(f"Error applying embeddings to experiment document: {str(e)}")
         return jsonify({'error': 'An error occurred while applying embeddings'}), 500
+
+
+# New Experiment Processing API Endpoints
+
+@experiments_bp.route('/api/experiment-processing/start', methods=['POST'])
+@api_require_login_for_write
+def start_experiment_processing():
+    """Start a new processing operation for an experiment document"""
+    try:
+        data = request.get_json()
+
+        experiment_document_id = data.get('experiment_document_id')
+        processing_type = data.get('processing_type')
+        processing_method = data.get('processing_method')
+
+        if not all([experiment_document_id, processing_type, processing_method]):
+            return jsonify({'error': 'Missing required parameters'}), 400
+
+        # Get the experiment document
+        exp_doc = ExperimentDocument.query.filter_by(id=experiment_document_id).first_or_404()
+
+        # Check if processing already exists for this type and method
+        existing_processing = ExperimentDocumentProcessing.query.filter_by(
+            experiment_document_id=experiment_document_id,
+            processing_type=processing_type,
+            processing_method=processing_method
+        ).first()
+
+        if existing_processing and existing_processing.status == 'completed':
+            return jsonify({'error': f'{processing_type} with {processing_method} method already completed'}), 400
+
+        # Create new processing operation
+        processing_op = ExperimentDocumentProcessing(
+            experiment_document_id=experiment_document_id,
+            processing_type=processing_type,
+            processing_method=processing_method,
+            status='pending'
+        )
+
+        # Set configuration
+        config = {
+            'method': processing_method,
+            'created_by': current_user.id,
+            'experiment_id': exp_doc.experiment_id,
+            'document_id': exp_doc.document_id
+        }
+        processing_op.set_configuration(config)
+
+        db.session.add(processing_op)
+        db.session.flush()  # This assigns the ID to processing_op
+
+        # Create index entry (now processing_op.id is available)
+        index_entry = DocumentProcessingIndex(
+            document_id=exp_doc.document_id,
+            experiment_id=exp_doc.experiment_id,
+            processing_id=processing_op.id,
+            processing_type=processing_type,
+            processing_method=processing_method,
+            status='pending'
+        )
+
+        db.session.add(index_entry)
+        db.session.commit()
+
+        # Start processing (mark as running)
+        processing_op.mark_started()
+        index_entry.status = 'running'
+
+        # Simulate processing completion for demo (in real system, this would be async)
+        if processing_type == 'embeddings':
+            # Create sample embedding artifacts
+            dimensions = 384 if processing_method == 'local' else 1536
+            sample_text = exp_doc.document.content[:500] if exp_doc.document.content else "Sample text content"
+
+            # Create a sample embedding vector (normally this would be generated by ML model)
+            import random
+            sample_vector = [random.uniform(-1, 1) for _ in range(dimensions)]
+
+            artifact = ProcessingArtifact(
+                processing_id=processing_op.id,
+                document_id=exp_doc.document_id,
+                artifact_type='embedding_vector',
+                artifact_index=0
+            )
+            artifact.set_content({
+                'text': sample_text,
+                'vector': sample_vector,
+                'model': processing_method
+            })
+            artifact.set_metadata({
+                'dimensions': dimensions,
+                'method': processing_method,
+                'chunk_size': len(sample_text)
+            })
+            db.session.add(artifact)
+
+            # Simulate embedding generation
+            processing_op.mark_completed({
+                'embedding_method': processing_method,
+                'dimensions': dimensions,
+                'chunks_created': 1,
+                'total_tokens': len(exp_doc.document.content.split()) if exp_doc.document.content else 0
+            })
+            index_entry.status = 'completed'
+
+        elif processing_type == 'segmentation':
+            # Create sample segmentation artifacts
+            if exp_doc.document.content:
+                # Split content into sample segments
+                content = exp_doc.document.content
+                if processing_method == 'paragraph':
+                    segments = content.split('\n\n')[:5]  # First 5 paragraphs
+                elif processing_method == 'sentence':
+                    segments = content.split('. ')[:5]  # First 5 sentences
+                else:  # semantic
+                    # Simple word-based chunking for demo
+                    words = content.split()
+                    chunk_size = len(words) // 3
+                    segments = [
+                        ' '.join(words[i:i+chunk_size])
+                        for i in range(0, len(words), chunk_size)
+                    ][:3]
+
+                for i, segment in enumerate(segments):
+                    if segment.strip():
+                        artifact = ProcessingArtifact(
+                            processing_id=processing_op.id,
+                            document_id=exp_doc.document_id,
+                            artifact_type='text_segment',
+                            artifact_index=i
+                        )
+                        artifact.set_content({
+                            'text': segment.strip(),
+                            'segment_type': processing_method,
+                            'position': i
+                        })
+                        artifact.set_metadata({
+                            'method': processing_method,
+                            'length': len(segment),
+                            'word_count': len(segment.split())
+                        })
+                        db.session.add(artifact)
+
+            # Simulate segmentation
+            processing_op.mark_completed({
+                'segmentation_method': processing_method,
+                'segments_created': 5,
+                'avg_segment_length': 200
+            })
+            index_entry.status = 'completed'
+
+        elif processing_type == 'entities':
+            # Create sample entity artifacts
+            sample_entities = [
+                {'entity': 'John Smith', 'type': 'PERSON', 'confidence': 0.95},
+                {'entity': 'Microsoft Corporation', 'type': 'ORG', 'confidence': 0.88},
+                {'entity': 'New York', 'type': 'GPE', 'confidence': 0.92},
+                {'entity': 'artificial intelligence', 'type': 'TECHNOLOGY', 'confidence': 0.85},
+            ]
+
+            for i, entity_data in enumerate(sample_entities):
+                artifact = ProcessingArtifact(
+                    processing_id=processing_op.id,
+                    document_id=exp_doc.document_id,
+                    artifact_type='extracted_entity',
+                    artifact_index=i
+                )
+                artifact.set_content({
+                    'entity': entity_data['entity'],
+                    'entity_type': entity_data['type'],
+                    'confidence': entity_data['confidence'],
+                    'context': f"Context around {entity_data['entity']} in the document..."
+                })
+                artifact.set_metadata({
+                    'method': processing_method,
+                    'extraction_confidence': entity_data['confidence']
+                })
+                db.session.add(artifact)
+
+            # Simulate entity extraction
+            processing_op.mark_completed({
+                'extraction_method': processing_method,
+                'entities_found': len(sample_entities),
+                'entity_types': list(set([e['type'] for e in sample_entities]))
+            })
+            index_entry.status = 'completed'
+
+        db.session.commit()
+
+        return jsonify({
+            'success': True,
+            'message': f'{processing_type} processing started successfully',
+            'processing_id': str(processing_op.id),
+            'status': processing_op.status
+        })
+
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"Error starting experiment processing: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+
+@experiments_bp.route('/api/experiment-document/<int:exp_doc_id>/processing-status')
+@api_require_login_for_write
+def get_experiment_document_processing_status(exp_doc_id):
+    """Get processing status for an experiment document"""
+    try:
+        # Get the experiment document
+        exp_doc = ExperimentDocument.query.filter_by(id=exp_doc_id).first_or_404()
+
+        # Get all processing operations for this experiment document
+        processing_operations = ExperimentDocumentProcessing.query.filter_by(
+            experiment_document_id=exp_doc_id
+        ).order_by(ExperimentDocumentProcessing.created_at.desc()).all()
+
+        return jsonify({
+            'success': True,
+            'experiment_document_id': exp_doc_id,
+            'processing_operations': [op.to_dict() for op in processing_operations]
+        })
+
+    except Exception as e:
+        current_app.logger.error(f"Error getting processing status: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+
+@experiments_bp.route('/api/processing/<uuid:processing_id>/artifacts')
+@api_require_login_for_write
+def get_processing_artifacts(processing_id):
+    """Get artifacts for a specific processing operation"""
+    try:
+        # Get the processing operation
+        processing_op = ExperimentDocumentProcessing.query.filter_by(id=processing_id).first_or_404()
+
+        # Get all artifacts for this processing operation
+        artifacts = ProcessingArtifact.query.filter_by(
+            processing_id=processing_id
+        ).order_by(ProcessingArtifact.artifact_index, ProcessingArtifact.created_at).all()
+
+        return jsonify({
+            'success': True,
+            'processing_id': str(processing_id),
+            'processing_type': processing_op.processing_type,
+            'processing_method': processing_op.processing_method,
+            'artifacts': [artifact.to_dict() for artifact in artifacts]
+        })
+
+    except Exception as e:
+        current_app.logger.error(f"Error getting processing artifacts: {str(e)}")
+        return jsonify({'error': str(e)}), 500
 
 

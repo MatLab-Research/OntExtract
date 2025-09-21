@@ -1,0 +1,326 @@
+<!-- Document Processing Panel for Experiments -->
+<div class="card mb-4">
+    <div class="card-header">
+        <h6 class="mb-0">
+            <i class="fas fa-cogs me-2"></i>Document Processing
+            <span class="badge bg-primary ms-2">{{ experiment_documents|length }} Documents</span>
+        </h6>
+    </div>
+    <div class="card-body">
+        {% if experiment_documents %}
+        <div class="table-responsive">
+            <table class="table table-sm">
+                <thead>
+                    <tr>
+                        <th>Document</th>
+                        <th>Processing Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for exp_doc in experiment_documents %}
+                    <tr>
+                        <td>
+                            <a href="{{ url_for('text_input.document_detail', document_id=exp_doc.document.id) }}"
+                               class="text-decoration-none">
+                                {{ exp_doc.document.title[:50] }}{% if exp_doc.document.title|length > 50 %}...{% endif %}
+                            </a>
+                            <br>
+                            <small class="text-muted">{{ exp_doc.document.word_count or 0 }} words</small>
+                        </td>
+                        <td>
+                            <div class="processing-status" id="processing-status-{{ exp_doc.id }}">
+                                <!-- Status badges will be populated by JavaScript -->
+                                <span class="badge bg-secondary">Loading...</span>
+                            </div>
+                        </td>
+                        <td>
+                            <div class="btn-group btn-group-sm" role="group">
+                                <button type="button"
+                                        class="btn btn-outline-primary dropdown-toggle"
+                                        data-bs-toggle="dropdown">
+                                    <i class="fas fa-plus me-1"></i>Process
+                                </button>
+                                <ul class="dropdown-menu">
+                                    <li><h6 class="dropdown-header">Processing Options</h6></li>
+                                    <li>
+                                        <a class="dropdown-item" href="#"
+                                           onclick="showProcessingModal({{ exp_doc.id }}, 'embeddings')">
+                                            <i class="fas fa-vector-square me-2"></i>Generate Embeddings
+                                        </a>
+                                    </li>
+                                    <li>
+                                        <a class="dropdown-item" href="#"
+                                           onclick="showProcessingModal({{ exp_doc.id }}, 'segmentation')">
+                                            <i class="fas fa-cut me-2"></i>Segment Document
+                                        </a>
+                                    </li>
+                                    <li>
+                                        <a class="dropdown-item" href="#"
+                                           onclick="showProcessingModal({{ exp_doc.id }}, 'entities')">
+                                            <i class="fas fa-tags me-2"></i>Extract Entities
+                                        </a>
+                                    </li>
+                                </ul>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="text-center py-4">
+            <i class="fas fa-file fa-3x text-muted mb-3"></i>
+            <p class="text-muted">No documents in this experiment yet.</p>
+            <a href="{{ url_for('experiments.edit', id=experiment.id) }}" class="btn btn-primary">
+                <i class="fas fa-plus me-2"></i>Add Documents
+            </a>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Processing Modal -->
+<div class="modal fade" id="processingModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="processingModalTitle">Process Document</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="processingModalBody">
+                <!-- Content will be populated by JavaScript -->
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="startProcessingBtn" onclick="startProcessing()">
+                    Start Processing
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+let currentProcessingConfig = {};
+
+function loadProcessingStatus() {
+    // Load processing status for all experiment documents
+    {% for exp_doc in experiment_documents %}
+    fetch(`/api/experiment-document/{{ exp_doc.id }}/processing-status`)
+        .then(response => response.json())
+        .then(data => {
+            updateProcessingStatusDisplay({{ exp_doc.id }}, data);
+        })
+        .catch(error => {
+            console.error('Error loading processing status for exp_doc {{ exp_doc.id }}:', error);
+            document.getElementById('processing-status-{{ exp_doc.id }}').innerHTML =
+                '<span class="badge bg-danger">Error</span>';
+        });
+    {% endfor %}
+}
+
+function updateProcessingStatusDisplay(expDocId, statusData) {
+    const statusContainer = document.getElementById(`processing-status-${expDocId}`);
+    let html = '';
+
+    if (statusData.processing_operations && statusData.processing_operations.length > 0) {
+        statusData.processing_operations.forEach(op => {
+            let badgeClass = 'bg-secondary';
+            let icon = '';
+
+            switch(op.status) {
+                case 'completed':
+                    badgeClass = 'bg-success';
+                    icon = '<i class="fas fa-check me-1"></i>';
+                    break;
+                case 'running':
+                    badgeClass = 'bg-warning';
+                    icon = '<i class="fas fa-spinner fa-spin me-1"></i>';
+                    break;
+                case 'failed':
+                    badgeClass = 'bg-danger';
+                    icon = '<i class="fas fa-times me-1"></i>';
+                    break;
+                case 'pending':
+                    badgeClass = 'bg-info';
+                    icon = '<i class="fas fa-clock me-1"></i>';
+                    break;
+            }
+
+            html += `<span class="badge ${badgeClass} me-1 mb-1">
+                ${icon}${op.processing_type}: ${op.processing_method}
+            </span>`;
+        });
+    } else {
+        html = '<small class="text-muted">No processing applied</small>';
+    }
+
+    statusContainer.innerHTML = html;
+}
+
+function showProcessingModal(expDocId, processingType) {
+    currentProcessingConfig = {
+        experiment_document_id: expDocId,
+        processing_type: processingType
+    };
+
+    const modal = new bootstrap.Modal(document.getElementById('processingModal'));
+    const title = document.getElementById('processingModalTitle');
+    const body = document.getElementById('processingModalBody');
+
+    title.textContent = `${processingType.charAt(0).toUpperCase() + processingType.slice(1)} Processing`;
+
+    // Show different options based on processing type
+    let html = '';
+
+    if (processingType === 'embeddings') {
+        html = `
+            <p>Choose an embedding method:</p>
+            <div class="form-check">
+                <input class="form-check-input" type="radio" name="method" value="local" id="method-local" checked>
+                <label class="form-check-label" for="method-local">
+                    Local (sentence-transformers)
+                </label>
+            </div>
+            <div class="form-check">
+                <input class="form-check-input" type="radio" name="method" value="openai" id="method-openai">
+                <label class="form-check-label" for="method-openai">
+                    OpenAI (text-embedding-3-large)
+                </label>
+            </div>
+            <div class="form-check">
+                <input class="form-check-input" type="radio" name="method" value="anthropic" id="method-anthropic">
+                <label class="form-check-label" for="method-anthropic">
+                    Anthropic (Claude embeddings)
+                </label>
+            </div>
+        `;
+    } else if (processingType === 'segmentation') {
+        html = `
+            <p>Choose a segmentation method:</p>
+            <div class="form-check">
+                <input class="form-check-input" type="radio" name="method" value="paragraph" id="method-paragraph" checked>
+                <label class="form-check-label" for="method-paragraph">
+                    Paragraph-based
+                </label>
+            </div>
+            <div class="form-check">
+                <input class="form-check-input" type="radio" name="method" value="sentence" id="method-sentence">
+                <label class="form-check-label" for="method-sentence">
+                    Sentence-based
+                </label>
+            </div>
+            <div class="form-check">
+                <input class="form-check-input" type="radio" name="method" value="semantic" id="method-semantic">
+                <label class="form-check-label" for="method-semantic">
+                    Semantic chunking
+                </label>
+            </div>
+        `;
+    } else if (processingType === 'entities') {
+        html = `
+            <p>Choose an entity extraction method:</p>
+            <div class="form-check">
+                <input class="form-check-input" type="radio" name="method" value="spacy" id="method-spacy" checked>
+                <label class="form-check-label" for="method-spacy">
+                    spaCy NER
+                </label>
+            </div>
+            <div class="form-check">
+                <input class="form-check-input" type="radio" name="method" value="nltk" id="method-nltk">
+                <label class="form-check-label" for="method-nltk">
+                    NLTK-based
+                </label>
+            </div>
+            <div class="form-check">
+                <input class="form-check-input" type="radio" name="method" value="llm" id="method-llm">
+                <label class="form-check-label" for="method-llm">
+                    LLM-powered extraction
+                </label>
+            </div>
+        `;
+    }
+
+    body.innerHTML = html;
+    modal.show();
+}
+
+function startProcessing() {
+    const selectedMethod = document.querySelector('input[name="method"]:checked');
+    if (!selectedMethod) {
+        alert('Please select a processing method');
+        return;
+    }
+
+    currentProcessingConfig.processing_method = selectedMethod.value;
+
+    // Disable the button and show loading state
+    const btn = document.getElementById('startProcessingBtn');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Starting...';
+
+    // Make API call to start processing
+    fetch('/api/experiment-processing/start', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(currentProcessingConfig)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Close modal and refresh status
+            bootstrap.Modal.getInstance(document.getElementById('processingModal')).hide();
+            setTimeout(() => {
+                loadProcessingStatus();
+            }, 1000);
+
+            // Show success message
+            showAlert('Processing started successfully!', 'success');
+        } else {
+            showAlert('Error starting processing: ' + (data.error || 'Unknown error'), 'danger');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showAlert('Error starting processing', 'danger');
+    })
+    .finally(() => {
+        // Re-enable button
+        btn.disabled = false;
+        btn.innerHTML = 'Start Processing';
+    });
+}
+
+function showAlert(message, type) {
+    const alertHtml = `
+        <div class="alert alert-${type} alert-dismissible fade show" role="alert">
+            ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    `;
+
+    // Insert at top of page
+    const container = document.querySelector('.container-fluid');
+    container.insertAdjacentHTML('afterbegin', alertHtml);
+
+    // Auto-dismiss after 5 seconds
+    setTimeout(() => {
+        const alert = container.querySelector('.alert');
+        if (alert) {
+            new bootstrap.Alert(alert).close();
+        }
+    }, 5000);
+}
+
+// Load processing status when page loads
+document.addEventListener('DOMContentLoaded', function() {
+    loadProcessingStatus();
+
+    // Refresh status every 30 seconds
+    setInterval(loadProcessingStatus, 30000);
+});
+</script>

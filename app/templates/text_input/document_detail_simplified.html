@@ -1,0 +1,420 @@
+{% extends "base.html" %}
+
+{% block title %}{{ document.title }} - OntExtract{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-lg-8">
+            <!-- Document Header -->
+            <div class="d-flex justify-content-between align-items-start mb-4">
+                <div>
+                    <h1 class="h3 mb-2">{{ document.title }}</h1>
+                    <div class="text-muted">
+                        <i class="fas fa-calendar me-2"></i>Created {{ document.created_at.strftime('%B %d, %Y at %I:%M %p') }}
+                        {% if document.content_type == 'file' %}
+                        <br><i class="fas fa-file me-2"></i>{{ document.original_filename }}
+                        {% if document.file_size %}
+                        ({{ "%.1f"|format(document.file_size / 1024) }} KB)
+                        {% endif %}
+                        {% endif %}
+                        {% if document.detected_language %}
+                        <br><i class="fas fa-language me-2"></i>{{ document.detected_language.upper() }}
+                        {% if document.language_confidence %}
+                        ({{ "%.0f"|format(document.language_confidence * 100) }}% confidence)
+                        {% endif %}
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="dropdown">
+                    <button class="btn btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                        <i class="fas fa-ellipsis-v"></i>
+                    </button>
+                    <ul class="dropdown-menu">
+                        <li><a class="dropdown-item" href="#" onclick="editTitle({{ document.id }})">
+                                <i class="fas fa-edit me-2"></i>Edit Title
+                            </a></li>
+                        <li><a class="dropdown-item" href="#" onclick="exportDocument({{ document.id }})">
+                                <i class="fas fa-download me-2"></i>Export
+                            </a></li>
+                        <li>
+                            <hr class="dropdown-divider">
+                        </li>
+                        <li><a class="dropdown-item text-danger" href="#" onclick="deleteDocument({{ document.id }})">
+                                <i class="fas fa-trash me-2"></i>Delete
+                            </a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Text Content -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-align-left me-2"></i>Content
+                        <span class="badge bg-secondary ms-2">
+                            {{ document.content|length|int|filesizeformat if document.content else '0 bytes' }}
+                        </span>
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% if document.content %}
+                    <div class="content-preview" style="max-height: 400px; overflow-y: auto;">
+                        <pre class="text-wrap">{{ document.content }}</pre>
+                    </div>
+                    <div class="text-center mt-3">
+                        <button class="btn btn-outline-secondary btn-sm" onclick="toggleFullContent()">
+                            <i class="fas fa-expand me-2"></i>Show Full Content
+                        </button>
+                    </div>
+                    {% else %}
+                    <p class="text-muted">No content available</p>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Document Metadata -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <button class="btn btn-link text-decoration-none p-0 text-start w-100" type="button"
+                            data-bs-toggle="collapse" data-bs-target="#metadataCollapse"
+                            aria-expanded="{% if document.source_metadata %}true{% else %}false{% endif %}">
+                            <i class="fas fa-info-circle me-2"></i>Document Metadata
+                            {% if document.source_metadata and document.source_metadata.get('zotero_key') %}
+                            <span class="badge bg-success ms-2">Zotero Enhanced</span>
+                            {% elif document.source_metadata %}
+                            <span class="badge bg-primary ms-2">Manual Entry</span>
+                            {% else %}
+                            <span class="badge bg-secondary ms-2">Empty</span>
+                            {% endif %}
+                            <i class="fas fa-chevron-down float-end mt-1"></i>
+                        </button>
+                    </h5>
+                </div>
+                <div class="collapse {% if document.source_metadata and (document.source_metadata.get('zotero_key') or document.source_metadata.get('title') or document.source_metadata.get('authors')) %}show{% endif %}"
+                    id="metadataCollapse">
+                    <div class="card-body">
+                        {% if document.source_metadata %}
+                        <!-- Zotero Metadata (if available) -->
+                        {% if document.source_metadata.get('zotero_key') %}
+                        <div class="alert alert-success">
+                            <div class="d-flex align-items-center">
+                                <i class="fas fa-check-circle me-2"></i>
+                                <strong>Enhanced with Zotero Metadata</strong>
+                                <span class="ms-auto">
+                                    <span class="badge bg-light text-dark">Key: {{ document.source_metadata.zotero_key }}</span>
+                                    {% if document.source_metadata.get('zotero_match_score') %}
+                                    <span class="badge bg-light text-dark">Match: {{ "%.0f"|format(document.source_metadata.zotero_match_score * 100) }}%</span>
+                                    {% endif %}
+                                </span>
+                            </div>
+                        </div>
+                        {% endif %}
+
+                        <!-- Metadata Fields -->
+                        <div class="row">
+                            {% if document.source_metadata.get('title') %}
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label text-muted small">Title</label>
+                                <div class="form-control-plaintext">{{ document.source_metadata.title }}</div>
+                            </div>
+                            {% endif %}
+
+                            {% if document.source_metadata.get('authors') %}
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label text-muted small">Authors</label>
+                                <div class="form-control-plaintext">
+                                    {% if document.source_metadata.authors is string %}
+                                    {{ document.source_metadata.authors }}
+                                    {% elif document.source_metadata.authors is sequence %}
+                                    {{ document.source_metadata.authors|join(', ') }}
+                                    {% endif %}
+                                </div>
+                            </div>
+                            {% endif %}
+
+                            {% if document.source_metadata.get('publication_date') %}
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label text-muted small">Publication Date</label>
+                                <div class="form-control-plaintext">{{ document.source_metadata.publication_date }}</div>
+                            </div>
+                            {% endif %}
+
+                            {% if document.source_metadata.get('journal') %}
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label text-muted small">Journal/Publisher</label>
+                                <div class="form-control-plaintext">{{ document.source_metadata.journal }}</div>
+                            </div>
+                            {% endif %}
+
+                            {% if document.source_metadata.get('doi') %}
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label text-muted small">DOI</label>
+                                <div class="form-control-plaintext">
+                                    <a href="https://doi.org/{{ document.source_metadata.doi }}" target="_blank"
+                                        class="text-decoration-none">
+                                        {{ document.source_metadata.doi }} <i class="fas fa-external-link-alt ms-1 small"></i>
+                                    </a>
+                                </div>
+                            </div>
+                            {% endif %}
+
+                            {% if document.source_metadata.get('isbn') %}
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label text-muted small">ISBN</label>
+                                <div class="form-control-plaintext">{{ document.source_metadata.isbn }}</div>
+                            </div>
+                            {% endif %}
+
+                            {% if document.source_metadata.get('url') %}
+                            <div class="col-md-12 mb-3">
+                                <label class="form-label text-muted small">URL</label>
+                                <div class="form-control-plaintext">
+                                    <a href="{{ document.source_metadata.url }}" target="_blank"
+                                        class="text-decoration-none">
+                                        {{ document.source_metadata.url }} <i class="fas fa-external-link-alt ms-1 small"></i>
+                                    </a>
+                                </div>
+                            </div>
+                            {% endif %}
+
+                            {% if document.source_metadata.get('abstract') %}
+                            <div class="col-md-12 mb-3">
+                                <label class="form-label text-muted small">Abstract</label>
+                                <div class="form-control-plaintext small">{{ document.source_metadata.abstract }}</div>
+                            </div>
+                            {% endif %}
+
+                            {% if document.source_metadata.get('citation') %}
+                            <div class="col-md-12 mb-3">
+                                <label class="form-label text-muted small">Citation</label>
+                                <div class="form-control-plaintext small">{{ document.source_metadata.citation }}</div>
+                            </div>
+                            {% endif %}
+                        </div>
+
+                        <!-- Action buttons -->
+                        <div class="d-flex gap-2 mt-3">
+                            <button class="btn btn-outline-primary btn-sm" onclick="editMetadata({{ document.id }})">
+                                <i class="fas fa-edit me-1"></i>Edit Metadata
+                            </button>
+                            {% if not document.source_metadata.get('zotero_key') %}
+                            <button class="btn btn-outline-success btn-sm" onclick="enrichWithZotero({{ document.id }})">
+                                <i class="fas fa-search-plus me-1"></i>Enhance with Zotero
+                            </button>
+                            {% endif %}
+                        </div>
+
+                        {% else %}
+                        <!-- No metadata available -->
+                        <div class="text-center py-4">
+                            <i class="fas fa-info-circle fa-2x text-muted mb-3"></i>
+                            <p class="text-muted">No metadata available for this document</p>
+                            <div class="d-flex gap-2 justify-content-center">
+                                <button class="btn btn-primary btn-sm" onclick="addMetadata({{ document.id }})">
+                                    <i class="fas fa-plus me-1"></i>Add Metadata
+                                </button>
+                                <button class="btn btn-outline-success btn-sm" onclick="enrichWithZotero({{ document.id }})">
+                                    <i class="fas fa-search-plus me-1"></i>Search Zotero
+                                </button>
+                            </div>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Related Experiments -->
+            {% if document_experiments %}
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h6 class="mb-0">
+                        <i class="fas fa-flask me-2"></i>Related Experiments
+                        <span class="badge bg-info ms-2">{{ document_experiments|length }}</span>
+                    </h6>
+                </div>
+                <div class="card-body">
+                    {% for exp_doc in document_experiments %}
+                    <div class="experiment-item border rounded p-3 mb-3">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div class="flex-grow-1">
+                                <h6 class="mb-1">
+                                    <a href="{{ url_for('experiments.view', id=exp_doc.experiment.id) }}"
+                                       class="text-decoration-none">
+                                        {{ exp_doc.experiment.name }}
+                                    </a>
+                                </h6>
+                                <p class="text-muted small mb-2">
+                                    <i class="fas fa-tag me-1"></i>Term:
+                                    <strong>{{ exp_doc.experiment.term.name if exp_doc.experiment.term else 'No term' }}</strong>
+                                </p>
+                                {% if exp_doc.processing_results %}
+                                <div class="processing-badges">
+                                    <small class="text-muted">Processing applied:</small><br>
+                                    {% for processing in exp_doc.processing_results %}
+                                    <span class="badge bg-secondary me-1 mb-1">
+                                        {{ processing.processing_type|title }}: {{ processing.processing_method|title }}
+                                        {% if processing.status == 'completed' %}
+                                        <i class="fas fa-check-circle text-success ms-1"></i>
+                                        {% elif processing.status == 'running' %}
+                                        <i class="fas fa-spinner fa-spin text-warning ms-1"></i>
+                                        {% elif processing.status == 'failed' %}
+                                        <i class="fas fa-exclamation-circle text-danger ms-1"></i>
+                                        {% endif %}
+                                    </span>
+                                    {% endfor %}
+                                </div>
+                                {% else %}
+                                <small class="text-muted">No processing applied yet</small>
+                                {% endif %}
+                            </div>
+                            <div class="text-end">
+                                <small class="text-muted">{{ exp_doc.experiment.created_at.strftime('%m/%d/%Y') }}</small>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+        </div>
+
+        <div class="col-lg-4">
+            <!-- Document Statistics -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h6 class="mb-0">
+                        <i class="fas fa-chart-bar me-2"></i>Statistics
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="row text-center">
+                        <div class="col-6 mb-3">
+                            <div class="border-end">
+                                <h4 class="text-primary mb-1">
+                                    {{ document.content.split()|length if document.content else 0 }}
+                                </h4>
+                                <small class="text-muted">Words</small>
+                            </div>
+                        </div>
+                        <div class="col-6 mb-3">
+                            <h4 class="text-info mb-1">
+                                {{ document.content|length if document.content else 0 }}
+                            </h4>
+                            <small class="text-muted">Characters</small>
+                        </div>
+                        <div class="col-6">
+                            <div class="border-end">
+                                <h4 class="text-success mb-1">
+                                    {{ document_experiments|length if document_experiments else 0 }}
+                                </h4>
+                                <small class="text-muted">Experiments</small>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <h4 class="text-warning mb-1">
+                                {{ total_processing_count or 0 }}
+                            </h4>
+                            <small class="text-muted">Processing Results</small>
+                        </div>
+                    </div>
+                    <div class="row text-center mt-3">
+                        <div class="col-12">
+                            <div class="d-flex align-items-center justify-content-center">
+                                {% if document.status == 'uploaded' %}
+                                <span class="badge bg-primary">Uploaded</span>
+                                {% elif document.status == 'processing' %}
+                                <span class="badge bg-warning">Processing</span>
+                                {% elif document.status == 'completed' %}
+                                <span class="badge bg-success">Completed</span>
+                                {% elif document.status == 'error' %}
+                                <span class="badge bg-danger">Error</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Create Experiment Action -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h6 class="mb-0">
+                        <i class="fas fa-plus-circle me-2"></i>Analysis
+                    </h6>
+                </div>
+                <div class="card-body text-center">
+                    <p class="text-muted mb-3">
+                        Create an experiment to analyze this document with processing tools like embeddings, segmentation, and entity extraction.
+                    </p>
+                    <a href="{{ url_for('experiments.create', document_id=document.id) }}"
+                       class="btn btn-primary">
+                        <i class="fas fa-flask me-2"></i>Create Experiment
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    function toggleFullContent() {
+        const preview = document.querySelector('.content-preview');
+        const button = event.target;
+
+        if (preview.style.maxHeight === '400px' || !preview.style.maxHeight) {
+            preview.style.maxHeight = 'none';
+            button.innerHTML = '<i class="fas fa-compress me-2"></i>Show Less';
+        } else {
+            preview.style.maxHeight = '400px';
+            button.innerHTML = '<i class="fas fa-expand me-2"></i>Show Full Content';
+        }
+    }
+
+    function deleteDocument(documentId) {
+        if (confirm('Are you sure you want to delete this document? This action cannot be undone.')) {
+            fetch(`/input/document/${documentId}/delete`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    window.location.href = "{{ url_for('text_input.document_list') }}";
+                } else {
+                    alert('Error deleting document: ' + (data.error || 'Unknown error'));
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Error deleting document');
+            });
+        }
+    }
+
+    function editTitle(documentId) {
+        alert('Title editing interface coming soon!');
+    }
+
+    function exportDocument(documentId) {
+        alert('Document export feature coming soon!');
+    }
+
+    function editMetadata(documentId) {
+        alert('Metadata editing interface coming soon!');
+    }
+
+    function addMetadata(documentId) {
+        alert('Metadata entry interface coming soon!');
+    }
+
+    function enrichWithZotero(documentId) {
+        alert('Zotero enhancement feature coming soon!');
+    }
+</script>
+{% endblock %}

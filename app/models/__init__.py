@@ -12,6 +12,9 @@ from .experiment import Experiment
 # Experiment-document relationship model
 from .experiment_document import ExperimentDocument
 
+# Experiment processing models
+from .experiment_processing import ExperimentDocumentProcessing, ProcessingArtifact, DocumentProcessingIndex
+
 # Term management models
 from .term import Term, TermVersion, FuzzinessAdjustment
 from .context_anchor import ContextAnchor
@@ -24,17 +27,21 @@ from .orchestration_logs import OrchestrationDecision, ToolExecutionLog, MultiMo
 from .orchestration_feedback import OrchestrationFeedback, LearningPattern, OrchestrationOverride
 
 __all__ = [
-    'User', 
-    'Document', 
-    'ProcessingJob', 
-    'ExtractedEntity', 
-    'OntologyMapping', 
+    'User',
+    'Document',
+    'ProcessingJob',
+    'ExtractedEntity',
+    'OntologyMapping',
     'TextSegment',
     'Experiment',
     'ExperimentDocument',
+    # Experiment processing models
+    'ExperimentDocumentProcessing',
+    'ProcessingArtifact',
+    'DocumentProcessingIndex',
     # Term management models
     'Term',
-    'TermVersion', 
+    'TermVersion',
     'FuzzinessAdjustment',
     'ContextAnchor',
     'SemanticDriftActivity',
