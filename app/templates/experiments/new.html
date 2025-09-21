@@ -25,6 +25,7 @@
                                     <label for="experiment-type" class="form-label">Experiment Type *</label>
                                     <select class="form-select" id="experiment-type" required>
                                         <option value="">Select type...</option>
+                                        <option value="document_analysis">Document Analysis</option>
                                         <option value="temporal_evolution">Temporal Evolution</option>
                                         <option value="domain_comparison">Domain Comparison</option>
                                     </select>
@@ -347,15 +348,27 @@ document.addEventListener('DOMContentLoaded', function() {
     // Update configuration options based on experiment type
     typeSelect.addEventListener('change', function() {
         const type = this.value;
-        
+
+        // Get required fields for different experiment types
+        const temporalTermsField = document.getElementById('temporal-terms');
+
         if (type) {
             configOptions.style.display = 'block';
             temporalConfig.style.display = 'none';
             domainConfig.style.display = 'none';
-            
-            if (type === 'temporal_evolution') {
+
+            // Remove required attributes from all conditional fields
+            if (temporalTermsField) temporalTermsField.removeAttribute('required');
+
+            if (type === 'document_analysis') {
+                // Document analysis doesn't need extra config - just documents
+                configOptions.style.display = 'none';
+                typeDescription.textContent = 'For document analysis, select one or more documents to process through embeddings, segmentation, and entity extraction pipelines.';
+            } else if (type === 'temporal_evolution') {
                 temporalConfig.style.display = 'block';
                 typeDescription.textContent = 'For temporal evolution, select documents from different time periods to analyze how concepts evolve over time.';
+                // Add required attribute back for temporal terms
+                if (temporalTermsField) temporalTermsField.setAttribute('required', '');
             } else if (type === 'domain_comparison') {
                 domainConfig.style.display = 'block';
                 typeDescription.textContent = 'For domain comparison, select documents from different domains to identify domain-specific terminology and concepts.';
@@ -363,9 +376,14 @@ document.addEventListener('DOMContentLoaded', function() {
         } else {
             configOptions.style.display = 'none';
             typeDescription.textContent = '';
+            // Remove required attributes when no type is selected
+            if (temporalTermsField) temporalTermsField.removeAttribute('required');
         }
     });
-    
+
+    // Initialize form state on page load
+    typeSelect.dispatchEvent(new Event('change'));
+
     // Document search
     const documentSearchInput = document.getElementById('document-search');
     if (documentSearchInput) {
@@ -513,7 +531,12 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Build configuration based on type
         const configuration = {};
-        if (type === 'temporal_evolution') {
+        if (type === 'document_analysis') {
+            // Document analysis doesn't require special configuration
+            // Just basic processing through the document pipeline
+            configuration.processing_types = ['embeddings', 'segmentation', 'entities'];
+            configuration.analysis_type = 'basic_document_processing';
+        } else if (type === 'temporal_evolution') {
             // Check period generation method
             const periodMethod = document.querySelector('input[name="period-method"]:checked').value;
             configuration.period_generation_method = periodMethod;

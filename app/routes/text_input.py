@@ -322,7 +322,7 @@ def document_detail(document_id):
         document_experiments.append(exp_data)
         total_processing_count += len(processing_results)
 
-    return render_template('text_input/document_detail.html',
+    return render_template('text_input/document_detail_simplified.html',
                          document=document,
                          document_experiments=document_experiments,
                          total_processing_count=total_processing_count)

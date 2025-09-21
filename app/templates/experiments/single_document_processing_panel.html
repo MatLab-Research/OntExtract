@@ -208,39 +208,35 @@ function showProcessingModal(expDocId, processingType) {
                 <input class="form-check-input" type="radio" name="method" value="openai" id="method-openai">
                 <label class="form-check-label" for="method-openai" style="cursor: pointer;">
                     <strong>OpenAI</strong> (text-embedding-3-large)<br>
-                    <small class="text-muted">High quality, 1536 dimensions</small>
-                </label>
-            </div>
-            <div class="form-check mb-2">
-                <input class="form-check-input" type="radio" name="method" value="anthropic" id="method-anthropic">
-                <label class="form-check-label" for="method-anthropic" style="cursor: pointer;">
-                    <strong>Anthropic</strong> (Claude embeddings)<br>
-                    <small class="text-muted">Contextual, 1536 dimensions</small>
+                    <small class="text-muted">High quality, 1536 dimensions, requires API key</small>
                 </label>
             </div>
         `;
     } else if (processingType === 'segmentation') {
         html = `
             <p>Choose a segmentation method:</p>
-            <div class="form-check mb-2">
+            <div class="form-check mb-3">
                 <input class="form-check-input" type="radio" name="method" value="paragraph" id="method-paragraph" checked>
                 <label class="form-check-label" for="method-paragraph" style="cursor: pointer;">
                     <strong>Paragraph-based</strong><br>
-                    <small class="text-muted">Split by natural text boundaries</small>
+                    <small class="text-muted"><i class="fas fa-cogs me-1"></i>NLTK-enhanced regex patterns</small><br>
+                    <small class="text-success"><i class="fas fa-check me-1"></i>Preserves document structure, good for academic texts</small>
                 </label>
             </div>
-            <div class="form-check mb-2">
+            <div class="form-check mb-3">
                 <input class="form-check-input" type="radio" name="method" value="sentence" id="method-sentence">
                 <label class="form-check-label" for="method-sentence" style="cursor: pointer;">
                     <strong>Sentence-based</strong><br>
-                    <small class="text-muted">Fine-grained sentence segmentation</small>
+                    <small class="text-muted"><i class="fas fa-microchip me-1"></i>NLTK Punkt Tokenizer</small><br>
+                    <small class="text-success"><i class="fas fa-check me-1"></i>Handles abbreviations, fine-grained analysis</small>
                 </label>
             </div>
-            <div class="form-check mb-2">
+            <div class="form-check mb-3">
                 <input class="form-check-input" type="radio" name="method" value="semantic" id="method-semantic">
                 <label class="form-check-label" for="method-semantic" style="cursor: pointer;">
                     <strong>Semantic chunking</strong><br>
-                    <small class="text-muted">LLM-based topic detection</small>
+                    <small class="text-muted"><i class="fas fa-brain me-1"></i>spaCy NLP + NLTK Punkt</small><br>
+                    <small class="text-success"><i class="fas fa-check me-1"></i>Entity-aware, context-preserving chunks</small>
                 </label>
             </div>
         `;
