@@ -1,0 +1,379 @@
+<!-- Single Document Processing Panel for Experiments -->
+<style>
+/* Fix for sticky navigation interfering with Bootstrap modal */
+.modal-open .navigation-card {
+    position: static !important;
+}
+
+/* Ensure modal content is interactive */
+.modal {
+    pointer-events: auto;
+}
+
+.modal-content {
+    pointer-events: auto;
+}
+
+.modal-body {
+    pointer-events: auto;
+}
+
+.modal-body * {
+    pointer-events: auto;
+}
+</style>
+<div class="card">
+    <div class="card-header">
+        <h6 class="mb-0">
+            <i class="fas fa-cogs me-2"></i>Processing Options
+            <span class="badge bg-primary ms-2">{{ document.get_display_name()[:20] }}...</span>
+        </h6>
+    </div>
+    <div class="card-body">
+        <!-- Current Processing Status -->
+        <div class="mb-3">
+            <div class="processing-status" id="processing-status-{{ experiment_document.id }}">
+                {% if processing_operations %}
+                    {% for op in processing_operations %}
+                        <span class="badge me-1 mb-1
+                            {% if op.status == 'completed' %}bg-success
+                            {% elif op.status == 'running' %}bg-warning
+                            {% elif op.status == 'failed' %}bg-danger
+                            {% else %}bg-info{% endif %}">
+                            {% if op.status == 'completed' %}
+                                <i class="fas fa-check me-1"></i>
+                            {% elif op.status == 'running' %}
+                                <i class="fas fa-spinner fa-spin me-1"></i>
+                            {% elif op.status == 'failed' %}
+                                <i class="fas fa-times me-1"></i>
+                            {% else %}
+                                <i class="fas fa-clock me-1"></i>
+                            {% endif %}
+                            {{ op.processing_type }}: {{ op.processing_method }}
+                        </span>
+                    {% endfor %}
+                {% else %}
+                    <small class="text-muted">No processing applied</small>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Processing Actions -->
+        <div class="d-grid gap-2">
+            <div class="dropdown">
+                <button type="button" class="btn btn-primary dropdown-toggle w-100" data-bs-toggle="dropdown">
+                    <i class="fas fa-plus me-1"></i>Start Processing
+                </button>
+                <ul class="dropdown-menu w-100">
+                    <li><h6 class="dropdown-header">Processing Options</h6></li>
+                    <li>
+                        <a class="dropdown-item" href="#"
+                           onclick="showProcessingModal({{ experiment_document.id }}, 'embeddings')">
+                            <i class="fas fa-vector-square me-2"></i>Generate Embeddings
+                        </a>
+                    </li>
+                    <li>
+                        <a class="dropdown-item" href="#"
+                           onclick="showProcessingModal({{ experiment_document.id }}, 'segmentation')">
+                            <i class="fas fa-cut me-2"></i>Segment Document
+                        </a>
+                    </li>
+                    <li>
+                        <a class="dropdown-item" href="#"
+                           onclick="showProcessingModal({{ experiment_document.id }}, 'entities')">
+                            <i class="fas fa-tags me-2"></i>Extract Entities
+                        </a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Progress Indicator -->
+        <div class="mt-3">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <small class="text-muted">Progress:</small>
+                <span class="badge bg-secondary">{{ processing_progress }}%</span>
+            </div>
+            <div class="progress" style="height: 6px;">
+                <div class="progress-bar" role="progressbar"
+                     style="width: {{ processing_progress }}%"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Bootstrap Processing Modal -->
+<div class="modal fade" id="processingModal" tabindex="-1" aria-labelledby="processingModalTitle" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="processingModalTitle">Process Document</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body" id="processingModalBody">
+                <!-- Content will be populated by JavaScript -->
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="startProcessingBtn" onclick="startProcessing()">
+                    Start Processing
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+let currentProcessingConfig = {};
+
+function loadProcessingStatus() {
+    // Load processing status for this specific experiment document
+    fetch(`/experiments/api/experiment-document/{{ experiment_document.id }}/processing-status`)
+        .then(response => response.json())
+        .then(data => {
+            updateProcessingStatusDisplay({{ experiment_document.id }}, data);
+        })
+        .catch(error => {
+            console.error('Error loading processing status:', error);
+            document.getElementById('processing-status-{{ experiment_document.id }}').innerHTML =
+                '<span class="badge bg-danger">Error</span>';
+        });
+}
+
+function updateProcessingStatusDisplay(expDocId, statusData) {
+    const statusContainer = document.getElementById(`processing-status-${expDocId}`);
+    let html = '';
+
+    if (statusData.processing_operations && statusData.processing_operations.length > 0) {
+        statusData.processing_operations.forEach(op => {
+            let badgeClass = 'bg-secondary';
+            let icon = '';
+
+            switch(op.status) {
+                case 'completed':
+                    badgeClass = 'bg-success';
+                    icon = '<i class="fas fa-check me-1"></i>';
+                    break;
+                case 'running':
+                    badgeClass = 'bg-warning';
+                    icon = '<i class="fas fa-spinner fa-spin me-1"></i>';
+                    break;
+                case 'failed':
+                    badgeClass = 'bg-danger';
+                    icon = '<i class="fas fa-times me-1"></i>';
+                    break;
+                case 'pending':
+                    badgeClass = 'bg-info';
+                    icon = '<i class="fas fa-clock me-1"></i>';
+                    break;
+            }
+
+            html += `<span class="badge ${badgeClass} me-1 mb-1">
+                ${icon}${op.processing_type}: ${op.processing_method}
+            </span>`;
+        });
+    } else {
+        html = '<small class="text-muted">No processing applied</small>';
+    }
+
+    statusContainer.innerHTML = html;
+}
+
+function showProcessingModal(expDocId, processingType) {
+    currentProcessingConfig = {
+        experiment_document_id: expDocId,
+        processing_type: processingType
+    };
+
+    const modalElement = document.getElementById('processingModal');
+    const title = document.getElementById('processingModalTitle');
+    const body = document.getElementById('processingModalBody');
+
+    title.textContent = `${processingType.charAt(0).toUpperCase() + processingType.slice(1)} Processing`;
+
+    // Show different options based on processing type
+    let html = '';
+
+    if (processingType === 'embeddings') {
+        html = `
+            <p>Choose an embedding method:</p>
+            <div class="form-check mb-2">
+                <input class="form-check-input" type="radio" name="method" value="local" id="method-local" checked>
+                <label class="form-check-label" for="method-local" style="cursor: pointer;">
+                    <strong>Local</strong> (sentence-transformers)<br>
+                    <small class="text-muted">Fast, free, 384 dimensions</small>
+                </label>
+            </div>
+            <div class="form-check mb-2">
+                <input class="form-check-input" type="radio" name="method" value="openai" id="method-openai">
+                <label class="form-check-label" for="method-openai" style="cursor: pointer;">
+                    <strong>OpenAI</strong> (text-embedding-3-large)<br>
+                    <small class="text-muted">High quality, 1536 dimensions</small>
+                </label>
+            </div>
+            <div class="form-check mb-2">
+                <input class="form-check-input" type="radio" name="method" value="anthropic" id="method-anthropic">
+                <label class="form-check-label" for="method-anthropic" style="cursor: pointer;">
+                    <strong>Anthropic</strong> (Claude embeddings)<br>
+                    <small class="text-muted">Contextual, 1536 dimensions</small>
+                </label>
+            </div>
+        `;
+    } else if (processingType === 'segmentation') {
+        html = `
+            <p>Choose a segmentation method:</p>
+            <div class="form-check mb-2">
+                <input class="form-check-input" type="radio" name="method" value="paragraph" id="method-paragraph" checked>
+                <label class="form-check-label" for="method-paragraph" style="cursor: pointer;">
+                    <strong>Paragraph-based</strong><br>
+                    <small class="text-muted">Split by natural text boundaries</small>
+                </label>
+            </div>
+            <div class="form-check mb-2">
+                <input class="form-check-input" type="radio" name="method" value="sentence" id="method-sentence">
+                <label class="form-check-label" for="method-sentence" style="cursor: pointer;">
+                    <strong>Sentence-based</strong><br>
+                    <small class="text-muted">Fine-grained sentence segmentation</small>
+                </label>
+            </div>
+            <div class="form-check mb-2">
+                <input class="form-check-input" type="radio" name="method" value="semantic" id="method-semantic">
+                <label class="form-check-label" for="method-semantic" style="cursor: pointer;">
+                    <strong>Semantic chunking</strong><br>
+                    <small class="text-muted">LLM-based topic detection</small>
+                </label>
+            </div>
+        `;
+    } else if (processingType === 'entities') {
+        html = `
+            <p>Choose an entity extraction method:</p>
+            <div class="form-check mb-2">
+                <input class="form-check-input" type="radio" name="method" value="spacy" id="method-spacy" checked>
+                <label class="form-check-label" for="method-spacy" style="cursor: pointer;">
+                    <strong>spaCy NER</strong><br>
+                    <small class="text-muted">Fast, reliable named entity recognition</small>
+                </label>
+            </div>
+            <div class="form-check mb-2">
+                <input class="form-check-input" type="radio" name="method" value="nltk" id="method-nltk">
+                <label class="form-check-label" for="method-nltk" style="cursor: pointer;">
+                    <strong>NLTK-based</strong><br>
+                    <small class="text-muted">Traditional NLP toolkit approach</small>
+                </label>
+            </div>
+            <div class="form-check mb-2">
+                <input class="form-check-input" type="radio" name="method" value="llm" id="method-llm">
+                <label class="form-check-label" for="method-llm" style="cursor: pointer;">
+                    <strong>LLM-powered extraction</strong><br>
+                    <small class="text-muted">Advanced AI-based entity detection</small>
+                </label>
+            </div>
+        `;
+    }
+
+    body.innerHTML = html;
+
+    // Add debugging event listeners after content is inserted
+    setTimeout(() => {
+        const radioButtons = modalElement.querySelectorAll('input[type="radio"]');
+        console.log('Found radio buttons in modal:', radioButtons.length);
+
+        radioButtons.forEach((radio, index) => {
+            console.log(`Radio ${index}: id=${radio.id}, name=${radio.name}, value=${radio.value}`);
+
+            // Test if click works
+            radio.addEventListener('click', (e) => {
+                console.log(`Radio clicked: ${radio.value}`);
+            });
+        });
+    }, 100);
+
+    // Simple Bootstrap modal show
+    const bsModal = new bootstrap.Modal(modalElement);
+    bsModal.show();
+
+    console.log('Bootstrap modal shown');
+}
+
+function startProcessing() {
+    const selectedMethod = document.querySelector('input[name="method"]:checked');
+    if (!selectedMethod) {
+        alert('Please select a processing method');
+        return;
+    }
+
+    currentProcessingConfig.processing_method = selectedMethod.value;
+
+    // Disable the button and show loading state
+    const btn = document.getElementById('startProcessingBtn');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Starting...';
+
+    // Make API call to start processing
+    fetch('/experiments/api/experiment-processing/start', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(currentProcessingConfig)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Close modal and refresh status
+            const modal = bootstrap.Modal.getInstance(document.getElementById('processingModal'));
+            if (modal) {
+                modal.hide();
+            }
+            setTimeout(() => {
+                loadProcessingStatus();
+                // Refresh the page to show updated processing operations
+                window.location.reload();
+            }, 1000);
+
+            // Show success message
+            showAlert('Processing started successfully!', 'success');
+        } else {
+            showAlert('Error starting processing: ' + (data.error || 'Unknown error'), 'danger');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showAlert('Error starting processing', 'danger');
+    })
+    .finally(() => {
+        // Re-enable button
+        btn.disabled = false;
+        btn.innerHTML = 'Start Processing';
+    });
+}
+
+function showAlert(message, type) {
+    const alertHtml = `
+        <div class="alert alert-${type} alert-dismissible fade show" role="alert">
+            ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    `;
+
+    // Insert at top of page
+    const container = document.querySelector('.container-fluid');
+    container.insertAdjacentHTML('afterbegin', alertHtml);
+
+    // Auto-dismiss after 5 seconds
+    setTimeout(() => {
+        const alert = container.querySelector('.alert');
+        if (alert) {
+            new bootstrap.Alert(alert).close();
+        }
+    }, 5000);
+}
+
+// Load processing status when page loads
+document.addEventListener('DOMContentLoaded', function() {
+    loadProcessingStatus();
+
+    // Refresh status every 30 seconds
+    setInterval(loadProcessingStatus, 30000);
+});
+</script>

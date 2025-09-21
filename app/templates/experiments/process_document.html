@@ -271,23 +271,206 @@
                 </div>
             </div>
             
-            <!-- Mark as Complete -->
-            <div class="mb-4 text-center">
-                {% if experiment_document.has_embeddings %}
-                <button class="btn btn-success" id="mark-complete">
-                    <i class="fas fa-check me-2"></i>Mark Document Complete for Experiment
-                </button>
-                <div class="mt-2">
-                    <small class="text-muted">
-                        Processing Progress: {{ experiment_document.processing_progress }}%
-                    </small>
+            <!-- Processing Status -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h6 class="mb-0">
+                        <i class="fas fa-cogs me-2"></i>Processing Operations
+                        <span class="badge bg-primary ms-2">{{ processing_operations|length }} Operations</span>
+                    </h6>
                 </div>
-                {% else %}
-                <div class="alert alert-warning">
-                    <i class="fas fa-info-circle me-2"></i>
-                    Apply embeddings to mark this document as complete for the experiment
+                <div class="card-body">
+                    {% if processing_operations %}
+                    <div class="table-responsive">
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Type</th>
+                                    <th>Method</th>
+                                    <th>Status</th>
+                                    <th>Created</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for op in processing_operations %}
+                                <tr>
+                                    <td>
+                                        <span class="badge bg-secondary">{{ op.processing_type }}</span>
+                                    </td>
+                                    <td>{{ op.processing_method }}</td>
+                                    <td>
+                                        {% if op.status == 'completed' %}
+                                        <span class="badge bg-success">
+                                            <i class="fas fa-check me-1"></i>{{ op.status }}
+                                        </span>
+                                        {% elif op.status == 'running' %}
+                                        <span class="badge bg-warning">
+                                            <i class="fas fa-spinner fa-spin me-1"></i>{{ op.status }}
+                                        </span>
+                                        {% elif op.status == 'failed' %}
+                                        <span class="badge bg-danger">
+                                            <i class="fas fa-times me-1"></i>{{ op.status }}
+                                        </span>
+                                        {% else %}
+                                        <span class="badge bg-info">
+                                            <i class="fas fa-clock me-1"></i>{{ op.status }}
+                                        </span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <small class="text-muted">
+                                            {{ op.created_at.strftime('%m/%d %H:%M') if op.created_at else 'N/A' }}
+                                        </small>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="text-center py-3">
+                        <i class="fas fa-info-circle text-muted mb-2"></i>
+                        <p class="text-muted mb-0">No processing operations applied yet</p>
+                    </div>
+                    {% endif %}
+
+                    <!-- Processing Results Preview -->
+                    {% if processing_operations %}
+                    <div class="mt-4">
+                        <h6 class="mb-3">
+                            <i class="fas fa-chart-bar me-2"></i>Processing Results
+                        </h6>
+                        {% for op in processing_operations %}
+                            {% if op.status == 'completed' %}
+                            <div class="card mb-3 border-success">
+                                <div class="card-header bg-success bg-opacity-10">
+                                    <h6 class="mb-0">
+                                        <i class="fas fa-check-circle text-success me-2"></i>
+                                        {{ op.processing_type.title() }} ({{ op.processing_method }})
+                                    </h6>
+                                </div>
+                                <div class="card-body">
+                                    {% set results = op.get_results_summary() %}
+                                    {% if results %}
+                                    <div class="row text-center">
+                                        {% if results.embedding_method %}
+                                        <div class="col-md-3">
+                                            <div class="border rounded p-2">
+                                                <strong class="text-primary">{{ results.embedding_method.title() }}</strong>
+                                                <br><small class="text-muted">Method</small>
+                                            </div>
+                                        </div>
+                                        {% endif %}
+                                        {% if results.dimensions %}
+                                        <div class="col-md-3">
+                                            <div class="border rounded p-2">
+                                                <strong class="text-info">{{ results.dimensions }}</strong>
+                                                <br><small class="text-muted">Dimensions</small>
+                                            </div>
+                                        </div>
+                                        {% endif %}
+                                        {% if results.chunks_created %}
+                                        <div class="col-md-3">
+                                            <div class="border rounded p-2">
+                                                <strong class="text-warning">{{ results.chunks_created }}</strong>
+                                                <br><small class="text-muted">Chunks</small>
+                                            </div>
+                                        </div>
+                                        {% endif %}
+                                        {% if results.total_tokens %}
+                                        <div class="col-md-3">
+                                            <div class="border rounded p-2">
+                                                <strong class="text-secondary">{{ results.total_tokens }}</strong>
+                                                <br><small class="text-muted">Tokens</small>
+                                            </div>
+                                        </div>
+                                        {% endif %}
+                                        {% if results.segments_created %}
+                                        <div class="col-md-4">
+                                            <div class="border rounded p-2">
+                                                <strong class="text-warning">{{ results.segments_created }}</strong>
+                                                <br><small class="text-muted">Segments</small>
+                                            </div>
+                                        </div>
+                                        {% endif %}
+                                        {% if results.avg_segment_length %}
+                                        <div class="col-md-4">
+                                            <div class="border rounded p-2">
+                                                <strong class="text-info">{{ results.avg_segment_length }}</strong>
+                                                <br><small class="text-muted">Avg Length</small>
+                                            </div>
+                                        </div>
+                                        {% endif %}
+                                        {% if results.entities_found %}
+                                        <div class="col-md-4">
+                                            <div class="border rounded p-2">
+                                                <strong class="text-success">{{ results.entities_found }}</strong>
+                                                <br><small class="text-muted">Entities</small>
+                                            </div>
+                                        </div>
+                                        {% endif %}
+                                        {% if results.entity_types %}
+                                        <div class="col-12 mt-2">
+                                            <div class="border rounded p-2">
+                                                <small class="text-muted">Entity Types:</small>
+                                                <div class="mt-1">
+                                                    {% for entity_type in results.entity_types %}
+                                                    <span class="badge bg-secondary me-1">{{ entity_type }}</span>
+                                                    {% endfor %}
+                                                </div>
+                                            </div>
+                                        </div>
+                                        {% endif %}
+                                    </div>
+
+                                    <!-- Artifacts Preview Button -->
+                                    <div class="text-center mt-3">
+                                        <button class="btn btn-outline-primary btn-sm"
+                                                onclick="viewProcessingArtifacts('{{ op.id }}', '{{ op.processing_type }}')">
+                                            <i class="fas fa-eye me-1"></i>View {{ op.processing_type.title() }} Details
+                                        </button>
+                                    </div>
+                                    {% else %}
+                                    <p class="text-muted mb-0">No detailed results available</p>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            {% endif %}
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+
+                    <!-- Processing Progress -->
+                    <div class="mt-3">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <small class="text-muted">Processing Progress:</small>
+                            <span class="badge bg-secondary">{{ processing_progress }}%</span>
+                        </div>
+                        <div class="progress" style="height: 8px;">
+                            <div class="progress-bar" role="progressbar"
+                                 style="width: {{ processing_progress }}%"></div>
+                        </div>
+                    </div>
+
+                    <!-- Mark as Complete -->
+                    {% if processing_progress >= 100 %}
+                    <div class="text-center mt-3">
+                        <button class="btn btn-success" id="mark-complete">
+                            <i class="fas fa-check me-2"></i>Document Processing Complete
+                        </button>
+                    </div>
+                    {% elif processing_progress > 0 %}
+                    <div class="alert alert-info mt-3 mb-0">
+                        <i class="fas fa-info-circle me-2"></i>
+                        Processing in progress. Complete all operations to finish.
+                    </div>
+                    {% else %}
+                    <div class="alert alert-warning mt-3 mb-0">
+                        <i class="fas fa-info-circle me-2"></i>
+                        Start processing operations using the controls on the right.
+                    </div>
+                    {% endif %}
                 </div>
-                {% endif %}
             </div>
 
             <!-- Text Content -->
@@ -320,15 +503,14 @@
         <!-- Processing Sidebar -->
         <div class="col-lg-4">
             <div class="navigation-card">
-                <!-- Processing Options -->
-                {% include 'shared/embedding_component.html' %}
+                <!-- Single Document Processing Panel -->
+                {% include 'experiments/single_document_processing_panel.html' %}
             </div>
         </div>
     </div>
 </div>
 
-<!-- Include shared embedding component JavaScript -->
-<script src="{{ url_for('static', filename='js/shared/embedding_component.js') }}"></script>
+<!-- New experiment processing panel handles its own JavaScript -->
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
@@ -345,10 +527,6 @@ document.addEventListener('DOMContentLoaded', function() {
             {% endif %}
         });
     }
-    
-    // Debug: Check if modals exist
-    console.log('Embedding modal exists:', !!document.getElementById('embeddingModal'));
-    console.log('Segmentation modal exists:', !!document.getElementById('segmentationModal'));
     
     // Ensure Bootstrap is loaded
     if (typeof bootstrap === 'undefined') {
@@ -376,6 +554,164 @@ function exportDocument() {
     alert('Document export not implemented yet');
 }
 
+function viewProcessingArtifacts(processingId, processingType) {
+    // Make API call to get artifacts for this processing operation
+    fetch(`/experiments/api/processing/${processingId}/artifacts`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showArtifactsModal(processingId, processingType, data.artifacts);
+            } else {
+                showAlert('danger', 'Error loading processing artifacts: ' + (data.error || 'Unknown error'));
+            }
+        })
+        .catch(error => {
+            console.error('Error loading artifacts:', error);
+            showAlert('danger', 'Error loading processing artifacts');
+        });
+}
+
+function showArtifactsModal(processingId, processingType, artifacts) {
+    let modalContent = `
+        <div class="modal fade" id="artifactsModal" tabindex="-1">
+            <div class="modal-dialog modal-xl">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">
+                            <i class="fas fa-eye me-2"></i>${processingType.charAt(0).toUpperCase() + processingType.slice(1)} Processing Details
+                        </h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+    `;
+
+    if (artifacts && artifacts.length > 0) {
+        if (processingType === 'embeddings') {
+            modalContent += `
+                <h6>Embedding Vectors</h6>
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>Content Preview</th>
+                                <th>Vector Dimensions</th>
+                                <th>Vector Preview</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+            `;
+
+            artifacts.forEach((artifact, index) => {
+                const content = artifact.content || {};
+                const metadata = artifact.metadata || {};
+                const vectorPreview = content.vector ? content.vector.slice(0, 5).map(v => v.toFixed(4)).join(', ') + '...' : 'N/A';
+                const textPreview = content.text ? content.text.substring(0, 100) + '...' : 'N/A';
+
+                modalContent += `
+                    <tr>
+                        <td>${index + 1}</td>
+                        <td><small>${textPreview}</small></td>
+                        <td>${content.vector ? content.vector.length : 'N/A'}</td>
+                        <td><code>[${vectorPreview}]</code></td>
+                    </tr>
+                `;
+            });
+
+            modalContent += `
+                        </tbody>
+                    </table>
+                </div>
+            `;
+        } else if (processingType === 'segmentation') {
+            modalContent += `
+                <h6>Text Segments</h6>
+                <div class="row">
+            `;
+
+            artifacts.forEach((artifact, index) => {
+                const content = artifact.content || {};
+                modalContent += `
+                    <div class="col-md-6 mb-3">
+                        <div class="card">
+                            <div class="card-header">
+                                <h6 class="mb-0">Segment ${index + 1}</h6>
+                            </div>
+                            <div class="card-body">
+                                <p class="small">${content.text || 'No content'}</p>
+                                <small class="text-muted">Length: ${content.text ? content.text.length : 0} characters</small>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+
+            modalContent += '</div>';
+        } else if (processingType === 'entities') {
+            modalContent += `
+                <h6>Extracted Entities</h6>
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>Entity</th>
+                                <th>Type</th>
+                                <th>Context</th>
+                                <th>Confidence</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+            `;
+
+            artifacts.forEach((artifact, index) => {
+                const content = artifact.content || {};
+                modalContent += `
+                    <tr>
+                        <td><strong>${content.entity || 'N/A'}</strong></td>
+                        <td><span class="badge bg-secondary">${content.entity_type || 'N/A'}</span></td>
+                        <td><small>${content.context || 'N/A'}</small></td>
+                        <td>${content.confidence ? (content.confidence * 100).toFixed(1) + '%' : 'N/A'}</td>
+                    </tr>
+                `;
+            });
+
+            modalContent += `
+                        </tbody>
+                    </table>
+                </div>
+            `;
+        }
+    } else {
+        modalContent += '<p class="text-muted">No artifacts found for this processing operation.</p>';
+    }
+
+    modalContent += `
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+
+    // Remove existing modal if present
+    const existingModal = document.getElementById('artifactsModal');
+    if (existingModal) {
+        existingModal.remove();
+    }
+
+    // Add modal to page and show
+    document.body.insertAdjacentHTML('beforeend', modalContent);
+    const modal = new bootstrap.Modal(document.getElementById('artifactsModal'));
+    modal.show();
+
+    // Clean up when modal is hidden
+    document.getElementById('artifactsModal').addEventListener('hidden.bs.modal', function () {
+        this.remove();
+    });
+}
+
 function showAlert(type, message) {
     const alertDiv = document.createElement('div');
     alertDiv.className = `alert alert-${type} alert-dismissible fade show`;
@@ -383,11 +719,11 @@ function showAlert(type, message) {
         ${message}
         <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
     `;
-    
+
     // Insert at the top of the content
     const container = document.querySelector('.container-fluid');
     container.insertBefore(alertDiv, container.firstChild);
-    
+
     // Auto-dismiss after 5 seconds
     setTimeout(() => {
         if (alertDiv.parentNode) {

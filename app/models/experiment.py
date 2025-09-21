@@ -1,4 +1,5 @@
 from sqlalchemy import text
+from sqlalchemy.dialects.postgresql import UUID
 from datetime import datetime
 from app import db
 from app.models.document import Document
@@ -53,10 +54,12 @@ class Experiment(db.Model):
     
     # Foreign keys
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False, index=True)
+    term_id = db.Column(UUID(as_uuid=True), db.ForeignKey('terms.id'), nullable=True, index=True)  # Required for new experiments
     
     # Relationships
     user = db.relationship('User', backref='user_experiments')
-    documents = db.relationship('Document', secondary=experiment_documents, 
+    term = db.relationship('Term', backref='experiments')
+    documents = db.relationship('Document', secondary=experiment_documents,
                               backref=db.backref('experiments', lazy='dynamic'),
                               lazy='dynamic')
     
