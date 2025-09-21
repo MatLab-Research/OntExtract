@@ -105,11 +105,11 @@ class TextProcessingService:
             raise e
     
     def split_into_paragraphs(self, text: str) -> List[str]:
-        """Split text into paragraphs using NLTK's sentence tokenizer as a base."""
-        # A robust way to handle paragraphs is to split by newlines,
-        # but also consider sentence structure to avoid splitting in the middle of one.
-        paragraphs = self.paragraph_separator.split(text)
-        return [p.strip() for p in paragraphs if p.strip()]
+        """Split text into paragraphs using improved regex patterns."""
+        import re
+        # More robust paragraph splitting that handles various whitespace patterns
+        paragraphs = re.split(r'\n\s*\n', text.strip())
+        return [p.strip() for p in paragraphs if p.strip() and len(p.strip()) > 10]
 
     def segment_by_paragraphs(self, document):
         """Create paragraph-level segments for a document using NLTK."""
@@ -177,10 +177,62 @@ class TextProcessingService:
             raise e
     
     def split_into_sentences(self, text: str) -> List[str]:
-        """Split text into sentences using spaCy for better accuracy."""
-        doc = nlp(text)
-        return [sent.text for sent in doc.sents]
-    
+        """Split text into sentences using NLTK punkt tokenizer for better accuracy."""
+        from nltk.tokenize import sent_tokenize
+
+        # Ensure NLTK data is available
+        try:
+            nltk.data.find('tokenizers/punkt')
+        except LookupError:
+            nltk.download('punkt_tab', quiet=True)
+
+        # Use NLTK's punkt tokenizer which handles abbreviations and edge cases better
+        sentences = sent_tokenize(text)
+        return [s.strip() for s in sentences if len(s.strip()) > 15]
+
+    def split_into_semantic_chunks(self, text: str) -> List[str]:
+        """Split text into semantic chunks using spaCy NLP analysis."""
+        try:
+            from nltk.tokenize import sent_tokenize
+
+            # Ensure NLTK data is available
+            try:
+                nltk.data.find('tokenizers/punkt')
+            except LookupError:
+                nltk.download('punkt_tab', quiet=True)
+
+            # Try spaCy for entity-aware chunking
+            try:
+                doc = nlp(text)
+                current_chunk = []
+                chunks = []
+
+                for sent in doc.sents:
+                    current_chunk.append(sent.text.strip())
+                    # End chunk if we have 2-3 sentences or hit entity boundary
+                    if len(current_chunk) >= 3 or (sent.ents and len(current_chunk) >= 2):
+                        chunks.append(' '.join(current_chunk))
+                        current_chunk = []
+
+                if current_chunk:
+                    chunks.append(' '.join(current_chunk))
+
+                return [c for c in chunks if len(c.strip()) > 20]
+            except OSError:
+                # Fallback to sentence-based chunking if spaCy model not available
+                sentences = sent_tokenize(text)
+                chunk_size = max(2, len(sentences) // 10)  # Aim for ~10 chunks
+                chunks = []
+                for i in range(0, len(sentences), chunk_size):
+                    chunk = ' '.join(sentences[i:i+chunk_size])
+                    if len(chunk.strip()) > 20:
+                        chunks.append(chunk)
+                return chunks
+        except Exception as e:
+            logger.error(f"Error in semantic chunking: {e}")
+            # Ultimate fallback to basic paragraph splitting
+            return self.split_into_paragraphs(text)
+
     def extract_keywords(self, text: str) -> List[str]:
         """Extract basic keywords from text"""
         # Simple keyword extraction - can be enhanced with NLP

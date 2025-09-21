@@ -177,17 +177,6 @@
                 </div>
             </div>
 
-            <!-- Experiment Context Alert -->
-            <div class="alert alert-info mb-4">
-                <div class="d-flex align-items-center">
-                    <i class="fas fa-flask me-2"></i>
-                    <div>
-                        <strong>Processing for Experiment:</strong> {{ experiment.name }}
-                        <br>
-                        <small>This document is being processed specifically for this experiment's requirements.</small>
-                    </div>
-                </div>
-            </div>
 
             <!-- Document Status with Navigation and Progress -->
             <div class="card mb-4">
@@ -334,35 +323,37 @@
                     </div>
                     {% endif %}
 
-                    <!-- Processing Results Preview -->
+                    <!-- Processing Results by Type -->
                     {% if processing_operations %}
                     <div class="mt-4">
                         <h6 class="mb-3">
                             <i class="fas fa-chart-bar me-2"></i>Processing Results
                         </h6>
-                        {% for op in processing_operations %}
-                            {% if op.status == 'completed' %}
-                            <div class="card mb-3 border-success">
-                                <div class="card-header bg-success bg-opacity-10">
-                                    <h6 class="mb-0">
-                                        <i class="fas fa-check-circle text-success me-2"></i>
-                                        {{ op.processing_type.title() }} ({{ op.processing_method }})
-                                    </h6>
-                                </div>
-                                <div class="card-body">
-                                    {% set results = op.get_results_summary() %}
+
+                        <!-- Embeddings Section -->
+                        {% set embeddings_ops = processing_operations | selectattr('processing_type', 'equalto', 'embeddings') | selectattr('status', 'equalto', 'completed') | list %}
+                        {% if embeddings_ops %}
+                        <div class="card mb-3 border-info">
+                            <div class="card-header bg-info bg-opacity-10">
+                                <h6 class="mb-0">
+                                    <i class="fas fa-vector-square text-info me-2"></i>
+                                    Embeddings ({{ embeddings_ops | length }})
+                                </h6>
+                            </div>
+                            <div class="card-body">
+                                {% for op in embeddings_ops %}
+                                {% set results = op.get_results_summary() %}
+                                <div class="mb-3{% if not loop.last %} border-bottom pb-3{% endif %}">
+                                    <div class="d-flex justify-content-between align-items-center mb-2">
+                                        <strong>{{ op.processing_method.title() }} Method</strong>
+                                        <span class="badge bg-success">
+                                            <i class="fas fa-check-circle me-1"></i>Completed
+                                        </span>
+                                    </div>
                                     {% if results %}
                                     <div class="row text-center">
-                                        {% if results.embedding_method %}
-                                        <div class="col-md-3">
-                                            <div class="border rounded p-2">
-                                                <strong class="text-primary">{{ results.embedding_method.title() }}</strong>
-                                                <br><small class="text-muted">Method</small>
-                                            </div>
-                                        </div>
-                                        {% endif %}
                                         {% if results.dimensions %}
-                                        <div class="col-md-3">
+                                        <div class="col-md-3 mb-2">
                                             <div class="border rounded p-2">
                                                 <strong class="text-info">{{ results.dimensions }}</strong>
                                                 <br><small class="text-muted">Dimensions</small>
@@ -370,7 +361,7 @@
                                         </div>
                                         {% endif %}
                                         {% if results.chunks_created %}
-                                        <div class="col-md-3">
+                                        <div class="col-md-3 mb-2">
                                             <div class="border rounded p-2">
                                                 <strong class="text-warning">{{ results.chunks_created }}</strong>
                                                 <br><small class="text-muted">Chunks</small>
@@ -378,15 +369,83 @@
                                         </div>
                                         {% endif %}
                                         {% if results.total_tokens %}
-                                        <div class="col-md-3">
+                                        <div class="col-md-3 mb-2">
                                             <div class="border rounded p-2">
-                                                <strong class="text-secondary">{{ results.total_tokens }}</strong>
-                                                <br><small class="text-muted">Tokens</small>
+                                                <strong class="text-success">{{ results.total_tokens }}</strong>
+                                                <br><small class="text-muted">Doc Tokens</small>
                                             </div>
                                         </div>
                                         {% endif %}
+                                        {% if results.model_used %}
+                                        <div class="col-md-3 mb-2">
+                                            <div class="border rounded p-2">
+                                                <strong class="text-secondary">{{ results.model_used }}</strong>
+                                                <br><small class="text-muted">Model Used</small>
+                                            </div>
+                                        </div>
+                                        {% endif %}
+                                        {% if results.api_tokens_used and results.api_tokens_used != 'N/A' %}
+                                        <div class="col-md-3 mb-2">
+                                            <div class="border rounded p-2">
+                                                <strong class="text-danger">{{ results.api_tokens_used }}</strong>
+                                                <br><small class="text-muted">API Tokens</small>
+                                            </div>
+                                        </div>
+                                        {% endif %}
+                                    </div>
+                                    {% endif %}
+                                    <div class="text-center mt-2">
+                                        <button class="btn btn-outline-primary btn-sm"
+                                                onclick="viewProcessingArtifacts('{{ op.id }}', '{{ op.processing_type }}')">
+                                            <i class="fas fa-eye me-1"></i>View Embeddings Details
+                                        </button>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        {% endif %}
+
+                        <!-- Text Segments Section -->
+                        {% set segments_ops = processing_operations | selectattr('processing_type', 'equalto', 'segmentation') | selectattr('status', 'equalto', 'completed') | list %}
+                        {% if segments_ops %}
+                        <div class="card mb-3 border-warning">
+                            <div class="card-header bg-warning bg-opacity-10">
+                                <h6 class="mb-0">
+                                    <i class="fas fa-cut text-warning me-2"></i>
+                                    Text Segments ({{ segments_ops | length }})
+                                </h6>
+                            </div>
+                            <div class="card-body">
+                                {% for op in segments_ops %}
+                                {% set results = op.get_results_summary() %}
+                                <div class="mb-3{% if not loop.last %} border-bottom pb-3{% endif %}">
+                                    <div class="d-flex justify-content-between align-items-center mb-2">
+                                        <strong>{{ op.processing_method.title() }} Method</strong>
+                                        <span class="badge bg-success">
+                                            <i class="fas fa-check-circle me-1"></i>Completed
+                                        </span>
+                                    </div>
+                                    {% if results %}
+                                    <!-- Service/Model Information -->
+                                    {% if results.service_used or results.model_info %}
+                                    <div class="mb-3 p-2 bg-light rounded">
+                                        <small class="text-muted d-block">
+                                            <i class="fas fa-cogs me-1"></i>
+                                            <strong>Service:</strong> {{ results.service_used or 'Unknown' }}
+                                        </small>
+                                        {% if results.model_info %}
+                                        <small class="text-muted d-block">
+                                            <i class="fas fa-microchip me-1"></i>
+                                            <strong>Model:</strong> {{ results.model_info }}
+                                        </small>
+                                        {% endif %}
+                                    </div>
+                                    {% endif %}
+
+                                    <div class="row text-center">
                                         {% if results.segments_created %}
-                                        <div class="col-md-4">
+                                        <div class="col-md-4 mb-2">
                                             <div class="border rounded p-2">
                                                 <strong class="text-warning">{{ results.segments_created }}</strong>
                                                 <br><small class="text-muted">Segments</small>
@@ -394,15 +453,59 @@
                                         </div>
                                         {% endif %}
                                         {% if results.avg_segment_length %}
-                                        <div class="col-md-4">
+                                        <div class="col-md-4 mb-2">
                                             <div class="border rounded p-2">
                                                 <strong class="text-info">{{ results.avg_segment_length }}</strong>
                                                 <br><small class="text-muted">Avg Length</small>
                                             </div>
                                         </div>
                                         {% endif %}
+                                        {% if results.total_tokens %}
+                                        <div class="col-md-4 mb-2">
+                                            <div class="border rounded p-2">
+                                                <strong class="text-secondary">{{ results.total_tokens }}</strong>
+                                                <br><small class="text-muted">Total Tokens</small>
+                                            </div>
+                                        </div>
+                                        {% endif %}
+                                    </div>
+                                    {% endif %}
+                                    <div class="text-center mt-2">
+                                        <button class="btn btn-outline-primary btn-sm"
+                                                onclick="viewProcessingArtifacts('{{ op.id }}', '{{ op.processing_type }}')">
+                                            <i class="fas fa-eye me-1"></i>View Segments Details
+                                        </button>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        {% endif %}
+
+                        <!-- Entities Section -->
+                        {% set entities_ops = processing_operations | selectattr('processing_type', 'equalto', 'entities') | selectattr('status', 'equalto', 'completed') | list %}
+                        {% if entities_ops %}
+                        <div class="card mb-3 border-success">
+                            <div class="card-header bg-success bg-opacity-10">
+                                <h6 class="mb-0">
+                                    <i class="fas fa-tags text-success me-2"></i>
+                                    Entities ({{ entities_ops | length }})
+                                </h6>
+                            </div>
+                            <div class="card-body">
+                                {% for op in entities_ops %}
+                                {% set results = op.get_results_summary() %}
+                                <div class="mb-3{% if not loop.last %} border-bottom pb-3{% endif %}">
+                                    <div class="d-flex justify-content-between align-items-center mb-2">
+                                        <strong>{{ op.processing_method.title() }} Method</strong>
+                                        <span class="badge bg-success">
+                                            <i class="fas fa-check-circle me-1"></i>Completed
+                                        </span>
+                                    </div>
+                                    {% if results %}
+                                    <div class="row text-center">
                                         {% if results.entities_found %}
-                                        <div class="col-md-4">
+                                        <div class="col-md-4 mb-2">
                                             <div class="border rounded p-2">
                                                 <strong class="text-success">{{ results.entities_found }}</strong>
                                                 <br><small class="text-muted">Entities</small>
@@ -410,33 +513,98 @@
                                         </div>
                                         {% endif %}
                                         {% if results.entity_types %}
-                                        <div class="col-12 mt-2">
+                                        <div class="col-md-4 mb-2">
                                             <div class="border rounded p-2">
-                                                <small class="text-muted">Entity Types:</small>
-                                                <div class="mt-1">
-                                                    {% for entity_type in results.entity_types %}
-                                                    <span class="badge bg-secondary me-1">{{ entity_type }}</span>
-                                                    {% endfor %}
-                                                </div>
+                                                <strong class="text-info">{{ results.entity_types | length }}</strong>
+                                                <br><small class="text-muted">Types</small>
+                                            </div>
+                                        </div>
+                                        {% endif %}
+                                        {% if results.model_used %}
+                                        <div class="col-md-4 mb-2">
+                                            <div class="border rounded p-2">
+                                                <strong class="text-secondary">{{ results.model_used }}</strong>
+                                                <br><small class="text-muted">Model</small>
                                             </div>
                                         </div>
                                         {% endif %}
                                     </div>
-
-                                    <!-- Artifacts Preview Button -->
-                                    <div class="text-center mt-3">
+                                    {% if results.entity_types %}
+                                    <div class="mt-2">
+                                        <small class="text-muted">Entity Types:</small>
+                                        <div class="mt-1">
+                                            {% for entity_type in results.entity_types %}
+                                            <span class="badge bg-secondary me-1">{{ entity_type }}</span>
+                                            {% endfor %}
+                                        </div>
+                                    </div>
+                                    {% endif %}
+                                    {% endif %}
+                                    <div class="text-center mt-2">
                                         <button class="btn btn-outline-primary btn-sm"
                                                 onclick="viewProcessingArtifacts('{{ op.id }}', '{{ op.processing_type }}')">
-                                            <i class="fas fa-eye me-1"></i>View {{ op.processing_type.title() }} Details
+                                            <i class="fas fa-eye me-1"></i>View Entities Details
                                         </button>
                                     </div>
-                                    {% else %}
-                                    <p class="text-muted mb-0">No detailed results available</p>
-                                    {% endif %}
                                 </div>
+                                {% endfor %}
                             </div>
-                            {% endif %}
-                        {% endfor %}
+                        </div>
+                        {% endif %}
+
+                        <!-- Other Processing Types -->
+                        {% set other_ops = processing_operations | rejectattr('processing_type', 'in', ['embeddings', 'segmentation', 'entities']) | selectattr('status', 'equalto', 'completed') | list %}
+                        {% if other_ops %}
+                        <div class="card mb-3 border-secondary">
+                            <div class="card-header bg-secondary bg-opacity-10">
+                                <h6 class="mb-0">
+                                    <i class="fas fa-cogs text-secondary me-2"></i>
+                                    Other Processing ({{ other_ops | length }})
+                                </h6>
+                            </div>
+                            <div class="card-body">
+                                {% for op in other_ops %}
+                                {% set results = op.get_results_summary() %}
+                                <div class="mb-3{% if not loop.last %} border-bottom pb-3{% endif %}">
+                                    <div class="d-flex justify-content-between align-items-center mb-2">
+                                        <strong>{{ op.processing_type.title() }} ({{ op.processing_method }})</strong>
+                                        <span class="badge bg-success">
+                                            <i class="fas fa-check-circle me-1"></i>Completed
+                                        </span>
+                                    </div>
+                                    {% if results %}
+                                    <div class="row text-center">
+                                        {% for key, value in results.items() %}
+                                        {% if value and value != 'N/A' %}
+                                        <div class="col-md-3 mb-2">
+                                            <div class="border rounded p-2">
+                                                <strong class="text-secondary">{{ value }}</strong>
+                                                <br><small class="text-muted">{{ key.replace('_', ' ').title() }}</small>
+                                            </div>
+                                        </div>
+                                        {% endif %}
+                                        {% endfor %}
+                                    </div>
+                                    {% endif %}
+                                    <div class="text-center mt-2">
+                                        <button class="btn btn-outline-primary btn-sm"
+                                                onclick="viewProcessingArtifacts('{{ op.id }}', '{{ op.processing_type }}')">
+                                            <i class="fas fa-eye me-1"></i>View Details
+                                        </button>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        {% endif %}
+
+                        <!-- No Results Message -->
+                        {% if not (embeddings_ops or segments_ops or entities_ops or other_ops) %}
+                        <div class="text-center py-3">
+                            <i class="fas fa-info-circle text-muted mb-2"></i>
+                            <p class="text-muted mb-0">No completed processing operations yet</p>
+                        </div>
+                        {% endif %}
                     </div>
                     {% endif %}
 
