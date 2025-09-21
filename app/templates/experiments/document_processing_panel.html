@@ -58,7 +58,7 @@
                                     <li>
                                         <a class="dropdown-item" href="#"
                                            onclick="showProcessingModal({{ exp_doc.id }}, 'entities')">
-                                            <i class="fas fa-tags me-2"></i>Extract Entities
+                                            <i class="fas fa-tags me-2"></i>Extract Entities (LangExtract + Gemini)
                                         </a>
                                     </li>
                                 </ul>
@@ -108,7 +108,7 @@ let currentProcessingConfig = {};
 function loadProcessingStatus() {
     // Load processing status for all experiment documents
     {% for exp_doc in experiment_documents %}
-    fetch(`/api/experiment-document/{{ exp_doc.id }}/processing-status`)
+    fetch(`/experiments/api/experiment-document/{{ exp_doc.id }}/processing-status`)
         .then(response => response.json())
         .then(data => {
             updateProcessingStatusDisplay({{ exp_doc.id }}, data);
@@ -237,7 +237,7 @@ function showProcessingModal(expDocId, processingType) {
             <div class="form-check">
                 <input class="form-check-input" type="radio" name="method" value="llm" id="method-llm">
                 <label class="form-check-label" for="method-llm">
-                    LLM-powered extraction
+                    LangExtract + Gemini (character-level positioning)
                 </label>
             </div>
         `;

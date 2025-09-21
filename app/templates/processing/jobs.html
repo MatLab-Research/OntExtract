@@ -1,13 +1,20 @@
 {% extends 'base.html' %}
-{% block title %}Processing Jobs - OntExtract{% endblock %}
+{% block title %}Processing Operations - OntExtract{% endblock %}
 {% block content %}
 <div class="d-flex align-items-center mb-3">
   <i class="fas fa-list me-2"></i>
-  <h2 class="mb-0">Processing Jobs</h2>
-  <span class="badge bg-secondary ms-2">Placeholder</span>
+  <h2 class="mb-0">Processing Operations</h2>
+  <span class="badge bg-info ms-2">Live Data</span>
+  <a href="{{ url_for('processing.processing_home') }}" class="btn btn-outline-light btn-sm ms-auto"><i class="fas fa-tachometer-alt me-1"></i> Dashboard</a>
+  <a href="{{ url_for('experiments.index') }}" class="btn btn-outline-light btn-sm ms-2"><i class="fas fa-flask me-1"></i> Experiments</a>
 </div>
 
+<!-- Current Experiment Processing Operations -->
+{% if processing_operations %}
 <div class="card">
+  <div class="card-header">
+    <h5 class="mb-0"><i class="fas fa-cogs me-2"></i>Experiment Processing Operations</h5>
+  </div>
   <div class="card-body">
     <div class="table-responsive">
       <table class="table table-dark table-striped align-middle">
@@ -15,38 +22,101 @@
           <tr>
             <th>ID</th>
             <th>Type</th>
-            <th>Name</th>
+            <th>Method</th>
             <th>Status</th>
-            <th>Progress</th>
             <th>Document</th>
+            <th>Experiment</th>
             <th>Created</th>
+            <th>Actions</th>
           </tr>
         </thead>
         <tbody>
-          {% for job in jobs %}
+          {% for operation in processing_operations %}
           <tr>
-            <td>{{ job.id }}</td>
-            <td>{{ job.job_type }}</td>
-            <td>{{ job.job_name or '-' }}</td>
-            <td><span class="badge bg-dark">{{ job.status }}</span></td>
+            <td>{{ operation.id }}</td>
+            <td>{{ operation.processing_type|title }}</td>
+            <td>{{ operation.processing_method }}</td>
             <td>
-        {% if job.progress_percent is not none %}
-                <div class="progress" style="height: 8px;">
-          <div class="progress-bar" role="progressbar" style="width: {{ (job.progress_percent or 0) }}%"></div>
-                </div>
-              {% else %}
-                -
+              <span class="badge
+                {% if operation.status == 'completed' %}bg-success
+                {% elif operation.status == 'running' %}bg-warning
+                {% elif operation.status == 'failed' %}bg-danger
+                {% else %}bg-secondary{% endif %}">
+                {{ operation.status|title }}
+              </span>
+            </td>
+            <td>
+              <a href="{{ url_for('text_input.document_detail', document_id=operation.experiment_document.document.id) }}" class="text-decoration-none">
+                {{ operation.experiment_document.document.get_display_name()[:30] }}...
+              </a>
+            </td>
+            <td>
+              <a href="{{ url_for('experiments.view', experiment_id=operation.experiment_document.experiment.id) }}" class="text-decoration-none">
+                {{ operation.experiment_document.experiment.name[:20] }}...
+              </a>
+            </td>
+            <td>{{ operation.created_at.strftime('%Y-%m-%d %H:%M') if operation.created_at else '-' }}</td>
+            <td>
+              {% if operation.status == 'completed' %}
+                <a href="{{ url_for('experiments.view', experiment_id=operation.experiment_document.experiment.id) }}#processing-results"
+                   class="btn btn-outline-primary btn-sm">
+                  <i class="fas fa-eye"></i> Results
+                </a>
               {% endif %}
             </td>
-            <td>#{{ job.document_id }}</td>
-            <td>{{ job.created_at.strftime('%Y-%m-%d %H:%M') if job.created_at else '-' }}</td>
           </tr>
-          {% else %}
-          <tr><td colspan="7" class="text-muted">No jobs found.</td></tr>
           {% endfor %}
         </tbody>
       </table>
     </div>
   </div>
 </div>
+{% else %}
+<div class="card">
+  <div class="card-body text-center py-5">
+    <i class="fas fa-cogs fa-3x text-muted mb-3"></i>
+    <h5 class="text-muted">No Processing Operations Yet</h5>
+    <p class="text-muted">Processing operations will appear here when you run document processing in experiments.</p>
+    <a href="{{ url_for('experiments.index') }}" class="btn btn-primary">
+      <i class="fas fa-flask me-2"></i>Start Processing in Experiments
+    </a>
+  </div>
+</div>
+{% endif %}
+
+<!-- Legacy Processing Jobs (if any) -->
+{% if legacy_jobs %}
+<div class="card mt-4">
+  <div class="card-header">
+    <h5 class="mb-0"><i class="fas fa-archive me-2"></i>Legacy Processing Jobs</h5>
+  </div>
+  <div class="card-body">
+    <div class="table-responsive">
+      <table class="table table-dark table-striped align-middle">
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Type</th>
+            <th>Status</th>
+            <th>Document</th>
+            <th>Created</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for job in legacy_jobs %}
+          <tr>
+            <td>{{ job.id }}</td>
+            <td>{{ job.job_type }}</td>
+            <td><span class="badge bg-secondary">{{ job.status }}</span></td>
+            <td>#{{ job.document_id }}</td>
+            <td>{{ job.created_at.strftime('%Y-%m-%d %H:%M') if job.created_at else '-' }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endif %}
+
 {% endblock %}

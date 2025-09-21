@@ -1906,15 +1906,232 @@ def start_experiment_processing():
             index_entry.status = 'completed'
 
         elif processing_type == 'entities':
-            # Create sample entity artifacts
-            sample_entities = [
-                {'entity': 'John Smith', 'type': 'PERSON', 'confidence': 0.95},
-                {'entity': 'Microsoft Corporation', 'type': 'ORG', 'confidence': 0.88},
-                {'entity': 'New York', 'type': 'GPE', 'confidence': 0.92},
-                {'entity': 'artificial intelligence', 'type': 'TECHNOLOGY', 'confidence': 0.85},
-            ]
+            # Real entity extraction using spaCy and enhanced methods
+            content = exp_doc.document.content
+            extracted_entities = []
 
-            for i, entity_data in enumerate(sample_entities):
+            if processing_method == 'spacy':
+                # Enhanced spaCy entity extraction
+                import spacy
+                from collections import defaultdict
+
+                nlp = spacy.load('en_core_web_sm')
+                doc = nlp(content)
+
+                # Extract standard spaCy entities
+                entity_counts = defaultdict(int)
+                seen_entities = set()
+
+                for ent in doc.ents:
+                    # Normalize entity text
+                    entity_text = ent.text.strip()
+                    entity_key = (entity_text.lower(), ent.label_)
+
+                    # Skip very short entities (< 2 chars) and duplicates
+                    if len(entity_text) < 2 or entity_key in seen_entities:
+                        continue
+
+                    seen_entities.add(entity_key)
+
+                    # Get sentence context for the entity
+                    sent_text = ent.sent.text.strip()
+
+                    # Calculate start and end positions within the sentence
+                    ent_start_in_sent = ent.start_char - ent.sent.start_char
+                    ent_end_in_sent = ent.end_char - ent.sent.start_char
+
+                    # Create context window around entity
+                    context_start = max(0, ent_start_in_sent - 50)
+                    context_end = min(len(sent_text), ent_end_in_sent + 50)
+                    context = sent_text[context_start:context_end].strip()
+
+                    extracted_entities.append({
+                        'entity': entity_text,
+                        'type': ent.label_,
+                        'confidence': 0.85,  # spaCy doesn't provide confidence scores for NER
+                        'context': context,
+                        'start_char': ent.start_char,
+                        'end_char': ent.end_char
+                    })
+
+                # Also extract noun phrases as potential entities
+                for np in doc.noun_chunks:
+                    np_text = np.text.strip()
+                    np_key = np_text.lower()
+
+                    # Skip if already found as named entity or too short/long
+                    if (len(np_text) < 3 or len(np_text) > 100 or
+                        any(np_key in seen_ent[0] for seen_ent in seen_entities)):
+                        continue
+
+                    # Only include noun phrases that look like proper concepts
+                    if (any(token.pos_ in ['PROPN', 'NOUN'] for token in np) and
+                        not all(token.is_stop for token in np)):
+
+                        context_start = max(0, np.start_char - 50)
+                        context_end = min(len(content), np.end_char + 50)
+                        context = content[context_start:context_end].strip()
+
+                        extracted_entities.append({
+                            'entity': np_text,
+                            'type': 'CONCEPT',
+                            'confidence': 0.65,
+                            'context': context,
+                            'start_char': np.start_char,
+                            'end_char': np.end_char
+                        })
+
+            elif processing_method == 'nltk':
+                # NLTK-based entity extraction
+                import nltk
+                from nltk.tokenize import sent_tokenize, word_tokenize
+                from nltk.tag import pos_tag
+                from nltk.chunk import ne_chunk
+                from nltk.tree import Tree
+
+                # Ensure required NLTK data
+                try:
+                    nltk.data.find('tokenizers/punkt')
+                except LookupError:
+                    nltk.download('punkt_tab', quiet=True)
+                try:
+                    nltk.data.find('taggers/averaged_perceptron_tagger')
+                except LookupError:
+                    nltk.download('averaged_perceptron_tagger', quiet=True)
+                try:
+                    nltk.data.find('chunkers/maxent_ne_chunker')
+                except LookupError:
+                    nltk.download('maxent_ne_chunker', quiet=True)
+                try:
+                    nltk.data.find('corpora/words')
+                except LookupError:
+                    nltk.download('words', quiet=True)
+
+                sentences = sent_tokenize(content)
+                char_offset = 0
+
+                for sent in sentences:
+                    words = word_tokenize(sent)
+                    pos_tags = pos_tag(words)
+                    chunks = ne_chunk(pos_tags, binary=False)
+
+                    word_offset = 0
+                    for chunk in chunks:
+                        if isinstance(chunk, Tree):
+                            entity_words = [word for word, pos in chunk.leaves()]
+                            entity_text = ' '.join(entity_words)
+                            entity_type = chunk.label()
+
+                            # Find character position
+                            entity_start = sent.find(entity_text, word_offset)
+                            if entity_start != -1:
+                                # Create context
+                                context_start = max(0, entity_start - 50)
+                                context_end = min(len(sent), entity_start + len(entity_text) + 50)
+                                context = sent[context_start:context_end].strip()
+
+                                extracted_entities.append({
+                                    'entity': entity_text,
+                                    'type': entity_type,
+                                    'confidence': 0.70,
+                                    'context': context,
+                                    'start_char': char_offset + entity_start,
+                                    'end_char': char_offset + entity_start + len(entity_text)
+                                })
+                                word_offset = entity_start + len(entity_text)
+
+                    char_offset += len(sent) + 1
+
+            else:  # llm method - LangExtract + Gemini integration
+                try:
+                    from app.services.integrated_langextract_service import IntegratedLangExtractService
+
+                    # Initialize LangExtract service
+                    langextract_service = IntegratedLangExtractService()
+
+                    if not langextract_service.service_ready:
+                        raise Exception(f"LangExtract service not ready: {langextract_service.initialization_error}")
+
+                    # Perform sophisticated entity extraction
+                    analysis_result = langextract_service.analyze_document_for_entities(
+                        text=content,
+                        document_metadata={
+                            'document_id': exp_doc.document_id,
+                            'experiment_id': exp_doc.experiment_id,
+                            'title': exp_doc.document.title
+                        }
+                    )
+
+                    # Extract entities from LangExtract results
+                    if 'entities' in analysis_result:
+                        for entity_data in analysis_result['entities']:
+                            extracted_entities.append({
+                                'entity': entity_data.get('text', ''),
+                                'type': entity_data.get('type', 'ENTITY'),
+                                'confidence': entity_data.get('confidence', 0.85),
+                                'context': entity_data.get('context', ''),
+                                'start_char': entity_data.get('start_pos', 0),
+                                'end_char': entity_data.get('end_pos', 0)
+                            })
+
+                    # Extract key concepts as entities too
+                    if 'key_concepts' in analysis_result:
+                        for concept in analysis_result['key_concepts']:
+                            extracted_entities.append({
+                                'entity': concept.get('term', ''),
+                                'type': 'CONCEPT',
+                                'confidence': concept.get('confidence', 0.80),
+                                'context': concept.get('context', ''),
+                                'start_char': concept.get('position', [0, 0])[0],
+                                'end_char': concept.get('position', [0, 0])[1]
+                            })
+
+                except Exception as e:
+                    logger.warning(f"LangExtract extraction failed, falling back to pattern-based: {e}")
+
+                    # Fallback to improved pattern-based extraction
+                    import re
+                    patterns = [
+                        r'\b[A-Z][a-z]+ [A-Z][a-z]+\b',  # Proper names
+                        r'\b[A-Z]{2,}\b',  # Acronyms
+                        r'\b[A-Z][a-z]+(?:\s+[A-Z][a-z]+)*\s+(?:Inc|Corp|LLC|Ltd|Company|University|Institute)\b',  # Organizations
+                        r'\b(?:Dr|Prof|Mr|Ms|Mrs)\.?\s+[A-Z][a-z]+(?:\s+[A-Z][a-z]+)*\b',  # Titles + names
+                    ]
+
+                    for pattern in patterns:
+                        matches = re.finditer(pattern, content)
+                        for match in matches:
+                            entity_text = match.group().strip()
+                            start_pos = match.start()
+                            end_pos = match.end()
+                            context_start = max(0, start_pos - 50)
+                            context_end = min(len(content), end_pos + 50)
+                            context = content[context_start:context_end].strip()
+
+                            extracted_entities.append({
+                                'entity': entity_text,
+                                'type': 'ENTITY',
+                                'confidence': 0.60,
+                                'context': context,
+                                'start_char': start_pos,
+                                'end_char': end_pos
+                            })
+
+            # Remove duplicates and create artifacts
+            unique_entities = []
+            seen_texts = set()
+
+            for entity in extracted_entities:
+                entity_key = entity['entity'].lower().strip()
+                if entity_key not in seen_texts and len(entity_key) > 1:
+                    seen_texts.add(entity_key)
+                    unique_entities.append(entity)
+
+            # Sort by confidence and position
+            unique_entities.sort(key=lambda x: (-x['confidence'], x['start_char']))
+
+            # Create artifacts for extracted entities
+            for i, entity_data in enumerate(unique_entities):
                 artifact = ProcessingArtifact(
                     processing_id=processing_op.id,
                     document_id=exp_doc.document_id,
@@ -1925,19 +2142,41 @@ def start_experiment_processing():
                     'entity': entity_data['entity'],
                     'entity_type': entity_data['type'],
                     'confidence': entity_data['confidence'],
-                    'context': f"Context around {entity_data['entity']} in the document..."
+                    'context': entity_data['context'],
+                    'start_char': entity_data['start_char'],
+                    'end_char': entity_data['end_char']
                 })
                 artifact.set_metadata({
                     'method': processing_method,
-                    'extraction_confidence': entity_data['confidence']
+                    'extraction_confidence': entity_data['confidence'],
+                    'character_position': f"{entity_data['start_char']}-{entity_data['end_char']}"
                 })
                 db.session.add(artifact)
 
-            # Simulate entity extraction
+            # Determine service and model info
+            service_used = "Unknown"
+            model_info = ""
+
+            if processing_method == 'spacy':
+                service_used = "spaCy NLP + Enhanced Extraction"
+                model_info = "en_core_web_sm + noun phrase extraction"
+            elif processing_method == 'nltk':
+                service_used = "NLTK Named Entity Chunker"
+                model_info = "maxent_ne_chunker + POS tagging"
+            else:
+                service_used = "LangExtract + Gemini Integration"
+                model_info = "Google Gemini-1.5-flash with character-level positioning"
+
+            # Extract unique entity types
+            entity_types = list(set([e['type'] for e in unique_entities]))
+
             processing_op.mark_completed({
                 'extraction_method': processing_method,
-                'entities_found': len(sample_entities),
-                'entity_types': list(set([e['type'] for e in sample_entities]))
+                'entities_found': len(unique_entities),
+                'entity_types': entity_types,
+                'service_used': service_used,
+                'model_info': model_info,
+                'avg_confidence': sum(e['confidence'] for e in unique_entities) / len(unique_entities) if unique_entities else 0
             })
             index_entry.status = 'completed'
 
