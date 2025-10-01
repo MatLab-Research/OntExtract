@@ -73,9 +73,13 @@
         <div class="text-center py-4">
             <i class="fas fa-file fa-3x text-muted mb-3"></i>
             <p class="text-muted">No documents in this experiment yet.</p>
+            {% if current_user.is_authenticated %}
             <a href="{{ url_for('experiments.edit', id=experiment.id) }}" class="btn btn-primary">
                 <i class="fas fa-plus me-2"></i>Add Documents
             </a>
+            {% else %}
+            <span class="text-muted small">Login required to add documents</span>
+            {% endif %}
         </div>
         {% endif %}
     </div>
@@ -94,9 +98,13 @@
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                {% if current_user.is_authenticated %}
                 <button type="button" class="btn btn-primary" id="startProcessingBtn" onclick="startProcessing()">
                     Start Processing
                 </button>
+                {% else %}
+                <span class="text-muted small">Login required to start processing</span>
+                {% endif %}
             </div>
         </div>
     </div>
