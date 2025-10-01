@@ -141,7 +141,6 @@ def create_sample():
         return redirect(url_for('experiments.index'))
 
 @experiments_bp.route('/<int:experiment_id>')
-@api_require_login_for_write
 def view(experiment_id):
     """View experiment details"""
     experiment = Experiment.query.filter_by(id=experiment_id).first_or_404()
@@ -333,7 +332,6 @@ def run(experiment_id):
         return jsonify({'error': str(e)}), 500
 
 @experiments_bp.route('/<int:experiment_id>/results')
-@api_require_login_for_write
 def results(experiment_id):
     """View experiment results"""
     experiment = Experiment.query.filter_by(id=experiment_id).first_or_404()
@@ -363,7 +361,6 @@ def results(experiment_id):
                          config_data=config_data)
 
 @experiments_bp.route('/api/list')
-@api_require_login_for_write
 def api_list():
     """API endpoint to list experiments"""
     experiments = Experiment.query.order_by(Experiment.created_at.desc()).all()
@@ -372,7 +369,6 @@ def api_list():
     })
 
 @experiments_bp.route('/api/<int:experiment_id>')
-@api_require_login_for_write
 def api_get(experiment_id):
     """API endpoint to get experiment details"""
     experiment = Experiment.query.filter_by(id=experiment_id).first_or_404()
@@ -1441,7 +1437,6 @@ def run_orchestrated_analysis(experiment_id):
 # Document Processing Pipeline Routes
 
 @experiments_bp.route('/<int:experiment_id>/document_pipeline')
-@api_require_login_for_write
 def document_pipeline(experiment_id):
     """Step 2: Document Processing Pipeline Overview"""
     experiment = Experiment.query.filter_by(id=experiment_id).first_or_404()
@@ -1496,7 +1491,6 @@ def document_pipeline(experiment_id):
 
 
 @experiments_bp.route('/<int:experiment_id>/process_document/<int:document_id>')
-@api_require_login_for_write
 def process_document(experiment_id, document_id):
     """Process a specific document with experiment-specific context"""
     experiment = Experiment.query.filter_by(id=experiment_id).first_or_404()
@@ -2196,7 +2190,6 @@ def start_experiment_processing():
 
 
 @experiments_bp.route('/api/experiment-document/<int:exp_doc_id>/processing-status')
-@api_require_login_for_write
 def get_experiment_document_processing_status(exp_doc_id):
     """Get processing status for an experiment document"""
     try:
@@ -2220,7 +2213,6 @@ def get_experiment_document_processing_status(exp_doc_id):
 
 
 @experiments_bp.route('/api/processing/<uuid:processing_id>/artifacts')
-@api_require_login_for_write
 def get_processing_artifacts(processing_id):
     """Get artifacts for a specific processing operation"""
     try:

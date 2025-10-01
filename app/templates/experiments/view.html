@@ -70,6 +70,7 @@
                                 </a>
                                 {% endif %}
 
+                                {% if current_user.is_authenticated %}
                                 <a href="{{ url_for('experiments.edit', experiment_id=experiment.id) }}"
                                    class="btn btn-outline-secondary text-start">
                                     <i class="fas fa-edit"></i> Edit Experiment
@@ -78,6 +79,7 @@
                                 <button class="btn btn-outline-danger text-start" id="delete-experiment">
                                     <i class="fas fa-trash"></i> Delete Experiment
                                 </button>
+                                {% endif %}
                             </div>
                         </div>
                     </div>

@@ -115,9 +115,13 @@
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                {% if current_user.is_authenticated %}
                 <button type="button" class="btn btn-primary" id="startProcessingBtn" onclick="startProcessing()">
                     Start Processing
                 </button>
+                {% else %}
+                <span class="text-muted small">Login required to start processing</span>
+                {% endif %}
             </div>
         </div>
     </div>
