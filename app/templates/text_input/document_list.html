@@ -48,10 +48,15 @@
             <div class="card h-100">
                 <div class="card-body">
                     <h5 class="card-title">
-                        <i class="fas fa-lock text-muted"></i> Experiments
+                        <i class="fas fa-flask text-primary"></i> Experiments
                     </h5>
-                    <p class="card-text text-muted">
-                        Sign in to create and run experiments
+                    <p class="card-text">
+                        <a href="{{ url_for('experiments.index') }}" class="btn btn-sm btn-outline-primary">
+                            <i class="fas fa-eye"></i> View Demo Experiments
+                        </a>
+                    </p>
+                    <p class="card-text text-muted small mt-2">
+                        Sign in to create your own experiments
                     </p>
                 </div>
             </div>
