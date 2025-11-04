@@ -1,0 +1,229 @@
+{% extends "base.html" %}
+
+{% block title %}Orchestration - {{ document.title }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                    <h2>LLM Orchestration</h2>
+                    <p class="text-muted">Document: {{ document.title }}</p>
+                </div>
+                <div>
+                    <button id="run-orchestration" class="btn btn-primary btn-lg">
+                        <i class="fas fa-robot me-2"></i>Analyze with Claude
+                    </button>
+                </div>
+            </div>
+
+            <!-- Loading State -->
+            <div id="loading" class="text-center py-5" style="display: none;">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="sr-only">Analyzing...</span>
+                </div>
+                <p class="mt-3">Claude is analyzing your document...</p>
+            </div>
+
+            <!-- Results -->
+            <div id="results" style="display: none;">
+                <!-- Claude's Analysis -->
+                <div class="card mb-4">
+                    <div class="card-header bg-primary text-white">
+                        <h5 class="mb-0">
+                            <i class="fas fa-brain me-2"></i>Claude's Analysis
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <h6>Recommended Tools</h6>
+                                <div id="recommended-tools"></div>
+                            </div>
+                            <div class="col-md-6">
+                                <h6>Confidence</h6>
+                                <div id="confidence"></div>
+                            </div>
+                        </div>
+                        <hr>
+                        <h6>Reasoning</h6>
+                        <div id="reasoning" class="bg-light p-3 rounded" style="white-space: pre-wrap;"></div>
+                    </div>
+                </div>
+
+                <!-- Processing Results -->
+                <div class="card mb-4">
+                    <div class="card-header bg-success text-white">
+                        <h5 class="mb-0">
+                            <i class="fas fa-cogs me-2"></i>Processing Results
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="processing-results"></div>
+                    </div>
+                </div>
+
+                <!-- Synthesis -->
+                <div class="card mb-4">
+                    <div class="card-header bg-info text-white">
+                        <h5 class="mb-0">
+                            <i class="fas fa-lightbulb me-2"></i>Claude's Synthesis
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="synthesis" style="white-space: pre-wrap;"></div>
+
+                        <div id="insights-section" class="mt-4" style="display: none;">
+                            <h6>Key Insights</h6>
+                            <ul id="insights-list" class="list-group"></ul>
+                        </div>
+
+                        <div id="next-steps-section" class="mt-4" style="display: none;">
+                            <h6>Suggested Next Steps</h6>
+                            <ol id="next-steps-list" class="list-group list-group-numbered"></ol>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Provenance -->
+                <div class="card">
+                    <div class="card-header bg-secondary text-white">
+                        <h5 class="mb-0">
+                            <i class="fas fa-history me-2"></i>Execution Trace (Provenance)
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="provenance"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Error Display -->
+            <div id="error" class="alert alert-danger" style="display: none;">
+                <h5>Error</h5>
+                <p id="error-message"></p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.getElementById('run-orchestration').addEventListener('click', async function() {
+    const button = this;
+    button.disabled = true;
+
+    // Show loading
+    document.getElementById('loading').style.display = 'block';
+    document.getElementById('results').style.display = 'none';
+    document.getElementById('error').style.display = 'none';
+
+    try {
+        const response = await fetch('/orchestration/analyze/{{ document.id }}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({})
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            // Display results
+            displayResults(data);
+            document.getElementById('results').style.display = 'block';
+        } else {
+            document.getElementById('error-message').textContent = data.error;
+            document.getElementById('error').style.display = 'block';
+        }
+    } catch (error) {
+        document.getElementById('error-message').textContent = error.message;
+        document.getElementById('error').style.display = 'block';
+    } finally {
+        document.getElementById('loading').style.display = 'none';
+        button.disabled = false;
+    }
+});
+
+function displayResults(data) {
+    // Recommended tools
+    const toolsHtml = data.orchestration.recommended_tools.map(tool =>
+        `<span class="badge bg-primary me-2">${tool}</span>`
+    ).join('');
+    document.getElementById('recommended-tools').innerHTML = toolsHtml;
+
+    // Confidence
+    const confidence = (data.orchestration.confidence * 100).toFixed(0);
+    const confidenceColor = confidence > 80 ? 'success' : confidence > 60 ? 'warning' : 'danger';
+    document.getElementById('confidence').innerHTML = `
+        <div class="progress" style="height: 30px;">
+            <div class="progress-bar bg-${confidenceColor}" role="progressbar"
+                 style="width: ${confidence}%;" aria-valuenow="${confidence}"
+                 aria-valuemin="0" aria-valuemax="100">
+                ${confidence}%
+            </div>
+        </div>
+    `;
+
+    // Reasoning
+    document.getElementById('reasoning').textContent = data.orchestration.reasoning;
+
+    // Processing results
+    let resultsHtml = '';
+    if (data.results.segmentation) {
+        resultsHtml += `
+            <div class="mb-3">
+                <h6><i class="fas fa-paragraph me-2"></i>Segmentation</h6>
+                <p>Method: <span class="badge bg-secondary">${data.results.segmentation.method}</span></p>
+                <p>Segments created: <strong>${data.results.segmentation.count}</strong></p>
+            </div>
+        `;
+    }
+    if (data.results.entities) {
+        resultsHtml += `
+            <div class="mb-3">
+                <h6><i class="fas fa-tags me-2"></i>Entity Extraction</h6>
+                <p>Method: <span class="badge bg-secondary">${data.results.entities.method}</span></p>
+                <p>Entities found: <strong>${data.results.entities.count}</strong></p>
+                <p>Types: ${Object.keys(data.results.entities.entity_types).map(t =>
+                    `<span class="badge bg-info me-1">${t}</span>`
+                ).join('')}</p>
+            </div>
+        `;
+    }
+    document.getElementById('processing-results').innerHTML = resultsHtml || '<p class="text-muted">No processing results</p>';
+
+    // Synthesis
+    document.getElementById('synthesis').textContent = data.synthesis || 'No synthesis available';
+
+    // Insights
+    if (data.insights && data.insights.length > 0) {
+        document.getElementById('insights-section').style.display = 'block';
+        document.getElementById('insights-list').innerHTML = data.insights.map(insight =>
+            `<li class="list-group-item">${insight}</li>`
+        ).join('');
+    }
+
+    // Next steps
+    if (data.suggested_next_steps && data.suggested_next_steps.length > 0) {
+        document.getElementById('next-steps-section').style.display = 'block';
+        document.getElementById('next-steps-list').innerHTML = data.suggested_next_steps.map(step =>
+            `<li class="list-group-item">${step}</li>`
+        ).join('');
+    }
+
+    // Provenance
+    const provenanceHtml = data.provenance.map((entry, index) => `
+        <div class="mb-2">
+            <strong>${index + 1}. ${entry.node}</strong><br>
+            <small class="text-muted">${entry.timestamp}</small><br>
+            ${entry.tools_recommended ? `<span class="badge bg-primary">Tools: ${entry.tools_recommended.join(', ')}</span>` : ''}
+            ${entry.segments_created ? `<span class="badge bg-success">${entry.segments_created} segments</span>` : ''}
+            ${entry.entities_found ? `<span class="badge bg-info">${entry.entities_found} entities</span>` : ''}
+        </div>
+    `).join('');
+    document.getElementById('provenance').innerHTML = provenanceHtml;
+}
+</script>
+{% endblock %}
