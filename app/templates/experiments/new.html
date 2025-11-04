@@ -32,10 +32,37 @@
                                 </div>
                             </div>
                         </div>
-                        
+
+                        <!-- Focus Term Selection -->
+                        <div class="row">
+                            <div class="col-12">
+                                <div class="mb-3">
+                                    <label for="focus-term" class="form-label">
+                                        Focus Term
+                                        <span class="badge bg-info">Semantic Evolution</span>
+                                    </label>
+                                    <select class="form-select" id="focus-term">
+                                        <option value="">No specific term (optional)</option>
+                                        {% if terms %}
+                                            {% for term in terms %}
+                                            <option value="{{ term.id }}">{{ term.lemma }}</option>
+                                            {% endfor %}
+                                        {% else %}
+                                            <option disabled>No terms available - create one first</option>
+                                        {% endif %}
+                                    </select>
+                                    <small class="text-muted">
+                                        <i class="fas fa-lightbulb"></i>
+                                        Select a term to focus on semantic evolution analysis.
+                                        The system will track how this term's context and co-occurring entities change across documents.
+                                    </small>
+                                </div>
+                            </div>
+                        </div>
+
                         <div class="mb-3">
                             <label for="experiment-description" class="form-label">Description</label>
-                            <textarea class="form-control" id="experiment-description" rows="3" 
+                            <textarea class="form-control" id="experiment-description" rows="3"
                                       placeholder="Describe the purpose of this experiment..."></textarea>
                         </div>
                         
@@ -591,6 +618,9 @@ document.addEventListener('DOMContentLoaded', function() {
             configuration.use_references = document.getElementById('use-references').checked;
         }
         
+        // Get focus term if selected
+        const focusTerm = document.getElementById('focus-term').value || null;
+
         try {
             const response = await fetch('/experiments/create', {
                 method: 'POST',
@@ -601,6 +631,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     name: name,
                     description: description,
                     experiment_type: type,
+                    term_id: focusTerm,
                     document_ids: selectedDocs,
                     reference_ids: selectedRefs,
                     configuration: configuration

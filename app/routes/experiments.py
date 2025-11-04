@@ -25,10 +25,16 @@ def index():
 @experiments_bp.route('/new')
 def new():
     """Show new experiment form - public view, but submit requires login"""
+    from app.models.term import Term
+
     # Get documents and references separately for all users
     documents = Document.query.filter_by(document_type='document').order_by(Document.created_at.desc()).all()
     references = Document.query.filter_by(document_type='reference').order_by(Document.created_at.desc()).all()
-    return render_template('experiments/new.html', documents=documents, references=references)
+
+    # Get all terms for focus term selection
+    terms = Term.query.order_by(Term.lemma).all()
+
+    return render_template('experiments/new.html', documents=documents, references=references, terms=terms)
 
 @experiments_bp.route('/wizard')
 def wizard():
@@ -64,6 +70,7 @@ def create():
             description=data.get('description', ''),
             experiment_type=data['experiment_type'],
             user_id=current_user.id,
+            term_id=data.get('term_id'),  # Optional focus term for semantic evolution
             configuration=json.dumps(data.get('configuration', {}))
         )
         # Important: Add to session before touching dynamic relationships
