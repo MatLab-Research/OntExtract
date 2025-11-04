@@ -57,6 +57,9 @@ async def analyze_document_node(state: OrchestratorState) -> Dict[str, Any]:
     doc_length = len(state['document_text'])
     doc_metadata = state['document_metadata']
 
+    # Get focus term if available
+    focus_term = doc_metadata.get('focus_term')
+
     # Construct analysis prompt
     system_prompt = """You are an expert NLP orchestration system. Analyze documents and recommend appropriate processing tools.
 
@@ -71,21 +74,25 @@ Available Tools:
 
 Your task:
 1. Analyze the document characteristics (length, structure, domain, complexity)
-2. Recommend 2-4 tools that would be most valuable for this document
-3. Explain your reasoning clearly
-4. Provide a confidence score (0.0-1.0)
+2. If a focus term is provided, prioritize tools that help track semantic evolution (entities, temporal)
+3. Recommend 2-4 tools that would be most valuable for this document
+4. Explain your reasoning clearly
+5. Provide a confidence score (0.0-1.0)
 
 Return your response in this exact format:
 RECOMMENDED_TOOLS: [tool1, tool2, tool3]
 CONFIDENCE: 0.85
 REASONING: Your detailed explanation here..."""
 
+    # Build user prompt with optional focus term
+    term_context = f"\n- **Focus Term**: '{focus_term}' (Track semantic evolution: what entities co-occur with this term?)" if focus_term else ""
+
     user_prompt = f"""Analyze this document and recommend processing tools:
 
 Document Metadata:
 - Length: {doc_length} characters
 - Format: {doc_metadata.get('format', 'unknown')}
-- Title: {doc_metadata.get('title', 'Unknown')}
+- Title: {doc_metadata.get('title', 'Unknown')}{term_context}
 
 Document Sample (first 2000 characters):
 {doc_sample}
@@ -303,9 +310,25 @@ async def synthesize_results_node(state: OrchestratorState) -> Dict[str, Any]:
 
     logger.info(f"Synthesizing results for document {state['document_id']}")
 
+    # Check for focus term
+    focus_term = state['document_metadata'].get('focus_term')
+
     try:
-        # Construct synthesis prompt
-        system_prompt = """You are an expert at analyzing NLP processing results.
+        # Construct term-aware synthesis prompt
+        if focus_term:
+            system_prompt = f"""You are an expert at analyzing semantic evolution in texts.
+
+This analysis focuses on the term: **{focus_term}**
+
+Provide:
+1. How this term appears in context (with which entities, concepts, themes)
+2. 3-5 insights about the term's semantic environment
+3. What this reveals about how the term is used in this document
+4. How this might compare to other time periods or domains
+
+Be specific and reference actual entities found."""
+        else:
+            system_prompt = """You are an expert at analyzing NLP processing results.
 Given the results from multiple tools, provide:
 1. A concise synthesis of key findings
 2. 3-5 specific insights
@@ -313,7 +336,30 @@ Given the results from multiple tools, provide:
 
 Be specific and reference actual findings from the results."""
 
-        results_summary = f"""Document Processing Results:
+        # Build results summary with term focus if applicable
+        entity_list = ', '.join(list(set(
+            ent['text'] for ent in state.get('entity_results', {}).get('entities', [])[:20]
+        )))
+
+        if focus_term:
+            results_summary = f"""Document Processing Results for Term: "{focus_term}"
+
+Document: {state['document_metadata'].get('title', 'Unknown')}
+Length: {state['document_characteristics'].get('length', 0)} characters
+
+Tools Used: {', '.join(state.get('recommended_tools', []))}
+
+Segmentation: {state.get('segmentation_results', {}).get('count', 0)} segments created
+
+Entities Found: {state.get('entity_results', {}).get('count', 0)} entities
+Entity Types: {', '.join(state.get('entity_results', {}).get('entity_types', {}).keys())}
+
+Key Entities (potential co-occurrences with "{focus_term}"): {entity_list}
+
+Analyze: What semantic context surrounds the term "{focus_term}" in this document?
+Which entities and concepts appear near it? What does this reveal?"""
+        else:
+            results_summary = f"""Document Processing Results:
 
 Document: {state['document_metadata'].get('title', 'Unknown')}
 Length: {state['document_characteristics'].get('length', 0)} characters
@@ -325,9 +371,7 @@ Segmentation: {state.get('segmentation_results', {}).get('count', 0)} segments c
 Entities: {state.get('entity_results', {}).get('count', 0)} entities found
 Entity Types: {', '.join(state.get('entity_results', {}).get('entity_types', {}).keys())}
 
-Sample Entities: {', '.join(list(set(
-    ent['text'] for ent in state.get('entity_results', {}).get('entities', [])[:20]
-)))}
+Sample Entities: {entity_list}
 
 Provide your synthesis, insights, and recommendations."""
 

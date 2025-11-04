@@ -53,6 +53,11 @@ async def analyze_document(document_id):
     # Get document
     document = Document.query.get_or_404(document_id)
 
+    # Get focus term if document is part of an experiment with a term
+    focus_term = None
+    if document.experiments.first() and document.experiments.first().term:
+        focus_term = document.experiments.first().term.lemma
+
     try:
         # Create initial state
         initial_state = create_initial_state(
@@ -61,7 +66,8 @@ async def analyze_document(document_id):
             document_metadata={
                 "title": document.title,
                 "format": getattr(document, 'file_format', 'unknown'),
-                "source": getattr(document, 'source', 'database')
+                "source": getattr(document, 'source', 'database'),
+                "focus_term": focus_term  # Optional: term for semantic evolution tracking
             },
             user_preferences=request.get_json() or {}
         )
