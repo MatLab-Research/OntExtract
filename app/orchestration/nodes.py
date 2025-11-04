@@ -17,13 +17,23 @@ from app.orchestration.state import OrchestratorState
 
 logger = logging.getLogger(__name__)
 
-# Initialize Claude client (LangGraph 1.0+ best practice)
-claude_client = ChatAnthropic(
-    model="claude-sonnet-4-20250514",
-    api_key=os.environ.get("ANTHROPIC_API_KEY"),
-    max_tokens=2000,
-    temperature=0.0  # Deterministic for tool selection
-)
+# Claude client - initialized lazily to avoid import-time errors
+_claude_client = None
+
+def get_claude_client():
+    """Get or create Claude client (lazy initialization)"""
+    global _claude_client
+    if _claude_client is None:
+        api_key = os.environ.get("ANTHROPIC_API_KEY")
+        if not api_key:
+            logger.warning("ANTHROPIC_API_KEY not found - orchestration will fail")
+        _claude_client = ChatAnthropic(
+            model="claude-sonnet-4-20250514",
+            api_key=api_key,
+            max_tokens=2000,
+            temperature=0.0  # Deterministic for tool selection
+        )
+    return _claude_client
 
 
 async def analyze_document_node(state: OrchestratorState) -> Dict[str, Any]:
@@ -83,6 +93,9 @@ Document Sample (first 2000 characters):
 What tools should we use and why?"""
 
     try:
+        # Get Claude client (lazy initialization)
+        claude_client = get_claude_client()
+
         # Call Claude for analysis
         messages = [
             SystemMessage(content=system_prompt),
@@ -317,6 +330,9 @@ Sample Entities: {', '.join(list(set(
 )))}
 
 Provide your synthesis, insights, and recommendations."""
+
+        # Get Claude client (lazy initialization)
+        claude_client = get_claude_client()
 
         messages = [
             SystemMessage(content=system_prompt),
