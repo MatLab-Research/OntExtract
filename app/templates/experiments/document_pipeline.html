@@ -171,30 +171,51 @@
                     </div>
                     {% endif %}
 
-                    <!-- Experiment-Level Orchestration -->
+                    <!-- Processing Mode Toggle -->
                     {% if total_count > 0 %}
                     <hr class="my-4">
                     <div class="bg-dark p-4 rounded">
-                        <div class="d-flex justify-content-between align-items-start">
-                            <div>
-                                <h5 class="mb-2">
-                                    <i class="fas fa-robot me-2"></i>Intelligent Experiment Analysis
-                                </h5>
-                                <p class="text-muted mb-3">
-                                    Let Anthropic Claude analyze all {{ total_count }} documents together and recommend
-                                    an optimal processing strategy tailored to your experiment goals.
-                                </p>
-                                <div class="form-check mb-3">
-                                    <input class="form-check-input" type="checkbox" id="review-choices-checkbox">
-                                    <label class="form-check-label" for="review-choices-checkbox">
-                                        Review and modify strategy before processing
-                                    </label>
-                                </div>
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <h5 class="mb-0">
+                                <i class="fas fa-cogs me-2"></i>Processing Mode
+                            </h5>
+                            <div class="btn-group" role="group">
+                                <input type="radio" class="btn-check" name="processing-mode" id="mode-manual" checked autocomplete="off">
+                                <label class="btn btn-outline-light" for="mode-manual">
+                                    <i class="fas fa-hand-pointer me-1"></i>Manual
+                                </label>
+
+                                <input type="radio" class="btn-check" name="processing-mode" id="mode-llm" autocomplete="off">
+                                <label class="btn btn-outline-light" for="mode-llm">
+                                    <i class="fas fa-robot me-1"></i>LLM
+                                </label>
                             </div>
                         </div>
-                        <button id="analyze-experiment-btn" class="btn btn-primary btn-lg">
-                            <i class="fas fa-brain me-2"></i>Analyze Experiment with Claude
-                        </button>
+
+                        <!-- Manual Mode Description -->
+                        <div id="manual-mode-desc" class="mode-description">
+                            <p class="text-muted mb-0">
+                                <i class="fas fa-info-circle me-2"></i>
+                                Process each document individually by selecting processing tools manually.
+                            </p>
+                        </div>
+
+                        <!-- LLM Mode Description & Options -->
+                        <div id="llm-mode-desc" class="mode-description" style="display: none;">
+                            <p class="text-muted mb-3">
+                                <i class="fas fa-magic me-2"></i>
+                                Let Claude analyze all {{ total_count }} documents together and recommend an optimal processing strategy.
+                            </p>
+                            <div class="form-check mb-3">
+                                <input class="form-check-input" type="checkbox" id="review-choices-checkbox">
+                                <label class="form-check-label" for="review-choices-checkbox">
+                                    Review and modify strategy before processing
+                                </label>
+                            </div>
+                            <button id="analyze-experiment-btn" class="btn btn-primary btn-lg">
+                                <i class="fas fa-brain me-2"></i>LLM Analyze
+                            </button>
+                        </div>
                     </div>
                     {% endif %}
                 </div>
@@ -247,21 +268,14 @@
                             </div>
                             
                             <div class="d-flex flex-column gap-2">
-                                <!-- Analyze with Anthropic LLM -->
-                                <button class="btn btn-sm btn-primary analyze-btn"
-                                        data-document-id="{{ doc.id }}"
-                                        data-document-name="{{ doc.name }}">
-                                    <i class="fas fa-robot"></i> Analyze with Anthropic LLM
-                                </button>
-
                                 {% if doc.status == 'pending' %}
                                 <a href="{{ url_for('experiments.process_document', experiment_id=experiment.id, document_id=doc.id) }}"
-                                   class="btn btn-sm btn-warning">
+                                   class="btn btn-sm btn-warning manual-process-btn">
                                     <i class="fas fa-cog"></i> Process Document
                                 </a>
                                 {% else %}
                                 <a href="{{ url_for('experiments.process_document', experiment_id=experiment.id, document_id=doc.id) }}"
-                                   class="btn btn-sm btn-success">
+                                   class="btn btn-sm btn-success manual-process-btn">
                                     <i class="fas fa-check"></i> View Processing
                                 </a>
                                 {% endif %}
@@ -281,42 +295,6 @@
             {% endif %}
         </div>
     </div>
-
-    <!-- Quick Actions -->
-    {% if total_count > 0 %}
-    <div class="row mt-4">
-        <div class="col-12">
-            <div class="card">
-                <div class="card-body text-center">
-                    <h5 class="mb-3">Quick Actions</h5>
-                    <div class="d-flex justify-content-center gap-3">
-                        {% if completed_count < total_count %}
-                        {% set next_pending = documents | selectattr('status', 'equalto', 'pending') | first %}
-                        {% if next_pending %}
-                        <a href="{{ url_for('experiments.process_document', experiment_id=experiment.id, document_id=next_pending.id) }}" 
-                           class="btn btn-warning">
-                            <i class="fas fa-play me-2"></i>Process Next Document
-                        </a>
-                        {% endif %}
-                        {% endif %}
-                        
-                        <a href="{{ url_for('experiments.edit', experiment_id=experiment.id) }}" 
-                           class="btn btn-outline-primary">
-                            <i class="fas fa-edit me-2"></i>Edit Experiment
-                        </a>
-                        
-                        {% if completed_count == total_count and total_count > 0 %}
-                        <a href="{{ url_for('experiments.semantic_analysis', experiment_id=experiment.id) }}" 
-                           class="btn btn-success">
-                            <i class="fas fa-brain me-2"></i>Start Semantic Analysis
-                        </a>
-                        {% endif %}
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-    {% endif %}
 </div>
 
 <!-- Progress Modal for Experiment Orchestration -->
@@ -353,48 +331,42 @@
 const experimentId = {{ experiment.id }};
 
 document.addEventListener('DOMContentLoaded', function() {
-    // Handle "Analyze with Anthropic LLM" button clicks (per-document)
-    document.querySelectorAll('.analyze-btn').forEach(button => {
-        button.addEventListener('click', async function() {
-            const documentId = this.dataset.documentId;
-            const documentName = this.dataset.documentName;
+    // Handle processing mode toggle
+    const modeManual = document.getElementById('mode-manual');
+    const modeLLM = document.getElementById('mode-llm');
+    const manualModeDesc = document.getElementById('manual-mode-desc');
+    const llmModeDesc = document.getElementById('llm-mode-desc');
+    const manualProcessBtns = document.querySelectorAll('.manual-process-btn');
 
-            // Disable button and show loading
-            this.disabled = true;
-            this.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Analyzing...';
+    function updateMode() {
+        if (modeLLM && modeLLM.checked) {
+            // LLM mode - show LLM description, disable manual buttons
+            if (manualModeDesc) manualModeDesc.style.display = 'none';
+            if (llmModeDesc) llmModeDesc.style.display = 'block';
 
-            try {
-                // Call orchestration endpoint
-                const response = await fetch(`/orchestration/analyze/${documentId}`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    }
-                });
+            manualProcessBtns.forEach(btn => {
+                btn.classList.add('disabled');
+                btn.style.opacity = '0.5';
+                btn.style.pointerEvents = 'none';
+            });
+        } else {
+            // Manual mode - show manual description, enable manual buttons
+            if (manualModeDesc) manualModeDesc.style.display = 'block';
+            if (llmModeDesc) llmModeDesc.style.display = 'none';
 
-                const data = await response.json();
+            manualProcessBtns.forEach(btn => {
+                btn.classList.remove('disabled');
+                btn.style.opacity = '1';
+                btn.style.pointerEvents = 'auto';
+            });
+        }
+    }
 
-                if (data.success) {
-                    // Show success and results
-                    alert(`Analysis Complete for "${documentName}"\n\n` +
-                          `Confidence: ${(data.orchestration.confidence * 100).toFixed(0)}%\n` +
-                          `Tools Used: ${data.orchestration.recommended_tools.join(', ')}\n\n` +
-                          `Click OK to view full results.`);
+    if (modeManual) modeManual.addEventListener('change', updateMode);
+    if (modeLLM) modeLLM.addEventListener('change', updateMode);
 
-                    // Redirect to results page (could also show in modal)
-                    window.location.href = `/orchestration/document/${documentId}`;
-                } else {
-                    alert(`Analysis Failed\n\n${data.error || 'Unknown error'}`);
-                }
-            } catch (error) {
-                alert(`Error\n\n${error.message}`);
-            } finally {
-                // Re-enable button
-                this.disabled = false;
-                this.innerHTML = '<i class="fas fa-robot"></i> Analyze with Anthropic LLM';
-            }
-        });
-    });
+    // Initialize mode
+    updateMode();
 
     // Handle experiment-level orchestration
     const analyzeExperimentBtn = document.getElementById('analyze-experiment-btn');
