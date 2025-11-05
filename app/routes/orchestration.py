@@ -405,11 +405,68 @@ def analyze_experiment_unified(experiment_id):
                     # Execute graph (Stages 1-2 only: analyze + recommend)
                     graph = get_experiment_graph()
 
-                    # Update progress
-                    progress_queues[run_id].put({"stage": "analyzing", "progress": 10, "message": "Analyzing experiment..."})
+                    # Start simulated progress updates in a separate thread
+                    progress_stop = threading.Event()
 
-                    # Run Stages 1-2
+                    def send_progress_updates():
+                        doc_count = len(initial_state.get('documents', []))
+                        term = initial_state.get('focus_term', 'unknown')
+
+                        # Stage 1: Analyzing (0-3 seconds)
+                        progress_queues[run_id].put({
+                            "stage": "analyzing",
+                            "progress": 10,
+                            "message": f"Analyzing {doc_count} documents with focus term '{term}'..."
+                        })
+                        time.sleep(2)
+                        if progress_stop.is_set():
+                            return
+
+                        progress_queues[run_id].put({
+                            "stage": "analyzing",
+                            "progress": 30,
+                            "message": "Identifying experiment goals and document relationships..."
+                        })
+                        time.sleep(2)
+                        if progress_stop.is_set():
+                            return
+
+                        # Stage 2: Recommending (3-6 seconds)
+                        progress_queues[run_id].put({
+                            "stage": "recommending",
+                            "progress": 50,
+                            "message": "Analyzing document characteristics and recommending tools..."
+                        })
+                        time.sleep(2)
+                        if progress_stop.is_set():
+                            return
+
+                        progress_queues[run_id].put({
+                            "stage": "recommending",
+                            "progress": 70,
+                            "message": "Evaluating optimal processing strategies..."
+                        })
+                        time.sleep(2)
+                        if progress_stop.is_set():
+                            return
+
+                        progress_queues[run_id].put({
+                            "stage": "recommending",
+                            "progress": 90,
+                            "message": "Finalizing strategy recommendations..."
+                        })
+
+                    # Start progress thread
+                    progress_thread = threading.Thread(target=send_progress_updates)
+                    progress_thread.daemon = True
+                    progress_thread.start()
+
+                    # Run Stages 1-2 (this is the actual work)
                     final_state = asyncio.run(graph.ainvoke(initial_state))
+
+                    # Stop progress updates
+                    progress_stop.set()
+                    progress_thread.join(timeout=1)
 
                     # Save strategy recommendation to database
                     thread_run.status = 'strategy_ready'
@@ -426,7 +483,7 @@ def analyze_experiment_unified(experiment_id):
                         "stage": "strategy_ready",
                         "progress": 100,
                         "status": "strategy_ready",
-                        "message": "Strategy recommendation complete"
+                        "message": "Ready for review"
                     })
 
                 except Exception as e:
