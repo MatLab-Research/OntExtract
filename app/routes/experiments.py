@@ -32,7 +32,7 @@ def new():
     references = Document.query.filter_by(document_type='reference').order_by(Document.created_at.desc()).all()
 
     # Get all terms for focus term selection
-    terms = Term.query.order_by(Term.lemma).all()
+    terms = Term.query.order_by(Term.term_text).all()
 
     return render_template('experiments/new.html', documents=documents, references=references, terms=terms)
 

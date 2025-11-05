@@ -45,7 +45,7 @@
                                         <option value="">No specific term (optional)</option>
                                         {% if terms %}
                                             {% for term in terms %}
-                                            <option value="{{ term.id }}">{{ term.lemma }}</option>
+                                            <option value="{{ term.id }}">{{ term.term_text }}</option>
                                             {% endfor %}
                                         {% else %}
                                             <option disabled>No terms available - create one first</option>

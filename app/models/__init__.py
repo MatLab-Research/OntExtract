@@ -15,6 +15,9 @@ from .experiment_document import ExperimentDocument
 # Experiment processing models
 from .experiment_processing import ExperimentDocumentProcessing, ProcessingArtifact, DocumentProcessingIndex
 
+# Experiment orchestration models
+from .experiment_orchestration_run import ExperimentOrchestrationRun
+
 # Term management models
 from .term import Term, TermVersion, FuzzinessAdjustment
 from .context_anchor import ContextAnchor
@@ -39,6 +42,8 @@ __all__ = [
     'ExperimentDocumentProcessing',
     'ProcessingArtifact',
     'DocumentProcessingIndex',
+    # Experiment orchestration models
+    'ExperimentOrchestrationRun',
     # Term management models
     'Term',
     'TermVersion',

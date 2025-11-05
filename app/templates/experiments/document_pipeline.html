@@ -220,13 +220,20 @@
                             </div>
                             
                             <div class="d-flex flex-column gap-2">
+                                <!-- Analyze with Anthropic LLM -->
+                                <button class="btn btn-sm btn-primary analyze-btn"
+                                        data-document-id="{{ doc.id }}"
+                                        data-document-name="{{ doc.name }}">
+                                    <i class="fas fa-robot"></i> Analyze with Anthropic LLM
+                                </button>
+
                                 {% if doc.status == 'pending' %}
-                                <a href="{{ url_for('experiments.process_document', experiment_id=experiment.id, document_id=doc.id) }}" 
+                                <a href="{{ url_for('experiments.process_document', experiment_id=experiment.id, document_id=doc.id) }}"
                                    class="btn btn-sm btn-warning">
                                     <i class="fas fa-cog"></i> Process Document
                                 </a>
                                 {% else %}
-                                <a href="{{ url_for('experiments.process_document', experiment_id=experiment.id, document_id=doc.id) }}" 
+                                <a href="{{ url_for('experiments.process_document', experiment_id=experiment.id, document_id=doc.id) }}"
                                    class="btn btn-sm btn-success">
                                     <i class="fas fa-check"></i> View Processing
                                 </a>
@@ -284,4 +291,52 @@
     </div>
     {% endif %}
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Handle "Analyze with Anthropic LLM" button clicks
+    document.querySelectorAll('.analyze-btn').forEach(button => {
+        button.addEventListener('click', async function() {
+            const documentId = this.dataset.documentId;
+            const documentName = this.dataset.documentName;
+
+            // Disable button and show loading
+            this.disabled = true;
+            this.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Analyzing...';
+
+            try {
+                // Call orchestration endpoint
+                const response = await fetch(`/orchestration/analyze/${documentId}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    // Show success and results
+                    alert(`✅ Analysis Complete for "${documentName}"\n\n` +
+                          `Confidence: ${(data.orchestration.confidence * 100).toFixed(0)}%\n` +
+                          `Tools Used: ${data.orchestration.recommended_tools.join(', ')}\n\n` +
+                          `Click OK to view full results.`);
+
+                    // Redirect to results page (could also show in modal)
+                    window.location.href = `/orchestration/document/${documentId}`;
+                } else {
+                    alert(`❌ Analysis Failed\n\n${data.error || 'Unknown error'}`);
+                }
+            } catch (error) {
+                alert(`❌ Error\n\n${error.message}`);
+            } finally {
+                // Re-enable button
+                this.disabled = false;
+                this.innerHTML = '<i class="fas fa-robot"></i> Analyze with Anthropic LLM';
+            }
+        });
+    });
+});
+</script>
+
 {% endblock %}
