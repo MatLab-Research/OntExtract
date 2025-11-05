@@ -143,7 +143,7 @@ Available Processing Tools:
         f"""Document {i+1}: {doc['title']}
 - ID: {doc['id']}
 - Length: {len(doc.get('content', ''))} characters
-- Metadata: {doc.get('metadata', {})}
+- Metadata: {str(doc.get('metadata', {})).replace('{', '{{').replace('}', '}}')}
 - Preview: {doc.get('content', '')[:500]}..."""
         for i, doc in enumerate(documents)
     ])
@@ -174,15 +174,14 @@ Your task:
 {term_guidance}
 
 Respond in JSON format:
-{{
-    "strategy": {{
+{{{{
+    "strategy": {{{{
         "<document_id_1>": ["tool1", "tool2"],
-        "<document_id_2>": ["tool1", "tool3"],
-        ...
-    }},
+        "<document_id_2>": ["tool1", "tool3"]
+    }}}},
     "reasoning": "Why this strategy serves the experiment goal...",
     "confidence": 0.85
-}}"""),
+}}}}"""),
 
         ("user", f"""Experiment Goal:
 {experiment_goal}

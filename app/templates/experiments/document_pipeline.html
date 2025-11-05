@@ -152,22 +152,49 @@
                         <span>{{ completed_count }} of {{ total_count }} completed</span>
                     </div>
                     <div class="progress mb-3" style="height: 10px;">
-                        <div class="progress-bar bg-success" role="progressbar" 
-                             style="width: {{ progress_percentage }}%" 
+                        <div class="progress-bar bg-success" role="progressbar"
+                             style="width: {{ progress_percentage }}%"
                              aria-valuenow="{{ progress_percentage }}" aria-valuemin="0" aria-valuemax="100">
                         </div>
                     </div>
-                    
+
                     {% if progress_percentage < 100 %}
                     <div class="alert alert-info">
                         <i class="fas fa-info-circle me-2"></i>
-                        <strong>Next Steps:</strong> Process each document below by applying embeddings and NLP tools. 
+                        <strong>Next Steps:</strong> Process each document below by applying embeddings and NLP tools.
                         Click on any pending document to configure and apply processing.
                     </div>
                     {% else %}
                     <div class="alert alert-success">
                         <i class="fas fa-check-circle me-2"></i>
                         <strong>All documents processed!</strong> You can now proceed to semantic analysis.
+                    </div>
+                    {% endif %}
+
+                    <!-- Experiment-Level Orchestration -->
+                    {% if total_count > 0 %}
+                    <hr class="my-4">
+                    <div class="bg-dark p-4 rounded">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div>
+                                <h5 class="mb-2">
+                                    <i class="fas fa-robot me-2"></i>Intelligent Experiment Analysis
+                                </h5>
+                                <p class="text-muted mb-3">
+                                    Let Anthropic Claude analyze all {{ total_count }} documents together and recommend
+                                    an optimal processing strategy tailored to your experiment goals.
+                                </p>
+                                <div class="form-check mb-3">
+                                    <input class="form-check-input" type="checkbox" id="review-choices-checkbox">
+                                    <label class="form-check-label" for="review-choices-checkbox">
+                                        Review and modify strategy before processing
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                        <button id="analyze-experiment-btn" class="btn btn-primary btn-lg">
+                            <i class="fas fa-brain me-2"></i>Analyze Experiment with Claude
+                        </button>
                     </div>
                     {% endif %}
                 </div>
@@ -292,9 +319,41 @@
     {% endif %}
 </div>
 
+<!-- Progress Modal for Experiment Orchestration -->
+<div class="modal fade" id="experimentProgressModal" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Processing Experiment</h5>
+            </div>
+            <div class="modal-body">
+                <div class="text-center mb-3">
+                    <div class="spinner-border text-primary" role="status" style="width: 3rem; height: 3rem;">
+                        <span class="visually-hidden">Processing...</span>
+                    </div>
+                </div>
+                <div class="mb-3">
+                    <strong id="exp-progress-stage">Initializing...</strong>
+                </div>
+                <div class="progress" style="height: 25px;">
+                    <div id="exp-progress-bar" class="progress-bar progress-bar-striped progress-bar-animated"
+                         role="progressbar" style="width: 0%;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">
+                        0%
+                    </div>
+                </div>
+                <div class="mt-3">
+                    <small class="text-muted" id="exp-progress-details">Starting orchestration...</small>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script>
+const experimentId = {{ experiment.id }};
+
 document.addEventListener('DOMContentLoaded', function() {
-    // Handle "Analyze with Anthropic LLM" button clicks
+    // Handle "Analyze with Anthropic LLM" button clicks (per-document)
     document.querySelectorAll('.analyze-btn').forEach(button => {
         button.addEventListener('click', async function() {
             const documentId = this.dataset.documentId;
@@ -317,7 +376,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
                 if (data.success) {
                     // Show success and results
-                    alert(`✅ Analysis Complete for "${documentName}"\n\n` +
+                    alert(`Analysis Complete for "${documentName}"\n\n` +
                           `Confidence: ${(data.orchestration.confidence * 100).toFixed(0)}%\n` +
                           `Tools Used: ${data.orchestration.recommended_tools.join(', ')}\n\n` +
                           `Click OK to view full results.`);
@@ -325,10 +384,10 @@ document.addEventListener('DOMContentLoaded', function() {
                     // Redirect to results page (could also show in modal)
                     window.location.href = `/orchestration/document/${documentId}`;
                 } else {
-                    alert(`❌ Analysis Failed\n\n${data.error || 'Unknown error'}`);
+                    alert(`Analysis Failed\n\n${data.error || 'Unknown error'}`);
                 }
             } catch (error) {
-                alert(`❌ Error\n\n${error.message}`);
+                alert(`Error\n\n${error.message}`);
             } finally {
                 // Re-enable button
                 this.disabled = false;
@@ -336,7 +395,117 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     });
+
+    // Handle experiment-level orchestration
+    const analyzeExperimentBtn = document.getElementById('analyze-experiment-btn');
+    if (analyzeExperimentBtn) {
+        analyzeExperimentBtn.addEventListener('click', async function() {
+            const reviewChoices = document.getElementById('review-choices-checkbox').checked;
+            const btn = this;
+
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Starting Analysis...';
+
+            try {
+                // Start experiment orchestration
+                const response = await fetch(`/orchestration/analyze-experiment/${experimentId}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        review_choices: reviewChoices
+                    })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    const runId = data.run_id;
+
+                    // Show progress modal and track strategy recommendation
+                    const progressModal = new bootstrap.Modal(document.getElementById('experimentProgressModal'));
+                    progressModal.show();
+
+                    // Connect to SSE for progress updates (will redirect to review page when ready)
+                    startExperimentProgressTracking(runId)
+                } else {
+                    alert(`Error: ${data.error || 'Failed to start analysis'}`);
+                    btn.disabled = false;
+                    btn.innerHTML = '<i class="fas fa-brain me-2"></i>Analyze Experiment with Claude';
+                }
+            } catch (error) {
+                alert(`Error: ${error.message}`);
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-brain me-2"></i>Analyze Experiment with Claude';
+            }
+        });
+    }
 });
+
+// SSE Progress Tracking for Experiment Orchestration (Strategy Recommendation Phase)
+function startExperimentProgressTracking(runId) {
+    const eventSource = new EventSource(`/orchestration/experiment/${runId}/status`);
+
+    eventSource.onmessage = function(event) {
+        const data = JSON.parse(event.data);
+
+        if (data.heartbeat) {
+            // Just a keepalive, ignore
+            return;
+        }
+
+        // Update progress UI
+        if (data.stage) {
+            document.getElementById('exp-progress-stage').textContent = getStageLabel(data.stage);
+        }
+
+        if (data.progress !== undefined) {
+            const progressBar = document.getElementById('exp-progress-bar');
+            progressBar.style.width = `${data.progress}%`;
+            progressBar.textContent = `${data.progress}%`;
+            progressBar.setAttribute('aria-valuenow', data.progress);
+        }
+
+        if (data.message) {
+            document.getElementById('exp-progress-details').textContent = data.message;
+        }
+
+        // Handle strategy ready - always redirect to review page
+        if (data.status === 'strategy_ready') {
+            eventSource.close();
+            setTimeout(() => {
+                window.location.href = `/orchestration/experiment/${runId}/review`;
+            }, 500);
+        }
+
+        // Handle error
+        if (data.status === 'failed') {
+            eventSource.close();
+            alert(`Processing failed: ${data.error || 'Unknown error'}`);
+            window.location.reload();
+        }
+    };
+
+    eventSource.onerror = function(error) {
+        console.error('SSE error:', error);
+        eventSource.close();
+        alert('Connection lost. Please check the experiment page for status.');
+        window.location.reload();
+    };
+}
+
+function getStageLabel(stage) {
+    const labels = {
+        'analyzing': 'Analyzing Experiment',
+        'recommending': 'Recommending Strategy',
+        'reviewing': 'Awaiting Review',
+        'executing': 'Processing Documents',
+        'synthesizing': 'Synthesizing Results',
+        'completed': 'Complete'
+    };
+    return labels[stage] || stage;
+}
 </script>
 
 {% endblock %}

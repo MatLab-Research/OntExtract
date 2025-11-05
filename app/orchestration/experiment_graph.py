@@ -45,12 +45,11 @@ def create_experiment_orchestration_graph():
     # Initialize graph with state schema
     workflow = StateGraph(ExperimentOrchestrationState)
 
-    # Add all nodes
+    # Add recommendation phase nodes (Stages 1-2 only)
     workflow.add_node("analyze_experiment", analyze_experiment_node)
     workflow.add_node("recommend_strategy", recommend_strategy_node)
-    workflow.add_node("human_review", human_review_node)
-    workflow.add_node("execute_strategy", execute_strategy_node)
-    workflow.add_node("synthesize_experiment", synthesize_experiment_node)
+
+    # Note: execute_strategy and synthesize_experiment will be called separately after approval
 
     # Set entry point
     workflow.set_entry_point("analyze_experiment")
@@ -58,36 +57,9 @@ def create_experiment_orchestration_graph():
     # Stage 1 → Stage 2
     workflow.add_edge("analyze_experiment", "recommend_strategy")
 
-    # Stage 2 → Conditional: Review or Execute?
-    def should_review(state: ExperimentOrchestrationState) -> Literal["human_review", "execute_strategy"]:
-        """
-        Decide whether to route through human review.
-
-        If review_choices=True in user_preferences, go to human_review node.
-        Otherwise, proceed directly to execution.
-        """
-        if state['user_preferences'].get('review_choices', False):
-            return "human_review"
-        else:
-            return "execute_strategy"
-
-    workflow.add_conditional_edges(
-        "recommend_strategy",
-        should_review,
-        {
-            "human_review": "human_review",
-            "execute_strategy": "execute_strategy"
-        }
-    )
-
-    # Stage 3 → Stage 4 (after review approval)
-    workflow.add_edge("human_review", "execute_strategy")
-
-    # Stage 4 → Stage 5
-    workflow.add_edge("execute_strategy", "synthesize_experiment")
-
-    # Stage 5 → END
-    workflow.add_edge("synthesize_experiment", END)
+    # Stage 2 → END (stop for user review/approval)
+    # Processing (Stages 4-5) will happen separately after approval
+    workflow.add_edge("recommend_strategy", END)
 
     # Compile graph
     return workflow.compile()
