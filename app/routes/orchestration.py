@@ -389,59 +389,56 @@ def analyze_experiment_unified(experiment_id):
             user_preferences={"review_choices": review_choices}
         )
 
+        # Capture app reference before thread starts
+        app = current_app._get_current_object()
+
         # Run orchestration in background thread
         def run_orchestration():
-            try:
-                # Execute graph
-                graph = get_experiment_graph()
+            with app.app_context():
+                # Re-query run object in thread's session context
+                thread_run = ExperimentOrchestrationRun.query.filter_by(id=run_id).first()
+                if not thread_run:
+                    current_app.logger.error(f"Run {run_id} not found in thread context")
+                    return
 
-                # Update progress
-                progress_queues[run_id].put({"stage": "analyzing", "progress": 10})
+                try:
+                    # Execute graph (Stages 1-2 only: analyze + recommend)
+                    graph = get_experiment_graph()
 
-                final_state = asyncio.run(graph.ainvoke(initial_state))
+                    # Update progress
+                    progress_queues[run_id].put({"stage": "analyzing", "progress": 10, "message": "Analyzing experiment..."})
 
-                # Check if stopped at review
-                if final_state['current_stage'] == 'waiting_for_review':
-                    # Save state to database
-                    run.status = 'reviewing'
-                    run.current_stage = 'reviewing'
-                    run.experiment_goal = final_state.get('experiment_goal')
-                    run.recommended_strategy = final_state.get('recommended_strategy')
-                    run.strategy_reasoning = final_state.get('strategy_reasoning')
-                    run.confidence = final_state.get('confidence')
+                    # Run Stages 1-2
+                    final_state = asyncio.run(graph.ainvoke(initial_state))
+
+                    # Save strategy recommendation to database
+                    thread_run.status = 'strategy_ready'
+                    thread_run.current_stage = 'strategy_ready'
+                    thread_run.experiment_goal = final_state.get('experiment_goal')
+                    thread_run.term_context = final_state.get('term_context')
+                    thread_run.recommended_strategy = final_state.get('recommended_strategy')
+                    thread_run.strategy_reasoning = final_state.get('strategy_reasoning')
+                    thread_run.confidence = final_state.get('confidence')
                     db.session.commit()
 
-                    progress_queues[run_id].put({"stage": "reviewing", "progress": 30, "status": "waiting_for_review"})
+                    # Signal that strategy is ready
+                    progress_queues[run_id].put({
+                        "stage": "strategy_ready",
+                        "progress": 100,
+                        "status": "strategy_ready",
+                        "message": "Strategy recommendation complete"
+                    })
 
-                else:
-                    # Completed without review
-                    run.status = 'completed'
-                    run.current_stage = 'completed'
-                    run.completed_at = datetime.utcnow()
+                except Exception as e:
+                    current_app.logger.error(f"Orchestration error for run {run_id}: {e}")
+                    import traceback
+                    current_app.logger.error(traceback.format_exc())
 
-                    # Save all results
-                    run.experiment_goal = final_state.get('experiment_goal')
-                    run.recommended_strategy = final_state.get('recommended_strategy')
-                    run.strategy_reasoning = final_state.get('strategy_reasoning')
-                    run.confidence = final_state.get('confidence')
-                    run.strategy_approved = final_state.get('strategy_approved')
-                    run.processing_results = final_state.get('processing_results')
-                    run.execution_trace = final_state.get('execution_trace')
-                    run.cross_document_insights = final_state.get('cross_document_insights')
-                    run.term_evolution_analysis = final_state.get('term_evolution_analysis')
-                    run.comparative_summary = final_state.get('comparative_summary')
-
+                    thread_run.status = 'failed'
+                    thread_run.error_message = str(e)
                     db.session.commit()
 
-                    progress_queues[run_id].put({"stage": "completed", "progress": 100, "status": "completed"})
-
-            except Exception as e:
-                current_app.logger.error(f"Orchestration error for run {run_id}: {e}")
-                run.status = 'failed'
-                run.error_message = str(e)
-                db.session.commit()
-
-                progress_queues[run_id].put({"stage": "failed", "progress": 0, "error": str(e)})
+                    progress_queues[run_id].put({"stage": "failed", "progress": 0, "error": str(e), "status": "failed"})
 
         # Start background thread
         thread = threading.Thread(target=run_orchestration)
@@ -520,8 +517,8 @@ def experiment_review(run_id):
         return "Access denied", 403
 
     # Check status
-    if run.status != 'reviewing':
-        return f"Run is not in review state (status: {run.status})", 400
+    if run.status not in ['strategy_ready', 'reviewing']:
+        return f"Run is not ready for review (status: {run.status})", 400
 
     experiment = run.experiment
     documents = experiment.documents.all()
@@ -564,8 +561,8 @@ def approve_strategy(run_id):
         return jsonify({"success": False, "error": "Access denied"}), 403
 
     # Check status
-    if run.status != 'reviewing':
-        return jsonify({"success": False, "error": f"Run is not in review state (status: {run.status})"}), 400
+    if run.status not in ['strategy_ready', 'reviewing']:
+        return jsonify({"success": False, "error": f"Run is not ready for review (status: {run.status})"}), 400
 
     try:
         request_data = request.get_json()
@@ -588,14 +585,128 @@ def approve_strategy(run_id):
         run.review_notes = request_data.get('review_notes')
         run.reviewed_by = current_user.id
         run.reviewed_at = datetime.utcnow()
-        run.status = 'executing'
-        run.current_stage = 'executing'
+        run.status = 'processing'
+        run.current_stage = 'processing'
         db.session.commit()
 
-        # Resume orchestration from execute_strategy node
-        # TODO: Implement resume logic
-        # For now, return success
-        return jsonify({"success": True, "run_id": run_id, "status": "executing"})
+        # Start document processing in background thread
+        # Frontend will redirect to results page which will show progress via SSE
+
+        # Capture app reference
+        app = current_app._get_current_object()
+
+        # Start processing thread
+        def run_processing():
+            with app.app_context():
+                # Re-query run in thread context
+                thread_run = ExperimentOrchestrationRun.query.filter_by(id=run_id).first()
+                if not thread_run:
+                    current_app.logger.error(f"Run {run_id} not found in processing thread")
+                    return
+
+                try:
+                    # Call execute_strategy and synthesize_experiment nodes directly
+                    from app.orchestration.experiment_nodes import execute_strategy_node, synthesize_experiment_node
+                    from app.orchestration.experiment_state import create_initial_experiment_state
+
+                    # Recreate state with approved strategy
+                    experiment = thread_run.experiment
+                    documents = experiment.documents.all()
+                    doc_list = [
+                        {
+                            "id": str(doc.id),
+                            "title": doc.title,
+                            "content": doc.content,
+                            "metadata": {
+                                "format": getattr(doc, 'file_format', 'unknown'),
+                                "source": getattr(doc, 'source', 'database')
+                            }
+                        }
+                        for doc in documents
+                    ]
+
+                    state = create_initial_experiment_state(
+                        experiment_id=str(experiment.id),
+                        run_id=run_id,
+                        documents=doc_list,
+                        focus_term=thread_run.term_context,
+                        user_preferences={}
+                    )
+
+                    # Load previous analysis results
+                    state['experiment_goal'] = thread_run.experiment_goal
+                    state['recommended_strategy'] = thread_run.modified_strategy or thread_run.recommended_strategy
+                    state['strategy_approved'] = True
+
+                    # Send progress update
+                    if run_id in progress_queues:
+                        progress_queues[run_id].put({
+                            "stage": "processing",
+                            "progress": 10,
+                            "message": "Starting document processing..."
+                        })
+
+                    # Execute Stage 4: Process documents
+                    state = execute_strategy_node(state)
+
+                    # Send progress update
+                    if run_id in progress_queues:
+                        progress_queues[run_id].put({
+                            "stage": "synthesizing",
+                            "progress": 80,
+                            "message": "Synthesizing cross-document insights..."
+                        })
+
+                    # Execute Stage 5: Synthesize
+                    state = synthesize_experiment_node(state)
+
+                    # Save results
+                    thread_run.status = 'completed'
+                    thread_run.current_stage = 'completed'
+                    thread_run.completed_at = datetime.utcnow()
+                    thread_run.processing_results = state.get('processing_results')
+                    thread_run.execution_trace = state.get('execution_trace')
+                    thread_run.cross_document_insights = state.get('cross_document_insights')
+                    thread_run.term_evolution_analysis = state.get('term_evolution_analysis')
+                    thread_run.comparative_summary = state.get('comparative_summary')
+                    db.session.commit()
+
+                    # Send completion update
+                    if run_id in progress_queues:
+                        progress_queues[run_id].put({
+                            "stage": "completed",
+                            "progress": 100,
+                            "status": "completed",
+                            "message": "Processing complete"
+                        })
+
+                except Exception as e:
+                    current_app.logger.error(f"Processing error for run {run_id}: {e}")
+                    import traceback
+                    current_app.logger.error(traceback.format_exc())
+
+                    thread_run.status = 'failed'
+                    thread_run.error_message = str(e)
+                    db.session.commit()
+
+                    if run_id in progress_queues:
+                        progress_queues[run_id].put({
+                            "stage": "failed",
+                            "progress": 0,
+                            "error": str(e),
+                            "status": "failed"
+                        })
+
+        # Create progress queue for SSE
+        if run_id not in progress_queues:
+            progress_queues[run_id] = queue.Queue()
+
+        # Start thread
+        thread = threading.Thread(target=run_processing)
+        thread.daemon = True
+        thread.start()
+
+        return jsonify({"success": True, "run_id": run_id, "status": "processing"})
 
     except Exception as e:
         current_app.logger.error(f"Approval error: {e}")
