@@ -1,0 +1,222 @@
+{% extends "base.html" %}
+
+{% block title %}Provenance Timeline - OntExtract{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="row mb-4">
+        <div class="col">
+            <h1 class="h3">
+                <i class="fas fa-history me-2"></i>
+                Provenance Timeline
+            </h1>
+            <p class="text-muted">Complete audit trail of all actions in OntExtract using PROV-O standard</p>
+        </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <i class="fas fa-filter me-2"></i>Filters
+        </div>
+        <div class="card-body">
+            <form method="GET" action="{{ url_for('provenance.timeline') }}" class="row g-3">
+                <!-- Experiment filter -->
+                <div class="col-md-4">
+                    <label class="form-label">Experiment</label>
+                    <select name="experiment_id" class="form-select" onchange="this.form.submit()">
+                        <option value="">All Experiments</option>
+                        {% for exp in experiments %}
+                        <option value="{{ exp.id }}" {% if exp.id == selected_experiment_id %}selected{% endif %}>
+                            {{ exp.name }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <!-- Activity type filter -->
+                <div class="col-md-4">
+                    <label class="form-label">Activity Type</label>
+                    <select name="activity_type" class="form-select" onchange="this.form.submit()">
+                        <option value="">All Activities</option>
+                        {% for atype in activity_types %}
+                        <option value="{{ atype }}" {% if atype == selected_activity_type %}selected{% endif %}>
+                            {{ atype.replace('_', ' ').title() }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <!-- Limit -->
+                <div class="col-md-4">
+                    <label class="form-label">Show</label>
+                    <select name="limit" class="form-select" onchange="this.form.submit()">
+                        <option value="25">Last 25</option>
+                        <option value="50" selected>Last 50</option>
+                        <option value="100">Last 100</option>
+                        <option value="500">Last 500</option>
+                    </select>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Timeline -->
+    <div class="timeline">
+        {% if timeline %}
+            {% for item in timeline %}
+            <div class="timeline-item mb-4">
+                <div class="row">
+                    <!-- Timeline marker -->
+                    <div class="col-auto">
+                        <div class="timeline-marker rounded-circle bg-{{ item.activity.type | activity_color }} text-white d-flex align-items-center justify-content-center"
+                             style="width: 50px; height: 50px;">
+                            <i class="fas {{ item.activity.type | activity_icon }}"></i>
+                        </div>
+                    </div>
+
+                    <!-- Timeline content -->
+                    <div class="col">
+                        <div class="card">
+                            <div class="card-header d-flex justify-content-between align-items-center">
+                                <div>
+                                    <strong>{{ item.activity.type.replace('_', ' ').title() }}</strong>
+                                    <span class="badge bg-{{ item.activity.status | status_color }} ms-2">
+                                        {{ item.activity.status }}
+                                    </span>
+                                </div>
+                                <small class="text-muted">
+                                    {% if item.activity.started_at %}
+                                    {{ item.activity.started_at | format_datetime }}
+                                    {% endif %}
+                                </small>
+                            </div>
+                            <div class="card-body">
+                                <!-- Agent -->
+                                {% if item.agent %}
+                                <div class="mb-2">
+                                    <strong>Agent:</strong>
+                                    <span class="badge bg-secondary">
+                                        <i class="fas {{ 'fa-user' if item.agent.type == 'Person' else 'fa-robot' }}"></i>
+                                        {{ item.agent.name }}
+                                    </span>
+                                </div>
+                                {% endif %}
+
+                                <!-- Parameters -->
+                                {% if item.activity.parameters %}
+                                <div class="mb-2">
+                                    <strong>Parameters:</strong>
+                                    <ul class="mb-0 small">
+                                        {% for key, value in item.activity.parameters.items() %}
+                                        <li>{{ key }}: {{ value }}</li>
+                                        {% endfor %}
+                                    </ul>
+                                </div>
+                                {% endif %}
+
+                                <!-- Used entities -->
+                                {% if item.used %}
+                                <div class="mb-2">
+                                    <strong>Used:</strong>
+                                    {% for entity in item.used %}
+                                    <span class="badge bg-info me-1">{{ entity.type }}</span>
+                                    {% endfor %}
+                                </div>
+                                {% endif %}
+
+                                <!-- Generated entities -->
+                                {% if item.generated %}
+                                <div>
+                                    <strong>Generated:</strong>
+                                    {% for entity in item.generated %}
+                                    <span class="badge bg-success me-1">{{ entity.type }}</span>
+                                    {% endfor %}
+                                </div>
+                                {% endif %}
+
+                                <!-- Duration -->
+                                {% if item.activity.ended_at and item.activity.started_at %}
+                                <div class="mt-2 small text-muted">
+                                    <i class="fas fa-clock me-1"></i>
+                                    Duration: {{ ((item.activity.ended_at | parse_iso) - (item.activity.started_at | parse_iso)).total_seconds() | round(2) }}s
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        {% else %}
+            <div class="alert alert-info">
+                <i class="fas fa-info-circle me-2"></i>
+                No provenance records found. Start by creating terms, uploading documents, or running experiments.
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+<style>
+.timeline {
+    position: relative;
+    padding-left: 0;
+}
+
+.timeline-item {
+    position: relative;
+}
+
+.timeline-item:not(:last-child)::after {
+    content: '';
+    position: absolute;
+    left: 25px;
+    top: 50px;
+    width: 2px;
+    height: calc(100% + 1rem);
+    background: #dee2e6;
+}
+
+.timeline-marker {
+    position: relative;
+    z-index: 1;
+}
+</style>
+
+<script>
+// Custom filters for Jinja
+function getActivityColor(activityType) {
+    const colors = {
+        'term_creation': 'primary',
+        'term_update': 'primary',
+        'document_upload': 'success',
+        'experiment_creation': 'info',
+        'tool_execution': 'warning',
+        'orchestration_run': 'danger'
+    };
+    return colors[activityType] || 'secondary';
+}
+
+function getActivityIcon(activityType) {
+    const icons = {
+        'term_creation': 'fa-plus',
+        'term_update': 'fa-edit',
+        'document_upload': 'fa-upload',
+        'experiment_creation': 'fa-flask',
+        'tool_execution': 'fa-cog',
+        'orchestration_run': 'fa-brain'
+    };
+    return icons[activityType] || 'fa-circle';
+}
+
+function getStatusColor(status) {
+    const colors = {
+        'completed': 'success',
+        'active': 'warning',
+        'failed': 'danger'
+    };
+    return colors[status] || 'secondary';
+}
+</script>
+
+{% endblock %}

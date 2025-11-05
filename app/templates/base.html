@@ -70,6 +70,22 @@
             border-color: var(--accent-color);
         }
 
+        /* Ensure white text on dark buttons */
+        .btn-primary,
+        .btn-success,
+        .btn-info,
+        .btn-warning,
+        .btn-danger,
+        .btn-secondary,
+        .btn-dark,
+        .btn-outline-secondary {
+            color: #ffffff !important;
+        }
+
+        .btn-outline-secondary:hover {
+            color: #ffffff !important;
+        }
+
         /* Sticky footer layout */
         body {
             display: flex;
@@ -200,7 +216,20 @@
                     {% if current_user.is_authenticated %}
                     <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
-                            <i class="fas fa-brain me-1"></i>Orchestration
+                            <i class="fas fa-history me-1"></i>Provenance
+                        </a>
+                        <ul class="dropdown-menu">
+                            <li><a class="dropdown-item" href="{{ url_for('provenance.timeline') }}">
+                                    <i class="fas fa-list me-2"></i>Timeline
+                                </a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('provenance.provenance_graph') }}">
+                                    <i class="fas fa-project-diagram me-2"></i>Graph View
+                                </a></li>
+                        </ul>
+                    </li>
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
+                            <i class="fas fa-diagram-project me-1"></i>Orchestration
                         </a>
                         <ul class="dropdown-menu">
                             <li><a class="dropdown-item" href="{{ url_for('orchestration_feedback.dashboard') }}">

@@ -89,6 +89,71 @@ def create_app(config_name=None):
             except Exception:
                 return value
 
+    @app.template_filter('activity_color')
+    def activity_color_filter(activity_type):
+        """Return Bootstrap color class for activity type."""
+        colors = {
+            'term_creation': 'primary',
+            'term_update': 'primary',
+            'document_upload': 'success',
+            'experiment_creation': 'info',
+            'tool_execution': 'warning',
+            'orchestration_run': 'danger'
+        }
+        return colors.get(activity_type, 'secondary')
+
+    @app.template_filter('activity_icon')
+    def activity_icon_filter(activity_type):
+        """Return FontAwesome icon class for activity type."""
+        icons = {
+            'term_creation': 'fa-plus',
+            'term_update': 'fa-edit',
+            'document_upload': 'fa-upload',
+            'experiment_creation': 'fa-flask',
+            'tool_execution': 'fa-cog',
+            'orchestration_run': 'fa-brain'
+        }
+        return icons.get(activity_type, 'fa-circle')
+
+    @app.template_filter('status_color')
+    def status_color_filter(status):
+        """Return Bootstrap color class for status."""
+        colors = {
+            'completed': 'success',
+            'active': 'warning',
+            'failed': 'danger'
+        }
+        return colors.get(status, 'secondary')
+
+    @app.template_filter('format_datetime')
+    def format_datetime_filter(value):
+        """Format ISO datetime string for display."""
+        if not value:
+            return ''
+        try:
+            # If it's already a datetime object
+            if hasattr(value, 'strftime'):
+                return value.strftime('%Y-%m-%d %H:%M:%S UTC')
+            # If it's an ISO string
+            from datetime import datetime
+            dt = datetime.fromisoformat(value.replace('Z', '+00:00'))
+            return dt.strftime('%Y-%m-%d %H:%M:%S UTC')
+        except:
+            return str(value)
+
+    @app.template_filter('parse_iso')
+    def parse_iso_filter(value):
+        """Parse ISO datetime string to datetime object."""
+        if not value:
+            return None
+        try:
+            from datetime import datetime
+            if hasattr(value, 'strftime'):
+                return value
+            return datetime.fromisoformat(value.replace('Z', '+00:00'))
+        except:
+            return None
+
     # Main route - PUBLIC ACCESS
     @app.route('/')
     def index():
@@ -109,16 +174,16 @@ def create_app(config_name=None):
             try:
                 from app.models.term import Term, TermVersion
                 from app.models.semantic_drift import SemanticDriftActivity
-                
-                # Get most recent term
-                dashboard_data['recent_term'] = Term.query.filter_by(created_by=current_user.id).order_by(Term.created_at.desc()).first()
-                
-                # Get counts
-                dashboard_data['term_counts']['anchor_terms'] = Term.query.filter_by(created_by=current_user.id).count()
-                dashboard_data['term_counts']['term_versions'] = TermVersion.query.filter_by(created_by=current_user.id).count()
-                dashboard_data['term_counts']['drift_analyses'] = SemanticDriftActivity.query.filter_by(created_by=current_user.id).count()
+
+                # Get most recent term (all terms, not just user's)
+                dashboard_data['recent_term'] = Term.query.order_by(Term.created_at.desc()).first()
+
+                # Get counts (all terms, not just user's)
+                dashboard_data['term_counts']['anchor_terms'] = Term.query.count()
+                dashboard_data['term_counts']['term_versions'] = TermVersion.query.count()
+                dashboard_data['term_counts']['drift_analyses'] = SemanticDriftActivity.query.count()
                 dashboard_data['term_counts']['total_analyses'] = dashboard_data['term_counts']['term_versions'] + dashboard_data['term_counts']['drift_analyses']
-                
+
             except Exception as e:
                 app.logger.debug(f"Could not fetch dashboard data: {e}")
         

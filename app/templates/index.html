@@ -14,128 +14,158 @@
                 Semantic Change Analysis through Term-Centric Research
             </p>
 
-            <!-- Action Buttons - Same for All Users -->
+            <!-- Action Buttons - Color coded to workflow steps -->
             <div class="d-flex justify-content-center gap-2 flex-wrap">
                 {% if current_user.is_authenticated %}
                 <a href="{{ url_for('terms.add_term') }}" class="btn btn-primary">
-                    <i class="fas fa-plus-circle me-1"></i>Add Term
+                    <i class="fas fa-tags me-1"></i>Add Term
                 </a>
-                <a href="{{ url_for('terms.import_terms') }}" class="btn btn-warning">
-                    <i class="fas fa-upload me-1"></i>Import
+                <a href="{{ url_for('upload.unified') }}" class="btn btn-success">
+                    <i class="fas fa-folder-open me-1"></i>Add Source
                 </a>
-                <a href="{{ url_for('terms.term_index') }}" class="btn btn-success">
-                    <i class="fas fa-list me-1"></i>Browse
+                <a href="{{ url_for('experiments.index') }}" class="btn btn-info">
+                    <i class="fas fa-flask me-1"></i>Experiments
                 </a>
-                <a href="{{ url_for('terms.download_data') }}" class="btn btn-outline-info">
-                    <i class="fas fa-download me-1"></i>Download
+                <a href="{{ url_for('results.results_home') }}" class="btn btn-secondary">
+                    <i class="fas fa-chart-bar me-1"></i>Results
                 </a>
                 {% else %}
                 <!-- Same buttons for anonymous users - login will be required when clicked -->
                 <a href="{{ url_for('auth.login') }}?next={{ url_for('terms.add_term') }}" class="btn btn-primary">
-                    <i class="fas fa-plus-circle me-1"></i>Add Term
+                    <i class="fas fa-tags me-1"></i>Add Term
                 </a>
-                <a href="{{ url_for('auth.login') }}?next={{ url_for('terms.import_terms') }}" class="btn btn-warning">
-                    <i class="fas fa-upload me-1"></i>Import
+                <a href="{{ url_for('auth.login') }}?next={{ url_for('upload.unified') }}" class="btn btn-success">
+                    <i class="fas fa-folder-open me-1"></i>Add Source
                 </a>
-                <a href="{{ url_for('terms.term_index') }}" class="btn btn-success">
-                    <i class="fas fa-list me-1"></i>Browse
+                <a href="{{ url_for('auth.login') }}?next={{ url_for('experiments.index') }}" class="btn btn-info">
+                    <i class="fas fa-flask me-1"></i>Experiments
                 </a>
-                <a href="{{ url_for('auth.login') }}?next={{ url_for('terms.download_data') }}"
-                    class="btn btn-outline-info">
-                    <i class="fas fa-download me-1"></i>Download
+                <a href="{{ url_for('results.results_home') }}" class="btn btn-secondary">
+                    <i class="fas fa-chart-bar me-1"></i>Results
                 </a>
                 {% endif %}
             </div>
         </div>
     </div>
 
-    <!-- Methodology Section -->
+    <!-- Workflow Section -->
     <div class="row mb-4">
+        <div class="col-12 text-center mb-4">
+            <h3 class="mb-2">Research Workflow</h3>
+            <p class="text-muted">Follow these steps to analyze semantic change in your documents</p>
+        </div>
+    </div>
+
+    <div class="row mb-4">
+        <!-- Step 1: Terms -->
         <div class="col-lg-4 col-md-6 mb-3">
-            <div class="card h-100">
+            <div class="card h-100 border-primary">
                 <div class="card-body">
-                    <h5 class="d-flex align-items-center">
-                        <i class="fas fa-graduation-cap text-primary me-2"></i>
-                        Academic Anchors
-                    </h5>
+                    <div class="d-flex align-items-center mb-3">
+                        <span class="badge bg-primary rounded-circle me-2"
+                            style="width: 30px; height: 30px; display: flex; align-items: center; justify-content: center;">1</span>
+                        <h5 class="mb-0">
+                            <i class="fas fa-tags text-primary me-2"></i>
+                            Define Terms
+                        </h5>
+                    </div>
                     <p class="text-muted mb-0">
-                        Track term meanings across academic literature by anchoring definitions
-                        to scholarly works from different time periods.
+                        Create or import anchor terms to track their semantic evolution across time periods.
                     </p>
                 </div>
             </div>
         </div>
 
+        <!-- Step 2: Library -->
         <div class="col-lg-4 col-md-6 mb-3">
-            <div class="card h-100">
+            <div class="card h-100 border-success">
                 <div class="card-body">
-                    <h5 class="d-flex align-items-center">
-                        <i class="fas fa-vector-square text-success me-2"></i>
-                        Vector-Based Drift
-                    </h5>
+                    <div class="d-flex align-items-center mb-3">
+                        <span class="badge bg-success rounded-circle me-2"
+                            style="width: 30px; height: 30px; display: flex; align-items: center; justify-content: center;">2</span>
+                        <h5 class="mb-0">
+                            <i class="fas fa-folder-open text-success me-2"></i>
+                            Upload Sources
+                        </h5>
+                    </div>
                     <p class="text-muted mb-0">
-                        Analyze semantic change by comparing term embeddings across
-                        different historical periods.
+                        Add background documents and scholarly works from different historical periods.
                     </p>
                 </div>
             </div>
         </div>
 
+        <!-- Step 3: Experiments -->
         <div class="col-lg-4 col-md-6 mb-3">
-            <div class="card h-100">
+            <div class="card h-100 border-info">
                 <div class="card-body">
-                    <h5 class="d-flex align-items-center">
-                        <i class="fas fa-brain text-info me-2"></i>
-                        Period-Aware Models
-                    </h5>
+                    <div class="d-flex align-items-center mb-3">
+                        <span class="badge bg-info rounded-circle me-2"
+                            style="width: 30px; height: 30px; display: flex; align-items: center; justify-content: center;">3</span>
+                        <h5 class="mb-0">
+                            <i class="fas fa-flask text-info me-2"></i>
+                            Create Experiment
+                        </h5>
+                    </div>
                     <p class="text-muted mb-0">
-                        Support temporal analysis by considering historical context
-                        when analyzing term meanings.
+                        Define your analysis experiment linking terms to document sets.
                     </p>
                 </div>
             </div>
         </div>
 
+        <!-- Step 4: Orchestration -->
         <div class="col-lg-4 col-md-6 mb-3">
-            <div class="card h-100">
+            <div class="card h-100 border-warning">
                 <div class="card-body">
-                    <h5 class="d-flex align-items-center">
-                        <i class="fas fa-network-wired text-warning me-2"></i>
-                        LLM Orchestration
-                    </h5>
+                    <div class="d-flex align-items-center mb-3">
+                        <span class="badge bg-warning rounded-circle me-2"
+                            style="width: 30px; height: 30px; display: flex; align-items: center; justify-content: center;">4</span>
+                        <h5 class="mb-0">
+                            <i class="fas fa-diagram-project text-warning me-2"></i>
+                            LLM Orchestration
+                        </h5>
+                    </div>
                     <p class="text-muted mb-0">
-                        Coordinate document processing and analysis using
-                        AI-powered text understanding.
+                        AI analyzes your experiment and suggests optimal processing pipelines, or build your own manually.
                     </p>
                 </div>
             </div>
         </div>
 
+        <!-- Step 5: Processing -->
         <div class="col-lg-4 col-md-6 mb-3">
-            <div class="card h-100">
+            <div class="card h-100 border-danger">
                 <div class="card-body">
-                    <h5 class="d-flex align-items-center">
-                        <i class="fas fa-sitemap text-danger me-2"></i>
-                        PROV-O Provenance
-                    </h5>
+                    <div class="d-flex align-items-center mb-3">
+                        <span class="badge bg-danger rounded-circle me-2"
+                            style="width: 30px; height: 30px; display: flex; align-items: center; justify-content: center;">5</span>
+                        <h5 class="mb-0">
+                            <i class="fas fa-cogs text-danger me-2"></i>
+                            Execute Pipeline
+                        </h5>
+                    </div>
                     <p class="text-muted mb-0">
-                        Track the provenance of extracted term data for
-                        research reproducibility.
+                        Review recommendations, adjust settings, and process your documents.
                     </p>
                 </div>
             </div>
         </div>
 
+        <!-- Step 6: Results -->
         <div class="col-lg-4 col-md-6 mb-3">
-            <div class="card h-100">
+            <div class="card h-100 border-secondary">
                 <div class="card-body">
-                    <h5 class="d-flex align-items-center">
-                        <i class="fas fa-clock text-secondary me-2"></i>
-                        Temporal Modeling
-                    </h5>
+                    <div class="d-flex align-items-center mb-3">
+                        <span class="badge bg-secondary rounded-circle me-2"
+                            style="width: 30px; height: 30px; display: flex; align-items: center; justify-content: center;">6</span>
+                        <h5 class="mb-0">
+                            <i class="fas fa-chart-bar text-secondary me-2"></i>
+                            View Results
+                        </h5>
+                    </div>
                     <p class="text-muted mb-0">
-                        Maintain version histories of term meanings with
-                        temporal scope tracking.
+                        Explore semantic drift analysis, temporal patterns, and provenance graphs.
                     </p>
                 </div>
             </div>
@@ -202,12 +232,12 @@
                 <div class="card-body">
                     <div class="row">
                         <div class="col-md-6">
-                            <h6>Most Recent</h6>
+                            <h6>Most Recent Term</h6>
                             <p class="text-muted">
                                 {% if recent_term %}
                                 "{{ recent_term.term_text }}" - {{ recent_term.created_at.strftime('%b %d, %Y') }}
                                 {% else %}
-                                No terms created yet
+                                No terms in system yet
                                 {% endif %}
                             </p>
                         </div>

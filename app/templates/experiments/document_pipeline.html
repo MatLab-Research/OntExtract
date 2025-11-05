@@ -92,14 +92,8 @@
                         <div id="llm-mode-desc" class="mode-description" style="display: none;">
                             <p class="text-muted mb-3">
                                 <i class="fas fa-magic me-2"></i>
-                                Let Claude analyze all {{ total_count }} documents together and recommend an optimal processing strategy.
+                                Let Claude analyze all {{ total_count }} documents together and recommend an optimal processing strategy. You'll be able to review and modify the strategy before processing begins.
                             </p>
-                            <div class="form-check mb-3">
-                                <input class="form-check-input" type="checkbox" id="review-choices-checkbox">
-                                <label class="form-check-label" for="review-choices-checkbox">
-                                    Review and modify strategy before processing
-                                </label>
-                            </div>
                             <button id="analyze-experiment-btn" class="btn btn-primary btn-lg">
                                 <i class="fas fa-chart-line me-2"></i>LLM Analyze
                             </button>
@@ -260,21 +254,20 @@ document.addEventListener('DOMContentLoaded', function() {
     const analyzeExperimentBtn = document.getElementById('analyze-experiment-btn');
     if (analyzeExperimentBtn) {
         analyzeExperimentBtn.addEventListener('click', async function() {
-            const reviewChoices = document.getElementById('review-choices-checkbox').checked;
             const btn = this;
 
             btn.disabled = true;
             btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Starting Analysis...';
 
             try {
-                // Start experiment orchestration
+                // Start experiment orchestration (always with review)
                 const response = await fetch(`/orchestration/analyze-experiment/${experimentId}`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
                     },
                     body: JSON.stringify({
-                        review_choices: reviewChoices
+                        review_choices: true
                     })
                 });
 
@@ -292,12 +285,12 @@ document.addEventListener('DOMContentLoaded', function() {
                 } else {
                     alert(`Error: ${data.error || 'Failed to start analysis'}`);
                     btn.disabled = false;
-                    btn.innerHTML = '<i class="fas fa-brain me-2"></i>Analyze Experiment with Claude';
+                    btn.innerHTML = '<i class="fas fa-chart-line me-2"></i>LLM Analyze';
                 }
             } catch (error) {
                 alert(`Error: ${error.message}`);
                 btn.disabled = false;
-                btn.innerHTML = '<i class="fas fa-brain me-2"></i>Analyze Experiment with Claude';
+                btn.innerHTML = '<i class="fas fa-chart-line me-2"></i>LLM Analyze';
             }
         });
     }

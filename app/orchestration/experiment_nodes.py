@@ -126,17 +126,9 @@ async def recommend_strategy_node(state: ExperimentOrchestrationState) -> Dict[s
     focus_term = state.get('focus_term')
     documents = state['documents']
 
-    # Available tools description
-    available_tools = """
-Available Processing Tools:
-1. segment_paragraph - Break document into paragraphs
-2. segment_sentence - Break into sentences
-3. extract_entities_spacy - Extract named entities (PERSON, ORG, DATE, GPE, etc.)
-4. extract_temporal - Extract temporal expressions and timelines
-5. extract_causal - Extract causal relationships between events
-6. extract_definitions - Extract term definitions and explanations
-7. period_aware_embedding - Generate historical/contemporary embeddings
-"""
+    # Get available tools from registry
+    from app.services.tool_registry import get_tool_descriptions
+    available_tools = get_tool_descriptions()
 
     # Build document descriptions (include first 500 chars for context)
     doc_descriptions = "\n\n".join([
