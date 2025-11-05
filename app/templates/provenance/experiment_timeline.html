@@ -1,0 +1,170 @@
+{% extends "base.html" %}
+
+{% block title %}{{ experiment.name }} - Provenance Timeline{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <!-- Breadcrumb -->
+    <nav aria-label="breadcrumb" class="mb-3">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{{ url_for('experiments.index') }}">Experiments</a></li>
+            <li class="breadcrumb-item"><a href="{{ url_for('experiments.view', experiment_id=experiment.id) }}">{{ experiment.name }}</a></li>
+            <li class="breadcrumb-item active">Provenance Timeline</li>
+        </ol>
+    </nav>
+
+    <div class="row mb-4">
+        <div class="col">
+            <h1 class="h3">
+                <i class="fas fa-history me-2"></i>
+                Provenance Timeline: {{ experiment.name }}
+            </h1>
+            <p class="text-muted">Complete audit trail for this experiment</p>
+        </div>
+        <div class="col-auto">
+            <a href="{{ url_for('provenance.timeline') }}" class="btn btn-outline-secondary">
+                <i class="fas fa-list me-2"></i>View All Activities
+            </a>
+        </div>
+    </div>
+
+    <!-- Experiment info -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-6">
+                    <strong>Description:</strong> {{ experiment.description or 'No description' }}
+                </div>
+                <div class="col-md-3">
+                    <strong>Status:</strong>
+                    <span class="badge bg-{{ 'success' if experiment.status == 'completed' else 'warning' }}">
+                        {{ experiment.status }}
+                    </span>
+                </div>
+                <div class="col-md-3">
+                    <strong>Created:</strong> {{ experiment.created_at.strftime('%Y-%m-%d %H:%M') }}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Timeline -->
+    <div class="timeline">
+        {% if timeline %}
+            {% for item in timeline %}
+            <div class="timeline-item mb-4">
+                <div class="row">
+                    <!-- Timeline marker -->
+                    <div class="col-auto">
+                        <div class="timeline-marker rounded-circle text-white d-flex align-items-center justify-content-center"
+                             style="width: 50px; height: 50px; {% if item.activity.type == 'term_creation' %}background-color: #007bff{% elif item.activity.type == 'document_upload' %}background-color: #28a745{% elif item.activity.type == 'tool_execution' %}background-color: #ffc107{% elif item.activity.type == 'orchestration_run' %}background-color: #dc3545{% else %}background-color: #6c757d{% endif %}">
+                            <i class="fas {% if item.activity.type == 'term_creation' %}fa-plus{% elif item.activity.type == 'document_upload' %}fa-upload{% elif item.activity.type == 'tool_execution' %}fa-cog{% elif item.activity.type == 'orchestration_run' %}fa-brain{% else %}fa-circle{% endif %}"></i>
+                        </div>
+                    </div>
+
+                    <!-- Timeline content -->
+                    <div class="col">
+                        <div class="card">
+                            <div class="card-header d-flex justify-content-between align-items-center">
+                                <div>
+                                    <strong>{{ item.activity.type.replace('_', ' ').title() }}</strong>
+                                    <span class="badge ms-2 {% if item.activity.status == 'completed' %}bg-success{% elif item.activity.status == 'active' %}bg-warning{% else %}bg-danger{% endif %}">
+                                        {{ item.activity.status }}
+                                    </span>
+                                </div>
+                                <small class="text-muted">
+                                    {% if item.activity.started_at %}
+                                    {{ item.activity.started_at[:19] }} UTC
+                                    {% endif %}
+                                </small>
+                            </div>
+                            <div class="card-body">
+                                <!-- Agent -->
+                                {% if item.agent %}
+                                <div class="mb-2">
+                                    <strong>Agent:</strong>
+                                    <span class="badge bg-secondary">
+                                        <i class="fas {{ 'fa-user' if item.agent.type == 'Person' else 'fa-robot' }}"></i>
+                                        {{ item.agent.name }}
+                                    </span>
+                                </div>
+                                {% endif %}
+
+                                <!-- Parameters -->
+                                {% if item.activity.parameters %}
+                                <div class="mb-2">
+                                    <strong>Details:</strong>
+                                    <ul class="mb-0 small">
+                                        {% for key, value in item.activity.parameters.items() %}
+                                        {% if key != 'experiment_id' %}
+                                        <li><strong>{{ key.replace('_', ' ').title() }}:</strong> {{ value }}</li>
+                                        {% endif %}
+                                        {% endfor %}
+                                    </ul>
+                                </div>
+                                {% endif %}
+
+                                <!-- Generated entities -->
+                                {% if item.generated %}
+                                <div class="mb-2">
+                                    <strong>Generated:</strong>
+                                    {% for entity in item.generated %}
+                                    <span class="badge bg-success me-1">
+                                        {{ entity.type.replace('_', ' ').title() }}
+                                    </span>
+                                    {% endfor %}
+                                </div>
+                                {% endif %}
+
+                                <!-- Used entities -->
+                                {% if item.used %}
+                                <div>
+                                    <strong>Used:</strong>
+                                    {% for entity in item.used %}
+                                    <span class="badge bg-info me-1">
+                                        {{ entity.type.replace('_', ' ').title() }}
+                                    </span>
+                                    {% endfor %}
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        {% else %}
+            <div class="alert alert-info">
+                <i class="fas fa-info-circle me-2"></i>
+                No provenance records yet for this experiment. Start by running processing tools or orchestration.
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+<style>
+.timeline {
+    position: relative;
+    padding-left: 0;
+}
+
+.timeline-item {
+    position: relative;
+}
+
+.timeline-item:not(:last-child)::after {
+    content: '';
+    position: absolute;
+    left: 25px;
+    top: 50px;
+    width: 2px;
+    height: calc(100% + 1rem);
+    background: #dee2e6;
+}
+
+.timeline-marker {
+    position: relative;
+    z-index: 1;
+}
+</style>
+{% endblock %}

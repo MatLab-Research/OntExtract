@@ -246,6 +246,80 @@
                 </div>
             </div>
 
+            <!-- Processing Tools (Manual Mode) -->
+            <div class="card mb-4">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h6 class="mb-0">
+                        <i class="fas fa-toolbox me-2"></i>Processing Tools
+                    </h6>
+                    <span class="badge bg-info">Manual Mode</span>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted mb-3">
+                        Select tools to run on this document. Results will be saved and displayed below.
+                    </p>
+
+                    <!-- Tool Selection -->
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <h6 class="mb-2">Segmentation Tools</h6>
+                            <div class="form-check">
+                                <input class="form-check-input tool-checkbox" type="checkbox"
+                                       value="segment_paragraph" id="tool-segment-paragraph">
+                                <label class="form-check-label" for="tool-segment-paragraph">
+                                    <strong>Segment Paragraphs</strong>
+                                    <br><small class="text-muted">Split document into paragraphs</small>
+                                </label>
+                            </div>
+                            <div class="form-check mt-2">
+                                <input class="form-check-input tool-checkbox" type="checkbox"
+                                       value="segment_sentence" id="tool-segment-sentence">
+                                <label class="form-check-label" for="tool-segment-sentence">
+                                    <strong>Segment Sentences</strong>
+                                    <br><small class="text-muted">Split text into sentences (NLTK)</small>
+                                </label>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <h6 class="mb-2">Extraction Tools <span class="badge bg-secondary">Coming Soon</span></h6>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" disabled
+                                       value="extract_entities_spacy" id="tool-extract-entities">
+                                <label class="form-check-label text-muted" for="tool-extract-entities">
+                                    <strong>Extract Entities</strong>
+                                    <br><small>Named entity recognition (Phase 2)</small>
+                                </label>
+                            </div>
+                            <div class="form-check mt-2">
+                                <input class="form-check-input" type="checkbox" disabled
+                                       value="extract_definitions" id="tool-extract-definitions">
+                                <label class="form-check-label text-muted" for="tool-extract-definitions">
+                                    <strong>Extract Definitions</strong>
+                                    <br><small>Find term definitions (Phase 2)</small>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Run Button -->
+                    <div class="d-flex justify-content-between align-items-center">
+                        <button id="run-tools-btn" class="btn btn-primary" disabled>
+                            <i class="fas fa-play me-2"></i>Run Selected Tools
+                        </button>
+                        <small class="text-muted">Select at least one tool to enable</small>
+                    </div>
+
+                    <!-- Progress Bar -->
+                    <div id="tool-progress" class="mt-3" style="display: none;">
+                        <div class="progress">
+                            <div id="tool-progress-bar" class="progress-bar progress-bar-striped progress-bar-animated"
+                                 role="progressbar" style="width: 0%"></div>
+                        </div>
+                        <small id="tool-progress-text" class="text-muted">Running tools...</small>
+                    </div>
+                </div>
+            </div>
+
             <!-- Processing Results -->
             <div id="processing-results" class="mb-4" style="display: none;">
                 <div class="card">
@@ -717,7 +791,158 @@ document.addEventListener('DOMContentLoaded', function() {
             {% endif %}
         });
     }
-    
+
+    // Processing Tools - Manual Mode
+    const toolCheckboxes = document.querySelectorAll('.tool-checkbox');
+    const runToolsBtn = document.getElementById('run-tools-btn');
+    const toolProgress = document.getElementById('tool-progress');
+    const toolProgressBar = document.getElementById('tool-progress-bar');
+    const toolProgressText = document.getElementById('tool-progress-text');
+    const processingResults = document.getElementById('processing-results');
+    const resultsContent = document.getElementById('results-content');
+
+    // Enable/disable run button based on selection
+    toolCheckboxes.forEach(checkbox => {
+        checkbox.addEventListener('change', updateRunButton);
+    });
+
+    function updateRunButton() {
+        const checkedTools = Array.from(toolCheckboxes).filter(cb => cb.checked);
+        runToolsBtn.disabled = checkedTools.length === 0;
+    }
+
+    // Run tools
+    if (runToolsBtn) {
+        runToolsBtn.addEventListener('click', async function() {
+            const selectedTools = Array.from(toolCheckboxes)
+                .filter(cb => cb.checked)
+                .map(cb => cb.value);
+
+            if (selectedTools.length === 0) {
+                alert('Please select at least one tool');
+                return;
+            }
+
+            // Show progress
+            runToolsBtn.disabled = true;
+            toolProgress.style.display = 'block';
+            toolProgressBar.style.width = '50%';
+            toolProgressText.textContent = `Running ${selectedTools.length} tool(s)...`;
+
+            try {
+                const response = await fetch('/experiments/{{ experiment.id }}/document/{{ document.id }}/run_tools', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        tools: selectedTools
+                    })
+                });
+
+                const data = await response.json();
+
+                toolProgressBar.style.width = '100%';
+                toolProgressText.textContent = 'Complete!';
+
+                if (data.success) {
+                    // Display results
+                    displayToolResults(data.results);
+
+                    // Reset after delay
+                    setTimeout(() => {
+                        toolProgress.style.display = 'none';
+                        toolProgressBar.style.width = '0%';
+                        runToolsBtn.disabled = false;
+
+                        // Uncheck all boxes
+                        toolCheckboxes.forEach(cb => cb.checked = false);
+                        updateRunButton();
+                    }, 2000);
+                } else {
+                    alert('Error: ' + data.error);
+                    toolProgress.style.display = 'none';
+                    runToolsBtn.disabled = false;
+                }
+            } catch (error) {
+                alert('Error running tools: ' + error.message);
+                toolProgress.style.display = 'none';
+                runToolsBtn.disabled = false;
+            }
+        });
+    }
+
+    function displayToolResults(results) {
+        let html = '<div class="alert alert-success">✅ Tools executed successfully!</div>';
+
+        results.forEach(result => {
+            const statusBadge = result.status === 'success'
+                ? '<span class="badge bg-success">Success</span>'
+                : '<span class="badge bg-danger">Error</span>';
+
+            html += `
+                <div class="card mb-3">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <strong>${result.tool_name}</strong>
+                        ${statusBadge}
+                    </div>
+                    <div class="card-body">
+                        ${formatToolResult(result)}
+                    </div>
+                </div>
+            `;
+        });
+
+        resultsContent.innerHTML = html;
+        processingResults.style.display = 'block';
+        processingResults.scrollIntoView({ behavior: 'smooth' });
+    }
+
+    function formatToolResult(result) {
+        if (result.status !== 'success') {
+            return `<p class="text-danger">Error: ${result.metadata?.error || 'Unknown error'}</p>`;
+        }
+
+        let html = `
+            <div class="row mb-2">
+                <div class="col-md-6">
+                    <strong>Count:</strong> ${result.metadata.count}
+                </div>
+                <div class="col-md-6">
+                    <strong>Avg Length:</strong> ${result.metadata.avg_length?.toFixed(1)} chars
+                </div>
+            </div>
+        `;
+
+        // Show first 3 items
+        if (result.data && result.data.length > 0) {
+            html += '<div class="mt-3"><strong>Preview:</strong></div>';
+            html += '<ol class="mt-2">';
+            result.data.slice(0, 3).forEach(item => {
+                const preview = item.length > 100 ? item.substring(0, 100) + '...' : item;
+                html += `<li class="mb-2"><code>${preview}</code></li>`;
+            });
+            html += '</ol>';
+            if (result.data.length > 3) {
+                html += `<p class="text-muted">... and ${result.data.length - 3} more</p>`;
+            }
+        }
+
+        // Provenance info
+        if (result.provenance) {
+            html += `
+                <div class="mt-3">
+                    <small class="text-muted">
+                        <i class="fas fa-info-circle me-1"></i>
+                        Activity ID: <code>${result.provenance.activity_id}</code>
+                    </small>
+                </div>
+            `;
+        }
+
+        return html;
+    }
+
     // Ensure Bootstrap is loaded
     if (typeof bootstrap === 'undefined') {
         console.error('Bootstrap is not loaded!');

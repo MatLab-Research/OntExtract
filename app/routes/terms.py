@@ -72,8 +72,135 @@ def term_index():
                          domains=domains)
 
 
+@terms_bp.route('/create_from_oed_waypoints', methods=['POST'])
+@api_require_login_for_write
+def create_from_oed_waypoints():
+    """
+    Create a term with multiple versions from OED temporal waypoints.
+
+    Request JSON:
+    {
+        "entry_id": "agent_nn01",
+        "headword": "agent",
+        "research_domain": "philosophy",
+        "description": "Optional term description",
+        "waypoints": [
+            {
+                "year": 1499,
+                "sense_id": "agent_nn01-8694751",
+                "sense_label": "A.1a",
+                "temporal_label": "1499_philosophical",
+                "definition": "...",
+                "quotation": {...}
+            },
+            ...
+        ]
+    }
+    """
+    try:
+        data = request.json
+
+        if not data:
+            return jsonify({"success": False, "error": "No data provided"}), 400
+
+        entry_id = data.get('entry_id')
+        headword = data.get('headword')
+        waypoints = data.get('waypoints', [])
+
+        if not headword:
+            return jsonify({"success": False, "error": "Missing headword"}), 400
+
+        if not waypoints:
+            return jsonify({"success": False, "error": "No waypoints selected"}), 400
+
+        # Check for duplicate term
+        existing = Term.query.filter_by(term_text=headword).first()
+        if existing:
+            return jsonify({
+                "success": False,
+                "error": f"Term '{headword}' already exists"
+            }), 400
+
+        # Create term
+        term = Term(
+            term_text=headword,
+            description=data.get('description', f"Semantic evolution of '{headword}' across {len(waypoints)} temporal periods from OED"),
+            etymology=f"From OED entry: {entry_id}",
+            research_domain=data.get('research_domain', 'linguistics'),
+            selection_rationale=f"Selected {len(waypoints)} temporal waypoints from OED showing semantic evolution",
+            created_by=current_user.id,
+            status='active'
+        )
+
+        db.session.add(term)
+        db.session.flush()  # Get term ID
+
+        # Track provenance
+        from app.services.provenance_service import provenance_service
+        try:
+            provenance_service.track_term_creation(term, current_user)
+        except Exception as e:
+            current_app.logger.warning(f"Failed to track provenance: {e}")
+
+        # Create a version for each waypoint
+        versions_created = []
+
+        for idx, waypoint in enumerate(waypoints):
+            year = waypoint.get('year')
+            sense_id = waypoint.get('sense_id')
+            sense_label = waypoint.get('sense_label', '')
+            temporal_label = waypoint.get('temporal_label') or f"{year}_{sense_label.replace('.', '_')}"
+            definition = waypoint.get('definition', '')
+            quotation = waypoint.get('quotation', {})
+
+            # Build source citation
+            quote_source = quotation.get('source', 'Unknown')
+            quote_text = quotation.get('text', '')
+            source_citation = f"Oxford English Dictionary, s.v. \"{headword}\" sense {sense_label}, {quote_source} ({year})"
+
+            # Create term version
+            version = TermVersion(
+                term_id=term.id,
+                temporal_period=temporal_label,
+                temporal_start_year=year,
+                temporal_end_year=year,
+                meaning_description=definition,
+                context_anchor=json.dumps([headword]),  # Simple anchor
+                source_citation=source_citation,
+                corpus_source='Oxford English Dictionary',
+                extraction_method='oed_api',
+                is_current=(idx == len(waypoints) - 1),  # Last one is current
+                version_number=idx + 1,
+                created_by=current_user.id
+            )
+
+            db.session.add(version)
+            versions_created.append({
+                "version_number": idx + 1,
+                "temporal_period": temporal_label,
+                "year": year,
+                "sense_label": sense_label
+            })
+
+        db.session.commit()
+
+        return jsonify({
+            "success": True,
+            "term_id": str(term.id),
+            "term_text": term.term_text,
+            "versions_created": len(versions_created),
+            "versions": versions_created,
+            "redirect_url": url_for('terms.view_term', term_id=term.id)
+        })
+
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"Error creating term from OED waypoints: {e}", exc_info=True)
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
 @terms_bp.route('/add', methods=['GET', 'POST'])
-@api_require_login_for_write 
+@api_require_login_for_write
 def add_term():
     """Add new term with WTForms validation"""
     form = AddTermForm()
@@ -112,7 +239,14 @@ def add_term():
             
             db.session.add(term)
             db.session.flush()  # Get the term ID
-            
+
+            # Track provenance
+            from app.services.provenance_service import provenance_service
+            try:
+                provenance_service.track_term_creation(term, current_user)
+            except Exception as e:
+                current_app.logger.warning(f"Failed to track provenance for term creation: {e}")
+
             # Parse context anchors
             anchor_list = []
             if form.context_anchor.data:

@@ -301,6 +301,20 @@ def api_oed_variants():
     status = 200 if data.get('success', True) else 502
     return jsonify(data), status
 
+@references_bp.route('/api/oed/timeline/<entry_id>')
+@api_require_login_for_write
+def api_oed_timeline(entry_id):
+    """Get temporal waypoints for an OED entry showing semantic evolution."""
+    if not entry_id:
+        return jsonify({"success": False, "error": "Missing entry_id"}), 400
+
+    limit = request.args.get('limit', 50, type=int)
+
+    svc = OEDService()
+    data = svc.get_temporal_waypoints(entry_id, limit=limit)
+    status = 200 if data.get('success', True) else 502
+    return jsonify(data), status
+
 @references_bp.route('/oed/new')
 @api_require_login_for_write
 def new_oed_reference():

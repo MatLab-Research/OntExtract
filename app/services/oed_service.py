@@ -96,9 +96,21 @@ class OEDService:
             try:
                 data = client.get_word(entry_id)
                 if isinstance(data, dict):
+                    # Extract first sense definition for display
+                    extracted_senses = self._extract_senses(data)
+                    first_definition = ""
+                    if extracted_senses:
+                        first_definition = extracted_senses[0].get('definition', '')
+
+                    # Get POS for display
+                    pos = data.get("pos") or data.get("part_of_speech") or ""
+
                     suggestions.append({
                         "entry_id": entry_id,
-                        "headword": data.get("headword") or data.get("word") or base
+                        "headword": data.get("headword") or data.get("word") or base,
+                        "pos": pos,
+                        "definition": first_definition,
+                        "sense_count": len(extracted_senses)
                     })
                 if len(suggestions) >= limit:
                     break
@@ -198,3 +210,131 @@ class OEDService:
             }
             collected.append(minimal)
         return {"success": True, "variants": collected}
+
+    def get_temporal_waypoints(self, entry_id: str, limit: int = 50) -> Dict[str, Any]:
+        """
+        Get temporal waypoints for an OED entry showing semantic evolution.
+
+        Returns first-use quotations for each sense with year, definition,
+        quotation text, and source citation.
+
+        Args:
+            entry_id: OED entry ID (e.g., 'agent_nn01')
+            limit: Maximum number of quotations to fetch
+
+        Returns:
+            {
+                'success': True,
+                'entry_id': 'agent_nn01',
+                'headword': 'agent',
+                'date_range': {'start': 1499, 'end': None, 'rangestring': 'a1500—'},
+                'waypoints': [
+                    {
+                        'year': 1499,
+                        'datestring': 'a1500',
+                        'sense_id': 'agent_nn01-8694751',
+                        'sense_label': 'A.1a',
+                        'definition': '...',
+                        'quotation': {
+                            'text': '...',
+                            'source': 'G. Ripley - Compend of Alchemy',
+                            'author': 'G. Ripley'
+                        },
+                        'first_in_sense': True,
+                        'first_in_word': True
+                    },
+                    ...
+                ]
+            }
+        """
+        if not self.use_api:
+            return {"success": False, "error": "OED API is disabled"}
+
+        try:
+            # 1. Get full word data for sense definitions
+            word_result = self.get_word(entry_id)
+            if not word_result.get('success'):
+                return word_result
+
+            word_data = word_result['data']
+            headword = word_data.get('headword') or word_data.get('word', entry_id.split('_')[0])
+
+            # Extract date range from word data
+            date_range = word_data.get('daterange', {})
+
+            # 2. Get quotations for temporal evidence
+            quotes_result = self.get_quotations(entry_id, limit=limit)
+            if not quotes_result.get('success'):
+                return quotes_result
+
+            quotations = quotes_result['data'].get('data', [])
+
+            # 3. Build waypoints from first-use quotations
+            waypoints = []
+            seen_senses = set()
+
+            for quote in quotations:
+                sense_id = quote.get('sense_id')
+
+                # Only include first use of each sense
+                if quote.get('first_in_sense') and sense_id and sense_id not in seen_senses:
+                    # Extract sense label from OED reference
+                    oed_ref = quote.get('oed_reference', '')
+                    sense_label = ''
+                    if ', sense ' in oed_ref:
+                        sense_label = oed_ref.split(', sense ')[-1]
+
+                    # Get definition for this sense from extracted_senses
+                    definition = ''
+                    for extracted_sense in word_data.get('extracted_senses', []):
+                        if extracted_sense.get('sense_id') == sense_id:
+                            definition = extracted_sense.get('definition', '')
+                            break
+
+                    # If no definition found, try to get from word_data definition field
+                    if not definition:
+                        definition = word_data.get('definition', '')[:200]
+
+                    # Format source citation
+                    source_info = quote.get('source', {})
+                    author = source_info.get('author', '')
+                    title = source_info.get('title', '')
+                    source_citation = f"{author} - {title}" if author and title else (title or author or 'Unknown')
+
+                    # Extract quotation text
+                    text_info = quote.get('text', {})
+                    full_text = text_info.get('full_text', '')
+
+                    waypoint = {
+                        'year': quote.get('year'),
+                        'datestring': quote.get('datestring', str(quote.get('year', ''))),
+                        'sense_id': sense_id,
+                        'sense_label': sense_label,
+                        'definition': definition,
+                        'quotation': {
+                            'text': full_text,
+                            'source': source_citation,
+                            'author': author,
+                            'title': title
+                        },
+                        'first_in_sense': True,
+                        'first_in_word': quote.get('first_in_word', False),
+                        'oed_url': quote.get('oed_url', '')
+                    }
+
+                    waypoints.append(waypoint)
+                    seen_senses.add(sense_id)
+
+            # Sort by year
+            waypoints.sort(key=lambda x: x.get('year', 9999))
+
+            return {
+                "success": True,
+                "entry_id": entry_id,
+                "headword": headword,
+                "date_range": date_range,
+                "waypoints": waypoints
+            }
+
+        except Exception as e:
+            return {"success": False, "error": str(e)}

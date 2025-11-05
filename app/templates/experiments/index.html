@@ -84,10 +84,10 @@
                                             </a>
                                             {% endif %}
                                             {% if experiment.can_run() %}
-                                            <button class="btn btn-outline-success run-experiment" 
-                                                    data-id="{{ experiment.id }}" title="Run">
+                                            <a href="{{ url_for('experiments.document_pipeline', experiment_id=experiment.id) }}"
+                                               class="btn btn-outline-success" title="Process Documents">
                                                 <i class="fas fa-play"></i>
-                                            </button>
+                                            </a>
                                             {% endif %}
                                             {% if experiment.status == 'completed' %}
                                             <a href="{{ url_for('experiments.results', experiment_id=experiment.id) }}" 
@@ -127,33 +127,6 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    // Run experiment
-    document.querySelectorAll('.run-experiment').forEach(button => {
-        button.addEventListener('click', async function() {
-            const experimentId = this.dataset.id;
-            if (confirm('Are you sure you want to run this experiment?')) {
-                try {
-                    const response = await fetch(`/experiments/${experimentId}/run`, {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                        }
-                    });
-                    
-                    const data = await response.json();
-                    if (data.success) {
-                        alert('Experiment completed: ' + data.results_summary);
-                        location.reload();
-                    } else {
-                        alert('Error: ' + data.error);
-                    }
-                } catch (error) {
-                    alert('Error running experiment: ' + error.message);
-                }
-            }
-        });
-    });
-    
     // Delete experiment
     document.querySelectorAll('.delete-experiment').forEach(button => {
         button.addEventListener('click', async function() {
@@ -166,7 +139,7 @@ document.addEventListener('DOMContentLoaded', function() {
                             'Content-Type': 'application/json',
                         }
                     });
-                    
+
                     const data = await response.json();
                     if (data.success) {
                         location.reload();
