@@ -243,6 +243,20 @@
                             <div class="form-text">Related terms that help anchor this meaning (comma-separated)</div>
                         </div>
 
+                        <!-- Corpus Source -->
+                        <div class="mb-3">
+                            {{ form.corpus_source.label(class="form-label") }}
+                            {{ form.corpus_source(class="form-control" + (" is-invalid" if form.corpus_source.errors else "")) }}
+                            {% if form.corpus_source.errors %}
+                                <div class="invalid-feedback">
+                                    {% for error in form.corpus_source.errors %}
+                                        {{ error }}
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                            <div class="form-text">Lexicographic source (e.g., OED, Merriam-Webster, WordNet) or corpus name</div>
+                        </div>
+
                         <!-- Source Citation -->
                         <div class="mb-3">
                             {{ form.source_citation.label(class="form-label") }} *
@@ -297,68 +311,65 @@
                             </datalist>
                         </div>
 
-                        <!-- Temporal Period Configuration -->
+                        <!-- Temporal Period Configuration - MOVED TO EXPERIMENTS PAGE
+                             Anchor terms represent current/modern definitions.
+                             Temporal analysis belongs in the Experiments section.
                         <div class="mb-4">
                             <label class="form-label">Reference Time Period *</label>
                             <div class="form-text mb-3">This is the historical period where this term meaning is anchored.</div>
-                            
-                            <!-- Period Selection Method -->
+
                             <div class="btn-group mb-3" role="group" aria-label="Period selection method">
                                 <input type="radio" class="btn-check" name="period-method" id="single-year" value="single" checked>
                                 <label class="btn btn-outline-primary" for="single-year">
                                     <i class="fas fa-calendar-day"></i> Single Year
                                 </label>
-                                
+
                                 <input type="radio" class="btn-check" name="period-method" id="year-range" value="range">
                                 <label class="btn btn-outline-primary" for="year-range">
                                     <i class="fas fa-calendar-alt"></i> Year Range
                                 </label>
-                                
+
                                 <input type="radio" class="btn-check" name="period-method" id="period-name" value="named">
                                 <label class="btn btn-outline-primary" for="period-name">
                                     <i class="fas fa-clock"></i> Named Period
                                 </label>
                             </div>
-                            
-                            <!-- Single Year Input -->
+
                             <div id="single-year-input" class="period-input">
                                 <div class="row">
                                     <div class="col-md-6">
-                                        <input type="number" class="form-control" id="reference-year" 
+                                        <input type="number" class="form-control" id="reference-year"
                                                placeholder="e.g., 2000" min="1400" max="2030" value="2000">
                                         <small class="text-muted">Reference year for this meaning</small>
                                     </div>
                                 </div>
                             </div>
-                            
-                            <!-- Year Range Input -->
+
                             <div id="year-range-input" class="period-input" style="display: none;">
                                 <div class="row">
                                     <div class="col-md-4">
                                         <label class="form-label">Start Year</label>
-                                        <input type="number" class="form-control" id="start-year" 
+                                        <input type="number" class="form-control" id="start-year"
                                                placeholder="e.g., 1990" min="1400" max="2030" value="2000">
                                     </div>
                                     <div class="col-md-4">
                                         <label class="form-label">End Year</label>
-                                        <input type="number" class="form-control" id="end-year" 
+                                        <input type="number" class="form-control" id="end-year"
                                                placeholder="e.g., 2020" min="1400" max="2030" value="2020">
                                     </div>
                                 </div>
                             </div>
-                            
-                            <!-- Named Period Input -->
+
                             <div id="named-period-input" class="period-input" style="display: none;">
                                 <div class="row">
                                     <div class="col-md-8">
-                                        <input type="text" class="form-control" id="period-name-text" 
+                                        <input type="text" class="form-control" id="period-name-text"
                                                placeholder="e.g., Early 20th Century, Victorian Era, Modern Period">
                                         <small class="text-muted">Descriptive name for the historical period</small>
                                     </div>
                                 </div>
                             </div>
-                            
-                            <!-- Hidden field for backend -->
+
                             {{ form.temporal_period(class="form-control", style="display: none;") }}
                             {% if form.temporal_period.errors %}
                                 <div class="invalid-feedback d-block">
@@ -368,14 +379,17 @@
                                 </div>
                             {% endif %}
                         </div>
+                        -->
 
+                        <!-- Hidden temporal_period field with default value for anchor terms -->
+                        {{ form.temporal_period(type="hidden", value="current") }}
 
-                        <!-- Note about fuzziness score -->
+                        <!-- Note about fuzziness score - REMOVED for JCDL
                         <div class="alert alert-info mb-3">
                             <i class="fas fa-info-circle me-2"></i>
                             <strong>Automatic Calculation:</strong> Fuzziness scores will be calculated automatically based on semantic drift analysis using the Choi research framework.
                         </div>
-
+                        -->
 
                         <!-- Notes -->
                         <div class="mb-4">
@@ -410,20 +424,21 @@
 <!-- Enhanced Term Entry Interface -->
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    // Period selection method handling
+    // Period selection method handling (DISABLED - temporal period section commented out)
+    /*
     const periodMethods = document.querySelectorAll('input[name="period-method"]');
     const singleYearInput = document.getElementById('single-year-input');
     const yearRangeInput = document.getElementById('year-range-input');
     const namedPeriodInput = document.getElementById('named-period-input');
     const hiddenPeriodField = document.getElementById('temporal_period');
-    
+
     periodMethods.forEach(method => {
         method.addEventListener('change', function() {
             // Hide all inputs
             singleYearInput.style.display = 'none';
             yearRangeInput.style.display = 'none';
             namedPeriodInput.style.display = 'none';
-            
+
             // Show selected input
             if (this.value === 'single') {
                 singleYearInput.style.display = 'block';
@@ -437,12 +452,14 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     });
-    
-    // Update hidden field with current selection
+    */
+
+    // Update hidden field with current selection (DISABLED - temporal period section commented out)
+    /*
     function updateHiddenField() {
         const selectedMethod = document.querySelector('input[name="period-method"]:checked').value;
         let value = '';
-        
+
         if (selectedMethod === 'single') {
             const year = document.getElementById('reference-year').value;
             if (year) value = year;
@@ -454,19 +471,20 @@ document.addEventListener('DOMContentLoaded', function() {
             const periodName = document.getElementById('period-name-text').value;
             if (periodName) value = periodName;
         }
-        
+
         hiddenPeriodField.value = value;
     }
-    
+
     // Listen for changes on all period inputs
     document.getElementById('reference-year').addEventListener('input', updateHiddenField);
     document.getElementById('start-year').addEventListener('input', updateHiddenField);
     document.getElementById('end-year').addEventListener('input', updateHiddenField);
     document.getElementById('period-name-text').addEventListener('input', updateHiddenField);
-    
+
     // Initialize with default selection
     updateHiddenField();
-    
+    */
+
     // Anchoring method handling
     const anchorMethods = document.querySelectorAll('input[name="anchor-method"]');
     const manualAnchorInput = document.getElementById('manual-anchor-input');
@@ -870,8 +888,12 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     // OED Search functionality - integrated with existing OED API
-    if (document.getElementById('oed-service-btn')) {
-        document.getElementById('oed-service-btn').addEventListener('click', async function() {
+    const oedBtn = document.getElementById('oed-service-btn');
+    console.log('OED button found:', oedBtn);
+    if (oedBtn) {
+        console.log('Adding OED button event listener');
+        oedBtn.addEventListener('click', async function() {
+            console.log('OED button clicked!');
             const searchTerm = prompt('Enter term to search in OED:');
             if (!searchTerm) return;
             
@@ -1064,6 +1086,12 @@ document.addEventListener('DOMContentLoaded', function() {
             console.warn('Could not fetch full OED entry details:', error);
         }
         
+        // Populate corpus source
+        const corpusSourceField = document.getElementById('corpus_source');
+        if (corpusSourceField) {
+            corpusSourceField.value = 'OED';
+        }
+
         // Populate source citation
         const sourceCitationField = document.getElementById('source_citation');
         if (sourceCitationField) {

@@ -19,6 +19,23 @@ from app import db
 from app.models.prov_o_models import ProvAgent, ProvActivity, ProvEntity, ProvRelationship
 
 
+def _serialize_value(value: Any) -> Any:
+    """
+    Convert values to JSON-serializable format.
+    Handles UUIDs, datetime objects, and nested structures.
+    """
+    if isinstance(value, uuid.UUID):
+        return str(value)
+    elif isinstance(value, datetime):
+        return value.isoformat()
+    elif isinstance(value, dict):
+        return {k: _serialize_value(v) for k, v in value.items()}
+    elif isinstance(value, (list, tuple)):
+        return [_serialize_value(v) for v in value]
+    else:
+        return value
+
+
 class ProvenanceService:
     """
     Centralized service for PROV-O provenance tracking.
@@ -105,13 +122,13 @@ class ProvenanceService:
             generatedattime=term.created_at or datetime.utcnow(),
             wasgeneratedby=activity.activity_id,
             wasattributedto=agent.agent_id,
-            entity_value={
+            entity_value=_serialize_value({
                 'term_id': term.id,
                 'term_text': term.term_text,
                 'description': term.description,
                 'research_domain': term.research_domain,
                 'status': term.status
-            },
+            }),
             entity_metadata={'created_via': 'ui'}
         )
         db.session.add(entity)
@@ -129,10 +146,10 @@ class ProvenanceService:
             startedattime=datetime.utcnow(),
             endedattime=datetime.utcnow(),
             wasassociatedwith=agent.agent_id,
-            activity_parameters={
+            activity_parameters=_serialize_value({
                 'term_id': term.id,
                 'changes': changes
-            },
+            }),
             activity_status='completed'
         )
         db.session.add(activity)
@@ -150,14 +167,14 @@ class ProvenanceService:
             wasgeneratedby=activity.activity_id,
             wasattributedto=agent.agent_id,
             wasderivedfrom=previous_entity.entity_id if previous_entity else None,
-            entity_value={
+            entity_value=_serialize_value({
                 'term_id': term.id,
                 'term_text': term.term_text,
                 'description': term.description,
                 'research_domain': term.research_domain,
                 'status': term.status
-            },
-            entity_metadata={'changes': changes}
+            }),
+            entity_metadata=_serialize_value({'changes': changes})
         )
         db.session.add(entity)
         db.session.commit()
@@ -178,12 +195,12 @@ class ProvenanceService:
             startedattime=document.created_at or datetime.utcnow(),
             endedattime=document.created_at or datetime.utcnow(),
             wasassociatedwith=agent.agent_id,
-            activity_parameters={
+            activity_parameters=_serialize_value({
                 'filename': document.filename,
                 'file_type': document.file_type,
                 'source': document.source,
                 'experiment_id': experiment.id if experiment else None
-            },
+            }),
             activity_status='completed'
         )
         db.session.add(activity)
@@ -194,13 +211,13 @@ class ProvenanceService:
             generatedattime=document.created_at or datetime.utcnow(),
             wasgeneratedby=activity.activity_id,
             wasattributedto=agent.agent_id,
-            entity_value={
+            entity_value=_serialize_value({
                 'document_id': document.id,
                 'filename': document.filename,
                 'title': document.title,
                 'word_count': document.word_count,
                 'character_count': document.character_count
-            }
+            })
         )
         db.session.add(entity)
         db.session.commit()
@@ -221,11 +238,11 @@ class ProvenanceService:
             startedattime=experiment.created_at or datetime.utcnow(),
             endedattime=experiment.created_at or datetime.utcnow(),
             wasassociatedwith=agent.agent_id,
-            activity_parameters={
+            activity_parameters=_serialize_value({
                 'experiment_name': experiment.name,
                 'description': experiment.description,
                 'term_id': experiment.term_id
-            },
+            }),
             activity_status='completed'
         )
         db.session.add(activity)
@@ -236,13 +253,13 @@ class ProvenanceService:
             generatedattime=experiment.created_at or datetime.utcnow(),
             wasgeneratedby=activity.activity_id,
             wasattributedto=agent.agent_id,
-            entity_value={
+            entity_value=_serialize_value({
                 'experiment_id': experiment.id,
                 'name': experiment.name,
                 'description': experiment.description,
                 'term_id': experiment.term_id,
                 'status': experiment.status
-            }
+            })
         )
         db.session.add(entity)
         db.session.commit()
@@ -286,11 +303,11 @@ class ProvenanceService:
             startedattime=started_at or datetime.utcnow(),
             endedattime=ended_at or datetime.utcnow(),
             wasassociatedwith=agent.agent_id,
-            activity_parameters={
+            activity_parameters=_serialize_value({
                 'tool_name': tool_name,
                 'document_id': document.id,
                 'experiment_id': experiment.id
-            },
+            }),
             activity_status='completed'
         )
         db.session.add(activity)
@@ -308,13 +325,13 @@ class ProvenanceService:
             wasgeneratedby=activity.activity_id,
             wasattributedto=agent.agent_id,
             wasderivedfrom=doc_entity.entity_id if doc_entity else None,
-            entity_value={
+            entity_value=_serialize_value({
                 'tool_name': tool_name,
                 'document_id': document.id,
                 'experiment_id': experiment.id,
                 'status': result_data.get('status'),
                 'metadata': result_data.get('metadata', {})
-            }
+            })
         )
         db.session.add(entity)
 
@@ -354,11 +371,11 @@ class ProvenanceService:
             activity_type='orchestration_run',
             startedattime=datetime.utcnow(),
             wasassociatedwith=llm_agent.agent_id,
-            activity_parameters={
+            activity_parameters=_serialize_value({
                 'experiment_id': experiment.id,
                 'initiated_by_user': user.id,
                 'parameters': parameters or {}
-            },
+            }),
             activity_status='active'
         )
         db.session.add(activity)
@@ -380,18 +397,18 @@ class ProvenanceService:
 
         activity.endedattime = datetime.utcnow()
         activity.activity_status = 'completed'
-        activity.activity_metadata = results or {}
+        activity.activity_metadata = _serialize_value(results or {})
 
         entity = ProvEntity(
             entity_type='processing_strategy',
             generatedattime=datetime.utcnow(),
             wasgeneratedby=activity.activity_id,
             wasattributedto=activity.wasassociatedwith,
-            entity_value={
+            entity_value=_serialize_value({
                 'strategy': strategy,
                 'confidence': strategy.get('confidence', 0.0),
                 'reasoning': strategy.get('reasoning', '')
-            }
+            })
         )
         db.session.add(entity)
         db.session.commit()

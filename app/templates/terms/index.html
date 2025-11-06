@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}Terms Index - OntExtract{% endblock %}
+{% block title %}Anchor Terms - OntExtract{% endblock %}
 
 {% block content %}
 <div class="container">
@@ -8,9 +8,11 @@
         <div class="col-12">
             <!-- Header -->
             <div class="d-flex justify-content-between align-items-center mb-4">
-                <h1>Terms Index</h1>
+                <h1>
+                    <i class="fas fa-anchor me-2 text-primary"></i>Anchor Terms
+                </h1>
                 <a href="{{ url_for('terms.add_term') }}" class="btn btn-primary">
-                    <i class="fas fa-plus me-2"></i>Add New Term
+                    <i class="fas fa-plus me-2"></i>Add New Anchor Term
                 </a>
             </div>
             
@@ -58,7 +60,7 @@
             <div class="card">
                 <div class="card-header d-flex justify-content-between align-items-center">
                     <h5 class="mb-0">
-                        Terms 
+                        <i class="fas fa-anchor me-2"></i>Anchor Terms
                         <span class="badge bg-secondary">{{ terms.total }}</span>
                         {% if search_query or status_filter or domain_filter %}
                             <small class="text-muted">(filtered)</small>
@@ -76,7 +78,7 @@
                                     <th>Term</th>
                                     <th>Status</th>
                                     <th>Research Domain</th>
-                                    <th>Current Version</th>
+                                    <th>Source & Year</th>
                                     <th>Versions</th>
                                     <th>Created</th>
                                     <th>Actions</th>
@@ -110,17 +112,24 @@
                                     <td>
                                         {% set current_version = term.get_current_version() %}
                                         {% if current_version %}
-                                            <strong>{{ current_version.temporal_period }}</strong>
-                                            <br><small class="text-muted">
-                                                {% if current_version.fuzziness_score %}
-                                                    Fuzziness: {{ "%.3f"|format(current_version.fuzziness_score) }}
-                                                {% endif %}
-                                                {% if current_version.confidence_level %}
-                                                    <span class="badge bg-light text-dark">{{ current_version.confidence_level }}</span>
-                                                {% endif %}
-                                            </small>
+                                            {% if current_version.corpus_source %}
+                                                <strong>{{ current_version.corpus_source }}</strong>
+                                            {% else %}
+                                                <strong>Manual Entry</strong>
+                                            {% endif %}
+                                            {% if current_version.temporal_start_year %}
+                                                <br><small class="text-muted">
+                                                    {% if current_version.temporal_end_year and current_version.temporal_end_year != current_version.temporal_start_year %}
+                                                        {{ current_version.temporal_start_year }}–{{ current_version.temporal_end_year }}
+                                                    {% else %}
+                                                        {{ current_version.temporal_start_year }}
+                                                    {% endif %}
+                                                </small>
+                                            {% elif current_version.temporal_period %}
+                                                <br><small class="text-muted">{{ current_version.temporal_period }}</small>
+                                            {% endif %}
                                         {% else %}
-                                            <span class="text-muted">No current version</span>
+                                            <span class="text-muted">No anchor version</span>
                                         {% endif %}
                                     </td>
                                     <td>
@@ -218,18 +227,18 @@
             <!-- No Terms Found -->
             <div class="card">
                 <div class="card-body text-center py-5">
-                    <i class="fas fa-search fa-3x text-muted mb-3"></i>
-                    <h4>No Terms Found</h4>
+                    <i class="fas fa-anchor fa-3x text-muted mb-3"></i>
+                    <h4>No Anchor Terms Found</h4>
                     {% if search_query or status_filter or domain_filter %}
-                    <p class="text-muted">No terms match your current search criteria.</p>
+                    <p class="text-muted">No anchor terms match your current search criteria.</p>
                     <a href="{{ url_for('terms.term_index') }}" class="btn btn-outline-secondary me-2">
                         <i class="fas fa-times"></i> Clear Filters
                     </a>
                     {% else %}
-                    <p class="text-muted">You haven't created any anchor terms yet.</p>
+                    <p class="text-muted">You haven't created any anchor terms yet. Anchor terms are contemporary definitions from authoritative lexicographic sources that serve as baseline references for semantic change analysis.</p>
                     {% endif %}
                     <a href="{{ url_for('terms.add_term') }}" class="btn btn-primary">
-                        <i class="fas fa-plus me-2"></i>Add Your First Term
+                        <i class="fas fa-plus me-2"></i>Add Your First Anchor Term
                     </a>
                 </div>
             </div>
@@ -238,13 +247,14 @@
             <!-- Help Section -->
             <div class="row mt-4">
                 <div class="col-12">
-                    <div class="card bg-light">
+                    <div class="card bg-light border-primary">
                         <div class="card-body">
-                            <h6>About Terms</h6>
+                            <h6><i class="fas fa-info-circle text-primary me-2"></i>About Anchor Terms</h6>
                             <p class="mb-0 small">
-                                Terms are historically significant words selected for semantic change analysis. 
-                                Each term can have multiple temporal versions representing different meanings across time periods, 
-                                with context anchors defining semantic neighborhoods and fuzziness scores measuring membership retention.
+                                <strong>Anchor terms</strong> are contemporary definitions from authoritative lexicographic sources (such as OED, Merriam-Webster, or WordNet)
+                                that serve as reference points for semantic change analysis. These terms provide stable, well-documented baseline definitions for
+                                investigating diachronic semantic variation. Temporal evolution analysis is conducted in the <strong>Experiments</strong> section,
+                                where anchor definitions are systematically compared against historical attestations to identify and measure semantic drift patterns.
                             </p>
                         </div>
                     </div>
