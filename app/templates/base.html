@@ -368,12 +368,15 @@
             document.getElementById('loadingSpinner').classList.remove('show');
         }
 
-        // Auto-hide alerts after 5 seconds
+        // Auto-hide alerts after 5 seconds (but not alerts inside collapse elements - those are help text)
         setTimeout(() => {
             const alerts = document.querySelectorAll('.alert');
             alerts.forEach(alert => {
-                const bsAlert = new bootstrap.Alert(alert);
-                bsAlert.close();
+                // Skip alerts that are inside a collapse element (help text, not flash messages)
+                if (!alert.closest('.collapse')) {
+                    const bsAlert = new bootstrap.Alert(alert);
+                    bsAlert.close();
+                }
             });
         }, 5000);
     </script>
