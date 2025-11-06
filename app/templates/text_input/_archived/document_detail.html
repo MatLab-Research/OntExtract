@@ -473,6 +473,72 @@
                 </div>
             </div>
 
+            <!-- Metadata Provenance (PROV-O) - Sidebar -->
+            {% if document.metadata_provenance %}
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h6 class="mb-0">
+                        <i class="fas fa-history me-2"></i>Metadata Provenance
+                        <span class="badge bg-info ms-1" style="font-size: 0.7rem;">PROV-O</span>
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <p class="small text-muted mb-3">
+                        <i class="fas fa-info-circle me-1"></i>
+                        Automatic metadata extraction tracked with PROV-O standard.
+                    </p>
+
+                    {% set crossref_count = namespace(value=0) %}
+                    {% for field_name, prov_data in document.metadata_provenance.items() %}
+                        {% if prov_data.get('source') == 'crossref_auto' %}
+                            {% set crossref_count.value = crossref_count.value + 1 %}
+                        {% endif %}
+                    {% endfor %}
+
+                    {% if crossref_count.value > 0 %}
+                    <div class="mb-3">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <span class="badge bg-success">
+                                <i class="fas fa-book-medical me-1"></i>CrossRef API
+                            </span>
+                            <span class="text-muted small">{{ crossref_count.value }} fields</span>
+                        </div>
+                        <div class="small">
+                            {% for field_name, prov_data in document.metadata_provenance.items() %}
+                            {% if prov_data.get('source') == 'crossref_auto' %}
+                            <div class="d-flex justify-content-between align-items-center mb-1">
+                                <span class="text-truncate me-2">{{ field_name.replace('_', ' ').title() }}</span>
+                                {% if prov_data.get('confidence') %}
+                                <span class="badge bg-{% if prov_data.get('confidence') >= 0.9 %}success{% elif prov_data.get('confidence') >= 0.7 %}warning{% else %}danger{% endif %}"
+                                      style="font-size: 0.65rem;">
+                                    {{ "%.0f"|format(prov_data.get('confidence') * 100) }}%
+                                </span>
+                                {% endif %}
+                            </div>
+                            {% endif %}
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    {% if document.metadata_provenance.get('extracted_doi') %}
+                    <div class="mb-3 p-2 bg-light rounded">
+                        <div class="small">
+                            <strong><i class="fas fa-microscope me-1"></i>PDF Extraction:</strong><br>
+                            <span class="text-muted">DOI: {{ document.metadata_provenance.extracted_doi.raw_value[:30] }}{{ '...' if document.metadata_provenance.extracted_doi.raw_value|length > 30 }}</span>
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    <div class="text-center">
+                        <a href="{{ url_for('provenance.timeline') }}" class="btn btn-outline-primary btn-sm w-100">
+                            <i class="fas fa-stream me-1"></i>Full Timeline
+                        </a>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
             <!-- Processing Options (includes Process with Experiment button) -->
             {% include 'shared/embedding_component.html' %}
 
