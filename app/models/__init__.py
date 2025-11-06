@@ -29,6 +29,14 @@ from .orchestration_logs import OrchestrationDecision, ToolExecutionLog, MultiMo
 # Human-in-the-Loop feedback models
 from .orchestration_feedback import OrchestrationFeedback, LearningPattern, OrchestrationOverride
 
+# Temporal experiment models for semantic change analysis
+from .temporal_experiment import (
+    DocumentTemporalMetadata,
+    OEDTimelineMarker,
+    TermDisciplinaryDefinition,
+    SemanticShiftAnalysis
+)
+
 __all__ = [
     'User',
     'Document',
@@ -58,6 +66,11 @@ __all__ = [
     'MultiModelConsensus',
     # Human-in-the-Loop models
     'OrchestrationFeedback',
-    'LearningPattern', 
-    'OrchestrationOverride'
+    'LearningPattern',
+    'OrchestrationOverride',
+    # Temporal experiment models
+    'DocumentTemporalMetadata',
+    'OEDTimelineMarker',
+    'TermDisciplinaryDefinition',
+    'SemanticShiftAnalysis'
 ]
