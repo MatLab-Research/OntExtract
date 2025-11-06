@@ -424,6 +424,7 @@ class ProvenanceService:
         experiment_id: int = None,
         user_id: int = None,
         activity_type: str = None,
+        term_id: int = None,
         limit: int = 100
     ) -> List[Dict[str, Any]]:
         """
@@ -433,6 +434,7 @@ class ProvenanceService:
             experiment_id: Filter by experiment (optional)
             user_id: Filter by user (optional)
             activity_type: Filter by activity type (optional)
+            term_id: Filter by term (optional)
             limit: Maximum number of activities to return
 
         Returns:
@@ -448,6 +450,11 @@ class ProvenanceService:
         if experiment_id:
             query = query.filter(
                 ProvActivity.activity_parameters['experiment_id'].astext == str(experiment_id)
+            )
+
+        if term_id:
+            query = query.filter(
+                ProvActivity.activity_parameters['term_id'].astext == str(term_id)
             )
 
         if user_id:

@@ -34,8 +34,21 @@
                     </select>
                 </div>
 
+                <!-- Term filter -->
+                <div class="col-md-3">
+                    <label class="form-label">Term</label>
+                    <select name="term_id" class="form-select" onchange="this.form.submit()">
+                        <option value="">All Terms</option>
+                        {% for term in terms %}
+                        <option value="{{ term.id }}" {% if term.id == selected_term_id %}selected{% endif %}>
+                            {{ term.term_text }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
                 <!-- Activity type filter -->
-                <div class="col-md-4">
+                <div class="col-md-3">
                     <label class="form-label">Activity Type</label>
                     <select name="activity_type" class="form-select" onchange="this.form.submit()">
                         <option value="">All Activities</option>
@@ -48,7 +61,7 @@
                 </div>
 
                 <!-- Limit -->
-                <div class="col-md-4">
+                <div class="col-md-3">
                     <label class="form-label">Show</label>
                     <select name="limit" class="form-select" onchange="this.form.submit()">
                         <option value="25">Last 25</option>
