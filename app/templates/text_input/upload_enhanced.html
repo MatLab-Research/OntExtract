@@ -594,7 +594,7 @@ document.getElementById('metadata-form').addEventListener('submit', async functi
 
         if (result.success) {
             // Redirect to document view
-            window.location.href = `/document/${result.document_id}`;
+            window.location.href = `/input/document/${result.document_id}`;
         } else {
             alert('Error: ' + result.error);
             hideLoading();
