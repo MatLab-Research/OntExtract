@@ -242,6 +242,88 @@ def parse_oed_pdf():
             except:
                 pass
 
+@references_bp.route('/extract_metadata', methods=['POST'])
+@api_require_login_for_write
+def extract_metadata():
+    """Extract metadata from uploaded PDF for auto-population (Zotero-style)"""
+    from datetime import datetime
+    # Debug: write to file
+    with open('/tmp/references_extract_debug.log', 'a') as f:
+        f.write(f"\n===== REFERENCES FUNCTION CALLED at {datetime.now()} =====\n")
+        f.flush()
+
+    import tempfile
+    from app.services.reference_metadata_enricher import ReferenceMetadataEnricher
+    from flask import current_app
+
+    current_app.logger.error("=== REFERENCES EXTRACT_METADATA CALLED ===")
+
+    if 'file' not in request.files:
+        return jsonify({'success': False, 'error': 'No file provided'}), 400
+
+    file = request.files['file']
+    if file.filename == '':
+        return jsonify({'success': False, 'error': 'No file selected'}), 400
+
+    # Check if it's a PDF
+    if not (file.filename or '').lower().endswith('.pdf'):
+        return jsonify({'success': False, 'error': 'Only PDF files are supported'}), 400
+
+    # Save temporarily
+    temp_dir = tempfile.gettempdir()
+    temp_name = secure_filename(file.filename or 'reference.pdf')
+    temp_path = os.path.join(temp_dir, temp_name)
+
+    try:
+        file.save(temp_path)
+
+        # Extract metadata using the enricher with Zotero
+        use_zotero = current_app.config.get('USE_ZOTERO_METADATA', True)
+        enricher = ReferenceMetadataEnricher(use_zotero=use_zotero)
+
+        # Extract without existing metadata
+        metadata = enricher.extract_with_zotero(temp_path, title=None, existing={}, allow_overwrite=False)
+
+        # Convert authors list to comma-separated string for form
+        if 'authors' in metadata and isinstance(metadata['authors'], list):
+            metadata['authors'] = ', '.join(metadata['authors'])
+
+        # Log the extraction
+        current_app.logger.info(f"Extracted metadata from {file.filename}: {list(metadata.keys())}")
+
+        # Format response
+        response_data = {
+            'success': True,
+            'metadata': metadata,
+            'message': 'Successfully extracted metadata'
+        }
+
+        # Add information about Zotero match if present
+        if 'zotero_key' in metadata:
+            response_data['zotero_match'] = {
+                'key': metadata['zotero_key'],
+                'score': metadata.get('zotero_match_score', 0),
+                'type': metadata.get('zotero_match_type', 'unknown')
+            }
+
+        return jsonify(response_data)
+
+    except Exception as e:
+        current_app.logger.error(f"Error extracting metadata from PDF: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': str(e),
+            'message': 'Failed to extract metadata'
+        }), 500
+
+    finally:
+        # Clean up temp file
+        if os.path.exists(temp_path):
+            try:
+                os.remove(temp_path)
+            except:
+                pass
+
 @references_bp.route('/api/oed/entry')
 @api_require_login_for_write
 def api_oed_entry():

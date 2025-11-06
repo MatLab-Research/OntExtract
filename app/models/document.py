@@ -48,6 +48,7 @@ class Document(db.Model):
     word_count = db.Column(db.Integer)
     character_count = db.Column(db.Integer)
     processing_metadata = db.Column(db.JSON)  # General metadata for processing info, embeddings, etc.
+    metadata_provenance = db.Column(db.JSON)  # Tracks source/confidence for each metadata field
     
     # Timestamps
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)

@@ -53,17 +53,29 @@
                                 <h5 class="card-title mb-0">Document Upload</h5>
                             </div>
                             <div class="card-body">
-                                <div class="mb-3">
-                                    <label for="file" class="form-label">Reference File <span class="text-danger">*</span></label>
-                                    <input type="file" class="form-control" id="file" name="file" required
-                                           accept=".pdf,.docx,.doc,.txt,.md,.html,.htm">
-                                    <div class="form-text">Accepted formats: PDF, Word, Text, Markdown, HTML</div>
+                                <div class="alert alert-info">
+                                    <i class="fas fa-magic"></i>
+                                    <strong>Automatic Metadata Extraction:</strong> Leave fields blank and we'll automatically extract DOI, title, authors, and other metadata from your PDF using heuristic analysis and Zotero lookup.
+                                </div>
+
+                                <div id="metadata-extraction-status" class="mb-3" style="display: none;">
+                                    <div class="alert alert-secondary">
+                                        <i class="fas fa-spinner fa-spin"></i> <span id="extraction-message">Analyzing PDF...</span>
+                                    </div>
                                 </div>
 
                                 <div class="mb-3">
-                                    <label for="title" class="form-label">Title <span class="text-danger">*</span></label>
-                                    <input type="text" class="form-control" id="title" name="title" required
-                                           placeholder="e.g., Understanding Semantic Networks">
+                                    <label for="file" class="form-label">Reference File <span class="text-danger">*</span></label>
+                                    <input type="file" class="form-control" id="file" name="file" required
+                                           accept=".pdf,.docx,.doc,.txt,.md,.html,.htm" onchange="handleFileSelect(this)">
+                                    <div class="form-text">Accepted formats: PDF, Word, Text, Markdown, HTML (automatic extraction works best with PDFs)</div>
+                                </div>
+
+                                <div class="mb-3">
+                                    <label for="title" class="form-label">Title</label>
+                                    <input type="text" class="form-control" id="title" name="title"
+                                           placeholder="Leave blank for automatic extraction from PDF">
+                                    <div class="form-text">Automatically filled from PDF if left blank</div>
                                 </div>
 
                                 <div class="mb-3">
@@ -285,6 +297,160 @@
 </div>
 
 <script>
+// Automatic metadata extraction when PDF is selected
+function handleFileSelect(fileInput) {
+    const file = fileInput.files[0];
+    if (!file) return;
+
+    // Only auto-extract for PDFs
+    if (!file.name.toLowerCase().endsWith('.pdf')) {
+        console.log('Automatic extraction only works for PDF files');
+        return;
+    }
+
+    // Show loading status
+    const statusDiv = document.getElementById('metadata-extraction-status');
+    const messageSpan = document.getElementById('extraction-message');
+    statusDiv.style.display = 'block';
+    messageSpan.textContent = 'Analyzing PDF... Extracting DOI, title, and querying Zotero...';
+
+    // Create form data
+    const formData = new FormData();
+    formData.append('file', file);
+
+    // Call extraction endpoint
+    fetch('{{ url_for("references.extract_metadata") }}', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(result => {
+        if (result.success) {
+            // Populate form fields with extracted metadata
+            populateFormFields(result.metadata);
+
+            // Update status message
+            let statusMessage = 'Successfully extracted metadata!';
+            if (result.zotero_match) {
+                statusMessage += ` (Found in Zotero: ${result.zotero_match.type} match, score: ${result.zotero_match.score.toFixed(2)})`;
+            }
+
+            statusDiv.innerHTML = `
+                <div class="alert alert-success">
+                    <i class="fas fa-check-circle"></i> ${statusMessage}
+                </div>
+            `;
+
+            // Log to console for debugging
+            console.log('Extracted metadata:', result.metadata);
+            if (result.zotero_match) {
+                console.log('Zotero match:', result.zotero_match);
+            }
+        } else {
+            // Show error
+            statusDiv.innerHTML = `
+                <div class="alert alert-warning">
+                    <i class="fas fa-exclamation-triangle"></i> Could not extract metadata: ${result.error || 'Unknown error'}
+                </div>
+            `;
+            console.error('Metadata extraction failed:', result.error);
+        }
+    })
+    .catch(error => {
+        statusDiv.innerHTML = `
+            <div class="alert alert-danger">
+                <i class="fas fa-times-circle"></i> Error: ${error.message || 'Network error'}
+            </div>
+        `;
+        console.error('Metadata extraction error:', error);
+    });
+}
+
+function populateFormFields(metadata) {
+    // Populate title
+    if (metadata.title && !document.getElementById('title').value) {
+        document.getElementById('title').value = metadata.title;
+    }
+
+    // Populate authors
+    if (metadata.authors && document.querySelector('input[name="authors"]')) {
+        const authorsInput = document.querySelector('input[name="authors"]');
+        if (!authorsInput.value) {
+            authorsInput.value = metadata.authors;
+        }
+    }
+
+    // Populate publication date
+    if (metadata.publication_date && document.querySelector('input[name="publication_date"]')) {
+        const dateInput = document.querySelector('input[name="publication_date"]');
+        if (!dateInput.value) {
+            dateInput.value = metadata.publication_date;
+        }
+    }
+
+    // Populate journal
+    if (metadata.journal && document.querySelector('input[name="journal"]')) {
+        const journalInput = document.querySelector('input[name="journal"]');
+        if (!journalInput.value) {
+            journalInput.value = metadata.journal;
+        }
+    }
+
+    // Populate DOI (if field exists in this form)
+    if (metadata.doi && document.getElementById('doi')) {
+        if (!document.getElementById('doi').value) {
+            document.getElementById('doi').value = metadata.doi;
+        }
+    }
+
+    // Populate ISBN (if field exists in this form)
+    if (metadata.isbn && document.getElementById('isbn')) {
+        if (!document.getElementById('isbn').value) {
+            document.getElementById('isbn').value = metadata.isbn;
+        }
+    }
+
+    // Populate URL (if field exists in this form)
+    if (metadata.url && document.querySelector('input[name="url"]')) {
+        const urlInput = document.querySelector('input[name="url"]');
+        if (!urlInput.value) {
+            urlInput.value = metadata.url;
+        }
+    }
+
+    // Populate abstract (if field exists in this form)
+    if (metadata.abstract && document.getElementById('abstract')) {
+        if (!document.getElementById('abstract').value) {
+            document.getElementById('abstract').value = metadata.abstract;
+        }
+    }
+
+    // Populate citation (if field exists in this form)
+    if (metadata.citation && document.getElementById('citation')) {
+        if (!document.getElementById('citation').value) {
+            document.getElementById('citation').value = metadata.citation;
+        }
+    }
+
+    // Auto-select reference type if we can infer it
+    if (!document.getElementById('reference_subtype').value) {
+        inferReferenceType(metadata);
+    }
+}
+
+function inferReferenceType(metadata) {
+    const subtypeSelect = document.getElementById('reference_subtype');
+
+    // Simple heuristics to infer reference type
+    if (metadata.journal) {
+        subtypeSelect.value = 'academic';
+    } else if (metadata.isbn) {
+        subtypeSelect.value = 'book';
+    } else if (metadata.url && !metadata.doi) {
+        subtypeSelect.value = 'website';
+    }
+}
+
 // Remember selected tab
 document.addEventListener('DOMContentLoaded', function() {
     // Check if there's a saved tab preference
@@ -303,6 +469,33 @@ document.addEventListener('DOMContentLoaded', function() {
             localStorage.setItem('referenceUploadTab', tabId);
         });
     });
+
+    // Add form validation for general reference form
+    const generalForm = document.querySelector('#general form');
+    if (generalForm) {
+        generalForm.addEventListener('submit', function(e) {
+            const titleInput = document.getElementById('title');
+            const referenceTypeInput = document.getElementById('reference_subtype');
+
+            // Check if title is filled (either manually or automatically)
+            if (!titleInput.value.trim()) {
+                e.preventDefault();
+                alert('Please enter a title or wait for automatic extraction to complete.');
+                titleInput.focus();
+                return false;
+            }
+
+            // Check if reference type is selected
+            if (!referenceTypeInput.value) {
+                e.preventDefault();
+                alert('Please select a reference type.');
+                referenceTypeInput.focus();
+                return false;
+            }
+
+            return true;
+        });
+    }
 });
 
 // Auto-format DOI input

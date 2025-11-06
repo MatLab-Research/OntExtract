@@ -21,8 +21,8 @@ text_input_bp = Blueprint('text_input', __name__)
 @text_input_bp.route('/upload')
 @write_login_required  # Only require login for upload
 def upload_form():
-    """Main upload form page"""
-    return render_template('text_input/upload.html')
+    """Main upload form page with enhanced metadata extraction"""
+    return render_template('text_input/upload_enhanced.html')
 
 @text_input_bp.route('/paste')
 @write_login_required  # Only require login for paste
@@ -667,3 +667,277 @@ def update_composite(composite_id):
     except Exception as e:
         current_app.logger.error(f"Error updating composite: {str(e)}")
         return jsonify({'success': False, 'error': str(e)}), 500
+
+
+# Enhanced Upload Routes with Metadata Extraction and Provenance
+
+print("=== REGISTERING /upload/extract_metadata ROUTE ===", flush=True)
+
+@text_input_bp.route('/upload/extract_metadata', methods=['POST'])
+@write_login_required
+def extract_upload_metadata():
+    """Extract metadata from uploaded document or DOI"""
+    from datetime import datetime
+    # Write to debug file
+    with open('/tmp/ontextract_debug.log', 'a') as f:
+        f.write(f"\n===== FUNCTION CALLED at {datetime.now()} =====\n")
+        f.flush()
+
+    print("=== INSIDE FUNCTION - START ===", flush=True)
+    from app.services.upload_service import upload_service
+    import json
+
+    print("=== EXTRACT_METADATA CALLED ===", flush=True)
+    current_app.logger.error("=== EXTRACT_METADATA CALLED (ERROR LEVEL) ===")
+
+    try:
+        extraction_source = request.form.get('source_type')
+        print(f"Extraction source: {extraction_source}", flush=True)
+
+        if extraction_source == 'doi':
+            # Extract from DOI using shared service
+            doi = request.form.get('doi')
+            if not doi:
+                return jsonify({'error': 'DOI is required'}), 400
+
+            # Get bibliographic metadata from CrossRef
+            metadata_result = upload_service.extract_metadata_from_doi(doi)
+
+            if not metadata_result.success:
+                return jsonify({'error': metadata_result.error}), 404
+
+            # Build provenance tracking
+            provenance = {}
+            for key, value in metadata_result.metadata.items():
+                if value is not None:
+                    provenance[key] = {
+                        'source': 'crossref',
+                        'confidence': 0.95,
+                        'timestamp': datetime.utcnow().isoformat(),
+                        'raw_value': value
+                    }
+
+            # Return metadata for review (no file yet - user must upload)
+            return jsonify({
+                'success': True,
+                'metadata': metadata_result.metadata,
+                'provenance': provenance,
+                'needs_file': True,
+                'message': 'Bibliographic metadata retrieved. Please upload the document file.'
+            })
+
+        elif extraction_source == 'file':
+            # Process uploaded file
+            if 'document_file' not in request.files:
+                return jsonify({'error': 'No file uploaded'}), 400
+
+            file = request.files['document_file']
+
+            # Save to temporary location
+            upload_result = upload_service.save_to_temp(file)
+            if not upload_result.success:
+                return jsonify({'error': upload_result.error}), 400
+
+            try:
+                crossref_metadata = {}
+                crossref_provenance = {}
+
+                # Get user-provided title (if any)
+                user_title = request.form.get('title', '').strip()
+                current_app.logger.info(f"Upload metadata extraction starting. User title: '{user_title}', File: {file.filename}")
+
+                # Try automatic PDF analysis first if no user title provided
+                if not user_title and file.filename.lower().endswith('.pdf'):
+                    current_app.logger.info("Analyzing PDF for DOI/title...")
+                    pdf_result = upload_service.extract_metadata_from_pdf(upload_result.temp_path)
+
+                    if pdf_result.success:
+                        crossref_metadata = pdf_result.metadata
+                        # Track CrossRef provenance with note about automatic extraction
+                        for key, value in crossref_metadata.items():
+                            if value is not None and key not in ['extracted_doi', 'extracted_title', 'extraction_method']:
+                                crossref_provenance[key] = {
+                                    'source': 'crossref_auto',
+                                    'confidence': 0.90,
+                                    'timestamp': datetime.utcnow().isoformat(),
+                                    'raw_value': value,
+                                    'extraction_method': pdf_result.metadata.get('extraction_method', 'auto')
+                                }
+                        current_app.logger.info(f"Automatic extraction successful: {pdf_result.metadata.get('extraction_method')}")
+                    else:
+                        current_app.logger.warning(f"Automatic extraction failed: {pdf_result.error if hasattr(pdf_result, 'error') else 'Unknown error'}")
+
+                # If user provided title, use that (takes precedence)
+                if user_title:
+                    current_app.logger.info(f"Using user-provided title: {user_title}")
+                    metadata_result = upload_service.extract_metadata_from_title(user_title)
+                    if metadata_result.success:
+                        crossref_metadata = metadata_result.metadata
+                        # Track CrossRef provenance
+                        for key, value in crossref_metadata.items():
+                            if value is not None:
+                                crossref_provenance[key] = {
+                                    'source': 'crossref',
+                                    'confidence': metadata_result.metadata.get('match_score', 0.85),
+                                    'timestamp': datetime.utcnow().isoformat(),
+                                    'raw_value': value
+                                }
+
+                # Parse user-provided metadata
+                user_metadata = {}
+                user_provenance = {}
+
+                if user_title:
+                    user_metadata['title'] = user_title
+                    user_provenance['title'] = {
+                        'source': 'user',
+                        'confidence': 1.0,
+                        'timestamp': datetime.utcnow().isoformat(),
+                        'raw_value': user_title
+                    }
+
+                pub_year = request.form.get('publication_year', '').strip()
+                if pub_year:
+                    user_metadata['publication_year'] = int(pub_year)
+                    user_provenance['publication_year'] = {
+                        'source': 'user',
+                        'confidence': 1.0,
+                        'timestamp': datetime.utcnow().isoformat(),
+                        'raw_value': int(pub_year)
+                    }
+
+                authors_str = request.form.get('authors', '').strip()
+                if authors_str:
+                    authors = [a.strip() for a in authors_str.split(',')]
+                    user_metadata['authors'] = authors
+                    user_provenance['authors'] = {
+                        'source': 'user',
+                        'confidence': 1.0,
+                        'timestamp': datetime.utcnow().isoformat(),
+                        'raw_value': authors
+                    }
+
+                # Log metadata before merge
+                current_app.logger.info(f"CrossRef metadata: {list(crossref_metadata.keys())}")
+                current_app.logger.info(f"User metadata: {list(user_metadata.keys())}")
+
+                # Merge metadata (user takes precedence over CrossRef)
+                merged_metadata = upload_service.merge_metadata(
+                    crossref_metadata,
+                    user_metadata,
+                    {'filename': file.filename}
+                )
+
+                current_app.logger.info(f"Merged metadata: {list(merged_metadata.keys())}")
+
+                # Merge provenance (user takes precedence)
+                merged_provenance = {**crossref_provenance, **user_provenance}
+
+                # Add filename provenance
+                merged_provenance['filename'] = {
+                    'source': 'file',
+                    'confidence': 1.0,
+                    'timestamp': datetime.utcnow().isoformat(),
+                    'raw_value': file.filename
+                }
+
+                return jsonify({
+                    'success': True,
+                    'metadata': merged_metadata,
+                    'provenance': merged_provenance,
+                    'temp_path': upload_result.temp_path,
+                    'needs_file': False,
+                    'message': 'Document analyzed. Please review metadata before saving.'
+                })
+
+            except Exception as e:
+                # Clean up temp file
+                upload_service.cleanup_temp(upload_result.temp_path)
+                raise e
+
+        else:
+            return jsonify({'error': 'Invalid source type'}), 400
+
+    except Exception as e:
+        print(f"=== EXCEPTION IN EXTRACT_METADATA: {str(e)} ===", flush=True)
+        import traceback
+        traceback.print_exc()
+        current_app.logger.error(f"Error extracting metadata: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+
+@text_input_bp.route('/upload/save_document', methods=['POST'])
+@write_login_required
+def save_upload_document():
+    """Save document after metadata review"""
+    from app.services.upload_service import upload_service
+    import json
+
+    try:
+        data = request.get_json()
+
+        # Get metadata and provenance from request
+        metadata = data.get('metadata', {})
+        provenance = data.get('provenance', {})
+        temp_path = data.get('temp_path')
+        filename = data.get('filename')
+
+        if not temp_path:
+            return jsonify({'error': 'No document file to save'}), 400
+
+        # Create upload directory
+        upload_dir = current_app.config.get('UPLOAD_FOLDER', 'uploads')
+
+        # Save permanently
+        save_result = upload_service.save_permanent(temp_path, upload_dir, filename)
+        if not save_result.success:
+            return jsonify({'error': save_result.error}), 400
+
+        final_path = save_result.file_path
+
+        # Extract text content for the document
+        content, error = upload_service.extract_text_content(final_path, filename)
+        if error:
+            return jsonify({'error': error}), 400
+
+        # Prepare source_metadata (bibliographic info)
+        source_metadata = {
+            'authors': metadata.get('authors', []),
+            'publication_year': metadata.get('publication_year'),
+            'journal': metadata.get('journal'),
+            'publisher': metadata.get('publisher'),
+            'doi': metadata.get('doi'),
+            'url': metadata.get('url'),
+            'abstract': metadata.get('abstract'),
+            'type': metadata.get('type'),
+            'extraction_source': 'enhanced_upload'
+        }
+
+        # Create document record
+        document = Document(
+            title=metadata.get('title', filename),
+            content_type='file',
+            file_type='pdf',
+            original_filename=filename,
+            file_path=final_path,
+            file_size=os.path.getsize(final_path),
+            content=content,
+            source_metadata=source_metadata,
+            metadata_provenance=provenance,
+            status='uploaded',
+            user_id=current_user.id
+        )
+
+        db.session.add(document)
+        db.session.commit()
+
+        return jsonify({
+            'success': True,
+            'message': 'Document saved successfully',
+            'document_id': document.id
+        })
+
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"Error saving document: {str(e)}")
+        return jsonify({'error': str(e)}), 500
