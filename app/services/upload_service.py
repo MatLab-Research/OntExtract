@@ -16,6 +16,7 @@ from werkzeug.datastructures import FileStorage
 
 from app.utils.file_handler import FileHandler
 from app.services.crossref_metadata import CrossRefMetadataExtractor
+from app.utils.pdf_analyzer import pdf_analyzer
 
 
 @dataclass
@@ -236,6 +237,59 @@ class UploadService:
                 metadata={},
                 source='crossref',
                 error=f"Error searching CrossRef: {str(e)}"
+            )
+
+    def extract_metadata_from_pdf(self, pdf_path: str) -> MetadataExtractionResult:
+        """
+        Extract metadata from PDF file automatically (Zotero-style).
+
+        Tries multiple methods:
+        1. Extract DOI from PDF and query CrossRef
+        2. Extract title from PDF and query CrossRef
+        3. Use embedded PDF metadata
+
+        Args:
+            pdf_path: Path to PDF file
+
+        Returns:
+            MetadataExtractionResult with extracted metadata
+        """
+        try:
+            # Analyze PDF to extract DOI/title
+            pdf_info = pdf_analyzer.analyze(pdf_path)
+
+            # Try DOI first (most reliable)
+            if pdf_info.get('doi'):
+                result = self.extract_metadata_from_doi(pdf_info['doi'])
+                if result.success:
+                    # Add PDF analysis info to metadata
+                    result.metadata['extracted_doi'] = pdf_info['doi']
+                    result.metadata['extraction_method'] = 'doi_from_pdf'
+                    return result
+
+            # Try title search
+            if pdf_info.get('title'):
+                result = self.extract_metadata_from_title(pdf_info['title'])
+                if result.success:
+                    # Add PDF analysis info
+                    result.metadata['extracted_title'] = pdf_info['title']
+                    result.metadata['extraction_method'] = 'title_from_pdf'
+                    return result
+
+            # Fallback: return what we found from PDF
+            return MetadataExtractionResult(
+                success=False,
+                metadata=pdf_info.get('metadata', {}),
+                source='pdf_analysis',
+                error="Could not find metadata in CrossRef using extracted DOI/title"
+            )
+
+        except Exception as e:
+            return MetadataExtractionResult(
+                success=False,
+                metadata={},
+                source='pdf_analysis',
+                error=f"Error analyzing PDF: {str(e)}"
             )
 
     def extract_text_content(self, file_path: str, filename: str) -> Tuple[Optional[str], Optional[str]]:
