@@ -40,92 +40,51 @@
                             <!-- Tab Navigation -->
                             <ul class="nav nav-tabs mb-3" id="anchorTabs" role="tablist">
                                 <li class="nav-item" role="presentation">
-                                    <button class="nav-link active" id="manual-tab" data-bs-toggle="tab" data-bs-target="#manual-pane" type="button" role="tab">
+                                    <button class="nav-link active" id="services-tab" data-bs-toggle="tab" data-bs-target="#services-pane" type="button" role="tab">
+                                        <i class="fas fa-cloud me-1"></i> Connected Services
+                                    </button>
+                                </li>
+                                <li class="nav-item" role="presentation">
+                                    <button class="nav-link" id="manual-tab" data-bs-toggle="tab" data-bs-target="#manual-pane" type="button" role="tab">
                                         <i class="fas fa-keyboard me-1"></i> Manual Entry
                                     </button>
                                 </li>
+                                <!-- Reference Document tab disabled for JCDL presentation
                                 <li class="nav-item" role="presentation">
                                     <button class="nav-link" id="reference-tab" data-bs-toggle="tab" data-bs-target="#reference-pane" type="button" role="tab">
                                         <i class="fas fa-file-text me-1"></i> Reference Document
                                     </button>
                                 </li>
-                                <li class="nav-item" role="presentation">
-                                    <button class="nav-link" id="services-tab" data-bs-toggle="tab" data-bs-target="#services-pane" type="button" role="tab">
-                                        <i class="fas fa-cloud me-1"></i> Connected Services
-                                    </button>
-                                </li>
+                                -->
                             </ul>
                             
                             <!-- Tab Content -->
                             <div class="tab-content" id="anchorTabContent">
-                                
-                                <!-- Manual Entry Tab -->
-                                <div class="tab-pane fade show active" id="manual-pane" role="tabpanel">
-                                    <div class="alert alert-info">
-                                        <i class="fas fa-info-circle me-2"></i>
-                                        <strong>Manual Entry:</strong> Enter term information manually. Use the fields below to specify the term, meaning, and related context.
-                                    </div>
-                                    
-                                    <!-- Source Type -->
-                                    <div class="mt-3">
-                                        <label class="form-label">Source Type</label>
-                                        <select class="form-select" id="manual-source-type">
-                                            <option value="">Select source type...</option>
-                                            <option value="corpus">Corpus</option>
-                                            <option value="dictionary">Dictionary</option>
-                                            <option value="standard">Technical Standard</option>
-                                            <option value="academic">Academic Publication</option>
-                                            <option value="government">Government Document</option>
-                                            <option value="industry">Industry Specification</option>
-                                        </select>
-                                        <div class="form-text">The actual source name will be in the Source Citation field below</div>
-                                    </div>
-                                </div>
-                                
-                                <!-- Reference Document Tab -->
-                                <div class="tab-pane fade" id="reference-pane" role="tabpanel">
-                                    <div class="alert alert-info">
-                                        <i class="fas fa-info-circle me-2"></i>
-                                        <strong>Reference Document:</strong> Use a document from your collection as the contextual anchor.
-                                    </div>
-                                    
-                                    <label class="form-label">Reference Document *</label>
-                                    <select class="form-select" id="anchor-document-select">
-                                        <option value="">Select a document from your collection...</option>
-                                        {% for doc in documents %}
-                                        <option value="{{ doc.id }}" data-title="{{ doc.title }}" data-type="{{ doc.document_type or 'document' }}">
-                                            {{ doc.title }}
-                                            {% if doc.author %} - {{ doc.author }}{% endif %}
-                                            {% if doc.year %} ({{ doc.year }}){% endif %}
-                                        </option>
-                                        {% endfor %}
-                                    </select>
-                                    <div class="form-text mb-3">Choose a document from your collection to provide contextual anchoring</div>
-                                    
-                                    {% if not documents %}
-                                    <div class="alert alert-warning">
-                                        <i class="fas fa-exclamation-triangle me-2"></i>
-                                        <strong>No documents found.</strong> 
-                                        <a href="{{ url_for('upload.unified') }}" class="alert-link">Upload documents</a> 
-                                        to use them as reference sources.
-                                    </div>
-                                    {% endif %}
-                                    
-                                    <div class="mt-3">
-                                        <div class="alert alert-info">
-                                            <i class="fas fa-magic me-2"></i>
-                                            <strong>Automatic Processing:</strong> Once you select a document, the system will automatically analyze it to extract relevant terms and context.
+
+                                <!-- Connected Services Tab (Default) -->
+                                <div class="tab-pane fade show active" id="services-pane" role="tabpanel">
+                                    <!-- Info: Anchor Term -->
+                                    <div class="mb-3">
+                                        <a class="text-decoration-none" data-bs-toggle="collapse" href="#anchorTermHelp" role="button" aria-expanded="false" aria-controls="anchorTermHelp">
+                                            <i class="fas fa-info-circle text-primary"></i>
+                                            <span class="text-primary ms-2">Anchor Term</span>
+                                        </a>
+
+                                        <div class="collapse" id="anchorTermHelp">
+                                            <div class="alert alert-primary mt-2 mb-0">
+                                                <p class="mb-2">
+                                                    Select a term definition from an authoritative source (OED, Merriam-Webster, WordNet)
+                                                    to establish your <strong>anchor term</strong> - a current/modern reference point that serves as a "mile marker"
+                                                    for where your semantic change analysis begins. This anchor provides a stable, well-documented starting point.
+                                                </p>
+                                                <p class="mb-0">
+                                                    <strong>Timeline Analysis:</strong> After creating your anchor term, use the Experiments section to track
+                                                    semantic evolution over time and discover how meaning has changed across different historical periods.
+                                                </p>
+                                            </div>
                                         </div>
                                     </div>
-                                </div>
-                                
-                                <!-- Connected Services Tab -->
-                                <div class="tab-pane fade" id="services-pane" role="tabpanel">
-                                    <div class="alert alert-info">
-                                        <i class="fas fa-info-circle me-2"></i>
-                                        <strong>Connected Services:</strong> Use external authoritative sources for term definitions.
-                                    </div>
-                                    
+
                                     <!-- Service Selection -->
                                     <div class="row mb-3">
                                         <div class="col-md-6">
@@ -153,7 +112,7 @@
                                             </div>
                                         </div>
                                     </div>
-                                    
+
                                     <div class="row mb-3">
                                         <div class="col-md-6">
                                             <div class="card h-100">
@@ -180,8 +139,8 @@
                                             </div>
                                         </div>
                                     </div>
-                                    
-                                    
+
+
                                     <!-- Service Results -->
                                     <div id="service-results" class="mt-3" style="display: none;">
                                         <div class="border rounded p-3 bg-light">
@@ -191,6 +150,67 @@
                                         </div>
                                     </div>
                                 </div>
+
+                                <!-- Manual Entry Tab -->
+                                <div class="tab-pane fade" id="manual-pane" role="tabpanel">
+                                    <div class="alert alert-info">
+                                        <i class="fas fa-info-circle me-2"></i>
+                                        <strong>Manual Entry:</strong> Enter term information manually. Use the fields below to specify the term, meaning, and related context.
+                                    </div>
+                                    
+                                    <!-- Source Type -->
+                                    <div class="mt-3">
+                                        <label class="form-label">Source Type</label>
+                                        <select class="form-select" id="manual-source-type">
+                                            <option value="">Select source type...</option>
+                                            <option value="corpus">Corpus</option>
+                                            <option value="dictionary">Dictionary</option>
+                                            <option value="standard">Technical Standard</option>
+                                            <option value="academic">Academic Publication</option>
+                                            <option value="government">Government Document</option>
+                                            <option value="industry">Industry Specification</option>
+                                        </select>
+                                        <div class="form-text">The actual source name will be in the Source Citation field below</div>
+                                    </div>
+                                </div>
+
+                                <!-- Reference Document Tab - Disabled for JCDL Presentation
+                                <div class="tab-pane fade" id="reference-pane" role="tabpanel">
+                                    <div class="alert alert-info">
+                                        <i class="fas fa-info-circle me-2"></i>
+                                        <strong>Reference Document:</strong> Use a document from your collection as the contextual anchor.
+                                    </div>
+
+                                    <label class="form-label">Reference Document *</label>
+                                    <select class="form-select" id="anchor-document-select">
+                                        <option value="">Select a document from your collection...</option>
+                                        {% for doc in documents %}
+                                        <option value="{{ doc.id }}" data-title="{{ doc.title }}" data-type="{{ doc.document_type or 'document' }}">
+                                            {{ doc.title }}
+                                            {% if doc.author %} - {{ doc.author }}{% endif %}
+                                            {% if doc.year %} ({{ doc.year }}){% endif %}
+                                        </option>
+                                        {% endfor %}
+                                    </select>
+                                    <div class="form-text mb-3">Choose a document from your collection to provide contextual anchoring</div>
+
+                                    {% if not documents %}
+                                    <div class="alert alert-warning">
+                                        <i class="fas fa-exclamation-triangle me-2"></i>
+                                        <strong>No documents found.</strong>
+                                        <a href="{{ url_for('upload.unified') }}" class="alert-link">Upload documents</a>
+                                        to use them as reference sources.
+                                    </div>
+                                    {% endif %}
+
+                                    <div class="mt-3">
+                                        <div class="alert alert-info">
+                                            <i class="fas fa-magic me-2"></i>
+                                            <strong>Automatic Processing:</strong> Once you select a document, the system will automatically analyze it to extract relevant terms and context.
+                                        </div>
+                                    </div>
+                                </div>
+                                -->
                                 
                             </div> <!-- End tab-content -->
                         </div>
@@ -933,13 +953,9 @@ document.addEventListener('DOMContentLoaded', function() {
                     }
                     
                     html += `
-                            <button type="button" class="btn btn-sm btn-outline-primary me-2"
+                            <button type="button" class="btn btn-sm btn-outline-primary"
                                     onclick="selectOEDResult('${searchTerm}', '${entryId}', '${headword}', '${pos}', ${index})">
                                 Use This Entry
-                            </button>
-                            <button type="button" class="btn btn-sm btn-outline-success"
-                                    onclick="showOEDTimeline('${entryId}', '${headword}')">
-                                <i class="fas fa-clock me-1"></i>View Timeline
                             </button>
                         </div>
                     </div>

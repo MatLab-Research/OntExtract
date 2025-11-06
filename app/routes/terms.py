@@ -296,10 +296,12 @@ def add_term():
     ).all()
     existing_domains = [d[0] for d in existing_domains]
     
-    # Get documents for reference document selection
+    # Get documents for reference document selection (only if user is authenticated)
     from app.models.document import Document
-    documents = Document.query.filter_by(user_id=current_user.id).order_by(Document.title).all()
-    
+    documents = []
+    if current_user.is_authenticated:
+        documents = Document.query.filter_by(user_id=current_user.id).order_by(Document.title).all()
+
     return render_template('terms/add.html', form=form, existing_domains=existing_domains, documents=documents)
 
 
