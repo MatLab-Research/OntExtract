@@ -1,0 +1,291 @@
+{% macro upload_form(
+    form_id='upload-form',
+    upload_url='',
+    show_doi_option=True,
+    show_title_search=True,
+    context_info=None
+) %}
+{#
+Reusable upload form component
+Can be used for both generic uploads and experiment-specific uploads
+
+Parameters:
+  - form_id: Unique ID for the form
+  - upload_url: URL to POST the upload to
+  - show_doi_option: Whether to show the DOI upload option
+  - show_title_search: Whether to show title search option
+  - context_info: Optional dict with context (e.g., experiment name, target term)
+#}
+
+<div class="upload-container" id="{{ form_id }}-container">
+    <!-- Upload Method Selection -->
+    <div class="mb-4">
+        <label class="form-label">Choose Upload Method</label>
+
+        <div class="upload-option active" id="{{ form_id }}-file-option" onclick="selectUploadMethod_{{ form_id }}('file')">
+            <div class="d-flex align-items-center">
+                <div class="me-3">
+                    <i class="fas fa-file-upload fa-2x text-primary"></i>
+                </div>
+                <div>
+                    <h5 class="mb-1">Upload PDF File</h5>
+                    <p class="mb-0 text-muted small">
+                        Upload a PDF document. We'll extract bibliographic metadata automatically.
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        {% if show_doi_option %}
+        <div class="upload-option" id="{{ form_id }}-doi-option" onclick="selectUploadMethod_{{ form_id }}('doi')">
+            <div class="d-flex align-items-center">
+                <div class="me-3">
+                    <i class="fas fa-link fa-2x text-primary"></i>
+                </div>
+                <div>
+                    <h5 class="mb-1">Enter DOI</h5>
+                    <p class="mb-0 text-muted small">
+                        Enter a DOI to retrieve bibliographic metadata from CrossRef. You'll still need to upload the file.
+                    </p>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- File Upload Form -->
+    <form id="{{ form_id }}-file-form" class="upload-method-form" style="display: block;">
+        <div class="mb-3">
+            <label for="{{ form_id }}-file-input" class="form-label">Select Document (PDF)</label>
+            <input type="file" class="form-control" id="{{ form_id }}-file-input" accept=".pdf" required>
+            <div class="form-text">Upload a PDF file for analysis</div>
+        </div>
+
+        {% if show_title_search %}
+        <div class="row">
+            <div class="col-md-6 mb-3">
+                <label for="{{ form_id }}-title" class="form-label">Title (optional)</label>
+                <input type="text" class="form-control" id="{{ form_id }}-title" placeholder="Enter document title">
+                <div class="form-text">Will be used to search CrossRef for metadata</div>
+            </div>
+            <div class="col-md-6 mb-3">
+                <label for="{{ form_id }}-year" class="form-label">Year (optional)</label>
+                <input type="number" class="form-control" id="{{ form_id }}-year" placeholder="e.g., 1956" min="1800" max="2024">
+            </div>
+        </div>
+
+        <div class="mb-3">
+            <label for="{{ form_id }}-authors" class="form-label">Authors (optional)</label>
+            <input type="text" class="form-control" id="{{ form_id }}-authors" placeholder="Comma-separated author names">
+        </div>
+        {% endif %}
+
+        <button type="submit" class="btn btn-primary btn-lg w-100">
+            <i class="fas fa-upload"></i> Upload and Analyze Document
+        </button>
+    </form>
+
+    <!-- DOI Form -->
+    {% if show_doi_option %}
+    <form id="{{ form_id }}-doi-form" class="upload-method-form" style="display: none;">
+        <div class="mb-3">
+            <label for="{{ form_id }}-doi-input" class="form-label">DOI</label>
+            <input type="text" class="form-control" id="{{ form_id }}-doi-input"
+                   placeholder="e.g., 10.1145/1234567.1234568 or https://doi.org/10.1145/1234567.1234568" required>
+            <div class="form-text">Enter the Digital Object Identifier</div>
+        </div>
+
+        <button type="submit" class="btn btn-primary btn-lg w-100">
+            <i class="fas fa-search"></i> Retrieve Metadata from CrossRef
+        </button>
+    </form>
+    {% endif %}
+
+    <!-- Loading Spinner -->
+    <div class="loading-spinner" id="{{ form_id }}-loading">
+        <div class="spinner-border text-primary" role="status" style="width: 3rem; height: 3rem;">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+        <p class="mt-3 text-muted">Analyzing document and extracting metadata...</p>
+    </div>
+</div>
+
+<script>
+// Upload form state management for {{ form_id }}
+window.{{ form_id }}_state = {
+    currentMethod: 'file',
+    uploadUrl: '{{ upload_url }}',
+    extractedMetadata: null,
+    currentFileName: null
+};
+
+function selectUploadMethod_{{ form_id }}(method) {
+    const fileOption = document.getElementById('{{ form_id }}-file-option');
+    const doiOption = document.getElementById('{{ form_id }}-doi-option');
+    const fileForm = document.getElementById('{{ form_id }}-file-form');
+    const doiForm = document.getElementById('{{ form_id }}-doi-form');
+
+    fileOption.classList.remove('active');
+    if (doiOption) doiOption.classList.remove('active');
+
+    if (method === 'file') {
+        fileOption.classList.add('active');
+        fileForm.style.display = 'block';
+        if (doiForm) doiForm.style.display = 'none';
+    } else if (method === 'doi' && doiForm) {
+        doiOption.classList.add('active');
+        fileForm.style.display = 'none';
+        doiForm.style.display = 'block';
+    }
+
+    window.{{ form_id }}_state.currentMethod = method;
+}
+
+function showLoading_{{ form_id }}() {
+    document.getElementById('{{ form_id }}-loading').classList.add('active');
+    document.querySelectorAll('#{{ form_id }}-container .upload-method-form').forEach(form => {
+        form.style.display = 'none';
+    });
+}
+
+function hideLoading_{{ form_id }}() {
+    document.getElementById('{{ form_id }}-loading').classList.remove('active');
+    const method = window.{{ form_id }}_state.currentMethod;
+    if (method === 'file') {
+        document.getElementById('{{ form_id }}-file-form').style.display = 'block';
+    } else if (method === 'doi') {
+        const doiForm = document.getElementById('{{ form_id }}-doi-form');
+        if (doiForm) doiForm.style.display = 'block';
+    }
+}
+
+// File upload handler
+document.getElementById('{{ form_id }}-file-form').addEventListener('submit', async function(e) {
+    e.preventDefault();
+
+    const fileInput = document.getElementById('{{ form_id }}-file-input');
+    const file = fileInput.files[0];
+
+    if (!file) {
+        alert('Please select a file');
+        return;
+    }
+
+    window.{{ form_id }}_state.currentFileName = file.name;
+
+    const formData = new FormData();
+    formData.append('document_file', file);
+    formData.append('source_type', 'file');
+    {% if show_title_search %}
+    formData.append('title', document.getElementById('{{ form_id }}-title').value);
+    formData.append('publication_year', document.getElementById('{{ form_id }}-year').value);
+    formData.append('authors', document.getElementById('{{ form_id }}-authors').value);
+    {% endif %}
+
+    showLoading_{{ form_id }}();
+
+    try {
+        const response = await fetch(window.{{ form_id }}_state.uploadUrl, {
+            method: 'POST',
+            body: formData
+        });
+
+        console.log('[{{ form_id }}] Response status:', response.status);
+        const result = await response.json();
+        console.log('[{{ form_id }}] Server response:', result);
+
+        if (result.success) {
+            window.{{ form_id }}_state.extractedMetadata = result.metadata;
+            window.{{ form_id }}_state.extractedMetadata.temp_path = result.temp_path;
+
+            // Trigger custom event for parent page to handle
+            const event = new CustomEvent('uploadComplete_{{ form_id }}', {
+                detail: {
+                    metadata: result.metadata,
+                    temp_path: result.temp_path,
+                    filename: file.name
+                }
+            });
+            document.dispatchEvent(event);
+        } else {
+            console.error('[{{ form_id }}] Server returned error:', result.error);
+            alert('Error: ' + result.error);
+            hideLoading_{{ form_id }}();
+        }
+    } catch (error) {
+        console.error('[{{ form_id }}] Fetch error:', error);
+        alert('Error uploading document: ' + error.message);
+        hideLoading_{{ form_id }}();
+    }
+});
+
+{% if show_doi_option %}
+// DOI upload handler
+document.getElementById('{{ form_id }}-doi-form').addEventListener('submit', async function(e) {
+    e.preventDefault();
+
+    const doi = document.getElementById('{{ form_id }}-doi-input').value;
+
+    const formData = new FormData();
+    formData.append('source_type', 'doi');
+    formData.append('doi', doi);
+
+    showLoading_{{ form_id }}();
+
+    try {
+        const response = await fetch(window.{{ form_id }}_state.uploadUrl, {
+            method: 'POST',
+            body: formData
+        });
+
+        console.log('[{{ form_id }}] Response status:', response.status);
+        const result = await response.json();
+        console.log('[{{ form_id }}] Server response:', result);
+
+        if (result.success) {
+            if (result.needs_file) {
+                alert(result.message);
+                hideLoading_{{ form_id }}();
+                // Switch to file upload mode
+                selectUploadMethod_{{ form_id }}('file');
+            } else {
+                window.{{ form_id }}_state.extractedMetadata = result.metadata;
+
+                // Trigger custom event
+                const event = new CustomEvent('uploadComplete_{{ form_id }}', {
+                    detail: {
+                        metadata: result.metadata,
+                        temp_path: result.temp_path
+                    }
+                });
+                document.dispatchEvent(event);
+            }
+        } else {
+            console.error('[{{ form_id }}] Server returned error:', result.error);
+            alert('Error: ' + result.error);
+            hideLoading_{{ form_id }}();
+        }
+    } catch (error) {
+        console.error('[{{ form_id }}] Fetch error:', error);
+        alert('Error retrieving DOI metadata: ' + error.message);
+        hideLoading_{{ form_id }}();
+    }
+});
+{% endif %}
+
+// Reset function
+function reset_{{ form_id }}() {
+    window.{{ form_id }}_state.extractedMetadata = null;
+    window.{{ form_id }}_state.currentFileName = null;
+    document.getElementById('{{ form_id }}-file-form').reset();
+    {% if show_doi_option %}
+    document.getElementById('{{ form_id }}-doi-form').reset();
+    {% endif %}
+    hideLoading_{{ form_id }}();
+}
+
+// Expose reset function globally
+window.reset_{{ form_id }} = reset_{{ form_id }};
+</script>
+
+{% endmacro %}

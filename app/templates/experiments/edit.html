@@ -118,19 +118,45 @@
                             <h5>Configuration Options</h5>
                             <div id="temporal-config" style="display: none;">
                                 <div class="mb-3">
-                                    <label for="time-window" class="form-label">Time Window</label>
-                                    <select class="form-select" id="time-window">
-                                        <option value="monthly">Monthly</option>
-                                        <option value="quarterly">Quarterly</option>
-                                        <option value="yearly">Yearly</option>
-                                        <option value="custom">Custom</option>
-                                    </select>
+                                    <label for="focus-term" class="form-label">Focus Term *</label>
+                                    <input type="text" class="form-control" id="focus-term"
+                                           placeholder="e.g., agent, knowledge, responsibility">
+                                    <div class="form-text">The term whose semantic evolution you want to track</div>
                                 </div>
-                                <div class="form-check">
-                                    <input class="form-check-input" type="checkbox" id="track-entities">
-                                    <label class="form-check-label" for="track-entities">
-                                        Track entity evolution over time
-                                    </label>
+
+                                <div class="mb-3">
+                                    <label for="start-year" class="form-label">Start Year</label>
+                                    <input type="number" class="form-control" id="start-year"
+                                           placeholder="e.g., 1850" min="1000" max="2024">
+                                </div>
+
+                                <div class="mb-3">
+                                    <label for="end-year" class="form-label">End Year</label>
+                                    <input type="number" class="form-control" id="end-year"
+                                           placeholder="e.g., 2024" min="1000" max="2024">
+                                </div>
+
+                                <div class="mb-3">
+                                    <label for="focus-disciplines" class="form-label">Focus Disciplines (comma-separated)</label>
+                                    <input type="text" class="form-control" id="focus-disciplines"
+                                           placeholder="e.g., philosophy, law, economics, AI">
+                                </div>
+
+                                <div class="mb-4">
+                                    <label class="form-label">Semantic Features *</label>
+                                    <div class="alert alert-info">
+                                        <i class="fas fa-info-circle"></i>
+                                        Define the semantic features that will be analyzed for each document.
+                                        These create a "semantic fingerprint" to track meaning evolution.
+                                    </div>
+
+                                    <div id="semantic-features-list" class="mb-3">
+                                        <!-- Features will be added here dynamically -->
+                                    </div>
+
+                                    <button type="button" class="btn btn-sm btn-outline-primary" id="add-feature-btn">
+                                        <i class="fas fa-plus"></i> Add Semantic Feature
+                                    </button>
                                 </div>
                             </div>
                             
@@ -202,21 +228,72 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
     
+    // Semantic features management
+    let featureCounter = 0;
+
+    function addSemanticFeature(name = '', description = '') {
+        const featureId = `feature-${featureCounter++}`;
+        const featureHtml = `
+            <div class="card mb-2" id="${featureId}">
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-4">
+                            <input type="text" class="form-control feature-name" placeholder="Feature name (e.g., intentionality)" value="${name}">
+                        </div>
+                        <div class="col-md-7">
+                            <input type="text" class="form-control feature-description" placeholder="Description (e.g., Does it involve intention?)" value="${description}">
+                        </div>
+                        <div class="col-md-1">
+                            <button type="button" class="btn btn-sm btn-danger remove-feature-btn" data-feature-id="${featureId}">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+        document.getElementById('semantic-features-list').insertAdjacentHTML('beforeend', featureHtml);
+
+        // Add remove handler
+        document.querySelector(`#${featureId} .remove-feature-btn`).addEventListener('click', function() {
+            document.getElementById(featureId).remove();
+        });
+    }
+
     // Initialize configuration display
     function initializeConfig() {
         const type = typeSelect.value;
-        
+
         if (type === 'temporal_evolution') {
             temporalConfig.style.display = 'block';
             domainConfig.style.display = 'none';
             typeDescription.textContent = 'For temporal evolution, select documents from different time periods to analyze how concepts evolve over time.';
-            
+
             // Load existing temporal config
-            if (existingConfig.time_window) {
-                document.getElementById('time-window').value = existingConfig.time_window;
+            if (existingConfig.focus_term_id) {
+                const focusTermInput = document.getElementById('focus-term');
+                if (focusTermInput) focusTermInput.value = existingConfig.focus_term_id;
             }
-            if (existingConfig.track_entities !== undefined) {
-                document.getElementById('track-entities').checked = existingConfig.track_entities;
+
+            if (existingConfig.temporal_scope) {
+                const scope = existingConfig.temporal_scope;
+                if (scope.start_year) {
+                    document.getElementById('start-year').value = scope.start_year;
+                }
+                if (scope.end_year) {
+                    document.getElementById('end-year').value = scope.end_year;
+                }
+                if (scope.focus_disciplines) {
+                    document.getElementById('focus-disciplines').value = scope.focus_disciplines.join(', ');
+                }
+            }
+
+            // Load semantic features
+            document.getElementById('semantic-features-list').innerHTML = '';
+            if (existingConfig.semantic_features) {
+                Object.entries(existingConfig.semantic_features).forEach(([name, desc]) => {
+                    addSemanticFeature(name, desc);
+                });
             }
         } else if (type === 'domain_comparison') {
             temporalConfig.style.display = 'none';
@@ -245,9 +322,14 @@ document.addEventListener('DOMContentLoaded', function() {
     // Initialize on load
     initializeConfig();
     updateSelectedCount();
-    
+
     // Update configuration options based on experiment type
     typeSelect.addEventListener('change', initializeConfig);
+
+    // Add semantic feature button
+    document.getElementById('add-feature-btn')?.addEventListener('click', function() {
+        addSemanticFeature();
+    });
     
     // Document search
     if (searchInput) {
@@ -330,8 +412,38 @@ document.addEventListener('DOMContentLoaded', function() {
         // Build configuration based on type
         const configuration = {};
         if (type === 'temporal_evolution') {
-            configuration.time_window = document.getElementById('time-window').value;
-            configuration.track_entities = document.getElementById('track-entities').checked;
+            const focusTerm = document.getElementById('focus-term').value.trim();
+            const startYear = parseInt(document.getElementById('start-year').value) || null;
+            const endYear = parseInt(document.getElementById('end-year').value) || null;
+            const disciplinesStr = document.getElementById('focus-disciplines').value.trim();
+
+            if (!focusTerm) {
+                alert('Please enter a focus term for the temporal evolution experiment');
+                return;
+            }
+
+            // Collect semantic features
+            const semanticFeatures = {};
+            document.querySelectorAll('#semantic-features-list .card').forEach(card => {
+                const name = card.querySelector('.feature-name').value.trim();
+                const desc = card.querySelector('.feature-description').value.trim();
+                if (name && desc) {
+                    semanticFeatures[name] = desc;
+                }
+            });
+
+            if (Object.keys(semanticFeatures).length === 0) {
+                alert('Please add at least one semantic feature');
+                return;
+            }
+
+            configuration.focus_term_id = focusTerm;
+            configuration.temporal_scope = {
+                start_year: startYear,
+                end_year: endYear,
+                focus_disciplines: disciplinesStr ? disciplinesStr.split(',').map(d => d.trim()).filter(Boolean) : []
+            };
+            configuration.semantic_features = semanticFeatures;
         } else if (type === 'domain_comparison') {
             configuration.domain_focus = document.getElementById('domain-focus').value;
             configuration.extract_terminology = document.getElementById('extract-terminology').checked;

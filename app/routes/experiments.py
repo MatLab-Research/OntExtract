@@ -2365,3 +2365,278 @@ def get_processing_artifacts(processing_id):
         return jsonify({'error': str(e)}), 500
 
 
+@experiments_bp.route('/<int:experiment_id>/temporal/upload')
+@require_login_for_write
+def temporal_document_upload(experiment_id):
+    """Show document upload page for temporal evolution experiment"""
+    experiment = Experiment.query.filter_by(id=experiment_id).first_or_404()
+
+    # Only for temporal evolution experiments
+    if experiment.experiment_type != 'temporal_evolution':
+        flash('Document upload is only available for temporal evolution experiments', 'warning')
+        return redirect(url_for('experiments.view', experiment_id=experiment_id))
+
+    # Get experiment configuration to find the target term
+    config = json.loads(experiment.configuration) if experiment.configuration else {}
+    focus_term_id = config.get('focus_term_id')
+    semantic_features = config.get('semantic_features', {})
+
+    target_term = None
+    if focus_term_id:
+        from app.models.term import Term
+        target_term = Term.query.filter_by(id=focus_term_id).first()
+
+    return render_template('experiments/temporal_document_upload.html',
+                         experiment=experiment,
+                         target_term=target_term,
+                         semantic_features=semantic_features)
+
+
+@experiments_bp.route('/<int:experiment_id>/temporal/extract_metadata', methods=['POST'])
+@api_require_login_for_write
+def extract_document_metadata(experiment_id):
+    """Extract metadata from uploaded document or DOI"""
+    from app.services.upload_service import upload_service
+    from app.services.document_classifier import DocumentClassifier
+    from app.models.term import Term
+
+    try:
+        experiment = Experiment.query.filter_by(id=experiment_id).first_or_404()
+
+        if experiment.experiment_type != 'temporal_evolution':
+            return jsonify({'error': 'Only temporal evolution experiments support document upload'}), 400
+
+        # Get target term
+        config = json.loads(experiment.configuration) if experiment.configuration else {}
+        focus_term_id = config.get('focus_term_id')
+
+        if not focus_term_id:
+            return jsonify({'error': 'Experiment must have a focus term for temporal analysis'}), 400
+
+        term = Term.query.filter_by(id=focus_term_id).first_or_404()
+        term_text = term.term_text
+
+        # Initialize classifier
+        doc_classifier = DocumentClassifier()
+
+        # Check if DOI or file upload
+        extraction_source = request.form.get('source_type')
+
+        if extraction_source == 'doi':
+            # Extract from DOI using shared service
+            doi = request.form.get('doi')
+            if not doi:
+                return jsonify({'error': 'DOI is required'}), 400
+
+            # Get bibliographic metadata from CrossRef via shared service
+            metadata_result = upload_service.extract_metadata_from_doi(doi)
+
+            if not metadata_result.success:
+                return jsonify({'error': metadata_result.error}), 404
+
+            # Return metadata for review (no document classification yet - user must upload file)
+            return jsonify({
+                'success': True,
+                'metadata': {
+                    'source': 'crossref',
+                    **metadata_result.metadata,
+                    'classification': None  # Will be filled after file upload
+                },
+                'needs_file': True,
+                'message': 'Bibliographic metadata retrieved. Please upload the document file for content analysis.'
+            })
+
+        elif extraction_source == 'file':
+            # Process uploaded file using shared service
+            if 'document_file' not in request.files:
+                return jsonify({'error': 'No file uploaded'}), 400
+
+            file = request.files['document_file']
+
+            # Save to temporary location using shared service
+            upload_result = upload_service.save_to_temp(file)
+            if not upload_result.success:
+                return jsonify({'error': upload_result.error}), 400
+
+            try:
+                # Try to get CrossRef metadata from title (if provided)
+                title = request.form.get('title')
+                crossref_metadata = {}
+                if title:
+                    metadata_result = upload_service.extract_metadata_from_title(title)
+                    if metadata_result.success:
+                        crossref_metadata = metadata_result.metadata
+
+                # Parse user-provided metadata
+                publication_year = request.form.get('publication_year')
+                if publication_year:
+                    publication_year = int(publication_year)
+                elif crossref_metadata.get('publication_year'):
+                    publication_year = crossref_metadata['publication_year']
+
+                authors_str = request.form.get('authors')
+                authors = [a.strip() for a in authors_str.split(',')] if authors_str else None
+                if not authors and crossref_metadata.get('authors'):
+                    authors = crossref_metadata['authors']
+
+                # Get semantic features from experiment config
+                semantic_features = config.get('semantic_features', {})
+
+                # Classify document with LLM
+                classification = doc_classifier.classify_document(
+                    upload_result.temp_path,
+                    file.filename,
+                    term_text,
+                    semantic_features=semantic_features,
+                    publication_year=publication_year,
+                    authors=authors
+                )
+
+                # Merge all metadata sources
+                merged_metadata = upload_service.merge_metadata(
+                    crossref_metadata,
+                    {
+                        'title': title,
+                        'publication_year': classification.publication_year,
+                        'authors': authors,
+                        'doi': request.form.get('doi')
+                    }
+                )
+
+                # Build final response
+                response_metadata = {
+                    'source': 'file_upload',
+                    'filename': file.filename,
+                    **merged_metadata,
+                    'classification': {
+                        'discipline': classification.discipline,
+                        'subdiscipline': classification.subdiscipline,
+                        'temporal_period': classification.temporal_period,
+                        'key_definition': classification.key_definition,
+                        'semantic_features': classification.semantic_features,
+                        'semantic_category': classification.semantic_category,
+                        'confidence': classification.confidence,
+                        'timeline_track': doc_classifier.determine_timeline_track(classification.discipline),
+                        'track_color': doc_classifier.get_track_color(
+                            doc_classifier.determine_timeline_track(classification.discipline)
+                        )
+                    }
+                }
+
+                return jsonify({
+                    'success': True,
+                    'metadata': response_metadata,
+                    'temp_path': upload_result.temp_path,
+                    'needs_file': False,
+                    'message': 'Document analyzed. Please review metadata before saving.'
+                })
+
+            except Exception as e:
+                # Clean up temp file using shared service
+                upload_service.cleanup_temp(upload_result.temp_path)
+                raise e
+
+        else:
+            return jsonify({'error': 'Invalid source type'}), 400
+
+    except Exception as e:
+        current_app.logger.error(f"Error extracting metadata: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+
+@experiments_bp.route('/<int:experiment_id>/temporal/save_document', methods=['POST'])
+@api_require_login_for_write
+def save_temporal_document(experiment_id):
+    """Save document after metadata review"""
+    from app.services.upload_service import upload_service
+    from app.models.temporal_experiment import DocumentTemporalMetadata
+    from app.models.term import Term
+    import os
+
+    try:
+        experiment = Experiment.query.filter_by(id=experiment_id).first_or_404()
+
+        data = request.get_json()
+
+        # Get target term
+        config = json.loads(experiment.configuration) if experiment.configuration else {}
+        focus_term_id = config.get('focus_term_id')
+        term = Term.query.filter_by(id=focus_term_id).first_or_404()
+
+        # Save document file using shared service
+        temp_path = data.get('temp_path')
+        filename = data.get('filename')
+
+        # Create upload directory for temporal experiments
+        upload_dir = os.path.join(current_app.config.get('UPLOAD_FOLDER', 'uploads'), 'temporal_experiments')
+
+        # Save permanently using shared service
+        save_result = upload_service.save_permanent(temp_path, upload_dir, filename)
+        if not save_result.success:
+            return jsonify({'error': save_result.error}), 400
+
+        final_path = save_result.file_path
+
+        # Create document record
+        metadata = data.get('metadata', {})
+
+        document = Document(
+            title=metadata.get('title', filename),
+            file_path=final_path,
+            document_type='document',
+            source_metadata=json.dumps({
+                'authors': metadata.get('authors', []),
+                'publication_year': metadata.get('publication_year'),
+                'journal': metadata.get('journal'),
+                'doi': metadata.get('doi'),
+                'publisher': metadata.get('publisher'),
+                'extraction_source': metadata.get('source')
+            }),
+            created_by=current_user.id if current_user.is_authenticated else None
+        )
+        db.session.add(document)
+        db.session.flush()
+
+        # Link document to experiment
+        exp_doc = ExperimentDocument(
+            experiment_id=experiment_id,
+            document_id=document.id
+        )
+        db.session.add(exp_doc)
+        db.session.flush()
+
+        # Save temporal metadata
+        classification = metadata.get('classification', {})
+
+        temporal_metadata = DocumentTemporalMetadata(
+            document_id=document.id,
+            experiment_id=experiment_id,
+            temporal_period=classification.get('temporal_period'),
+            publication_year=metadata.get('publication_year'),
+            discipline=classification.get('discipline'),
+            subdiscipline=classification.get('subdiscipline'),
+            key_definition=classification.get('key_definition'),
+            semantic_features=classification.get('semantic_features'),
+            semantic_shift_type=None,  # Will be determined later
+            timeline_track=classification.get('timeline_track'),
+            marker_color=classification.get('track_color'),
+            extraction_method='llm',
+            extraction_confidence=classification.get('confidence')
+        )
+        db.session.add(temporal_metadata)
+
+        db.session.commit()
+
+        return jsonify({
+            'success': True,
+            'message': 'Document saved successfully',
+            'document_id': document.id,
+            'exp_doc_id': exp_doc.id
+        })
+
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"Error saving temporal document: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+

@@ -1,0 +1,603 @@
+{% extends "base.html" %}
+
+{% block title %}Upload Document - {{ experiment.name }} - OntExtract{% endblock %}
+
+{% block content %}
+<style>
+    .upload-section {
+        background: #303030;
+        border-radius: 8px;
+        padding: 30px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+        margin-bottom: 20px;
+        border: 1px solid #444;
+    }
+
+    .section-header {
+        font-size: 1.25rem;
+        font-weight: 600;
+        margin-bottom: 20px;
+        padding-bottom: 10px;
+        border-bottom: 2px solid #444;
+    }
+
+    .upload-option {
+        border: 2px solid #444;
+        border-radius: 6px;
+        padding: 20px;
+        margin-bottom: 15px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        background: #222;
+    }
+
+    .upload-option:hover {
+        border-color: #375a7f;
+        background: #2a2a2a;
+    }
+
+    .upload-option.active {
+        border-color: #375a7f;
+        background: #1a3a52;
+    }
+
+    .metadata-field {
+        margin-bottom: 15px;
+    }
+
+    .metadata-label {
+        font-weight: 600;
+        margin-bottom: 5px;
+    }
+
+    .metadata-value {
+        background: #222;
+        padding: 10px;
+        border-radius: 4px;
+        border-left: 3px solid #375a7f;
+    }
+
+    .classification-card {
+        background: #222;
+        border: 1px solid #444;
+        border-radius: 6px;
+        padding: 20px;
+        margin-top: 20px;
+    }
+
+    .feature-badge {
+        display: inline-block;
+        padding: 4px 12px;
+        margin: 4px;
+        border-radius: 12px;
+        font-size: 0.875rem;
+    }
+
+    .feature-true {
+        background: #1e4620;
+        color: #4dff4d;
+        border: 1px solid #28a745;
+    }
+
+    .feature-false {
+        background: #4a1c1c;
+        color: #ff6b6b;
+        border: 1px solid #dc3545;
+    }
+
+    .confidence-bar {
+        height: 24px;
+        background: #222;
+        border-radius: 4px;
+        overflow: hidden;
+        border: 1px solid #444;
+    }
+
+    .confidence-fill {
+        height: 100%;
+        background: linear-gradient(90deg, #28a745, #20c997);
+        transition: width 0.3s ease;
+    }
+
+    .loading-spinner {
+        display: none;
+        text-align: center;
+        padding: 40px;
+    }
+
+    .loading-spinner.active {
+        display: block;
+    }
+</style>
+
+<div class="container">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h1>Upload Document for Temporal Analysis</h1>
+                <a href="{{ url_for('experiments.view', experiment_id=experiment.id) }}" class="btn btn-outline-secondary">
+                    <i class="fas fa-arrow-left"></i> Back to Experiment
+                </a>
+            </div>
+
+            <div class="alert alert-info">
+                <strong>Experiment:</strong> {{ experiment.name }}<br>
+                <strong>Target Term:</strong> {{ target_term.term_text if target_term else 'No term specified' }}<br>
+                <strong>Analysis Type:</strong> Semantic change across disciplines and time periods
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-lg-8">
+            <!-- Upload Section -->
+            <div class="upload-section" id="upload-section">
+                <div class="section-header">
+                    <i class="fas fa-cloud-upload-alt text-primary"></i> Upload Document
+                </div>
+
+                <!-- Upload Method Selection -->
+                <div class="mb-4">
+                    <label class="form-label">Choose Upload Method</label>
+
+                    <div class="upload-option active" id="file-upload-option" onclick="selectUploadMethod('file')">
+                        <div class="d-flex align-items-center">
+                            <div class="me-3">
+                                <i class="fas fa-file-upload fa-2x text-primary"></i>
+                            </div>
+                            <div>
+                                <h5 class="mb-1">Upload PDF File</h5>
+                                <p class="mb-0 text-muted small">
+                                    Upload a PDF document. We'll extract bibliographic metadata and analyze content automatically.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="upload-option" id="doi-upload-option" onclick="selectUploadMethod('doi')">
+                        <div class="d-flex align-items-center">
+                            <div class="me-3">
+                                <i class="fas fa-link fa-2x text-primary"></i>
+                            </div>
+                            <div>
+                                <h5 class="mb-1">Enter DOI</h5>
+                                <p class="mb-0 text-muted small">
+                                    Enter a DOI to retrieve bibliographic metadata from CrossRef. You'll still need to upload the file for content analysis.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- File Upload Form -->
+                <form id="file-upload-form" style="display: block;">
+                    <div class="mb-3">
+                        <label for="document-file" class="form-label">Select Document (PDF)</label>
+                        <input type="file" class="form-control" id="document-file" accept=".pdf" required>
+                        <div class="form-text">Upload a PDF file for analysis</div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="file-title" class="form-label">Title (optional)</label>
+                            <input type="text" class="form-control" id="file-title" placeholder="Enter document title">
+                            <div class="form-text">Will be used to search CrossRef for metadata</div>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="file-year" class="form-label">Year (optional)</label>
+                            <input type="number" class="form-control" id="file-year" placeholder="e.g., 1956" min="1800" max="2024">
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="file-authors" class="form-label">Authors (optional)</label>
+                        <input type="text" class="form-control" id="file-authors" placeholder="Comma-separated author names">
+                    </div>
+
+                    <button type="submit" class="btn btn-primary btn-lg w-100">
+                        <i class="fas fa-upload"></i> Upload and Analyze Document
+                    </button>
+                </form>
+
+                <!-- DOI Form -->
+                <form id="doi-form" style="display: none;">
+                    <div class="mb-3">
+                        <label for="doi-input" class="form-label">DOI</label>
+                        <input type="text" class="form-control" id="doi-input"
+                               placeholder="e.g., 10.1145/1234567.1234568 or https://doi.org/10.1145/1234567.1234568" required>
+                        <div class="form-text">Enter the Digital Object Identifier</div>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary btn-lg w-100">
+                        <i class="fas fa-search"></i> Retrieve Metadata from CrossRef
+                    </button>
+                </form>
+
+                <!-- Loading Spinner -->
+                <div class="loading-spinner" id="loading-spinner">
+                    <div class="spinner-border text-primary" role="status" style="width: 3rem; height: 3rem;">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                    <p class="mt-3 text-muted">Analyzing document and extracting metadata...</p>
+                </div>
+            </div>
+
+            <!-- Metadata Review Section -->
+            <div class="upload-section" id="review-section" style="display: none;">
+                <div class="section-header">
+                    <i class="fas fa-clipboard-check text-success"></i> Review Extracted Metadata
+                </div>
+
+                <form id="metadata-review-form">
+                    <input type="hidden" id="temp-path">
+                    <input type="hidden" id="source-type">
+
+                    <div class="row">
+                        <div class="col-12 mb-3">
+                            <label for="review-title" class="form-label">Title</label>
+                            <input type="text" class="form-control" id="review-title" required>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-8 mb-3">
+                            <label for="review-authors" class="form-label">Authors</label>
+                            <input type="text" class="form-control" id="review-authors"
+                                   placeholder="Comma-separated author names">
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label for="review-year" class="form-label">Publication Year</label>
+                            <input type="number" class="form-control" id="review-year" min="1800" max="2024">
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="review-journal" class="form-label">Journal / Publisher</label>
+                            <input type="text" class="form-control" id="review-journal">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="review-doi" class="form-label">DOI (if available)</label>
+                            <input type="text" class="form-control" id="review-doi">
+                        </div>
+                    </div>
+
+                    <div class="classification-card" id="classification-section">
+                        <h5 class="mb-3">LLM-Extracted Classification</h5>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="review-discipline" class="form-label">Discipline</label>
+                                <select class="form-select" id="review-discipline">
+                                    <option value="philosophy">Philosophy</option>
+                                    <option value="law">Law</option>
+                                    <option value="economics">Economics</option>
+                                    <option value="computer_science">Computer Science</option>
+                                    <option value="artificial_intelligence">Artificial Intelligence</option>
+                                    <option value="linguistics">Linguistics</option>
+                                    <option value="cognitive_science">Cognitive Science</option>
+                                    <option value="sociology">Sociology</option>
+                                    <option value="psychology">Psychology</option>
+                                    <option value="other">Other</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="review-subdiscipline" class="form-label">Subdiscipline</label>
+                                <input type="text" class="form-control" id="review-subdiscipline"
+                                       placeholder="e.g., action theory, agency law">
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="review-temporal-period" class="form-label">Temporal Period</label>
+                            <input type="text" class="form-control" id="review-temporal-period"
+                                   placeholder="e.g., Early 20th Century, Contemporary AI Era">
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="review-key-definition" class="form-label">Key Definition of "{{ target_term.term_text if target_term else 'target term' }}"</label>
+                            <textarea class="form-control" id="review-key-definition" rows="3"
+                                      placeholder="How this document defines the target term"></textarea>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Semantic Features</label>
+                            <div id="semantic-features-display"></div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Classification Confidence</label>
+                            <div class="confidence-bar">
+                                <div class="confidence-fill" id="confidence-fill"></div>
+                            </div>
+                            <small class="text-muted" id="confidence-text"></small>
+                        </div>
+                    </div>
+
+                    <div class="d-flex gap-2 mt-4">
+                        <button type="submit" class="btn btn-success btn-lg flex-grow-1">
+                            <i class="fas fa-check"></i> Approve and Save Document
+                        </button>
+                        <button type="button" class="btn btn-outline-secondary btn-lg" onclick="resetForm()">
+                            <i class="fas fa-times"></i> Cancel
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <div class="col-lg-4">
+            <div class="card">
+                <div class="card-header bg-info text-white">
+                    <h5 class="mb-0"><i class="fas fa-info-circle"></i> About Metadata Extraction</h5>
+                </div>
+                <div class="card-body">
+                    <h6>Automatic Extraction</h6>
+                    <p class="small">
+                        The system automatically extracts bibliographic metadata using CrossRef API and analyzes
+                        document content using Claude AI to classify discipline, temporal period, and semantic features.
+                    </p>
+
+                    <h6>Review Required</h6>
+                    <p class="small">
+                        Please review the extracted metadata before saving. You can edit any field to ensure accuracy.
+                        This metadata will be used for timeline visualization and semantic change analysis.
+                    </p>
+
+                    <h6>Semantic Features for "{{ target_term.term_text if target_term else 'target term' }}"</h6>
+                    <p class="small mb-0">
+                        The system analyzes these semantic features for each document:
+                    </p>
+                    <ul class="small">
+                        {% if semantic_features %}
+                            {% for feature_name, feature_desc in semantic_features.items() %}
+                                <li><strong>{{ feature_name|replace('_', ' ')|title }}:</strong> {{ feature_desc }}</li>
+                            {% endfor %}
+                        {% else %}
+                            <li><em>No semantic features configured for this experiment</em></li>
+                        {% endif %}
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+let extractedMetadata = null;
+let currentFileName = null;
+
+function selectUploadMethod(method) {
+    document.getElementById('file-upload-option').classList.remove('active');
+    document.getElementById('doi-upload-option').classList.remove('active');
+
+    if (method === 'file') {
+        document.getElementById('file-upload-option').classList.add('active');
+        document.getElementById('file-upload-form').style.display = 'block';
+        document.getElementById('doi-form').style.display = 'none';
+    } else {
+        document.getElementById('doi-upload-option').classList.add('active');
+        document.getElementById('file-upload-form').style.display = 'none';
+        document.getElementById('doi-form').style.display = 'block';
+    }
+}
+
+document.getElementById('file-upload-form').addEventListener('submit', async function(e) {
+    e.preventDefault();
+
+    const fileInput = document.getElementById('document-file');
+    const file = fileInput.files[0];
+
+    if (!file) {
+        alert('Please select a file');
+        return;
+    }
+
+    currentFileName = file.name;
+
+    const formData = new FormData();
+    formData.append('document_file', file);
+    formData.append('source_type', 'file');
+    formData.append('title', document.getElementById('file-title').value);
+    formData.append('publication_year', document.getElementById('file-year').value);
+    formData.append('authors', document.getElementById('file-authors').value);
+
+    showLoading();
+
+    try {
+        const response = await fetch('{{ url_for("experiments.extract_document_metadata", experiment_id=experiment.id) }}', {
+            method: 'POST',
+            body: formData
+        });
+
+        console.log('Response status:', response.status);
+
+        const result = await response.json();
+        console.log('Server response:', result);
+
+        if (result.success) {
+            extractedMetadata = result.metadata;
+            extractedMetadata.temp_path = result.temp_path;
+            console.log('Extracted metadata:', extractedMetadata);
+            displayMetadataReview();
+        } else {
+            console.error('Server returned error:', result.error);
+            alert('Error: ' + result.error);
+            hideLoading();
+        }
+    } catch (error) {
+        console.error('Fetch error:', error);
+        alert('Error uploading document: ' + error.message);
+        hideLoading();
+    }
+});
+
+document.getElementById('doi-form').addEventListener('submit', async function(e) {
+    e.preventDefault();
+
+    const doi = document.getElementById('doi-input').value;
+
+    const formData = new FormData();
+    formData.append('source_type', 'doi');
+    formData.append('doi', doi);
+
+    showLoading();
+
+    try {
+        const response = await fetch('{{ url_for("experiments.extract_document_metadata", experiment_id=experiment.id) }}', {
+            method: 'POST',
+            body: formData
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+            if (result.needs_file) {
+                alert(result.message);
+                hideLoading();
+                // TODO: Show file upload field with pre-filled metadata
+            } else {
+                extractedMetadata = result.metadata;
+                displayMetadataReview();
+            }
+        } else {
+            alert('Error: ' + result.error);
+            hideLoading();
+        }
+    } catch (error) {
+        alert('Error retrieving DOI metadata: ' + error.message);
+        hideLoading();
+    }
+});
+
+function displayMetadataReview() {
+    document.getElementById('upload-section').style.display = 'none';
+    document.getElementById('review-section').style.display = 'block';
+    document.getElementById('loading-spinner').classList.remove('active');
+
+    document.getElementById('temp-path').value = extractedMetadata.temp_path || '';
+    document.getElementById('source-type').value = extractedMetadata.source || '';
+    document.getElementById('review-title').value = extractedMetadata.title || currentFileName || '';
+    document.getElementById('review-authors').value = (extractedMetadata.authors || []).join(', ');
+    document.getElementById('review-year').value = extractedMetadata.publication_year || '';
+    document.getElementById('review-journal').value = extractedMetadata.journal || '';
+    document.getElementById('review-doi').value = extractedMetadata.doi || '';
+
+    const classification = extractedMetadata.classification;
+    if (classification) {
+        document.getElementById('review-discipline').value = classification.discipline || 'other';
+        document.getElementById('review-subdiscipline').value = classification.subdiscipline || '';
+        document.getElementById('review-temporal-period').value = classification.temporal_period || '';
+        document.getElementById('review-key-definition').value = classification.key_definition || '';
+
+        displaySemanticFeatures(classification.semantic_features || {});
+
+        const confidence = classification.confidence || 0;
+        document.getElementById('confidence-fill').style.width = (confidence * 100) + '%';
+        document.getElementById('confidence-text').textContent = `Confidence: ${(confidence * 100).toFixed(1)}%`;
+    }
+}
+
+function displaySemanticFeatures(features) {
+    const container = document.getElementById('semantic-features-display');
+    container.innerHTML = '';
+
+    const featureLabels = {
+        'intentionality': 'Intentionality',
+        'autonomy': 'Autonomy',
+        'legal_authority': 'Legal Authority',
+        'moral_responsibility': 'Moral Responsibility',
+        'computational': 'Computational',
+        'causation': 'Causation',
+        'representation': 'Representation'
+    };
+
+    for (const [key, label] of Object.entries(featureLabels)) {
+        const value = features[key];
+        const badge = document.createElement('span');
+        badge.className = `feature-badge ${value ? 'feature-true' : 'feature-false'}`;
+        badge.textContent = label + ': ' + (value ? 'Yes' : 'No');
+        container.appendChild(badge);
+    }
+}
+
+document.getElementById('metadata-review-form').addEventListener('submit', async function(e) {
+    e.preventDefault();
+
+    const updatedMetadata = {
+        temp_path: document.getElementById('temp-path').value,
+        filename: currentFileName,
+        metadata: {
+            title: document.getElementById('review-title').value,
+            authors: document.getElementById('review-authors').value.split(',').map(a => a.trim()).filter(a => a),
+            publication_year: parseInt(document.getElementById('review-year').value) || null,
+            journal: document.getElementById('review-journal').value,
+            doi: document.getElementById('review-doi').value,
+            source: document.getElementById('source-type').value,
+            classification: {
+                discipline: document.getElementById('review-discipline').value,
+                subdiscipline: document.getElementById('review-subdiscipline').value,
+                temporal_period: document.getElementById('review-temporal-period').value,
+                key_definition: document.getElementById('review-key-definition').value,
+                semantic_features: extractedMetadata.classification?.semantic_features || {},
+                semantic_category: extractedMetadata.classification?.semantic_category,
+                confidence: extractedMetadata.classification?.confidence,
+                timeline_track: extractedMetadata.classification?.timeline_track,
+                track_color: extractedMetadata.classification?.track_color
+            }
+        }
+    };
+
+    showLoading();
+
+    try {
+        const response = await fetch('{{ url_for("experiments.save_temporal_document", experiment_id=experiment.id) }}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(updatedMetadata)
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+            alert('Document saved successfully!');
+            window.location.href = '{{ url_for("experiments.view", experiment_id=experiment.id) }}';
+        } else {
+            alert('Error saving document: ' + result.error);
+            hideLoading();
+        }
+    } catch (error) {
+        alert('Error saving document: ' + error.message);
+        hideLoading();
+    }
+});
+
+function showLoading() {
+    document.getElementById('loading-spinner').classList.add('active');
+    document.getElementById('file-upload-form').style.display = 'none';
+    document.getElementById('doi-form').style.display = 'none';
+}
+
+function hideLoading() {
+    document.getElementById('loading-spinner').classList.remove('active');
+    const activeMethod = document.querySelector('.upload-option.active').id.includes('file') ? 'file' : 'doi';
+    if (activeMethod === 'file') {
+        document.getElementById('file-upload-form').style.display = 'block';
+    } else {
+        document.getElementById('doi-form').style.display = 'block';
+    }
+}
+
+function resetForm() {
+    document.getElementById('upload-section').style.display = 'block';
+    document.getElementById('review-section').style.display = 'none';
+    extractedMetadata = null;
+    currentFileName = null;
+    document.getElementById('file-upload-form').reset();
+    document.getElementById('doi-form').reset();
+}
+</script>
+
+{% endblock %}
