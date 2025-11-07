@@ -53,9 +53,18 @@ def timeline():
     # Get filter parameters
     experiment_id = request.args.get('experiment_id', type=int)
     document_id = request.args.get('document_id', type=int)
+    document_uuid = request.args.get('document_uuid')
     term_id = request.args.get('term_id', type=int)
     activity_type = request.args.get('activity_type')
     limit = request.args.get('limit', 50, type=int)
+
+    # Convert document_uuid to document_id if provided
+    if document_uuid and not document_id:
+        from app.models.document import Document
+        from uuid import UUID
+        doc = Document.query.filter_by(uuid=UUID(document_uuid)).first()
+        if doc:
+            document_id = doc.id
 
     # Get timeline data
     timeline_data = provenance_service.get_timeline(
@@ -82,7 +91,10 @@ def timeline():
         'term_creation',
         'term_update',
         'document_upload',
+        'text_extraction',
+        'metadata_extraction_pdf',
         'metadata_extraction',
+        'document_save',
         'metadata_update',
         'metadata_field_update',
         'experiment_creation',

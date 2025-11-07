@@ -336,7 +336,7 @@
             </div>
 
             <!-- Metadata Provenance (PROV-O) - Sidebar -->
-            {% if document.metadata_provenance %}
+            {% if document.metadata_provenance or document_provenance_activities %}
             <div class="card mb-4">
                 <div class="card-header">
                     <h6 class="mb-0">
@@ -347,15 +347,17 @@
                 <div class="card-body">
                     <p class="small text-muted mb-3">
                         <i class="fas fa-info-circle me-1"></i>
-                        Automatic metadata extraction tracked with PROV-O standard.
+                        Metadata extraction and updates tracked with PROV-O standard.
                     </p>
 
                     {% set crossref_count = namespace(value=0) %}
+                    {% if document.metadata_provenance %}
                     {% for field_name, prov_data in document.metadata_provenance.items() %}
                         {% if prov_data.get('source') == 'crossref_auto' %}
                             {% set crossref_count.value = crossref_count.value + 1 %}
                         {% endif %}
                     {% endfor %}
+                    {% endif %}
 
                     {% if crossref_count.value > 0 %}
                     <div class="mb-3">
@@ -383,7 +385,7 @@
                     </div>
                     {% endif %}
 
-                    {% if document.metadata_provenance.get('extracted_doi') %}
+                    {% if document.metadata_provenance and document.metadata_provenance.get('extracted_doi') %}
                     <div class="mb-3 p-2 bg-light rounded">
                         <div class="small">
                             <strong><i class="fas fa-microscope me-1"></i>PDF Extraction:</strong><br>
@@ -392,8 +394,53 @@
                     </div>
                     {% endif %}
 
+                    {% if document_provenance_activities %}
+                    <div class="mb-3">
+                        <strong class="small d-block mb-2">
+                            <i class="fas fa-edit me-1"></i>Recent Activity
+                        </strong>
+                        {% for item in document_provenance_activities[:3] %}
+                        {% set activity_type = item.activity.type %}
+                        {% set params = item.activity.parameters %}
+                        <div class="p-2 mb-2 bg-light border-start border-3 {% if activity_type == 'metadata_field_update' %}border-primary{% else %}border-secondary{% endif %} rounded-end">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div class="flex-grow-1">
+                                    <small class="d-block fw-bold">
+                                        {% if activity_type == 'metadata_field_update' %}
+                                            Field Update: {{ params.field_name|title }}
+                                        {% elif activity_type == 'metadata_update' %}
+                                            Metadata Updated
+                                        {% elif activity_type == 'metadata_extraction' %}
+                                            {{ params.extraction_source|title }} Extraction
+                                        {% elif activity_type == 'metadata_extraction_pdf' %}
+                                            PDF Identifier Extraction
+                                        {% elif activity_type == 'text_extraction' %}
+                                            Text Extraction ({{ params.extraction_method }})
+                                        {% elif activity_type == 'document_save' %}
+                                            Document Saved
+                                        {% elif activity_type == 'document_upload' %}
+                                            Document Uploaded
+                                        {% else %}
+                                            {{ activity_type|replace('_', ' ')|title }}
+                                        {% endif %}
+                                    </small>
+                                </div>
+                                <small class="text-muted text-nowrap ms-2">
+                                    {% if item.activity.started_at %}
+                                        {% set dt_str = item.activity.started_at[:16]|replace('T', ' ') %}
+                                        {{ dt_str[5:] }}
+                                    {% else %}
+                                        —
+                                    {% endif %}
+                                </small>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+
                     <div class="text-center">
-                        <a href="{{ url_for('provenance.timeline') }}" class="btn btn-outline-primary btn-sm w-100">
+                        <a href="{{ url_for('provenance.timeline', document_uuid=document.uuid) }}" class="btn btn-outline-primary btn-sm w-100">
                             <i class="fas fa-stream me-1"></i>Full Timeline
                         </a>
                     </div>

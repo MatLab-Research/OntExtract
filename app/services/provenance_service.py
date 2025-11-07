@@ -196,6 +196,8 @@ class ProvenanceService:
             endedattime=document.created_at or datetime.utcnow(),
             wasassociatedwith=agent.agent_id,
             activity_parameters=_serialize_value({
+                'document_id': document.id,
+                'document_uuid': document.uuid,
                 'filename': document.original_filename,
                 'file_type': document.file_type,
                 'content_type': document.content_type,
@@ -325,6 +327,219 @@ class ProvenanceService:
                 subject_id=activity.activity_id,
                 object_type='Entity',
                 object_id=doc_entity.entity_id
+            )
+            db.session.add(used_rel)
+
+        db.session.commit()
+        return activity, entity
+
+    @classmethod
+    def track_text_extraction(
+        cls,
+        document,
+        user,
+        source_format: str,
+        extraction_method: str = 'auto',
+        start_time: datetime = None,
+        end_time: datetime = None
+    ) -> tuple[ProvActivity, ProvEntity]:
+        """
+        Track text extraction from PDF/DOCX files.
+
+        Args:
+            document: Document instance
+            user: User who initiated the upload
+            source_format: 'pdf', 'docx', 'txt', etc.
+            extraction_method: 'pypdf', 'python-docx', 'plain', etc.
+            start_time: When extraction started
+            end_time: When extraction completed
+        """
+        system_agent = cls.get_or_create_system_agent()
+
+        activity = ProvActivity(
+            activity_type='text_extraction',
+            startedattime=start_time or datetime.utcnow(),
+            endedattime=end_time or datetime.utcnow(),
+            wasassociatedwith=system_agent.agent_id,
+            activity_parameters=_serialize_value({
+                'document_id': document.id,
+                'document_uuid': document.uuid,
+                'source_format': source_format,
+                'extraction_method': extraction_method,
+                'text_length': len(document.content) if document.content else 0
+            }),
+            activity_status='completed'
+        )
+        db.session.add(activity)
+        db.session.flush()
+
+        # Find the document entity created by document_upload
+        doc_entity = ProvEntity.query.filter(
+            ProvEntity.entity_type == 'document',
+            ProvEntity.entity_value['document_id'].astext == str(document.id)
+        ).order_by(ProvEntity.created_at.desc()).first()
+
+        # Create TextSegment entity for the extracted content
+        entity = ProvEntity(
+            entity_type='text_content',
+            generatedattime=end_time or datetime.utcnow(),
+            wasgeneratedby=activity.activity_id,
+            wasattributedto=system_agent.agent_id,
+            wasderivedfrom=doc_entity.entity_id if doc_entity else None,
+            entity_value=_serialize_value({
+                'document_id': document.id,
+                'document_uuid': document.uuid,
+                'text_length': len(document.content) if document.content else 0,
+                'word_count': len(document.content.split()) if document.content else 0
+            })
+        )
+        db.session.add(entity)
+
+        # Create "used" relationship (activity used uploaded document)
+        if doc_entity:
+            used_rel = ProvRelationship(
+                relationship_type='used',
+                subject_type='Activity',
+                subject_id=activity.activity_id,
+                object_type='Entity',
+                object_id=doc_entity.entity_id
+            )
+            db.session.add(used_rel)
+
+        db.session.commit()
+        return activity, entity
+
+    @classmethod
+    def track_document_save(
+        cls,
+        document,
+        user
+    ) -> tuple[ProvActivity, ProvEntity]:
+        """
+        Track document persistence to database.
+
+        Args:
+            document: Document instance (after commit)
+            user: User who initiated the upload
+        """
+        user_agent = cls.get_or_create_user_agent(user.id, user.username)
+
+        activity = ProvActivity(
+            activity_type='document_save',
+            startedattime=document.created_at or datetime.utcnow(),
+            endedattime=document.created_at or datetime.utcnow(),
+            wasassociatedwith=user_agent.agent_id,
+            activity_parameters=_serialize_value({
+                'document_id': document.id,
+                'document_uuid': document.uuid,
+                'database': 'ontextract_db'
+            }),
+            activity_status='completed'
+        )
+        db.session.add(activity)
+        db.session.flush()
+
+        # Find text content entity
+        text_entity = ProvEntity.query.filter(
+            ProvEntity.entity_type == 'text_content',
+            ProvEntity.entity_value['document_id'].astext == str(document.id)
+        ).order_by(ProvEntity.created_at.desc()).first()
+
+        # Create persisted document version entity
+        entity = ProvEntity(
+            entity_type='document_version',
+            generatedattime=document.created_at or datetime.utcnow(),
+            wasgeneratedby=activity.activity_id,
+            wasattributedto=user_agent.agent_id,
+            wasderivedfrom=text_entity.entity_id if text_entity else None,
+            entity_value=_serialize_value({
+                'document_id': document.id,
+                'document_uuid': document.uuid,
+                'version': 1,
+                'status': document.status
+            })
+        )
+        db.session.add(entity)
+
+        # Create "used" relationship (save used text content)
+        if text_entity:
+            used_rel = ProvRelationship(
+                relationship_type='used',
+                subject_type='Activity',
+                subject_id=activity.activity_id,
+                object_type='Entity',
+                object_id=text_entity.entity_id
+            )
+            db.session.add(used_rel)
+
+        db.session.commit()
+        return activity, entity
+
+    @classmethod
+    def track_metadata_extraction_pdf(
+        cls,
+        document,
+        user,
+        extracted_identifiers: Dict[str, str],
+        extraction_patterns: list = None
+    ) -> tuple[ProvActivity, ProvEntity]:
+        """
+        Track DOI/identifier extraction from PDF.
+
+        Args:
+            document: Document instance
+            user: User who initiated upload
+            extracted_identifiers: Dict of identifiers found (doi, arxiv_id, etc.)
+            extraction_patterns: List of regex patterns used
+        """
+        system_agent = cls.get_or_create_system_agent()
+
+        activity = ProvActivity(
+            activity_type='metadata_extraction_pdf',
+            startedattime=datetime.utcnow(),
+            endedattime=datetime.utcnow(),
+            wasassociatedwith=system_agent.agent_id,
+            activity_parameters=_serialize_value({
+                'document_id': document.id,
+                'document_uuid': document.uuid,
+                'extraction_patterns': extraction_patterns or ['doi_regex', 'arxiv_regex'],
+                'identifiers_found': list(extracted_identifiers.keys())
+            }),
+            activity_status='completed'
+        )
+        db.session.add(activity)
+        db.session.flush()
+
+        # Find text content entity
+        text_entity = ProvEntity.query.filter(
+            ProvEntity.entity_type == 'text_content',
+            ProvEntity.entity_value['document_id'].astext == str(document.id)
+        ).order_by(ProvEntity.created_at.desc()).first()
+
+        # Create metadata entity for extracted identifiers
+        entity = ProvEntity(
+            entity_type='metadata',
+            generatedattime=datetime.utcnow(),
+            wasgeneratedby=activity.activity_id,
+            wasattributedto=system_agent.agent_id,
+            wasderivedfrom=text_entity.entity_id if text_entity else None,
+            entity_value=_serialize_value({
+                'document_id': document.id,
+                'document_uuid': document.uuid,
+                'source': 'pdf_analysis',
+                'identifiers': extracted_identifiers
+            })
+        )
+        db.session.add(entity)
+
+        # Create "used" relationship
+        if text_entity:
+            used_rel = ProvRelationship(
+                relationship_type='used',
+                subject_type='Activity',
+                subject_id=activity.activity_id,
+                object_type='Entity',
+                object_id=text_entity.entity_id
             )
             db.session.add(used_rel)
 
