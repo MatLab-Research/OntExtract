@@ -165,7 +165,15 @@ def upload_document():
         
         db.session.add(document)
         db.session.commit()
-        
+
+        # Track document upload with PROV-O
+        try:
+            from app.services.provenance_service import provenance_service
+            experiment = Experiment.query.get(experiment_id) if experiment_id else None
+            provenance_service.track_document_upload(document, current_user, experiment)
+        except Exception as e:
+            current_app.logger.warning(f"Failed to track document upload provenance: {str(e)}")
+
         # Process the document based on options
         processing_service = TextProcessingService()
         
@@ -217,7 +225,7 @@ def upload_document():
                 return redirect(url_for('experiments.view', id=experiment_id))
         
         # All documents now go to the same detail page with full processing options
-        return redirect(url_for('text_input.document_detail', document_id=document.id))
+        return redirect(url_for('text_input.document_detail', document_uuid=document.uuid))
             
     except Exception as e:
         current_app.logger.error(f"Error uploading document: {str(e)}")
@@ -486,10 +494,45 @@ def save_document():
         db.session.add(document)
         db.session.commit()
 
+        # Track document upload with PROV-O
+        try:
+            from app.services.provenance_service import provenance_service
+            provenance_service.track_document_upload(document, current_user)
+
+            # Track metadata extraction separately if CrossRef/Zotero was used
+            if provenance:
+                # Collect fields that came from automated extraction
+                crossref_fields = {}
+                zotero_fields = {}
+
+                for field_name, prov_data in provenance.items():
+                    if isinstance(prov_data, dict):
+                        source = prov_data.get('source', '')
+                        if source in ['crossref', 'crossref_auto']:
+                            crossref_fields[field_name] = prov_data.get('raw_value')
+                        elif source == 'zotero':
+                            zotero_fields[field_name] = prov_data.get('raw_value')
+
+                # Track CrossRef extraction if any fields were extracted
+                if crossref_fields:
+                    confidence = provenance.get('match_score', {}).get('raw_value', 0.9) if 'match_score' in provenance else 0.9
+                    provenance_service.track_metadata_extraction(
+                        document, current_user, 'crossref', crossref_fields, confidence
+                    )
+
+                # Track Zotero extraction if any fields were extracted
+                if zotero_fields:
+                    provenance_service.track_metadata_extraction(
+                        document, current_user, 'zotero', zotero_fields, 0.95
+                    )
+        except Exception as e:
+            current_app.logger.warning(f"Failed to track document upload provenance: {str(e)}")
+
         return jsonify({
             'success': True,
             'message': 'Document saved successfully',
-            'document_id': document.id
+            'document_id': document.id,
+            'document_uuid': str(document.uuid)
         })
 
     except Exception as e:

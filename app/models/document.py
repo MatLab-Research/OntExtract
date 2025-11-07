@@ -1,15 +1,18 @@
 from sqlalchemy import text
+from sqlalchemy.dialects.postgresql import UUID
 from datetime import datetime
 import os
+import uuid as uuid_lib
 from app import db
 
 class Document(db.Model):
     """Model for storing uploaded files and pasted text content"""
-    
+
     __tablename__ = 'documents'
-    
+
     id = db.Column(db.Integer, primary_key=True)
-    
+    uuid = db.Column(UUID(as_uuid=True), unique=True, nullable=False, default=uuid_lib.uuid4, index=True)
+
     # Document metadata
     title = db.Column(db.String(200), nullable=False)
     content_type = db.Column(db.String(20), nullable=False)  # 'file' or 'text'

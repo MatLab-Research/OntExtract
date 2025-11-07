@@ -20,55 +20,79 @@
             <i class="fas fa-filter me-2"></i>Filters
         </div>
         <div class="card-body">
-            <form method="GET" action="{{ url_for('provenance.timeline') }}" class="row g-3">
-                <!-- Experiment filter -->
-                <div class="col-md-4">
-                    <label class="form-label">Experiment</label>
-                    <select name="experiment_id" class="form-select" onchange="this.form.submit()">
-                        <option value="">All Experiments</option>
-                        {% for exp in experiments %}
-                        <option value="{{ exp.id }}" {% if exp.id == selected_experiment_id %}selected{% endif %}>
-                            {{ exp.name }}
-                        </option>
-                        {% endfor %}
-                    </select>
+            <form method="GET" action="{{ url_for('provenance.timeline') }}">
+                <!-- Row 1: Main filters -->
+                <div class="row g-3 mb-3">
+                    <!-- Experiment filter -->
+                    <div class="col-md-3">
+                        <label class="form-label">Experiment</label>
+                        <select name="experiment_id" class="form-select" onchange="this.form.submit()">
+                            <option value="">All Experiments</option>
+                            {% for exp in experiments %}
+                            <option value="{{ exp.id }}" {% if exp.id == selected_experiment_id %}selected{% endif %}>
+                                {{ exp.name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <!-- Document filter -->
+                    <div class="col-md-3">
+                        <label class="form-label">Document</label>
+                        <select name="document_id" class="form-select" onchange="this.form.submit()">
+                            <option value="">All Documents</option>
+                            {% for doc in documents %}
+                            <option value="{{ doc.id }}" {% if doc.id == selected_document_id %}selected{% endif %}>
+                                {{ doc.title[:50] }}{% if doc.title|length > 50 %}...{% endif %}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <!-- Term filter -->
+                    <div class="col-md-3">
+                        <label class="form-label">Term</label>
+                        <select name="term_id" class="form-select" onchange="this.form.submit()">
+                            <option value="">All Terms</option>
+                            {% for term in terms %}
+                            <option value="{{ term.id }}" {% if term.id == selected_term_id %}selected{% endif %}>
+                                {{ term.term_text }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <!-- Activity type filter -->
+                    <div class="col-md-3">
+                        <label class="form-label">Activity Type</label>
+                        <select name="activity_type" class="form-select" onchange="this.form.submit()">
+                            <option value="">All Activities</option>
+                            {% for atype in activity_types %}
+                            <option value="{{ atype }}" {% if atype == selected_activity_type %}selected{% endif %}>
+                                {{ atype.replace('_', ' ').title() }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
                 </div>
 
-                <!-- Term filter -->
-                <div class="col-md-3">
-                    <label class="form-label">Term</label>
-                    <select name="term_id" class="form-select" onchange="this.form.submit()">
-                        <option value="">All Terms</option>
-                        {% for term in terms %}
-                        <option value="{{ term.id }}" {% if term.id == selected_term_id %}selected{% endif %}>
-                            {{ term.term_text }}
-                        </option>
-                        {% endfor %}
-                    </select>
-                </div>
+                <!-- Row 2: Show limit and future search -->
+                <div class="row g-3">
+                    <!-- Limit -->
+                    <div class="col-md-2">
+                        <label class="form-label">Show</label>
+                        <select name="limit" class="form-select" onchange="this.form.submit()">
+                            <option value="25">Last 25</option>
+                            <option value="50" selected>Last 50</option>
+                            <option value="100">Last 100</option>
+                            <option value="500">Last 500</option>
+                        </select>
+                    </div>
 
-                <!-- Activity type filter -->
-                <div class="col-md-3">
-                    <label class="form-label">Activity Type</label>
-                    <select name="activity_type" class="form-select" onchange="this.form.submit()">
-                        <option value="">All Activities</option>
-                        {% for atype in activity_types %}
-                        <option value="{{ atype }}" {% if atype == selected_activity_type %}selected{% endif %}>
-                            {{ atype.replace('_', ' ').title() }}
-                        </option>
-                        {% endfor %}
-                    </select>
-                </div>
-
-                <!-- Limit -->
-                <div class="col-md-3">
-                    <label class="form-label">Show</label>
-                    <select name="limit" class="form-select" onchange="this.form.submit()">
-                        <option value="25">Last 25</option>
-                        <option value="50" selected>Last 50</option>
-                        <option value="100">Last 100</option>
-                        <option value="500">Last 500</option>
-                    </select>
+                    <!-- Placeholder for future search bar -->
+                    <div class="col-md-10">
+                        <!-- Future: Search bar will go here -->
+                    </div>
                 </div>
             </form>
         </div>
