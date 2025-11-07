@@ -292,7 +292,7 @@ class UploadService:
                 error=f"Error analyzing PDF: {str(e)}"
             )
 
-    def extract_text_content(self, file_path: str, filename: str) -> Tuple[Optional[str], Optional[str]]:
+    def extract_text_content(self, file_path: str, filename: str) -> Tuple[Optional[str], Optional[str], Optional[str]]:
         """
         Extract text content from file.
 
@@ -301,15 +301,16 @@ class UploadService:
             filename: Original filename
 
         Returns:
-            (content, error_message)
+            (content, error_message, extraction_method) where extraction_method is the tool used (e.g., 'pypdf', 'python-docx')
         """
         try:
-            content = self.file_handler.extract_text_from_file(file_path, filename)
-            if not content:
-                return None, "Could not extract text from file"
-            return content, None
+            result = self.file_handler.extract_text_with_method(file_path, filename)
+            if not result:
+                return None, "Could not extract text from file", None
+            content, extraction_method = result
+            return content, None, extraction_method
         except Exception as e:
-            return None, f"Error extracting text: {str(e)}"
+            return None, f"Error extracting text: {str(e)}", None
 
     def _normalize_metadata(self, metadata: Dict[str, Any]) -> Dict[str, Any]:
         """

@@ -66,24 +66,48 @@ class FileHandler:
         return mime_types.get(extension, 'application/octet-stream')
     
     def extract_text_from_file(self, file_path: str, original_filename: str) -> Optional[str]:
-        """Extract text content from various file types"""
+        """Extract text content from various file types
+
+        Returns:
+            str: Extracted text content, or None if extraction failed
+
+        Note: Use extract_text_with_method() to also get the extraction tool used
+        """
+        result = self.extract_text_with_method(file_path, original_filename)
+        return result[0] if result else None
+
+    def extract_text_with_method(self, file_path: str, original_filename: str) -> Optional[tuple[str, str]]:
+        """Extract text content and return the extraction method used
+
+        Returns:
+            tuple: (text_content, extraction_method) or None if extraction failed
+
+        Example:
+            ("Hello world", "pypdf") or ("Document text", "python-docx")
+        """
         try:
             extension = self.get_file_extension(original_filename)
-            
+
             if extension == 'txt':
-                return self._extract_from_text(file_path)
+                text = self._extract_from_text(file_path)
+                return (text, 'python-builtin') if text else None
             elif extension == 'pdf':
-                return self._extract_from_pdf(file_path)
+                text = self._extract_from_pdf(file_path)
+                return (text, 'pypdf') if text else None
             elif extension == 'docx':
-                return self._extract_from_docx(file_path)
+                text = self._extract_from_docx(file_path)
+                return (text, 'python-docx') if text else None
             elif extension in ['html', 'htm']:
-                return self._extract_from_html(file_path)
+                text = self._extract_from_html(file_path)
+                return (text, 'beautifulsoup4') if text else None
             elif extension == 'md':
-                return self._extract_from_markdown(file_path)
+                text = self._extract_from_markdown(file_path)
+                return (text, 'python-builtin') if text else None
             else:
                 # Try to read as plain text
-                return self._extract_from_text(file_path)
-                
+                text = self._extract_from_text(file_path)
+                return (text, 'python-builtin') if text else None
+
         except Exception as e:
             current_app.logger.error(f"Error extracting text from {file_path}: {str(e)}")
             return None

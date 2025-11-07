@@ -148,17 +148,19 @@ def upload_file():
         
         # Get file size
         file_size = os.path.getsize(file_path)
-        
-        # Extract text content
-        content = file_handler.extract_text_from_file(file_path, original_filename or '')
-        
-        if not content:
+
+        # Extract text content with extraction method
+        extraction_result = file_handler.extract_text_with_method(file_path, original_filename or '')
+
+        if not extraction_result:
             os.remove(file_path)  # Clean up file
             error_msg = 'Could not extract text from file'
             if request.is_json:
                 return jsonify({'error': error_msg}), 400
             flash(error_msg, 'error')
             return redirect(url_for('text_input.upload_form'))
+
+        content, extraction_method = extraction_result
         
         # Auto-generate title if not provided
         if not title:
@@ -177,7 +179,7 @@ def upload_file():
         # Get file extension
         file_extension = file_handler.get_file_extension(original_filename or '')
         
-        # Create document record
+        # Create document record (before tracking for ID assignment)
         document = Document(
             title=title,
             content_type='file',
@@ -195,12 +197,28 @@ def upload_file():
         db.session.add(document)
         db.session.commit()
 
-        # Track document upload with PROV-O
+        # Track document lifecycle with PROV-O (granular tracking)
         try:
             from app.services.provenance_service import provenance_service
+
+            # 1. Track initial file upload
             provenance_service.track_document_upload(document, current_user)
+
+            # 2. Track text extraction
+            provenance_service.track_text_extraction(
+                document,
+                current_user,
+                source_format=file_extension,
+                extraction_method=extraction_method
+            )
+
+            # 3. Track document save to database
+            provenance_service.track_document_save(document, current_user)
+
         except Exception as e:
-            current_app.logger.warning(f"Failed to track document upload provenance: {str(e)}")
+            import traceback
+            current_app.logger.error(f"Failed to track document provenance: {str(e)}")
+            current_app.logger.error(traceback.format_exc())
 
         # Note: Segmentation is now manual from document processing page
         # Removed automatic segmentation to allow user control
@@ -336,10 +354,23 @@ def document_detail(document_uuid):
         document_experiments.append(exp_data)
         total_processing_count += len(processing_results)
 
+    # Get recent provenance activities for this document
+    document_provenance_activities = []
+    try:
+        from app.services.provenance_service import provenance_service
+        timeline_data = provenance_service.get_timeline(
+            document_id=document.id,
+            limit=5  # Get 5 most recent activities
+        )
+        document_provenance_activities = timeline_data
+    except Exception as e:
+        current_app.logger.warning(f"Failed to fetch document provenance: {str(e)}")
+
     return render_template('text_input/document_detail_simplified.html',
                          document=document,
                          document_experiments=document_experiments,
-                         total_processing_count=total_processing_count)
+                         total_processing_count=total_processing_count,
+                         document_provenance_activities=document_provenance_activities)
 
 @text_input_bp.route('/document/<uuid:document_uuid>/delete', methods=['POST'])
 @write_login_required  # Require login for deletion
@@ -1022,7 +1053,7 @@ def save_upload_document():
         final_path = save_result.file_path
 
         # Extract text content for the document
-        content, error = upload_service.extract_text_content(final_path, filename)
+        content, error, extraction_method = upload_service.extract_text_content(final_path, filename)
         if error:
             return jsonify({'error': error}), 400
 
@@ -1057,12 +1088,36 @@ def save_upload_document():
         db.session.add(document)
         db.session.commit()
 
-        # Track document upload with PROV-O
+        # Track document lifecycle with PROV-O (granular tracking)
         try:
             from app.services.provenance_service import provenance_service
+
+            # 1. Track initial file upload
             provenance_service.track_document_upload(document, current_user)
 
-            # Track metadata extraction separately if CrossRef/Zotero was used
+            # 2. Track text extraction
+            provenance_service.track_text_extraction(
+                document,
+                current_user,
+                source_format='pdf',
+                extraction_method=extraction_method or 'unknown'
+            )
+
+            # 3. Track PDF identifier extraction if DOI was found
+            if provenance and provenance.get('extracted_doi'):
+                extracted_identifiers = {
+                    'doi': provenance['extracted_doi'].get('raw_value', '')
+                }
+                if provenance.get('extracted_title'):
+                    extracted_identifiers['title'] = provenance['extracted_title'].get('raw_value', '')
+
+                provenance_service.track_metadata_extraction_pdf(
+                    document,
+                    current_user,
+                    extracted_identifiers=extracted_identifiers
+                )
+
+            # 4. Track metadata extraction separately if CrossRef/Zotero was used
             if provenance:
                 # Collect fields that came from automated extraction
                 crossref_fields = {}
@@ -1088,8 +1143,14 @@ def save_upload_document():
                     provenance_service.track_metadata_extraction(
                         document, current_user, 'zotero', zotero_fields, 0.95
                     )
+
+            # 5. Track document save to database
+            provenance_service.track_document_save(document, current_user)
+
         except Exception as e:
-            current_app.logger.warning(f"Failed to track document upload provenance: {str(e)}")
+            import traceback
+            current_app.logger.error(f"Failed to track document provenance: {str(e)}")
+            current_app.logger.error(traceback.format_exc())
 
         return jsonify({
             'success': True,

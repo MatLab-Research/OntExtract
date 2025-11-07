@@ -459,7 +459,7 @@ def save_document():
         final_path = save_result.file_path
 
         # Extract text content for the document
-        content, error = upload_service.extract_text_content(final_path, filename)
+        content, error, extraction_method = upload_service.extract_text_content(final_path, filename)
         if error:
             return jsonify({'error': error}), 400
 
@@ -494,12 +494,36 @@ def save_document():
         db.session.add(document)
         db.session.commit()
 
-        # Track document upload with PROV-O
+        # Track document lifecycle with PROV-O (granular tracking)
         try:
             from app.services.provenance_service import provenance_service
+
+            # 1. Track initial file upload
             provenance_service.track_document_upload(document, current_user)
 
-            # Track metadata extraction separately if CrossRef/Zotero was used
+            # 2. Track text extraction
+            provenance_service.track_text_extraction(
+                document,
+                current_user,
+                source_format='pdf',
+                extraction_method=extraction_method or 'unknown'
+            )
+
+            # 3. Track PDF identifier extraction if DOI was found
+            if provenance and provenance.get('extracted_doi'):
+                extracted_identifiers = {
+                    'doi': provenance['extracted_doi'].get('raw_value', '')
+                }
+                if provenance.get('extracted_title'):
+                    extracted_identifiers['title'] = provenance['extracted_title'].get('raw_value', '')
+
+                provenance_service.track_metadata_extraction_pdf(
+                    document,
+                    current_user,
+                    extracted_identifiers=extracted_identifiers
+                )
+
+            # 4. Track metadata extraction separately if CrossRef/Zotero was used
             if provenance:
                 # Collect fields that came from automated extraction
                 crossref_fields = {}
@@ -525,8 +549,14 @@ def save_document():
                     provenance_service.track_metadata_extraction(
                         document, current_user, 'zotero', zotero_fields, 0.95
                     )
+
+            # 5. Track document save to database
+            provenance_service.track_document_save(document, current_user)
+
         except Exception as e:
-            current_app.logger.warning(f"Failed to track document upload provenance: {str(e)}")
+            import traceback
+            current_app.logger.error(f"Failed to track document provenance: {str(e)}")
+            current_app.logger.error(traceback.format_exc())
 
         return jsonify({
             'success': True,
