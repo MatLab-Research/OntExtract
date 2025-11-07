@@ -72,23 +72,30 @@ def submit_text():
             status='uploaded',
             user_id=current_user.id
         )
-        
+
         db.session.add(document)
         db.session.commit()
-        
+
+        # Track document upload with PROV-O
+        try:
+            from app.services.provenance_service import provenance_service
+            provenance_service.track_document_upload(document, current_user)
+        except Exception as e:
+            current_app.logger.warning(f"Failed to track document upload provenance: {str(e)}")
+
         # Note: Segmentation is now manual from document processing page
         # Removed automatic segmentation to allow user control
-        
+
         if request.is_json:
             return jsonify({
                 'success': True,
                 'document_id': document.id,
                 'message': 'Text submitted successfully',
-                'redirect_url': url_for('text_input.document_detail', document_id=document.id)
+                'redirect_url': url_for('text_input.document_detail', document_uuid=document.uuid)
             })
-        
+
         flash('Text submitted successfully!', 'success')
-        return redirect(url_for('text_input.document_detail', document_id=document.id))
+        return redirect(url_for('text_input.document_detail', document_uuid=document.uuid))
         
     except Exception as e:
         current_app.logger.error(f"Error submitting text: {str(e)}")
@@ -184,23 +191,30 @@ def upload_file():
             status='uploaded',
             user_id=current_user.id
         )
-        
+
         db.session.add(document)
         db.session.commit()
-        
+
+        # Track document upload with PROV-O
+        try:
+            from app.services.provenance_service import provenance_service
+            provenance_service.track_document_upload(document, current_user)
+        except Exception as e:
+            current_app.logger.warning(f"Failed to track document upload provenance: {str(e)}")
+
         # Note: Segmentation is now manual from document processing page
         # Removed automatic segmentation to allow user control
-        
+
         if request.is_json:
             return jsonify({
                 'success': True,
                 'document_id': document.id,
                 'message': 'File uploaded successfully',
-                'redirect_url': url_for('text_input.document_detail', document_id=document.id)
+                'redirect_url': url_for('text_input.document_detail', document_uuid=document.uuid)
             })
-        
+
         flash('File uploaded successfully!', 'success')
-        return redirect(url_for('text_input.document_detail', document_id=document.id))
+        return redirect(url_for('text_input.document_detail', document_uuid=document.uuid))
         
     except Exception as e:
         current_app.logger.error(f"Error uploading file: {str(e)}")
@@ -282,19 +296,19 @@ def document_list():
     
     return render_template('text_input/document_list.html', documents=pagination)
 
-@text_input_bp.route('/document/<int:document_id>')
+@text_input_bp.route('/document/<uuid:document_uuid>')
 @public_with_auth_context  # Allow anonymous viewing of documents
-def document_detail(document_id):
+def document_detail(document_uuid):
     """Show document details - simplified experiment-centric view"""
     # Get document - public access for viewing
-    document = Document.query.filter_by(id=document_id).first_or_404()
+    document = Document.query.filter_by(uuid=document_uuid).first_or_404()
 
     # Get experiments that include this document with their processing results
     from app.models.experiment_document import ExperimentDocument
     from app.models.experiment_processing import DocumentProcessingIndex
 
     # Get all experiment-document relationships for this document
-    experiment_documents = ExperimentDocument.query.filter_by(document_id=document_id).all()
+    experiment_documents = ExperimentDocument.query.filter_by(document_id=document.id).all()
 
     # Enrich with processing information
     document_experiments = []
@@ -303,7 +317,7 @@ def document_detail(document_id):
     for exp_doc in experiment_documents:
         # Get processing operations for this experiment-document pair
         processing_results = DocumentProcessingIndex.query.filter_by(
-            document_id=document_id,
+            document_id=document.id,
             experiment_id=exp_doc.experiment_id
         ).all()
 
@@ -327,11 +341,11 @@ def document_detail(document_id):
                          document_experiments=document_experiments,
                          total_processing_count=total_processing_count)
 
-@text_input_bp.route('/document/<int:document_id>/delete', methods=['POST'])
+@text_input_bp.route('/document/<uuid:document_uuid>/delete', methods=['POST'])
 @write_login_required  # Require login for deletion
-def delete_document(document_id):
+def delete_document(document_uuid):
     """Delete a document"""
-    document = Document.query.filter_by(id=document_id).first_or_404()
+    document = Document.query.filter_by(uuid=document_uuid).first_or_404()
     
     try:
         # Delete associated file
@@ -354,7 +368,111 @@ def delete_document(document_id):
             return jsonify({'error': 'An error occurred while deleting the document'}), 500
         
         flash('An error occurred while deleting the document', 'error')
-        return redirect(url_for('text_input.document_detail', document_id=document_id))
+        return redirect(url_for('text_input.document_detail', document_uuid=document_uuid))
+
+
+@text_input_bp.route('/document/<uuid:document_uuid>/metadata', methods=['GET'])
+@public_with_auth_context
+def get_document_metadata(document_uuid):
+    """Get document metadata for editing"""
+    document = Document.query.filter_by(uuid=document_uuid).first_or_404()
+
+    try:
+        metadata = document.source_metadata or {}
+
+        # Include title from document.title field (may differ from source_metadata)
+        if 'title' not in metadata or not metadata.get('title'):
+            metadata['title'] = document.title
+
+        # Handle authors formatting
+        if 'authors' in metadata:
+            if isinstance(metadata['authors'], list):
+                metadata['authors'] = ', '.join(metadata['authors'])
+
+        return jsonify({
+            'success': True,
+            'metadata': metadata
+        })
+    except Exception as e:
+        current_app.logger.error(f"Error fetching metadata: {str(e)}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@text_input_bp.route('/document/<uuid:document_uuid>/metadata', methods=['PUT'])
+@write_login_required
+def update_document_metadata(document_uuid):
+    """Update document metadata with provenance tracking"""
+    document = Document.query.filter_by(uuid=document_uuid).first_or_404()
+
+    try:
+        new_data = request.get_json()
+
+        # Get old metadata
+        old_metadata = document.source_metadata or {}
+
+        # Track changes for provenance
+        changes = {}
+
+        # Build new metadata and track changes
+        new_metadata = {}
+        fields = ['title', 'authors', 'publication_date', 'journal', 'publisher',
+                  'type', 'doi', 'isbn', 'url', 'abstract', 'citation']
+
+        for field in fields:
+            new_value = new_data.get(field, '').strip()
+            old_value = old_metadata.get(field, '')
+
+            # Convert authors string to list if provided
+            if field == 'authors' and new_value:
+                new_value = [a.strip() for a in new_value.split(',') if a.strip()]
+                if isinstance(old_value, list):
+                    old_value_str = ', '.join(old_value)
+                else:
+                    old_value_str = old_value
+                new_value_str = ', '.join(new_value)
+
+                if old_value_str != new_value_str:
+                    changes[field] = {'old': old_value, 'new': new_value}
+            elif field == 'title':
+                # Update document title field as well
+                if new_value and new_value != document.title:
+                    document.title = new_value
+                if str(old_value) != str(new_value):
+                    changes[field] = {'old': old_value, 'new': new_value}
+            else:
+                # Track changes for other fields
+                if str(old_value) != str(new_value):
+                    changes[field] = {'old': old_value, 'new': new_value}
+
+            # Only add non-empty values to new metadata
+            if new_value:
+                new_metadata[field] = new_value
+
+        # Update document metadata
+        document.source_metadata = new_metadata
+        document.updated_at = datetime.utcnow()
+
+        db.session.commit()
+
+        # Track metadata update with PROV-O if there were changes
+        if changes:
+            try:
+                from app.services.provenance_service import provenance_service
+                provenance_service.track_metadata_update(document, current_user, changes)
+            except Exception as e:
+                current_app.logger.warning(f"Failed to track metadata update provenance: {str(e)}")
+
+        return jsonify({
+            'success': True,
+            'message': 'Metadata updated successfully',
+            'changes_count': len(changes)
+        })
+
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"Error updating metadata: {str(e)}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
 
 @text_input_bp.route('/document/<int:base_document_id>/delete-all-versions', methods=['POST'])
 @api_require_login_for_write
@@ -931,10 +1049,45 @@ def save_upload_document():
         db.session.add(document)
         db.session.commit()
 
+        # Track document upload with PROV-O
+        try:
+            from app.services.provenance_service import provenance_service
+            provenance_service.track_document_upload(document, current_user)
+
+            # Track metadata extraction separately if CrossRef/Zotero was used
+            if provenance:
+                # Collect fields that came from automated extraction
+                crossref_fields = {}
+                zotero_fields = {}
+
+                for field_name, prov_data in provenance.items():
+                    if isinstance(prov_data, dict):
+                        source = prov_data.get('source', '')
+                        if source in ['crossref', 'crossref_auto']:
+                            crossref_fields[field_name] = prov_data.get('raw_value')
+                        elif source == 'zotero':
+                            zotero_fields[field_name] = prov_data.get('raw_value')
+
+                # Track CrossRef extraction if any fields were extracted
+                if crossref_fields:
+                    confidence = provenance.get('match_score', {}).get('raw_value', 0.9) if 'match_score' in provenance else 0.9
+                    provenance_service.track_metadata_extraction(
+                        document, current_user, 'crossref', crossref_fields, confidence
+                    )
+
+                # Track Zotero extraction if any fields were extracted
+                if zotero_fields:
+                    provenance_service.track_metadata_extraction(
+                        document, current_user, 'zotero', zotero_fields, 0.95
+                    )
+        except Exception as e:
+            current_app.logger.warning(f"Failed to track document upload provenance: {str(e)}")
+
         return jsonify({
             'success': True,
             'message': 'Document saved successfully',
-            'document_id': document.id
+            'document_id': document.id,
+            'document_uuid': str(document.uuid)
         })
 
     except Exception as e:

@@ -593,8 +593,8 @@ document.getElementById('metadata-form').addEventListener('submit', async functi
         const result = await response.json();
 
         if (result.success) {
-            // Redirect to document view
-            window.location.href = `/input/document/${result.document_id}`;
+            // Redirect to document view using UUID
+            window.location.href = `/input/document/${result.document_uuid}`;
         } else {
             alert('Error: ' + result.error);
             hideLoading();

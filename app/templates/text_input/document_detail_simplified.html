@@ -31,16 +31,16 @@
                         <i class="fas fa-ellipsis-v"></i>
                     </button>
                     <ul class="dropdown-menu">
-                        <li><a class="dropdown-item" href="#" onclick="editTitle({{ document.id }})">
+                        <li><a class="dropdown-item" href="#" onclick="editTitle('{{ document.uuid }}')">
                                 <i class="fas fa-edit me-2"></i>Edit Title
                             </a></li>
-                        <li><a class="dropdown-item" href="#" onclick="exportDocument({{ document.id }})">
+                        <li><a class="dropdown-item" href="#" onclick="exportDocument('{{ document.uuid }}')">
                                 <i class="fas fa-download me-2"></i>Export
                             </a></li>
                         <li>
                             <hr class="dropdown-divider">
                         </li>
-                        <li><a class="dropdown-item text-danger" href="#" onclick="deleteDocument({{ document.id }})">
+                        <li><a class="dropdown-item text-danger" href="#" onclick="deleteDocument('{{ document.uuid }}')">
                                 <i class="fas fa-trash me-2"></i>Delete
                             </a></li>
                     </ul>
@@ -115,15 +115,15 @@
                         {% endif %}
 
                         <!-- Metadata Fields -->
-                        <div class="row">
-                            <div class="col-md-6 mb-3">
-                                <label class="form-label text-muted small">Title</label>
-                                <div class="form-control-plaintext">{{ document.title or '—' }}</div>
+                        <div class="row g-2">
+                            <div class="col-md-6">
+                                <label class="form-label text-muted small mb-1">Title</label>
+                                <div class="form-control-plaintext py-1">{{ document.title or '—' }}</div>
                             </div>
 
-                            <div class="col-md-6 mb-3">
-                                <label class="form-label text-muted small">Authors</label>
-                                <div class="form-control-plaintext">
+                            <div class="col-md-6">
+                                <label class="form-label text-muted small mb-1">Authors</label>
+                                <div class="form-control-plaintext py-1">
                                     {% if document.source_metadata.get('authors') %}
                                         {% if document.source_metadata.authors is string %}
                                         {{ document.source_metadata.authors }}
@@ -136,29 +136,29 @@
                                 </div>
                             </div>
 
-                            <div class="col-md-6 mb-3">
-                                <label class="form-label text-muted small">Publication Date</label>
-                                <div class="form-control-plaintext">{{ document.source_metadata.get('publication_date', document.source_metadata.get('publication_year', '—')) }}</div>
+                            <div class="col-md-6">
+                                <label class="form-label text-muted small mb-1">Publication Date</label>
+                                <div class="form-control-plaintext py-1">{{ document.source_metadata.get('publication_date', document.source_metadata.get('publication_year', '—')) }}</div>
                             </div>
 
-                            <div class="col-md-6 mb-3">
-                                <label class="form-label text-muted small">Journal/Publisher</label>
-                                <div class="form-control-plaintext">{{ document.source_metadata.get('journal', '—') }}</div>
+                            <div class="col-md-6">
+                                <label class="form-label text-muted small mb-1">Journal/Publisher</label>
+                                <div class="form-control-plaintext py-1">{{ document.source_metadata.get('journal', '—') }}</div>
                             </div>
 
-                            <div class="col-md-6 mb-3">
-                                <label class="form-label text-muted small">Publisher</label>
-                                <div class="form-control-plaintext">{{ document.source_metadata.get('publisher', '—') }}</div>
+                            <div class="col-md-6">
+                                <label class="form-label text-muted small mb-1">Publisher</label>
+                                <div class="form-control-plaintext py-1">{{ document.source_metadata.get('publisher', '—') }}</div>
                             </div>
 
-                            <div class="col-md-6 mb-3">
-                                <label class="form-label text-muted small">Type</label>
-                                <div class="form-control-plaintext">{{ document.source_metadata.get('type', '—') }}</div>
+                            <div class="col-md-6">
+                                <label class="form-label text-muted small mb-1">Type</label>
+                                <div class="form-control-plaintext py-1">{{ document.source_metadata.get('type', '—') }}</div>
                             </div>
 
-                            <div class="col-md-6 mb-3">
-                                <label class="form-label text-muted small">DOI</label>
-                                <div class="form-control-plaintext">
+                            <div class="col-md-6">
+                                <label class="form-label text-muted small mb-1">DOI</label>
+                                <div class="form-control-plaintext py-1">
                                     {% if document.source_metadata.get('doi') %}
                                     <a href="https://doi.org/{{ document.source_metadata.doi }}" target="_blank"
                                         class="text-decoration-none">
@@ -170,14 +170,14 @@
                                 </div>
                             </div>
 
-                            <div class="col-md-6 mb-3">
-                                <label class="form-label text-muted small">ISBN</label>
-                                <div class="form-control-plaintext">{{ document.source_metadata.get('isbn', '—') }}</div>
+                            <div class="col-md-6">
+                                <label class="form-label text-muted small mb-1">ISBN</label>
+                                <div class="form-control-plaintext py-1">{{ document.source_metadata.get('isbn', '—') }}</div>
                             </div>
 
-                            <div class="col-md-12 mb-3">
-                                <label class="form-label text-muted small">URL</label>
-                                <div class="form-control-plaintext">
+                            <div class="col-md-12">
+                                <label class="form-label text-muted small mb-1">URL</label>
+                                <div class="form-control-plaintext py-1">
                                     {% if document.source_metadata.get('url') %}
                                     <a href="{{ document.source_metadata.url }}" target="_blank"
                                         class="text-decoration-none">
@@ -189,20 +189,20 @@
                                 </div>
                             </div>
 
-                            <div class="col-md-12 mb-3">
-                                <label class="form-label text-muted small">Abstract</label>
-                                <div class="form-control-plaintext small">{{ document.source_metadata.get('abstract', '—') }}</div>
+                            <div class="col-md-12">
+                                <label class="form-label text-muted small mb-1">Abstract</label>
+                                <div class="form-control-plaintext py-1 small">{{ document.source_metadata.get('abstract', '—') }}</div>
                             </div>
 
-                            <div class="col-md-12 mb-3">
-                                <label class="form-label text-muted small">Citation</label>
-                                <div class="form-control-plaintext small">{{ document.source_metadata.get('citation', '—') }}</div>
+                            <div class="col-md-12">
+                                <label class="form-label text-muted small mb-1">Citation</label>
+                                <div class="form-control-plaintext py-1 small">{{ document.source_metadata.get('citation', '—') }}</div>
                             </div>
                         </div>
 
                         <!-- Action buttons -->
                         <div class="d-flex gap-2 mt-3">
-                            <button class="btn btn-outline-primary btn-sm" onclick="editMetadata({{ document.id }})">
+                            <button class="btn btn-outline-primary btn-sm" onclick="editMetadata('{{ document.uuid }}')">
                                 <i class="fas fa-edit me-1"></i>Edit Metadata
                             </button>
                         </div>
@@ -213,7 +213,7 @@
                             <i class="fas fa-info-circle fa-2x text-muted mb-3"></i>
                             <p class="text-muted">No metadata available for this document</p>
                             <div class="d-flex gap-2 justify-content-center">
-                                <button class="btn btn-primary btn-sm" onclick="addMetadata({{ document.id }})">
+                                <button class="btn btn-primary btn-sm" onclick="addMetadata('{{ document.uuid }}')">
                                     <i class="fas fa-plus me-1"></i>Add Metadata
                                 </button>
                             </div>
@@ -438,9 +438,9 @@
         }
     }
 
-    function deleteDocument(documentId) {
+    function deleteDocument(documentUuid) {
         if (confirm('Are you sure you want to delete this document? This action cannot be undone.')) {
-            fetch(`/input/document/${documentId}/delete`, {
+            fetch(`/input/document/${documentUuid}/delete`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -469,16 +469,165 @@
         alert('Document export feature coming soon!');
     }
 
-    function editMetadata(documentId) {
-        alert('Metadata editing interface coming soon!');
+    function editMetadata(documentUuid) {
+        // Fetch current metadata
+        fetch(`/input/document/${documentUuid}/metadata`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    populateMetadataModal(data.metadata);
+                    document.getElementById('metadataModalDocumentUuid').value = documentUuid;
+                    new bootstrap.Modal(document.getElementById('metadataModal')).show();
+                } else {
+                    alert('Error loading metadata: ' + data.error);
+                }
+            })
+            .catch(error => {
+                alert('Error: ' + error.message);
+            });
     }
 
-    function addMetadata(documentId) {
-        alert('Metadata entry interface coming soon!');
+    function addMetadata(documentUuid) {
+        // Clear form and show modal
+        document.getElementById('metadataForm').reset();
+        document.getElementById('metadataModalDocumentUuid').value = documentUuid;
+        document.getElementById('metadataModalTitle').textContent = 'Add Metadata';
+        new bootstrap.Modal(document.getElementById('metadataModal')).show();
+    }
+
+    function populateMetadataModal(metadata) {
+        document.getElementById('metadataModalTitle').textContent = 'Edit Metadata';
+        document.getElementById('metadataTitle').value = metadata.title || '';
+        document.getElementById('metadataAuthors').value = metadata.authors || '';
+        document.getElementById('metadataPublicationDate').value = metadata.publication_date || metadata.publication_year || '';
+        document.getElementById('metadataJournal').value = metadata.journal || '';
+        document.getElementById('metadataPublisher').value = metadata.publisher || '';
+        document.getElementById('metadataType').value = metadata.type || '';
+        document.getElementById('metadataDoi').value = metadata.doi || '';
+        document.getElementById('metadataIsbn').value = metadata.isbn || '';
+        document.getElementById('metadataUrl').value = metadata.url || '';
+        document.getElementById('metadataAbstract').value = metadata.abstract || '';
+        document.getElementById('metadataCitation').value = metadata.citation || '';
+    }
+
+    function saveMetadata() {
+        const documentUuid = document.getElementById('metadataModalDocumentUuid').value;
+        const formData = {
+            title: document.getElementById('metadataTitle').value,
+            authors: document.getElementById('metadataAuthors').value,
+            publication_date: document.getElementById('metadataPublicationDate').value,
+            journal: document.getElementById('metadataJournal').value,
+            publisher: document.getElementById('metadataPublisher').value,
+            type: document.getElementById('metadataType').value,
+            doi: document.getElementById('metadataDoi').value,
+            isbn: document.getElementById('metadataIsbn').value,
+            url: document.getElementById('metadataUrl').value,
+            abstract: document.getElementById('metadataAbstract').value,
+            citation: document.getElementById('metadataCitation').value
+        };
+
+        fetch(`/input/document/${documentUuid}/metadata`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(formData)
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                bootstrap.Modal.getInstance(document.getElementById('metadataModal')).hide();
+                location.reload();
+            } else {
+                alert('Error saving metadata: ' + data.error);
+            }
+        })
+        .catch(error => {
+            alert('Error: ' + error.message);
+        });
     }
 
     function enrichWithZotero(documentId) {
         alert('Zotero enhancement feature coming soon!');
     }
 </script>
+
+<!-- Metadata Edit Modal -->
+<div class="modal fade" id="metadataModal" tabindex="-1" aria-labelledby="metadataModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="metadataModalTitle">Edit Metadata</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="metadataForm">
+                    <input type="hidden" id="metadataModalDocumentUuid">
+
+                    <div class="row g-3">
+                        <div class="col-md-12">
+                            <label for="metadataTitle" class="form-label">Title</label>
+                            <input type="text" class="form-control" id="metadataTitle">
+                        </div>
+
+                        <div class="col-md-6">
+                            <label for="metadataAuthors" class="form-label">Authors</label>
+                            <input type="text" class="form-control" id="metadataAuthors" placeholder="Author 1, Author 2">
+                            <div class="form-text">Comma-separated list</div>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label for="metadataPublicationDate" class="form-label">Publication Date/Year</label>
+                            <input type="text" class="form-control" id="metadataPublicationDate" placeholder="2024 or 2024-01-15">
+                        </div>
+
+                        <div class="col-md-6">
+                            <label for="metadataJournal" class="form-label">Journal/Publisher</label>
+                            <input type="text" class="form-control" id="metadataJournal">
+                        </div>
+
+                        <div class="col-md-6">
+                            <label for="metadataPublisher" class="form-label">Publisher</label>
+                            <input type="text" class="form-control" id="metadataPublisher">
+                        </div>
+
+                        <div class="col-md-12">
+                            <label for="metadataType" class="form-label">Type</label>
+                            <input type="text" class="form-control" id="metadataType" placeholder="e.g., journal-article, book, conference-paper">
+                        </div>
+
+                        <div class="col-md-6">
+                            <label for="metadataDoi" class="form-label">DOI</label>
+                            <input type="text" class="form-control" id="metadataDoi" placeholder="10.1234/example">
+                        </div>
+
+                        <div class="col-md-6">
+                            <label for="metadataIsbn" class="form-label">ISBN</label>
+                            <input type="text" class="form-control" id="metadataIsbn">
+                        </div>
+
+                        <div class="col-md-12">
+                            <label for="metadataUrl" class="form-label">URL</label>
+                            <input type="url" class="form-control" id="metadataUrl">
+                        </div>
+
+                        <div class="col-md-12">
+                            <label for="metadataAbstract" class="form-label">Abstract</label>
+                            <textarea class="form-control" id="metadataAbstract" rows="4"></textarea>
+                        </div>
+
+                        <div class="col-md-12">
+                            <label for="metadataCitation" class="form-label">Citation</label>
+                            <textarea class="form-control" id="metadataCitation" rows="2"></textarea>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="saveMetadata()">Save Changes</button>
+            </div>
+        </div>
+    </div>
+</div>
 {% endblock %}

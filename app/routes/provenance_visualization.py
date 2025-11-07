@@ -45,19 +45,22 @@ def timeline():
 
     Filterable by:
     - Experiment
-    - Activity type
+    - Document
     - Term
+    - Activity type
     - Date range
     """
     # Get filter parameters
     experiment_id = request.args.get('experiment_id', type=int)
-    activity_type = request.args.get('activity_type')
+    document_id = request.args.get('document_id', type=int)
     term_id = request.args.get('term_id', type=int)
+    activity_type = request.args.get('activity_type')
     limit = request.args.get('limit', 50, type=int)
 
     # Get timeline data
     timeline_data = provenance_service.get_timeline(
         experiment_id=experiment_id,
+        document_id=document_id,
         activity_type=activity_type,
         term_id=term_id,
         limit=limit
@@ -65,6 +68,10 @@ def timeline():
 
     # Get experiments for filter dropdown
     experiments = Experiment.query.order_by(Experiment.created_at.desc()).all()
+
+    # Get documents for filter dropdown
+    from app.models.document import Document
+    documents = Document.query.order_by(Document.created_at.desc()).all()
 
     # Get terms for filter dropdown
     from app.models.term import Term
@@ -75,6 +82,7 @@ def timeline():
         'term_creation',
         'term_update',
         'document_upload',
+        'metadata_extraction',
         'experiment_creation',
         'tool_execution',
         'orchestration_run'
@@ -84,9 +92,11 @@ def timeline():
         'provenance/timeline.html',
         timeline=timeline_data,
         experiments=experiments,
+        documents=documents,
         terms=terms,
         activity_types=activity_types,
         selected_experiment_id=experiment_id,
+        selected_document_id=document_id,
         selected_activity_type=activity_type,
         selected_term_id=term_id
     )

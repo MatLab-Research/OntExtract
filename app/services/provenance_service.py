@@ -196,9 +196,10 @@ class ProvenanceService:
             endedattime=document.created_at or datetime.utcnow(),
             wasassociatedwith=agent.agent_id,
             activity_parameters=_serialize_value({
-                'filename': document.filename,
+                'filename': document.original_filename,
                 'file_type': document.file_type,
-                'source': document.source,
+                'content_type': document.content_type,
+                'document_type': document.document_type,
                 'experiment_id': experiment.id if experiment else None
             }),
             activity_status='completed'
@@ -213,10 +214,174 @@ class ProvenanceService:
             wasattributedto=agent.agent_id,
             entity_value=_serialize_value({
                 'document_id': document.id,
-                'filename': document.filename,
+                'document_uuid': document.uuid,
+                'filename': document.original_filename,
                 'title': document.title,
+                'content_type': document.content_type,
+                'document_type': document.document_type,
                 'word_count': document.word_count,
                 'character_count': document.character_count
+            })
+        )
+        db.session.add(entity)
+        db.session.commit()
+
+        return activity, entity
+
+    @classmethod
+    def track_metadata_extraction(
+        cls,
+        document,
+        user,
+        extraction_source: str,
+        extracted_fields: Dict[str, Any],
+        confidence: float = 0.9
+    ) -> tuple[ProvActivity, ProvEntity]:
+        """
+        Track automated metadata extraction (CrossRef, Zotero, PDF analysis).
+
+        Args:
+            document: Document instance
+            user: User who initiated the upload (attribution)
+            extraction_source: 'crossref', 'zotero', 'pdf_analysis'
+            extracted_fields: Dictionary of extracted metadata fields
+            confidence: Confidence score of extraction
+        """
+        # Get appropriate agent (system/API agent for automated extraction)
+        if extraction_source == 'crossref':
+            agent = ProvAgent.query.filter_by(foaf_name='crossref_api').first()
+            if not agent:
+                agent = ProvAgent(
+                    agent_type='SoftwareAgent',
+                    foaf_name='crossref_api',
+                    agent_metadata={
+                        'tool_type': 'metadata_api',
+                        'description': 'CrossRef API metadata extraction',
+                        'url': 'https://api.crossref.org'
+                    }
+                )
+                db.session.add(agent)
+                db.session.flush()
+        elif extraction_source == 'zotero':
+            agent = ProvAgent.query.filter_by(foaf_name='zotero_api').first()
+            if not agent:
+                agent = ProvAgent(
+                    agent_type='SoftwareAgent',
+                    foaf_name='zotero_api',
+                    agent_metadata={
+                        'tool_type': 'metadata_api',
+                        'description': 'Zotero API metadata extraction',
+                        'url': 'https://www.zotero.org'
+                    }
+                )
+                db.session.add(agent)
+                db.session.flush()
+        else:
+            agent = cls.get_or_create_system_agent()
+
+        activity = ProvActivity(
+            activity_type='metadata_extraction',
+            startedattime=datetime.utcnow(),
+            endedattime=datetime.utcnow(),
+            wasassociatedwith=agent.agent_id,
+            activity_parameters=_serialize_value({
+                'document_id': document.id,
+                'extraction_source': extraction_source,
+                'fields_extracted': list(extracted_fields.keys()),
+                'confidence': confidence
+            }),
+            activity_status='completed'
+        )
+        db.session.add(activity)
+        db.session.flush()
+
+        # Find document entity to link derivation
+        doc_entity = ProvEntity.query.filter(
+            ProvEntity.entity_type == 'document',
+            ProvEntity.entity_value['document_id'].astext == str(document.id)
+        ).order_by(ProvEntity.created_at.desc()).first()
+
+        entity = ProvEntity(
+            entity_type='metadata',
+            generatedattime=datetime.utcnow(),
+            wasgeneratedby=activity.activity_id,
+            wasattributedto=agent.agent_id,
+            wasderivedfrom=doc_entity.entity_id if doc_entity else None,
+            entity_value=_serialize_value({
+                'document_id': document.id,
+                'document_uuid': document.uuid,
+                'extraction_source': extraction_source,
+                'extracted_metadata': extracted_fields,
+                'confidence': confidence
+            })
+        )
+        db.session.add(entity)
+
+        # Create "used" relationship (activity used document)
+        if doc_entity:
+            used_rel = ProvRelationship(
+                relationship_type='used',
+                subject_type='activity',
+                subject_id=activity.activity_id,
+                object_type='entity',
+                object_id=doc_entity.entity_id
+            )
+            db.session.add(used_rel)
+
+        db.session.commit()
+        return activity, entity
+
+    @classmethod
+    def track_metadata_update(
+        cls,
+        document,
+        user,
+        changes: Dict[str, Dict[str, Any]]
+    ) -> tuple[ProvActivity, ProvEntity]:
+        """
+        Track manual metadata updates by users.
+
+        Args:
+            document: Document instance
+            user: User making the update
+            changes: Dict with 'old' and 'new' values for each field
+                    e.g., {'title': {'old': 'Old Title', 'new': 'New Title'}}
+        """
+        agent = cls.get_or_create_user_agent(user.id, user.username)
+
+        activity = ProvActivity(
+            activity_type='metadata_update',
+            startedattime=datetime.utcnow(),
+            endedattime=datetime.utcnow(),
+            wasassociatedwith=agent.agent_id,
+            activity_parameters=_serialize_value({
+                'document_id': document.id,
+                'document_uuid': document.uuid,
+                'fields_modified': list(changes.keys())
+            }),
+            activity_status='completed'
+        )
+        db.session.add(activity)
+        db.session.flush()
+
+        # Find previous metadata entity
+        previous_entity = ProvEntity.query.filter(
+            ProvEntity.entity_type == 'metadata',
+            ProvEntity.entity_value['document_id'].astext == str(document.id)
+        ).order_by(ProvEntity.created_at.desc()).first()
+
+        entity = ProvEntity(
+            entity_type='metadata',
+            generatedattime=datetime.utcnow(),
+            wasgeneratedby=activity.activity_id,
+            wasattributedto=agent.agent_id,
+            wasderivedfrom=previous_entity.entity_id if previous_entity else None,
+            entity_value=_serialize_value({
+                'document_id': document.id,
+                'document_uuid': document.uuid,
+                'source': 'manual_edit',
+                'changes': changes,
+                'updated_metadata': document.source_metadata
             })
         )
         db.session.add(entity)
@@ -425,6 +590,7 @@ class ProvenanceService:
         user_id: int = None,
         activity_type: str = None,
         term_id: int = None,
+        document_id: int = None,
         limit: int = 100
     ) -> List[Dict[str, Any]]:
         """
@@ -435,6 +601,7 @@ class ProvenanceService:
             user_id: Filter by user (optional)
             activity_type: Filter by activity type (optional)
             term_id: Filter by term (optional)
+            document_id: Filter by document (optional)
             limit: Maximum number of activities to return
 
         Returns:
@@ -455,6 +622,11 @@ class ProvenanceService:
         if term_id:
             query = query.filter(
                 ProvActivity.activity_parameters['term_id'].astext == str(term_id)
+            )
+
+        if document_id:
+            query = query.filter(
+                ProvActivity.activity_parameters['document_id'].astext == str(document_id)
             )
 
         if user_id:
