@@ -83,6 +83,8 @@ def timeline():
         'term_update',
         'document_upload',
         'metadata_extraction',
+        'metadata_update',
+        'metadata_field_update',
         'experiment_creation',
         'tool_execution',
         'orchestration_run'

@@ -154,6 +154,19 @@ def create_app(config_name=None):
         except:
             return None
 
+    # Favicon route - silence 404 errors
+    @app.route('/favicon.ico')
+    def favicon():
+        from flask import send_from_directory, current_app
+        import os
+        # Try to serve favicon if it exists, otherwise return 204 No Content
+        favicon_path = os.path.join(current_app.root_path, 'static', 'favicon.ico')
+        if os.path.exists(favicon_path):
+            return send_from_directory(os.path.join(current_app.root_path, 'static'),
+                                     'favicon.ico', mimetype='image/vnd.microsoft.icon')
+        else:
+            return '', 204
+
     # Main route - PUBLIC ACCESS
     @app.route('/')
     def index():

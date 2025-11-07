@@ -321,9 +321,9 @@ class ProvenanceService:
         if doc_entity:
             used_rel = ProvRelationship(
                 relationship_type='used',
-                subject_type='activity',
+                subject_type='Activity',
                 subject_id=activity.activity_id,
-                object_type='entity',
+                object_type='Entity',
                 object_id=doc_entity.entity_id
             )
             db.session.add(used_rel)
@@ -387,6 +387,87 @@ class ProvenanceService:
         db.session.add(entity)
         db.session.commit()
 
+        return activity, entity
+
+    @classmethod
+    def track_metadata_field_update(
+        cls,
+        document,
+        user,
+        field_name: str,
+        old_value: Any,
+        new_value: Any
+    ) -> tuple[ProvActivity, ProvEntity]:
+        """
+        Track individual metadata field update.
+
+        Args:
+            document: Document instance
+            user: User making the update
+            field_name: Name of the field being updated
+            old_value: Previous value
+            new_value: New value
+        """
+        agent = cls.get_or_create_user_agent(user.id, user.username)
+
+        activity = ProvActivity(
+            activity_type='metadata_field_update',
+            startedattime=datetime.utcnow(),
+            endedattime=datetime.utcnow(),
+            wasassociatedwith=agent.agent_id,
+            activity_parameters=_serialize_value({
+                'document_id': document.id,
+                'document_uuid': document.uuid,
+                'field_name': field_name,
+                'old_value': old_value,
+                'new_value': new_value
+            }),
+            activity_status='completed'
+        )
+        db.session.add(activity)
+        db.session.flush()
+
+        # Find previous metadata field entity (if exists)
+        previous_field_entity = ProvEntity.query.filter(
+            ProvEntity.entity_type == 'metadata_field',
+            ProvEntity.entity_value['document_id'].astext == str(document.id),
+            ProvEntity.entity_value['field_name'].astext == field_name
+        ).order_by(ProvEntity.created_at.desc()).first()
+
+        # Create metadata field entity
+        entity = ProvEntity(
+            entity_type='metadata_field',
+            generatedattime=datetime.utcnow(),
+            wasgeneratedby=activity.activity_id,
+            wasattributedto=agent.agent_id,
+            wasderivedfrom=previous_field_entity.entity_id if previous_field_entity else None,
+            entity_value=_serialize_value({
+                'document_id': document.id,
+                'document_uuid': document.uuid,
+                'field_name': field_name,
+                'field_value': new_value,
+                'previous_value': old_value
+            })
+        )
+        db.session.add(entity)
+
+        # Create "used" relationship (activity used document)
+        doc_entity = ProvEntity.query.filter(
+            ProvEntity.entity_type == 'document',
+            ProvEntity.entity_value['document_id'].astext == str(document.id)
+        ).order_by(ProvEntity.created_at.desc()).first()
+
+        if doc_entity:
+            used_rel = ProvRelationship(
+                relationship_type='used',
+                subject_type='Activity',
+                subject_id=activity.activity_id,
+                object_type='Entity',
+                object_id=doc_entity.entity_id
+            )
+            db.session.add(used_rel)
+
+        db.session.commit()
         return activity, entity
 
     # ========================================================================
@@ -504,9 +585,9 @@ class ProvenanceService:
         if doc_entity:
             used_rel = ProvRelationship(
                 relationship_type='used',
-                subject_type='activity',
+                subject_type='Activity',
                 subject_id=activity.activity_id,
-                object_type='entity',
+                object_type='Entity',
                 object_id=doc_entity.entity_id
             )
             db.session.add(used_rel)
