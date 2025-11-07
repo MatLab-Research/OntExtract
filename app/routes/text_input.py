@@ -458,6 +458,14 @@ def update_document_metadata(document_uuid):
         if changes:
             try:
                 from app.services.provenance_service import provenance_service
+
+                # Track individual field updates (field-level provenance)
+                for field_name, change in changes.items():
+                    provenance_service.track_metadata_field_update(
+                        document, current_user, field_name, change['old'], change['new']
+                    )
+
+                # Also track bulk update for summary view
                 provenance_service.track_metadata_update(document, current_user, changes)
             except Exception as e:
                 current_app.logger.warning(f"Failed to track metadata update provenance: {str(e)}")
