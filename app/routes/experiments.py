@@ -86,10 +86,42 @@ def create():
         if (not data.get('document_ids') or len(data['document_ids']) == 0) and not use_refs_only:
             return jsonify({'error': 'At least one document must be selected'}), 400
 
+        # Generate description using prompt templates if not provided
+        description = data.get('description', '').strip()
+        if not description:
+            from app.services.prompt_service import PromptService
+            from app.models.app_settings import AppSetting
+
+            # Build context for template
+            context = PromptService._build_experiment_context(
+                experiment_type=data['experiment_type'],
+                documents=[Document.query.get(did) for did in data.get('document_ids', [])],
+                references=[Document.query.get(rid) for rid in data.get('reference_ids', [])],
+                configuration=data.get('configuration', {})
+            )
+
+            # Check if user wants LLM enhancement
+            llm_enabled = AppSetting.get_setting('enable_llm_enhancement', current_user.id, default=False)
+
+            if llm_enabled:
+                # LLM-enhanced path
+                result = PromptService.render_and_enhance(
+                    template_key=PromptService._get_template_key(data['experiment_type']),
+                    context=context,
+                    user=current_user
+                )
+                description = result['enhanced_output']
+            else:
+                # Template-only path
+                description = PromptService.render_template(
+                    template_key=PromptService._get_template_key(data['experiment_type']),
+                    context=context
+                )
+
         # Create the experiment
         experiment = Experiment(
             name=data['name'],
-            description=data.get('description', ''),
+            description=description,
             experiment_type=data['experiment_type'],
             user_id=current_user.id,
             term_id=data.get('term_id'),  # Optional focus term for semantic evolution
