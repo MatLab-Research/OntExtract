@@ -80,6 +80,108 @@ class ProvenanceService:
         """Get or create LLM agent."""
         return ProvAgent.get_or_create_orchestrator_agent(model_provider=provider)
 
+    @staticmethod
+    def get_or_create_tool_agent(tool_name: str, tool_metadata: Dict[str, Any] = None) -> ProvAgent:
+        """
+        Get or create SoftwareAgent for a processing tool.
+
+        Args:
+            tool_name: Name of the tool (e.g., 'nltk', 'spacy', 'pypdf')
+            tool_metadata: Optional metadata about the tool
+
+        Returns:
+            ProvAgent instance
+        """
+        agent = ProvAgent.query.filter_by(foaf_name=tool_name).first()
+        if not agent:
+            metadata = tool_metadata or {}
+            metadata['tool_type'] = 'processing_library'
+
+            agent = ProvAgent(
+                agent_type='SoftwareAgent',
+                foaf_name=tool_name,
+                agent_metadata=metadata
+            )
+            db.session.add(agent)
+            db.session.commit()
+        return agent
+
+    @staticmethod
+    def get_or_create_nltk_agent() -> ProvAgent:
+        """Get or create NLTK SoftwareAgent."""
+        return ProvenanceService.get_or_create_tool_agent(
+            tool_name='nltk',
+            tool_metadata={
+                'description': 'Natural Language Toolkit',
+                'url': 'https://www.nltk.org/',
+                'tool_category': 'nlp_library'
+            }
+        )
+
+    @staticmethod
+    def get_or_create_spacy_agent(model_name: str = 'en_core_web_sm') -> ProvAgent:
+        """Get or create spaCy SoftwareAgent."""
+        agent_name = f'spacy_{model_name}'
+        return ProvenanceService.get_or_create_tool_agent(
+            tool_name=agent_name,
+            tool_metadata={
+                'description': f'spaCy NLP model: {model_name}',
+                'url': 'https://spacy.io/',
+                'model': model_name,
+                'tool_category': 'nlp_library'
+            }
+        )
+
+    @staticmethod
+    def get_or_create_sentence_transformer_agent(model_name: str = 'all-MiniLM-L6-v2') -> ProvAgent:
+        """Get or create Sentence Transformers SoftwareAgent."""
+        agent_name = f'sentence_transformers_{model_name}'
+        return ProvenanceService.get_or_create_tool_agent(
+            tool_name=agent_name,
+            tool_metadata={
+                'description': f'Sentence Transformers model: {model_name}',
+                'url': 'https://www.sbert.net/',
+                'model': model_name,
+                'tool_category': 'embedding_model'
+            }
+        )
+
+    @staticmethod
+    def get_or_create_pypdf_agent() -> ProvAgent:
+        """Get or create pypdf SoftwareAgent."""
+        return ProvenanceService.get_or_create_tool_agent(
+            tool_name='pypdf',
+            tool_metadata={
+                'description': 'PDF text extraction library',
+                'url': 'https://github.com/py-pdf/pypdf',
+                'tool_category': 'text_extraction'
+            }
+        )
+
+    @staticmethod
+    def get_or_create_python_docx_agent() -> ProvAgent:
+        """Get or create python-docx SoftwareAgent."""
+        return ProvenanceService.get_or_create_tool_agent(
+            tool_name='python-docx',
+            tool_metadata={
+                'description': 'DOCX text extraction library',
+                'url': 'https://python-docx.readthedocs.io/',
+                'tool_category': 'text_extraction'
+            }
+        )
+
+    @staticmethod
+    def get_or_create_beautifulsoup_agent() -> ProvAgent:
+        """Get or create BeautifulSoup SoftwareAgent."""
+        return ProvenanceService.get_or_create_tool_agent(
+            tool_name='beautifulsoup4',
+            tool_metadata={
+                'description': 'HTML text extraction library',
+                'url': 'https://www.crummy.com/software/BeautifulSoup/',
+                'tool_category': 'text_extraction'
+            }
+        )
+
     # ========================================================================
     # TERM MANAGEMENT TRACKING
     # ========================================================================
@@ -684,6 +786,202 @@ class ProvenanceService:
 
         db.session.commit()
         return activity, entity
+
+    # ========================================================================
+    # DOCUMENT PROCESSING TRACKING
+    # ========================================================================
+
+    @classmethod
+    def track_document_segmentation(
+        cls,
+        document,
+        user,
+        method: str,
+        segment_count: int,
+        segments: List[Any] = None,
+        tool_name: str = None,
+        start_time: datetime = None,
+        end_time: datetime = None
+    ) -> tuple[ProvActivity, List[ProvEntity]]:
+        """
+        Track document segmentation into text segments.
+
+        Args:
+            document: Document instance being segmented
+            user: User performing the segmentation
+            method: Segmentation method (paragraph, sentence, semantic, langextract, etc.)
+            segment_count: Number of segments created
+            segments: Optional list of segment objects
+            tool_name: Optional tool name (nltk, spacy, langextract)
+            start_time: Optional start time
+            end_time: Optional end time
+
+        Returns:
+            (activity, list of segment entities)
+        """
+        user_agent = cls.get_or_create_user_agent(user.id, user.username)
+
+        # Get tool agent if tool_name provided
+        tool_agent = None
+        if tool_name:
+            if tool_name == 'nltk':
+                tool_agent = cls.get_or_create_nltk_agent()
+            elif tool_name.startswith('spacy'):
+                model = tool_name.split('_')[1] if '_' in tool_name else 'en_core_web_sm'
+                tool_agent = cls.get_or_create_spacy_agent(model)
+            else:
+                tool_agent = cls.get_or_create_tool_agent(tool_name)
+
+        activity = ProvActivity(
+            activity_type='document_segmentation',
+            startedattime=start_time or datetime.utcnow(),
+            endedattime=end_time or datetime.utcnow(),
+            wasassociatedwith=user_agent.agent_id,
+            activity_parameters=_serialize_value({
+                'document_id': document.id,
+                'document_uuid': document.uuid,
+                'method': method,
+                'segment_count': segment_count,
+                'tool_name': tool_name,
+                'tool_agent_id': str(tool_agent.agent_id) if tool_agent else None
+            }),
+            activity_status='completed'
+        )
+        db.session.add(activity)
+        db.session.flush()
+
+        # Create TextSegment entities
+        segment_entities = []
+        if segments:
+            for i, segment in enumerate(segments):
+                entity = ProvEntity(
+                    entity_type='text_segment',
+                    generatedattime=datetime.utcnow(),
+                    wasgeneratedby=activity.activity_id,
+                    wasattributedto=tool_agent.agent_id if tool_agent else user_agent.agent_id,
+                    entity_value=_serialize_value({
+                        'document_id': document.id,
+                        'document_uuid': document.uuid,
+                        'segment_id': segment.id if hasattr(segment, 'id') else None,
+                        'segment_number': i + 1,
+                        'start_position': segment.start_position if hasattr(segment, 'start_position') else None,
+                        'end_position': segment.end_position if hasattr(segment, 'end_position') else None,
+                        'content_preview': segment.content[:100] if hasattr(segment, 'content') else None,
+                        'method': method
+                    })
+                )
+                db.session.add(entity)
+                segment_entities.append(entity)
+
+        # Create "used" relationship (activity used document)
+        doc_entity = ProvEntity.query.filter(
+            ProvEntity.entity_type == 'document',
+            ProvEntity.entity_value['document_id'].astext == str(document.id)
+        ).order_by(ProvEntity.created_at.desc()).first()
+
+        if doc_entity:
+            used_rel = ProvRelationship(
+                relationship_type='used',
+                subject_type='Activity',
+                subject_id=activity.activity_id,
+                object_type='Entity',
+                object_id=doc_entity.entity_id
+            )
+            db.session.add(used_rel)
+
+        db.session.commit()
+        return activity, segment_entities
+
+    @classmethod
+    def track_embedding_generation(
+        cls,
+        document,
+        user,
+        model_name: str,
+        segments: List[Any],
+        embedding_method: str = 'local',
+        dimension: int = None,
+        start_time: datetime = None,
+        end_time: datetime = None
+    ) -> tuple[ProvActivity, List[ProvEntity]]:
+        """
+        Track embedding generation for document segments.
+
+        Args:
+            document: Document instance
+            user: User performing the embedding
+            model_name: Name of the embedding model
+            segments: List of segments that were embedded
+            embedding_method: Method used (local, openai, claude, period_aware)
+            dimension: Embedding dimension
+            start_time: Optional start time
+            end_time: Optional end time
+
+        Returns:
+            (activity, list of embedding entities)
+        """
+        user_agent = cls.get_or_create_user_agent(user.id, user.username)
+
+        # Get or create embedding model agent
+        if 'sentence' in model_name.lower() or 'transformer' in model_name.lower():
+            model_agent = cls.get_or_create_sentence_transformer_agent(model_name)
+        else:
+            model_agent = cls.get_or_create_tool_agent(
+                model_name,
+                {'tool_category': 'embedding_model', 'method': embedding_method}
+            )
+
+        activity = ProvActivity(
+            activity_type='embedding_generation',
+            startedattime=start_time or datetime.utcnow(),
+            endedattime=end_time or datetime.utcnow(),
+            wasassociatedwith=user_agent.agent_id,
+            activity_parameters=_serialize_value({
+                'document_id': document.id,
+                'document_uuid': document.uuid,
+                'model_name': model_name,
+                'embedding_method': embedding_method,
+                'dimension': dimension,
+                'segment_count': len(segments),
+                'model_agent_id': str(model_agent.agent_id)
+            }),
+            activity_status='completed'
+        )
+        db.session.add(activity)
+        db.session.flush()
+
+        # Create Embedding entities
+        embedding_entities = []
+        for i, segment in enumerate(segments):
+            entity = ProvEntity(
+                entity_type='embedding',
+                generatedattime=datetime.utcnow(),
+                wasgeneratedby=activity.activity_id,
+                wasattributedto=model_agent.agent_id,
+                entity_value=_serialize_value({
+                    'document_id': document.id,
+                    'document_uuid': document.uuid,
+                    'segment_id': segment.id if hasattr(segment, 'id') else None,
+                    'model_name': model_name,
+                    'dimension': dimension,
+                    'embedding_method': embedding_method
+                })
+            )
+            db.session.add(entity)
+            embedding_entities.append(entity)
+
+            # Create derivation relationship (embedding derived from segment)
+            # Find corresponding segment entity
+            segment_entity = ProvEntity.query.filter(
+                ProvEntity.entity_type == 'text_segment',
+                ProvEntity.entity_value['segment_id'].astext == str(segment.id if hasattr(segment, 'id') else None)
+            ).first()
+
+            if segment_entity:
+                entity.wasderivedfrom = segment_entity.entity_id
+
+        db.session.commit()
+        return activity, embedding_entities
 
     # ========================================================================
     # EXPERIMENT TRACKING

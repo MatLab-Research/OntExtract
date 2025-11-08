@@ -33,7 +33,7 @@ class Experiment(db.Model):
     
     # Experiment type
     experiment_type = db.Column(db.String(50), nullable=False)
-    # Types: 'temporal_evolution', 'domain_comparison'
+    # Types: 'single_document_analysis', 'document_analysis', 'temporal_evolution', 'domain_comparison'
     
     # Configuration (JSON stored as string)
     configuration = db.Column(db.Text)  # JSON for storing experiment-specific settings

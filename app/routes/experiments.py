@@ -34,7 +34,24 @@ def new():
     # Get all terms for focus term selection
     terms = Term.query.order_by(Term.term_text).all()
 
-    return render_template('experiments/new.html', documents=documents, references=references, terms=terms)
+    # Get URL parameters for single-document mode
+    mode = request.args.get('mode')
+    document_uuid = request.args.get('document_uuid')
+    document_title = request.args.get('document_title')
+
+    # If single-document mode, find the selected document
+    selected_document = None
+    if mode == 'single_document' and document_uuid:
+        selected_document = Document.query.filter_by(uuid=document_uuid, document_type='document').first()
+
+    return render_template('experiments/new.html',
+                         documents=documents,
+                         references=references,
+                         terms=terms,
+                         mode=mode,
+                         document_uuid=document_uuid,
+                         document_title=document_title,
+                         selected_document=selected_document)
 
 @experiments_bp.route('/wizard')
 def wizard():
@@ -57,6 +74,11 @@ def create():
         if not data.get('experiment_type'):
             return jsonify({'error': 'Experiment type is required'}), 400
         
+        # Validate single-document experiments require exactly one document
+        if data.get('experiment_type') == 'single_document_analysis':
+            if not data.get('document_ids') or len(data['document_ids']) != 1:
+                return jsonify({'error': 'Single Document Analysis requires exactly one document'}), 400
+
         # For most experiments, at least one document is required.
         # Exception: domain_comparison can use references only when configuration.use_references is true.
         config = data.get('configuration', {}) or {}
