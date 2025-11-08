@@ -32,9 +32,10 @@ def index():
     categories = ['prompts', 'nlp', 'processing', 'llm', 'ui']
 
     # Get settings by category
+    user_id = current_user.id if current_user.is_authenticated else None
     settings_by_category = {}
     for category in categories:
-        settings_by_category[category] = AppSetting.get_category_settings(category, current_user.id)
+        settings_by_category[category] = AppSetting.get_category_settings(category, user_id)
 
     # Get all prompt templates
     templates = PromptTemplate.query.filter_by(is_active=True).all()

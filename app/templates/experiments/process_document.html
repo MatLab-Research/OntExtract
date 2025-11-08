@@ -4,82 +4,6 @@
 
 {% block content %}
 <style>
-    .progress-indicator {
-        background: #f8f9fa;
-        border-radius: 8px;
-        padding: 15px;
-        margin-bottom: 20px;
-    }
-    
-    .progress-steps {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-    }
-    
-    .progress-step {
-        flex: 1;
-        text-align: center;
-        position: relative;
-    }
-    
-    .progress-step:not(:last-child)::after {
-        content: '';
-        position: absolute;
-        top: 20px;
-        right: -50%;
-        width: 100%;
-        height: 2px;
-        background: #dee2e6;
-    }
-    
-    .progress-step.completed::after {
-        background: #28a745;
-    }
-    
-    .progress-step.active::after {
-        background: #007bff;
-    }
-    
-    .progress-step.active .step-circle {
-        background: #007bff;
-        color: white;
-    }
-    
-    .progress-step.completed .step-circle {
-        background: #28a745;
-        color: white;
-    }
-    
-    .step-circle {
-        width: 40px;
-        height: 40px;
-        border-radius: 50%;
-        background: #dee2e6;
-        color: #6c757d;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        font-weight: 600;
-        margin-bottom: 5px;
-    }
-    
-    .step-label {
-        font-size: 0.9rem;
-        font-weight: 500;
-        color: #495057;
-    }
-    
-    .progress-step.active .step-label {
-        color: #007bff;
-        font-weight: 600;
-    }
-    
-    .progress-step.completed .step-label {
-        color: #28a745;
-        font-weight: 600;
-    }
-    
     .processing-status {
         border: 1px solid #dee2e6;
         border-radius: 8px;
@@ -114,28 +38,6 @@
 </style>
 
 <div class="container-fluid px-4">
-    <!-- Progress Indicator -->
-    <div class="progress-indicator">
-        <div class="progress-steps">
-            <div class="progress-step completed">
-                <div class="step-circle">1</div>
-                <div class="step-label">Create Experiment</div>
-            </div>
-            <div class="progress-step active">
-                <div class="step-circle">2</div>
-                <div class="step-label">Process Documents</div>
-            </div>
-            <div class="progress-step">
-                <div class="step-circle">3</div>
-                <div class="step-label">Semantic Analysis</div>
-            </div>
-            <div class="progress-step">
-                <div class="step-circle">4</div>
-                <div class="step-label">View Results</div>
-            </div>
-        </div>
-    </div>
-
     <!-- Header -->
     <div class="row mt-4">
         <div class="col-12">
@@ -225,14 +127,14 @@
                     <!-- Document Navigation -->
                     <div class="d-grid gap-2">
                         {% if has_previous %}
-                        <a href="{{ url_for('experiments.process_document', experiment_id=experiment.id, document_id=previous_doc_id) }}" 
+                        <a href="{{ url_for('experiments.process_document', experiment_id=experiment.id, document_uuid=previous_doc_uuid) }}" 
                            class="btn btn-outline-primary">
                             <i class="fas fa-arrow-left me-2"></i>Previous Document
                         </a>
                         {% endif %}
                         
                         {% if has_next %}
-                        <a href="{{ url_for('experiments.process_document', experiment_id=experiment.id, document_id=next_doc_id) }}" 
+                        <a href="{{ url_for('experiments.process_document', experiment_id=experiment.id, document_uuid=next_doc_uuid) }}" 
                            class="btn btn-outline-primary">
                             <i class="fas fa-arrow-right me-2"></i>Next Document
                         </a>
@@ -248,74 +150,112 @@
 
             <!-- Processing Tools (Manual Mode) -->
             <div class="card mb-4">
-                <div class="card-header d-flex justify-content-between align-items-center">
+                <div class="card-header">
                     <h6 class="mb-0">
-                        <i class="fas fa-toolbox me-2"></i>Processing Tools
+                        <i class="fas fa-toolbox me-2"></i>Available Processing Tools
                     </h6>
-                    <span class="badge bg-info">Manual Mode</span>
                 </div>
                 <div class="card-body">
                     <p class="text-muted mb-3">
-                        Select tools to run on this document. Results will be saved and displayed below.
+                        Select tools to run on this document. Use the action buttons in the sidebar to execute.
                     </p>
 
                     <!-- Tool Selection -->
-                    <div class="row mb-3">
+                    <div class="row">
                         <div class="col-md-6">
-                            <h6 class="mb-2">Segmentation Tools</h6>
-                            <div class="form-check">
-                                <input class="form-check-input tool-checkbox" type="checkbox"
-                                       value="segment_paragraph" id="tool-segment-paragraph">
-                                <label class="form-check-label" for="tool-segment-paragraph">
-                                    <strong>Segment Paragraphs</strong>
-                                    <br><small class="text-muted">Split document into paragraphs</small>
-                                </label>
+                            <!-- Segmentation Group -->
+                            <div class="border rounded p-3 mb-3 bg-secondary bg-opacity-10">
+                                <h6 class="mb-3">
+                                    <i class="fas fa-cut text-warning me-2"></i>Segmentation
+                                </h6>
+                                <div class="form-check mb-2">
+                                    <input class="form-check-input tool-checkbox" type="checkbox"
+                                           value="segment_paragraph" id="tool-segment-paragraph">
+                                    <label class="form-check-label" for="tool-segment-paragraph">
+                                        <strong>Paragraph Segmentation</strong>
+                                        <br><small class="text-muted">Split into paragraphs (NLTK-enhanced)</small>
+                                    </label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input tool-checkbox" type="checkbox"
+                                           value="segment_sentence" id="tool-segment-sentence">
+                                    <label class="form-check-label" for="tool-segment-sentence">
+                                        <strong>Sentence Segmentation</strong>
+                                        <br><small class="text-muted">Split into sentences (NLTK Punkt)</small>
+                                    </label>
+                                </div>
                             </div>
-                            <div class="form-check mt-2">
-                                <input class="form-check-input tool-checkbox" type="checkbox"
-                                       value="segment_sentence" id="tool-segment-sentence">
-                                <label class="form-check-label" for="tool-segment-sentence">
-                                    <strong>Segment Sentences</strong>
-                                    <br><small class="text-muted">Split text into sentences (NLTK)</small>
-                                </label>
+
+                            <!-- Embeddings Group -->
+                            <div class="border rounded p-3 mb-3 bg-secondary bg-opacity-10">
+                                <h6 class="mb-3">
+                                    <i class="fas fa-vector-square text-info me-2"></i>Embeddings
+                                </h6>
+                                <div class="form-check mb-2">
+                                    <input class="form-check-input tool-checkbox" type="checkbox"
+                                           value="embeddings_local" id="tool-embeddings-local">
+                                    <label class="form-check-label" for="tool-embeddings-local">
+                                        <strong>Local Embeddings</strong>
+                                        <br><small class="text-muted">sentence-transformers (384 dims)</small>
+                                    </label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input tool-checkbox" type="checkbox"
+                                           value="embeddings_openai" id="tool-embeddings-openai">
+                                    <label class="form-check-label" for="tool-embeddings-openai">
+                                        <strong>OpenAI Embeddings</strong>
+                                        <br><small class="text-muted">text-embedding-3-large (1536 dims)</small>
+                                    </label>
+                                </div>
                             </div>
                         </div>
+
                         <div class="col-md-6">
-                            <h6 class="mb-2">Extraction Tools <span class="badge bg-secondary">Coming Soon</span></h6>
-                            <div class="form-check">
-                                <input class="form-check-input" type="checkbox" disabled
-                                       value="extract_entities_spacy" id="tool-extract-entities">
-                                <label class="form-check-label text-muted" for="tool-extract-entities">
-                                    <strong>Extract Entities</strong>
-                                    <br><small>Named entity recognition (Phase 2)</small>
-                                </label>
+                            <!-- Entity Extraction Group -->
+                            <div class="border rounded p-3 mb-3 bg-secondary bg-opacity-10">
+                                <h6 class="mb-3">
+                                    <i class="fas fa-tags text-success me-2"></i>Entity Extraction
+                                </h6>
+                                <div class="form-check">
+                                    <input class="form-check-input tool-checkbox" type="checkbox"
+                                           value="entities_spacy" id="tool-entities-spacy">
+                                    <label class="form-check-label" for="tool-entities-spacy">
+                                        <strong>spaCy NER</strong>
+                                        <br><small class="text-muted">Named entity recognition</small>
+                                    </label>
+                                </div>
                             </div>
-                            <div class="form-check mt-2">
-                                <input class="form-check-input" type="checkbox" disabled
-                                       value="extract_definitions" id="tool-extract-definitions">
-                                <label class="form-check-label text-muted" for="tool-extract-definitions">
-                                    <strong>Extract Definitions</strong>
-                                    <br><small>Find term definitions (Phase 2)</small>
-                                </label>
+
+                            <!-- Metadata Analysis Group -->
+                            <div class="border rounded p-3 mb-3 bg-secondary bg-opacity-10">
+                                <h6 class="mb-3">
+                                    <i class="fas fa-info-circle text-primary me-2"></i>Metadata Analysis
+                                </h6>
+                                <div class="form-check">
+                                    <input class="form-check-input tool-checkbox" type="checkbox"
+                                           value="metadata" id="tool-metadata">
+                                    <label class="form-check-label" for="tool-metadata">
+                                        <strong>Analyze Metadata</strong>
+                                        <br><small class="text-muted">Extract title, authors, dates, etc.</small>
+                                    </label>
+                                </div>
+                            </div>
+
+                            <!-- Enhanced Processing Group -->
+                            <div class="border rounded p-3 mb-3 bg-secondary bg-opacity-10">
+                                <h6 class="mb-3">
+                                    <i class="fas fa-sparkles text-danger me-2"></i>Enhanced Processing
+                                </h6>
+                                <div class="form-check">
+                                    <input class="form-check-input tool-checkbox" type="checkbox"
+                                           value="enhanced" id="tool-enhanced">
+                                    <label class="form-check-label" for="tool-enhanced">
+                                        <strong>Term Extraction + OED</strong>
+                                        <br><small class="text-muted">Extract terms and enrich with OED data</small>
+                                    </label>
+                                </div>
                             </div>
                         </div>
-                    </div>
-
-                    <!-- Run Button -->
-                    <div class="d-flex justify-content-between align-items-center">
-                        <button id="run-tools-btn" class="btn btn-primary" disabled>
-                            <i class="fas fa-play me-2"></i>Run Selected Tools
-                        </button>
-                        <small class="text-muted">Select at least one tool to enable</small>
-                    </div>
-
-                    <!-- Progress Bar -->
-                    <div id="tool-progress" class="mt-3" style="display: none;">
-                        <div class="progress">
-                            <div id="tool-progress-bar" class="progress-bar progress-bar-striped progress-bar-animated"
-                                 role="progressbar" style="width: 0%"></div>
-                        </div>
-                        <small id="tool-progress-text" class="text-muted">Running tools...</small>
                     </div>
                 </div>
             </div>
@@ -331,409 +271,6 @@
                             <!-- Dynamic results will be inserted here -->
                         </div>
                     </div>
-                </div>
-            </div>
-            
-            <!-- Processing Status -->
-            <div class="card mb-4">
-                <div class="card-header">
-                    <h6 class="mb-0">
-                        <i class="fas fa-cogs me-2"></i>Processing Operations
-                        <span class="badge bg-primary ms-2">{{ processing_operations|length }} Operations</span>
-                    </h6>
-                </div>
-                <div class="card-body">
-                    {% if processing_operations %}
-                    <div class="table-responsive">
-                        <table class="table table-sm">
-                            <thead>
-                                <tr>
-                                    <th>Type</th>
-                                    <th>Method</th>
-                                    <th>Status</th>
-                                    <th>Created</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for op in processing_operations %}
-                                <tr>
-                                    <td>
-                                        <span class="badge bg-secondary">{{ op.processing_type }}</span>
-                                    </td>
-                                    <td>{{ op.processing_method }}</td>
-                                    <td>
-                                        {% if op.status == 'completed' %}
-                                        <span class="badge bg-success">
-                                            <i class="fas fa-check me-1"></i>{{ op.status }}
-                                        </span>
-                                        {% elif op.status == 'running' %}
-                                        <span class="badge bg-warning">
-                                            <i class="fas fa-spinner fa-spin me-1"></i>{{ op.status }}
-                                        </span>
-                                        {% elif op.status == 'failed' %}
-                                        <span class="badge bg-danger">
-                                            <i class="fas fa-times me-1"></i>{{ op.status }}
-                                        </span>
-                                        {% else %}
-                                        <span class="badge bg-info">
-                                            <i class="fas fa-clock me-1"></i>{{ op.status }}
-                                        </span>
-                                        {% endif %}
-                                    </td>
-                                    <td>
-                                        <small class="text-muted">
-                                            {{ op.created_at.strftime('%m/%d %H:%M') if op.created_at else 'N/A' }}
-                                        </small>
-                                    </td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                    </div>
-                    {% else %}
-                    <div class="text-center py-3">
-                        <i class="fas fa-info-circle text-muted mb-2"></i>
-                        <p class="text-muted mb-0">No processing operations applied yet</p>
-                    </div>
-                    {% endif %}
-
-                    <!-- Processing Results by Type -->
-                    {% if processing_operations %}
-                    <div class="mt-4">
-                        <h6 class="mb-3">
-                            <i class="fas fa-chart-bar me-2"></i>Processing Results
-                        </h6>
-
-                        <!-- Embeddings Section -->
-                        {% set embeddings_ops = processing_operations | selectattr('processing_type', 'equalto', 'embeddings') | selectattr('status', 'equalto', 'completed') | list %}
-                        {% if embeddings_ops %}
-                        <div class="card mb-3 border-info">
-                            <div class="card-header bg-info bg-opacity-10">
-                                <h6 class="mb-0">
-                                    <i class="fas fa-vector-square text-info me-2"></i>
-                                    Embeddings ({{ embeddings_ops | length }})
-                                </h6>
-                            </div>
-                            <div class="card-body">
-                                {% for op in embeddings_ops %}
-                                {% set results = op.get_results_summary() %}
-                                <div class="mb-3{% if not loop.last %} border-bottom pb-3{% endif %}">
-                                    <div class="d-flex justify-content-between align-items-center mb-2">
-                                        <strong>{{ op.processing_method.title() }} Method</strong>
-                                        <span class="badge bg-success">
-                                            <i class="fas fa-check-circle me-1"></i>Completed
-                                        </span>
-                                    </div>
-                                    {% if results %}
-                                    <div class="row text-center">
-                                        {% if results.dimensions %}
-                                        <div class="col-md-3 mb-2">
-                                            <div class="border rounded p-2">
-                                                <strong class="text-info">{{ results.dimensions }}</strong>
-                                                <br><small class="text-muted">Dimensions</small>
-                                            </div>
-                                        </div>
-                                        {% endif %}
-                                        {% if results.chunks_created %}
-                                        <div class="col-md-3 mb-2">
-                                            <div class="border rounded p-2">
-                                                <strong class="text-warning">{{ results.chunks_created }}</strong>
-                                                <br><small class="text-muted">Chunks</small>
-                                            </div>
-                                        </div>
-                                        {% endif %}
-                                        {% if results.total_tokens %}
-                                        <div class="col-md-3 mb-2">
-                                            <div class="border rounded p-2">
-                                                <strong class="text-success">{{ results.total_tokens }}</strong>
-                                                <br><small class="text-muted">Doc Tokens</small>
-                                            </div>
-                                        </div>
-                                        {% endif %}
-                                        {% if results.model_used %}
-                                        <div class="col-md-3 mb-2">
-                                            <div class="border rounded p-2">
-                                                <strong class="text-secondary">{{ results.model_used }}</strong>
-                                                <br><small class="text-muted">Model Used</small>
-                                            </div>
-                                        </div>
-                                        {% endif %}
-                                        {% if results.api_tokens_used and results.api_tokens_used != 'N/A' %}
-                                        <div class="col-md-3 mb-2">
-                                            <div class="border rounded p-2">
-                                                <strong class="text-danger">{{ results.api_tokens_used }}</strong>
-                                                <br><small class="text-muted">API Tokens</small>
-                                            </div>
-                                        </div>
-                                        {% endif %}
-                                    </div>
-                                    {% endif %}
-                                    <div class="text-center mt-2">
-                                        <button class="btn btn-outline-primary btn-sm"
-                                                onclick="viewProcessingArtifacts('{{ op.id }}', '{{ op.processing_type }}')">
-                                            <i class="fas fa-eye me-1"></i>View Embeddings Details
-                                        </button>
-                                    </div>
-                                </div>
-                                {% endfor %}
-                            </div>
-                        </div>
-                        {% endif %}
-
-                        <!-- Text Segments Section -->
-                        {% set segments_ops = processing_operations | selectattr('processing_type', 'equalto', 'segmentation') | selectattr('status', 'equalto', 'completed') | list %}
-                        {% if segments_ops %}
-                        <div class="card mb-3 border-warning">
-                            <div class="card-header bg-warning bg-opacity-10">
-                                <h6 class="mb-0">
-                                    <i class="fas fa-cut text-warning me-2"></i>
-                                    Text Segments ({{ segments_ops | length }})
-                                </h6>
-                            </div>
-                            <div class="card-body">
-                                {% for op in segments_ops %}
-                                {% set results = op.get_results_summary() %}
-                                <div class="mb-3{% if not loop.last %} border-bottom pb-3{% endif %}">
-                                    <div class="d-flex justify-content-between align-items-center mb-2">
-                                        <strong>{{ op.processing_method.title() }} Method</strong>
-                                        <span class="badge bg-success">
-                                            <i class="fas fa-check-circle me-1"></i>Completed
-                                        </span>
-                                    </div>
-                                    {% if results %}
-                                    <!-- Service/Model Information -->
-                                    {% if results.service_used or results.model_info %}
-                                    <div class="mb-3 p-2 bg-light rounded">
-                                        <small class="text-muted d-block">
-                                            <i class="fas fa-cogs me-1"></i>
-                                            <strong>Service:</strong> {{ results.service_used or 'Unknown' }}
-                                        </small>
-                                        {% if results.model_info %}
-                                        <small class="text-muted d-block">
-                                            <i class="fas fa-microchip me-1"></i>
-                                            <strong>Model:</strong> {{ results.model_info }}
-                                        </small>
-                                        {% endif %}
-                                    </div>
-                                    {% endif %}
-
-                                    <div class="row text-center">
-                                        {% if results.segments_created %}
-                                        <div class="col-md-4 mb-2">
-                                            <div class="border rounded p-2">
-                                                <strong class="text-warning">{{ results.segments_created }}</strong>
-                                                <br><small class="text-muted">Segments</small>
-                                            </div>
-                                        </div>
-                                        {% endif %}
-                                        {% if results.avg_segment_length %}
-                                        <div class="col-md-4 mb-2">
-                                            <div class="border rounded p-2">
-                                                <strong class="text-info">{{ results.avg_segment_length }}</strong>
-                                                <br><small class="text-muted">Avg Length</small>
-                                            </div>
-                                        </div>
-                                        {% endif %}
-                                        {% if results.total_tokens %}
-                                        <div class="col-md-4 mb-2">
-                                            <div class="border rounded p-2">
-                                                <strong class="text-secondary">{{ results.total_tokens }}</strong>
-                                                <br><small class="text-muted">Total Tokens</small>
-                                            </div>
-                                        </div>
-                                        {% endif %}
-                                    </div>
-                                    {% endif %}
-                                    <div class="text-center mt-2">
-                                        <button class="btn btn-outline-primary btn-sm"
-                                                onclick="viewProcessingArtifacts('{{ op.id }}', '{{ op.processing_type }}')">
-                                            <i class="fas fa-eye me-1"></i>View Segments Details
-                                        </button>
-                                    </div>
-                                </div>
-                                {% endfor %}
-                            </div>
-                        </div>
-                        {% endif %}
-
-                        <!-- Entities Section -->
-                        {% set entities_ops = processing_operations | selectattr('processing_type', 'equalto', 'entities') | selectattr('status', 'equalto', 'completed') | list %}
-                        {% if entities_ops %}
-                        <div class="card mb-3 border-success">
-                            <div class="card-header bg-success bg-opacity-10">
-                                <h6 class="mb-0">
-                                    <i class="fas fa-tags text-success me-2"></i>
-                                    Entities ({{ entities_ops | length }})
-                                </h6>
-                            </div>
-                            <div class="card-body">
-                                {% for op in entities_ops %}
-                                {% set results = op.get_results_summary() %}
-                                <div class="mb-3{% if not loop.last %} border-bottom pb-3{% endif %}">
-                                    <div class="d-flex justify-content-between align-items-center mb-2">
-                                        <strong>{{ op.processing_method.title() }} Method</strong>
-                                        <span class="badge bg-success">
-                                            <i class="fas fa-check-circle me-1"></i>Completed
-                                        </span>
-                                    </div>
-                                    {% if results %}
-                                    <!-- Service/Model Information -->
-                                    {% if results.service_used or results.model_info %}
-                                    <div class="mb-3 p-2 bg-light rounded">
-                                        <small class="text-muted d-block">
-                                            <i class="fas fa-cogs me-1"></i>
-                                            <strong>Service:</strong> {{ results.service_used or 'Unknown' }}
-                                        </small>
-                                        {% if results.model_info %}
-                                        <small class="text-muted d-block">
-                                            <i class="fas fa-microchip me-1"></i>
-                                            <strong>Model:</strong> {{ results.model_info }}
-                                        </small>
-                                        {% endif %}
-                                        {% if results.avg_confidence %}
-                                        <small class="text-muted d-block">
-                                            <i class="fas fa-percentage me-1"></i>
-                                            <strong>Avg Confidence:</strong> {{ "%.0f"|format(results.avg_confidence * 100) }}%
-                                        </small>
-                                        {% endif %}
-                                    </div>
-                                    {% endif %}
-
-                                    <div class="row text-center">
-                                        {% if results.entities_found %}
-                                        <div class="col-md-4 mb-2">
-                                            <div class="border rounded p-2">
-                                                <strong class="text-success">{{ results.entities_found }}</strong>
-                                                <br><small class="text-muted">Entities</small>
-                                            </div>
-                                        </div>
-                                        {% endif %}
-                                        {% if results.entity_types %}
-                                        <div class="col-md-4 mb-2">
-                                            <div class="border rounded p-2">
-                                                <strong class="text-info">{{ results.entity_types | length }}</strong>
-                                                <br><small class="text-muted">Types</small>
-                                            </div>
-                                        </div>
-                                        {% endif %}
-                                        {% if results.avg_confidence %}
-                                        <div class="col-md-4 mb-2">
-                                            <div class="border rounded p-2">
-                                                <strong class="text-warning">{{ "%.0f"|format(results.avg_confidence * 100) }}%</strong>
-                                                <br><small class="text-muted">Confidence</small>
-                                            </div>
-                                        </div>
-                                        {% endif %}
-                                    </div>
-                                    {% if results.entity_types %}
-                                    <div class="mt-2">
-                                        <small class="text-muted">Entity Types:</small>
-                                        <div class="mt-1">
-                                            {% for entity_type in results.entity_types %}
-                                            <span class="badge bg-secondary me-1">{{ entity_type }}</span>
-                                            {% endfor %}
-                                        </div>
-                                    </div>
-                                    {% endif %}
-                                    {% endif %}
-                                    <div class="text-center mt-2">
-                                        <button class="btn btn-outline-primary btn-sm"
-                                                onclick="viewProcessingArtifacts('{{ op.id }}', '{{ op.processing_type }}')">
-                                            <i class="fas fa-eye me-1"></i>View Entities Details
-                                        </button>
-                                    </div>
-                                </div>
-                                {% endfor %}
-                            </div>
-                        </div>
-                        {% endif %}
-
-                        <!-- Other Processing Types -->
-                        {% set other_ops = processing_operations | rejectattr('processing_type', 'in', ['embeddings', 'segmentation', 'entities']) | selectattr('status', 'equalto', 'completed') | list %}
-                        {% if other_ops %}
-                        <div class="card mb-3 border-secondary">
-                            <div class="card-header bg-secondary bg-opacity-10">
-                                <h6 class="mb-0">
-                                    <i class="fas fa-cogs text-secondary me-2"></i>
-                                    Other Processing ({{ other_ops | length }})
-                                </h6>
-                            </div>
-                            <div class="card-body">
-                                {% for op in other_ops %}
-                                {% set results = op.get_results_summary() %}
-                                <div class="mb-3{% if not loop.last %} border-bottom pb-3{% endif %}">
-                                    <div class="d-flex justify-content-between align-items-center mb-2">
-                                        <strong>{{ op.processing_type.title() }} ({{ op.processing_method }})</strong>
-                                        <span class="badge bg-success">
-                                            <i class="fas fa-check-circle me-1"></i>Completed
-                                        </span>
-                                    </div>
-                                    {% if results %}
-                                    <div class="row text-center">
-                                        {% for key, value in results.items() %}
-                                        {% if value and value != 'N/A' %}
-                                        <div class="col-md-3 mb-2">
-                                            <div class="border rounded p-2">
-                                                <strong class="text-secondary">{{ value }}</strong>
-                                                <br><small class="text-muted">{{ key.replace('_', ' ').title() }}</small>
-                                            </div>
-                                        </div>
-                                        {% endif %}
-                                        {% endfor %}
-                                    </div>
-                                    {% endif %}
-                                    <div class="text-center mt-2">
-                                        <button class="btn btn-outline-primary btn-sm"
-                                                onclick="viewProcessingArtifacts('{{ op.id }}', '{{ op.processing_type }}')">
-                                            <i class="fas fa-eye me-1"></i>View Details
-                                        </button>
-                                    </div>
-                                </div>
-                                {% endfor %}
-                            </div>
-                        </div>
-                        {% endif %}
-
-                        <!-- No Results Message -->
-                        {% if not (embeddings_ops or segments_ops or entities_ops or other_ops) %}
-                        <div class="text-center py-3">
-                            <i class="fas fa-info-circle text-muted mb-2"></i>
-                            <p class="text-muted mb-0">No completed processing operations yet</p>
-                        </div>
-                        {% endif %}
-                    </div>
-                    {% endif %}
-
-                    <!-- Processing Progress -->
-                    <div class="mt-3">
-                        <div class="d-flex justify-content-between align-items-center mb-2">
-                            <small class="text-muted">Processing Progress:</small>
-                            <span class="badge bg-secondary">{{ processing_progress }}%</span>
-                        </div>
-                        <div class="progress" style="height: 8px;">
-                            <div class="progress-bar" role="progressbar"
-                                 style="width: {{ processing_progress }}%"></div>
-                        </div>
-                    </div>
-
-                    <!-- Mark as Complete -->
-                    {% if processing_progress >= 100 %}
-                    <div class="text-center mt-3">
-                        <button class="btn btn-success" id="mark-complete">
-                            <i class="fas fa-check me-2"></i>Document Processing Complete
-                        </button>
-                    </div>
-                    {% elif processing_progress > 0 %}
-                    <div class="alert alert-info mt-3 mb-0">
-                        <i class="fas fa-info-circle me-2"></i>
-                        Processing in progress. Complete all operations to finish.
-                    </div>
-                    {% else %}
-                    <div class="alert alert-warning mt-3 mb-0">
-                        <i class="fas fa-info-circle me-2"></i>
-                        Start processing operations using the controls on the right.
-                    </div>
-                    {% endif %}
                 </div>
             </div>
 
@@ -767,6 +304,46 @@
         <!-- Processing Sidebar -->
         <div class="col-lg-4">
             <div class="navigation-card">
+                <!-- Manual Processing Actions -->
+                <div class="card mb-3">
+                    <div class="card-header">
+                        <h6 class="mb-0">
+                            <i class="fas fa-play-circle me-2"></i>Run Processing Tools
+                        </h6>
+                    </div>
+                    <div class="card-body">
+                        <!-- Selection Summary -->
+                        <div id="selection-summary" class="alert alert-info mb-3" style="display: none;">
+                            <small>
+                                <i class="fas fa-check-circle me-1"></i>
+                                <span id="selected-count">0</span> tool(s) selected
+                            </small>
+                        </div>
+
+                        <!-- Action Buttons -->
+                        <div class="d-grid gap-2">
+                            <button id="run-tools-btn" class="btn btn-primary" disabled>
+                                <i class="fas fa-play me-2"></i>Run Selected Tools
+                            </button>
+                            <button id="run-all-tools-btn" class="btn btn-success">
+                                <i class="fas fa-forward me-2"></i>Run All Tools
+                            </button>
+                        </div>
+                        <div class="text-center mt-2">
+                            <small class="text-muted">Select tools from the list below</small>
+                        </div>
+
+                        <!-- Progress Bar -->
+                        <div id="tool-progress" class="mt-3" style="display: none;">
+                            <div class="progress mb-2" style="height: 8px;">
+                                <div id="tool-progress-bar" class="progress-bar progress-bar-striped progress-bar-animated"
+                                     role="progressbar" style="width: 0%"></div>
+                            </div>
+                            <small id="tool-progress-text" class="text-muted d-block text-center">Running tools...</small>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- Single Document Processing Panel -->
                 {% include 'experiments/single_document_processing_panel.html' %}
             </div>
@@ -785,7 +362,7 @@ document.addEventListener('DOMContentLoaded', function() {
             // Update document status and redirect to next document or pipeline overview
             showAlert('success', 'Document marked as complete');
             {% if has_next %}
-            window.location.href = '{{ url_for("experiments.process_document", experiment_id=experiment.id, document_id=next_doc_id) }}';
+            window.location.href = '{{ url_for("experiments.process_document", experiment_id=experiment.id, document_uuid=next_doc_uuid) }}';
             {% else %}
             window.location.href = '{{ url_for("experiments.document_pipeline", experiment_id=experiment.id) }}';
             {% endif %}
@@ -809,9 +386,20 @@ document.addEventListener('DOMContentLoaded', function() {
     function updateRunButton() {
         const checkedTools = Array.from(toolCheckboxes).filter(cb => cb.checked);
         runToolsBtn.disabled = checkedTools.length === 0;
+
+        // Update selection summary
+        const selectionSummary = document.getElementById('selection-summary');
+        const selectedCount = document.getElementById('selected-count');
+
+        if (checkedTools.length > 0) {
+            selectedCount.textContent = checkedTools.length;
+            selectionSummary.style.display = 'block';
+        } else {
+            selectionSummary.style.display = 'none';
+        }
     }
 
-    // Run tools
+    // Run selected tools
     if (runToolsBtn) {
         runToolsBtn.addEventListener('click', async function() {
             const selectedTools = Array.from(toolCheckboxes)
@@ -823,118 +411,313 @@ document.addEventListener('DOMContentLoaded', function() {
                 return;
             }
 
-            // Show progress
-            runToolsBtn.disabled = true;
-            toolProgress.style.display = 'block';
-            toolProgressBar.style.width = '50%';
-            toolProgressText.textContent = `Running ${selectedTools.length} tool(s)...`;
-
-            try {
-                const response = await fetch('/experiments/{{ experiment.id }}/document/{{ document.id }}/run_tools', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        tools: selectedTools
-                    })
-                });
-
-                const data = await response.json();
-
-                toolProgressBar.style.width = '100%';
-                toolProgressText.textContent = 'Complete!';
-
-                if (data.success) {
-                    // Display results
-                    displayToolResults(data.results);
-
-                    // Reset after delay
-                    setTimeout(() => {
-                        toolProgress.style.display = 'none';
-                        toolProgressBar.style.width = '0%';
-                        runToolsBtn.disabled = false;
-
-                        // Uncheck all boxes
-                        toolCheckboxes.forEach(cb => cb.checked = false);
-                        updateRunButton();
-                    }, 2000);
-                } else {
-                    alert('Error: ' + data.error);
-                    toolProgress.style.display = 'none';
-                    runToolsBtn.disabled = false;
-                }
-            } catch (error) {
-                alert('Error running tools: ' + error.message);
-                toolProgress.style.display = 'none';
-                runToolsBtn.disabled = false;
-            }
+            await runTools(selectedTools);
         });
     }
 
-    function displayToolResults(results) {
-        let html = '<div class="alert alert-success">✅ Tools executed successfully!</div>';
+    // Run all tools (full pipeline)
+    const runAllToolsBtn = document.getElementById('run-all-tools-btn');
+    if (runAllToolsBtn) {
+        runAllToolsBtn.addEventListener('click', async function() {
+            // Optimal pipeline order: segment → embeddings → entities → metadata → enhanced
+            const allTools = [
+                'segment_paragraph',
+                'embeddings_local',
+                'entities_spacy',
+                'metadata',
+                'enhanced'
+            ];
 
+            await runTools(allTools);
+        });
+    }
+
+    // Core tool execution function
+    async function runTools(tools) {
+        // Show progress
+        runToolsBtn.disabled = true;
+        runAllToolsBtn.disabled = true;
+        toolProgress.style.display = 'block';
+
+        const results = [];
+
+        for (let i = 0; i < tools.length; i++) {
+            const tool = tools[i];
+            const progress = ((i + 1) / tools.length) * 100;
+
+            toolProgressBar.style.width = progress + '%';
+            toolProgressText.textContent = `Running ${tool}... (${i + 1}/${tools.length})`;
+
+            try {
+                const result = await runSingleTool(tool);
+                results.push(result);
+            } catch (error) {
+                console.error(`Error running ${tool}:`, error);
+                results.push({
+                    tool_name: tool,
+                    status: 'error',
+                    metadata: { error: error.message }
+                });
+            }
+        }
+
+        toolProgressBar.style.width = '100%';
+        toolProgressText.textContent = 'Complete!';
+
+        // Display results
+        displayToolResults(results);
+
+        // Reset UI (no auto-reload)
+        setTimeout(() => {
+            toolProgress.style.display = 'none';
+            toolProgressBar.style.width = '0%';
+            runToolsBtn.disabled = false;
+            runAllToolsBtn.disabled = false;
+
+            // Uncheck all boxes and update selection summary
+            toolCheckboxes.forEach(cb => cb.checked = false);
+            updateRunButton();
+
+            // Refresh processing status badges
+            if (typeof loadProcessingStatus === 'function') {
+                loadProcessingStatus();
+            }
+        }, 1000);
+    }
+
+    // Execute a single tool
+    async function runSingleTool(tool) {
+        let endpoint = '';
+        let method = '';
+        let requestBody = {};
+
+        // Map tool values to API endpoints (using UUID)
+        const documentId = '{{ document.uuid }}';
+
+        if (tool === 'segment_paragraph') {
+            endpoint = `/process/document/${documentId}/segment`;
+            method = 'paragraph';
+            requestBody = { method: 'paragraph' };
+        } else if (tool === 'segment_sentence') {
+            endpoint = `/process/document/${documentId}/segment`;
+            method = 'sentence';
+            requestBody = { method: 'sentence' };
+        } else if (tool === 'embeddings_local') {
+            endpoint = `/process/document/${documentId}/embeddings`;
+            method = 'local';
+            requestBody = { method: 'local' };
+        } else if (tool === 'embeddings_openai') {
+            endpoint = `/process/document/${documentId}/embeddings`;
+            method = 'openai';
+            requestBody = { method: 'openai' };
+        } else if (tool === 'entities_spacy') {
+            endpoint = `/process/document/${documentId}/entities`;
+            method = 'spacy';
+            requestBody = { entity_types: ['PERSON', 'ORG', 'GPE', 'DATE'] };
+        } else if (tool === 'metadata') {
+            endpoint = `/process/document/${documentId}/metadata`;
+            method = 'metadata';
+            requestBody = {};
+        } else if (tool === 'enhanced') {
+            endpoint = `/process/document/${documentId}/enhanced`;
+            method = 'enhanced';
+            requestBody = { extract_terms: true, enrich_with_oed: false };
+        } else {
+            throw new Error(`Unknown tool: ${tool}`);
+        }
+
+        const response = await fetch(endpoint, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(requestBody)
+        });
+
+        const data = await response.json();
+
+        if (!data.success) {
+            throw new Error(data.error || 'Tool execution failed');
+        }
+
+        return {
+            tool_name: tool,
+            status: 'success',
+            data: data,
+            metadata: {
+                job_id: data.job_id,
+                message: data.message
+            }
+        };
+    }
+
+    function displayToolResults(results) {
+        const successCount = results.filter(r => r.status === 'success').length;
+        const errorCount = results.filter(r => r.status === 'error').length;
+
+        // Display in right column under Processing Options
+        const statusContainer = document.getElementById('processing-status-results');
+        const statusContent = document.getElementById('processing-status-content');
+
+        if (!statusContainer || !statusContent) return;
+
+        let html = `
+            <div class="mb-3 p-3 rounded ${errorCount > 0 ? 'bg-warning bg-opacity-10' : 'bg-success bg-opacity-10'}">
+                <h6 class="mb-2">
+                    <i class="fas fa-check-circle ${errorCount > 0 ? 'text-warning' : 'text-success'} me-2"></i>
+                    Processing Complete
+                </h6>
+                <p class="mb-0 small">
+                    ${successCount} succeeded${errorCount > 0 ? `, ${errorCount} failed` : ''}
+                </p>
+            </div>
+        `;
+
+        // Show compact results list
+        html += '<div class="list-group list-group-flush">';
         results.forEach(result => {
-            const statusBadge = result.status === 'success'
-                ? '<span class="badge bg-success">Success</span>'
-                : '<span class="badge bg-danger">Error</span>';
+            const icon = result.status === 'success'
+                ? '<i class="fas fa-check-circle text-success"></i>'
+                : '<i class="fas fa-times-circle text-danger"></i>';
+
+            const toolIcon = getToolIcon(result.tool_name);
 
             html += `
-                <div class="card mb-3">
-                    <div class="card-header d-flex justify-content-between align-items-center">
-                        <strong>${result.tool_name}</strong>
-                        ${statusBadge}
-                    </div>
-                    <div class="card-body">
-                        ${formatToolResult(result)}
+                <div class="list-group-item px-0 py-2">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <small>${toolIcon} ${formatToolName(result.tool_name)}</small>
+                        ${icon}
                     </div>
                 </div>
             `;
         });
+        html += '</div>';
 
-        resultsContent.innerHTML = html;
-        processingResults.style.display = 'block';
-        processingResults.scrollIntoView({ behavior: 'smooth' });
+        statusContent.innerHTML = html;
+        statusContainer.style.display = 'block';
+    }
+
+    function getToolIcon(toolName) {
+        if (toolName.includes('segment')) return '<i class="fas fa-cut text-warning"></i>';
+        if (toolName.includes('embeddings')) return '<i class="fas fa-vector-square text-info"></i>';
+        if (toolName.includes('entities')) return '<i class="fas fa-tags text-success"></i>';
+        if (toolName.includes('metadata')) return '<i class="fas fa-info-circle text-primary"></i>';
+        if (toolName.includes('enhanced')) return '<i class="fas fa-sparkles text-danger"></i>';
+        return '<i class="fas fa-cog"></i>';
+    }
+
+    function formatToolName(toolName) {
+        const names = {
+            'segment_paragraph': 'Paragraph Segmentation',
+            'segment_sentence': 'Sentence Segmentation',
+            'embeddings_local': 'Local Embeddings',
+            'embeddings_openai': 'OpenAI Embeddings',
+            'entities_spacy': 'Entity Extraction (spaCy)',
+            'metadata': 'Metadata Analysis',
+            'enhanced': 'Enhanced Processing'
+        };
+        return names[toolName] || toolName;
     }
 
     function formatToolResult(result) {
         if (result.status !== 'success') {
-            return `<p class="text-danger">Error: ${result.metadata?.error || 'Unknown error'}</p>`;
+            return `<p class="text-danger"><i class="fas fa-exclamation-triangle me-1"></i>Error: ${result.metadata?.error || 'Unknown error'}</p>`;
         }
 
-        let html = `
-            <div class="row mb-2">
-                <div class="col-md-6">
-                    <strong>Count:</strong> ${result.metadata.count}
-                </div>
-                <div class="col-md-6">
-                    <strong>Avg Length:</strong> ${result.metadata.avg_length?.toFixed(1)} chars
-                </div>
-            </div>
-        `;
+        const data = result.data;
+        let html = '';
 
-        // Show first 3 items
-        if (result.data && result.data.length > 0) {
-            html += '<div class="mt-3"><strong>Preview:</strong></div>';
-            html += '<ol class="mt-2">';
-            result.data.slice(0, 3).forEach(item => {
-                const preview = item.length > 100 ? item.substring(0, 100) + '...' : item;
-                html += `<li class="mb-2"><code>${preview}</code></li>`;
-            });
-            html += '</ol>';
-            if (result.data.length > 3) {
-                html += `<p class="text-muted">... and ${result.data.length - 3} more</p>`;
-            }
+        // Message
+        if (data.message) {
+            html += `<p class="mb-3">${data.message}</p>`;
         }
 
-        // Provenance info
-        if (result.provenance) {
+        // Tool-specific formatting
+        if (result.tool_name.includes('segment')) {
             html += `
-                <div class="mt-3">
+                <div class="row text-center mb-2">
+                    <div class="col-md-6">
+                        <div class="border rounded p-2">
+                            <strong class="text-warning">${data.segments_created || 0}</strong>
+                            <br><small class="text-muted">Segments Created</small>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="border rounded p-2">
+                            <strong class="text-info">v${data.version_number || 'N/A'}</strong>
+                            <br><small class="text-muted">Version Number</small>
+                        </div>
+                    </div>
+                </div>
+            `;
+        } else if (result.tool_name.includes('embeddings')) {
+            html += `
+                <div class="row text-center mb-2">
+                    <div class="col-md-6">
+                        <div class="border rounded p-2">
+                            <strong class="text-info">${data.method || 'local'}</strong>
+                            <br><small class="text-muted">Method</small>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="border rounded p-2">
+                            <strong class="text-success">v${data.version_number || 'N/A'}</strong>
+                            <br><small class="text-muted">Version Number</small>
+                        </div>
+                    </div>
+                </div>
+            `;
+        } else if (result.tool_name.includes('entities')) {
+            html += `
+                <div class="row text-center mb-2">
+                    <div class="col-md-12">
+                        <div class="border rounded p-2">
+                            <strong class="text-success">${data.entities_found || 0}</strong>
+                            <br><small class="text-muted">Entities Found</small>
+                        </div>
+                    </div>
+                </div>
+            `;
+        } else if (result.tool_name.includes('metadata')) {
+            if (data.metadata) {
+                html += `<div class="row text-center mb-2">`;
+                Object.keys(data.metadata).slice(0, 4).forEach(key => {
+                    html += `
+                        <div class="col-md-6 mb-2">
+                            <div class="border rounded p-2">
+                                <small class="text-muted d-block">${key}</small>
+                                <strong>${data.metadata[key]}</strong>
+                            </div>
+                        </div>
+                    `;
+                });
+                html += `</div>`;
+            }
+        } else if (result.tool_name.includes('enhanced')) {
+            html += `
+                <div class="row text-center mb-2">
+                    <div class="col-md-6">
+                        <div class="border rounded p-2">
+                            <strong class="text-danger">${data.terms_extracted || 0}</strong>
+                            <br><small class="text-muted">Terms Extracted</small>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="border rounded p-2">
+                            <strong class="text-success">${data.terms_enriched || 0}</strong>
+                            <br><small class="text-muted">Terms Enriched</small>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        // Job ID
+        if (data.job_id) {
+            html += `
+                <div class="mt-2">
                     <small class="text-muted">
-                        <i class="fas fa-info-circle me-1"></i>
-                        Activity ID: <code>${result.provenance.activity_id}</code>
+                        <i class="fas fa-tasks me-1"></i>Job ID: <code>${data.job_id}</code>
                     </small>
                 </div>
             `;
