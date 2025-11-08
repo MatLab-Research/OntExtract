@@ -1,0 +1,287 @@
+{% extends "base.html" %}
+
+{% block title %}Entity Extraction Results - {{ document.title }}{% endblock %}
+
+{% block extra_css %}
+<style>
+.entity-highlight {
+    padding: 2px 4px;
+    border-radius: 3px;
+    margin: 0 2px;
+    display: inline-block;
+}
+.entity-PERSON { background-color: #dbeafe; border-bottom: 2px solid #3b82f6; }
+.entity-ORG { background-color: #dcfce7; border-bottom: 2px solid #16a34a; }
+.entity-GPE { background-color: #fef3c7; border-bottom: 2px solid #f59e0b; }
+.entity-DATE { background-color: #fce7f3; border-bottom: 2px solid #ec4899; }
+.entity-LOC { background-color: #e0e7ff; border-bottom: 2px solid #6366f1; }
+.entity-UNKNOWN { background-color: #f3f4f6; border-bottom: 2px solid #6b7280; }
+
+.entity-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-bottom: 20px;
+}
+.entity-legend-item {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="row">
+        <div class="col-12">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="{{ url_for('text_input.document_list') }}">Documents</a></li>
+                    <li class="breadcrumb-item">{{ document.title }}</li>
+                    <li class="breadcrumb-item active">Entity Extraction Results</li>
+                </ol>
+            </nav>
+
+            <div class="d-flex justify-content-between align-items-start mb-4">
+                <div>
+                    <h2><i class="fas fa-tags me-2 text-success"></i>Entity Extraction Results</h2>
+                    <p class="text-muted">{{ document.title }}</p>
+                </div>
+                <div>
+                    <a href="{{ url_for('provenance.timeline', document_uuid=document.uuid) }}"
+                       class="btn btn-outline-secondary" target="_blank">
+                        <i class="fas fa-history me-1"></i>View Provenance
+                    </a>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-lg-8">
+                    <!-- Statistics Card -->
+                    <div class="card mb-4">
+                        <div class="card-header bg-success text-white">
+                            <h5 class="mb-0"><i class="fas fa-chart-pie me-2"></i>Entity Statistics</h5>
+                        </div>
+                        <div class="card-body">
+                            {% if entities %}
+                                <div class="row text-center mb-4">
+                                    <div class="col-md-3">
+                                        <div class="border rounded p-3">
+                                            <h4 class="text-success mb-1">{{ total_entities }}</h4>
+                                            <small class="text-muted">Total Entities</small>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <div class="border rounded p-3">
+                                            <h4 class="text-info mb-1">{{ entities_by_type|length }}</h4>
+                                            <small class="text-muted">Entity Types</small>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <div class="border rounded p-3">
+                                            <h4 class="text-primary mb-1">spaCy NER</h4>
+                                            <small class="text-muted">Method</small>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <div class="border rounded p-3">
+                                            <h4 class="text-warning mb-1">{{ jobs|length }}</h4>
+                                            <small class="text-muted">Runs</small>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Entity Type Breakdown -->
+                                <h6 class="mb-3">Entity Breakdown by Type</h6>
+                                <div class="row">
+                                    {% for entity_type, type_entities in entities_by_type.items() %}
+                                    <div class="col-md-6 mb-3">
+                                        <div class="card">
+                                            <div class="card-body">
+                                                <div class="d-flex justify-content-between align-items-center">
+                                                    <div>
+                                                        <h6 class="mb-0">{{ entity_type }}</h6>
+                                                        <small class="text-muted">{{ type_entities|length }} entities</small>
+                                                    </div>
+                                                    <span class="badge bg-secondary">{{ type_entities|length }}</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                            {% else %}
+                                <div class="alert alert-info">
+                                    <i class="fas fa-info-circle me-2"></i>No entities extracted yet.
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <!-- Highlighted Text with Entities -->
+                    {% if entities and document.content %}
+                    <div class="card mb-4">
+                        <div class="card-header">
+                            <h6 class="mb-0"><i class="fas fa-highlighter me-2"></i>Text with Entity Highlights</h6>
+                        </div>
+                        <div class="card-body">
+                            <!-- Entity Legend -->
+                            <div class="entity-legend mb-3">
+                                {% for entity_type in entities_by_type.keys() %}
+                                <div class="entity-legend-item">
+                                    <span class="entity-highlight entity-{{ entity_type }}">{{ entity_type }}</span>
+                                    <small class="text-muted">({{ entities_by_type[entity_type]|length }})</small>
+                                </div>
+                                {% endfor %}
+                            </div>
+
+                            <!-- Highlighted Text -->
+                            <div class="bg-light p-3 rounded" style="max-height: 500px; overflow-y: auto; line-height: 1.8;">
+                                <div id="entity-visualization">
+                                    {{ render_entities_html(displacy_data)|safe }}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    <!-- Entity List -->
+                    {% if entities %}
+                    <div class="card">
+                        <div class="card-header">
+                            <h6 class="mb-0"><i class="fas fa-list me-2"></i>All Extracted Entities</h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="table-responsive">
+                                <table class="table table-hover">
+                                    <thead>
+                                        <tr>
+                                            <th>Entity</th>
+                                            <th>Type</th>
+                                            <th>Position</th>
+                                            <th>Confidence</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for entity in entities[:50] %}
+                                        <tr>
+                                            <td><strong>{{ entity.text }}</strong></td>
+                                            <td><span class="badge bg-secondary">{{ entity.entity_type }}</span></td>
+                                            <td><small class="text-muted">{{ entity.start_position }}-{{ entity.end_position }}</small></td>
+                                            <td>
+                                                {% if entity.confidence %}
+                                                <span class="badge {{ 'bg-success' if entity.confidence > 0.8 else 'bg-warning' }}">
+                                                    {{ (entity.confidence * 100)|int }}%
+                                                </span>
+                                                {% else %}
+                                                <span class="text-muted">N/A</span>
+                                                {% endif %}
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                                {% if entities|length > 50 %}
+                                <p class="text-muted text-center">Showing first 50 of {{ entities|length }} entities</p>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+
+                <div class="col-lg-4">
+                    <!-- Processing History -->
+                    <div class="card mb-4">
+                        <div class="card-header">
+                            <h6 class="mb-0"><i class="fas fa-history me-2"></i>Processing History</h6>
+                        </div>
+                        <div class="card-body">
+                            {% if jobs|length > 1 %}
+                                <p class="small text-muted mb-3">
+                                    Entities extracted {{ jobs|length }} times
+                                </p>
+                                <div class="list-group">
+                                    {% for job in jobs %}
+                                    <div class="list-group-item {{ 'active' if loop.first else '' }}">
+                                        <div class="d-flex w-100 justify-content-between">
+                                            <h6 class="mb-1">
+                                                Run {{ loop.index }}
+                                                {% if loop.first %}
+                                                <span class="badge bg-primary ms-2">Latest</span>
+                                                {% endif %}
+                                            </h6>
+                                            <small>{{ job.created_at.strftime('%m/%d %H:%M') if job.created_at else 'N/A' }}</small>
+                                        </div>
+                                        <p class="mb-1 small">
+                                            {% set params = job.get_parameters() %}
+                                            <span class="badge bg-secondary">{{ params.get('entity_types', [])|length }} types</span>
+                                            <span class="badge {{ 'bg-success' if job.status == 'completed' else 'bg-warning' }} ms-1">
+                                                {{ job.status }}
+                                            </span>
+                                        </p>
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                            {% elif jobs %}
+                                <p class="text-muted">Single extraction run</p>
+                            {% else %}
+                                <p class="text-muted">No processing history</p>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <!-- Actions -->
+                    <div class="card">
+                        <div class="card-header">
+                            <h6 class="mb-0"><i class="fas fa-cog me-2"></i>Actions</h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="d-grid gap-2">
+                                <a href="{{ url_for('provenance.timeline', document_uuid=document.uuid) }}"
+                                   class="btn btn-outline-primary" target="_blank">
+                                    <i class="fas fa-stream me-1"></i>View Full Timeline
+                                </a>
+                                <button class="btn btn-outline-secondary" onclick="exportEntities()">
+                                    <i class="fas fa-download me-1"></i>Export Entities (CSV)
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function exportEntities() {
+    alert('Export feature coming soon!');
+}
+</script>
+{% endblock %}
+
+{% macro render_entities_html(displacy_data) %}
+    {% if displacy_data and displacy_data.text %}
+        {% set text = displacy_data.text %}
+        {% set ents = displacy_data.ents|sort(attribute='start') %}
+        {% set offset = 0 %}
+        {% for ent in ents %}
+            {% if ent.start > offset %}
+                {{ text[offset:ent.start] }}
+            {% endif %}
+            <span class="entity-highlight entity-{{ ent.label }}" title="{{ ent.label }}">
+                {{ text[ent.start:ent.end] }}
+            </span>
+            {% set offset = ent.end %}
+        {% endfor %}
+        {% if offset < text|length %}
+            {{ text[offset:] }}
+        {% endif %}
+    {% else %}
+        <p class="text-muted">No entity visualization available</p>
+    {% endif %}
+{% endmacro %}

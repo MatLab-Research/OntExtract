@@ -80,6 +80,50 @@
     </div>
 </div>
 
+<!-- Quick Access to Processing Results -->
+<div class="card mt-3">
+    <div class="card-header">
+        <h6 class="mb-0">
+            <i class="fas fa-external-link-alt me-2"></i>View Processing Results
+        </h6>
+    </div>
+    <div class="card-body">
+        <p class="small text-muted mb-3">Direct links to detailed results pages</p>
+        <div class="d-grid gap-2">
+            <a href="/process/document/{{ document.uuid }}/results/embeddings"
+               id="result-link-embeddings"
+               class="btn btn-sm btn-outline-info disabled" target="_blank"
+               style="pointer-events: none; opacity: 0.5;">
+                <i class="fas fa-vector-square me-1"></i>Embeddings
+            </a>
+            <a href="/process/document/{{ document.uuid }}/results/entities"
+               id="result-link-entities"
+               class="btn btn-sm btn-outline-success disabled" target="_blank"
+               style="pointer-events: none; opacity: 0.5;">
+                <i class="fas fa-tags me-1"></i>Entities
+            </a>
+            <a href="/process/document/{{ document.uuid }}/results/segments"
+               id="result-link-segments"
+               class="btn btn-sm btn-outline-warning disabled" target="_blank"
+               style="pointer-events: none; opacity: 0.5;">
+                <i class="fas fa-cut me-1"></i>Segments
+            </a>
+            <a href="/process/document/{{ document.uuid }}/results/metadata"
+               id="result-link-metadata"
+               class="btn btn-sm btn-outline-primary disabled" target="_blank"
+               style="pointer-events: none; opacity: 0.5;">
+                <i class="fas fa-info-circle me-1"></i>Metadata
+            </a>
+            <a href="/process/document/{{ document.uuid }}/results/enhanced"
+               id="result-link-enhanced"
+               class="btn btn-sm btn-outline-danger disabled" target="_blank"
+               style="pointer-events: none; opacity: 0.5;">
+                <i class="fas fa-sparkles me-1"></i>Enhanced
+            </a>
+        </div>
+    </div>
+</div>
+
 <!-- Bootstrap Processing Modal -->
 <div class="modal fade" id="processingModal" tabindex="-1" aria-labelledby="processingModalTitle" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
@@ -175,6 +219,46 @@ function updateProcessingStatusDisplay(expDocId, statusData) {
     }
 
     statusContainer.innerHTML = html;
+
+    // Update result link buttons based on available processing types
+    updateResultLinks(statusData.processing_operations || []);
+}
+
+function updateResultLinks(operations) {
+    // Map processing types to button IDs and short names
+    const linkMap = {
+        'generate_embeddings': 'embeddings',
+        'segment_document': 'segments',
+        'extract_entities': 'entities',
+        'analyze_metadata': 'metadata',
+        'enhanced_processing': 'enhanced'
+    };
+
+    // Find which processing types have completed operations
+    const completedTypes = new Set();
+    operations.forEach(op => {
+        if (op.status === 'completed' && linkMap[op.processing_type]) {
+            completedTypes.add(linkMap[op.processing_type]);
+        }
+    });
+
+    // Update each button
+    Object.values(linkMap).forEach(linkType => {
+        const button = document.getElementById(`result-link-${linkType}`);
+        if (button) {
+            if (completedTypes.has(linkType)) {
+                // Enable button
+                button.classList.remove('disabled');
+                button.style.pointerEvents = 'auto';
+                button.style.opacity = '1';
+            } else {
+                // Keep button disabled
+                button.classList.add('disabled');
+                button.style.pointerEvents = 'none';
+                button.style.opacity = '0.5';
+            }
+        }
+    });
 }
 
 function formatProcessingTypeName(jobType) {
@@ -197,23 +281,18 @@ function viewProcessingResults(event, processingType, method, operationId) {
 
     // Map job types to result pages
     if (processingType === 'generate_embeddings') {
-        // Show embeddings for this document
-        url = `/documents/${documentUuid}?tab=embeddings`;
+        url = `/process/document/${documentUuid}/results/embeddings`;
     } else if (processingType === 'segment_document') {
-        // Show segments for this document
-        url = `/documents/${documentUuid}?tab=segments`;
+        url = `/process/document/${documentUuid}/results/segments`;
     } else if (processingType === 'extract_entities') {
-        // Show entities for this document
-        url = `/documents/${documentUuid}?tab=entities`;
+        url = `/process/document/${documentUuid}/results/entities`;
     } else if (processingType === 'analyze_metadata') {
-        // Show metadata for this document
-        url = `/documents/${documentUuid}?tab=metadata`;
+        url = `/process/document/${documentUuid}/results/metadata`;
     } else if (processingType === 'enhanced_processing') {
-        // Show enhanced processing results
-        url = `/documents/${documentUuid}?tab=enhanced`;
+        url = `/process/document/${documentUuid}/results/enhanced`;
     } else {
-        // Default: go to document page
-        url = `/documents/${documentUuid}`;
+        // Default: go to provenance timeline
+        url = `/provenance/timeline?document_uuid=${documentUuid}`;
     }
 
     // Open in new tab
