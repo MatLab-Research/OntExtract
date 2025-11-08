@@ -169,38 +169,7 @@ def generate_embeddings(document_id):
             processing_metadata=processing_metadata
         )
         
-        # Create PROV-O Entity for the new document version
-        prov_entity = ProvenanceEntity.create_for_document(
-            processing_version, 
-            activity_type='embeddings_processing',
-            agent=f'user_{current_user.id}'
-        )
-        db.session.add(prov_entity)
-        
-        # Create PROV-O Activity for the processing
-        activity_id = f'activity_embeddings_{processing_version.id}'
-        activity_metadata = {
-            'embedding_method': embedding_method,
-            'processing_start': 'pending'
-        }
-        
-        # Add period-aware metadata if applicable
-        if embedding_method == 'period_aware':
-            activity_metadata.update({
-                'force_period': force_period,
-                'model_preference': model_preference,
-                'auto_detect_period': auto_detect_period
-            })
-        
-        prov_activity = ProvenanceActivity(
-            prov_id=activity_id,
-            prov_type='ont:EmbeddingsProcessing',
-            prov_label=f'Embeddings generation for document {processing_version.id}',
-            was_associated_with=f'user_{current_user.id}',
-            activity_type='embeddings',
-            activity_metadata=activity_metadata
-        )
-        db.session.add(prov_activity)
+        # Note: PROV-O tracking will be done after embeddings complete
         
         # Create processing job linked to the new version
         job = ProcessingJob(
@@ -212,9 +181,7 @@ def generate_embeddings(document_id):
         job.set_parameters({
             'embedding_method': embedding_method,
             'original_document_id': original_document.id,
-            'version_type': 'processed',
-            'prov_entity_id': prov_entity.prov_id,
-            'prov_activity_id': prov_activity.prov_id
+            'version_type': 'processed'
         })
         db.session.add(job)
         db.session.commit()
@@ -267,16 +234,21 @@ def generate_embeddings(document_id):
                 'total_embeddings': len(embeddings),
                 'content_length': len(content)
             })
-            
-            # Update PROV-O Activity completion
-            prov_activity.complete_activity({
-                'embedding_method': embedding_method,
-                'model_used': model_name,
-                'embedding_dimensions': dimension,
-                'chunk_count': chunk_count,
-                'total_embeddings': len(embeddings)
-            })
-            
+
+            # Track embedding generation with PROV-O
+            from app.services.provenance_service import provenance_service
+            # Create mock segments for tracking (since embeddings are on chunks, not TextSegment objects)
+            from types import SimpleNamespace
+            mock_segments = [SimpleNamespace(id=i) for i in range(chunk_count)]
+            provenance_service.track_embedding_generation(
+                processing_version,
+                current_user,
+                model_name=model_name,
+                segments=mock_segments,
+                embedding_method=embedding_method,
+                dimension=dimension
+            )
+
             db.session.commit()
             
         except Exception as e:
@@ -345,30 +317,7 @@ def segment_document(document_id):
             processing_metadata=processing_metadata
         )
         
-        # Create PROV-O Entity for the new document version
-        prov_entity = ProvenanceEntity.create_for_document(
-            processing_version,
-            activity_type='segmentation_processing',
-            agent=f'user_{current_user.id}'
-        )
-        db.session.add(prov_entity)
-        
-        # Create PROV-O Activity for the segmentation
-        activity_id = f'activity_segmentation_{processing_version.id}'
-        prov_activity = ProvenanceActivity(
-            prov_id=activity_id,
-            prov_type='ont:SegmentationProcessing', 
-            prov_label=f'Document segmentation for document {processing_version.id}',
-            was_associated_with=f'user_{current_user.id}',
-            activity_type='segmentation',
-            activity_metadata={
-                'segmentation_method': method,
-                'chunk_size': chunk_size,
-                'overlap': overlap,
-                'processing_start': 'pending'
-            }
-        )
-        db.session.add(prov_activity)
+        # Note: PROV-O tracking will be done after segmentation completes
         
         # Handle LangExtract segmentation method
         if method == 'langextract':
@@ -408,9 +357,7 @@ def segment_document(document_id):
                     'two_stage_architecture': True,
                     'character_level_positions': True,
                     'original_document_id': original_document.id,
-                    'version_type': 'processed',
-                    'prov_entity_id': prov_entity.prov_id,
-                    'prov_activity_id': prov_activity.prov_id
+                    'version_type': 'processed'
                 })
                 db.session.add(job)
                 db.session.commit()
@@ -533,15 +480,17 @@ def segment_document(document_id):
                     'orchestration_plan_generated': True,
                     'prov_o_tracking_complete': True
                 })
-                
-                # Complete PROV-O Activity
-                prov_activity.complete_activity({
-                    'segmentation_method': method,
-                    'segments_created': len(segments_created),
-                    'langextract_analysis_complete': True,
-                    'structural_segments': len(segmentation_recs.get('structural_segments', [])),
-                    'semantic_segments': len(segmentation_recs.get('semantic_segments', []))
-                })
+
+                # Track segmentation with PROV-O
+                from app.services.provenance_service import provenance_service
+                provenance_service.track_document_segmentation(
+                    processing_version,
+                    current_user,
+                    method='langextract',
+                    segment_count=len(segments_created),
+                    segments=segments_created,
+                    tool_name='langextract'
+                )
                 
                 return jsonify({
                     'success': True,
@@ -580,17 +529,56 @@ def segment_document(document_id):
                     'fallback_suggestion': 'Try paragraph or semantic segmentation instead'
                 }), 500
             
-        # Handle traditional segmentation methods (paragraph, sentence, semantic, hybrid)
-        from app.services.text_processing import TextProcessingService
-        processing_service = TextProcessingService()
+        # Handle traditional segmentation methods using DocumentProcessor tools
+        from app.services.processing_tools import DocumentProcessor
+        from app.models.text_segment import TextSegment
+        from app.text_utils import clean_jstor_boilerplate
 
+        processor = DocumentProcessor(user_id=current_user.id)
+
+        # Get clean content (remove JSTOR boilerplate if present)
+        content = clean_jstor_boilerplate(processing_version.content)
+        if not content:
+            content = processing_version.content
+
+        # Call appropriate tool based on method
         if method == 'paragraph':
-            processing_service.segment_by_paragraphs(processing_version)
+            result = processor.segment_paragraph(content)
         elif method == 'sentence':
-            processing_service.segment_by_sentences(processing_version)
+            result = processor.segment_sentence(content)
         else:
             # Default to paragraph if method is unknown
-            processing_service.segment_by_paragraphs(processing_version)
+            result = processor.segment_paragraph(content)
+
+        # Check if processing succeeded
+        if result.status != 'success':
+            return jsonify({
+                'success': False,
+                'error': result.metadata.get('error', 'Segmentation failed'),
+                'method': method
+            }), 500
+
+        # Create TextSegment database objects from processing result
+        current_position = 0
+        for i, segment_text in enumerate(result.data):
+            # Find position in original content
+            start_pos = content.find(segment_text, current_position)
+            if start_pos == -1:
+                start_pos = current_position
+            end_pos = start_pos + len(segment_text)
+
+            segment = TextSegment(
+                document_id=processing_version.id,
+                content=segment_text,
+                segment_type=method,
+                segment_number=i + 1,
+                start_position=start_pos,
+                end_position=end_pos,
+                level=0,
+                language=processing_version.detected_language
+            )
+            db.session.add(segment)
+            current_position = end_pos
 
         # Create processing job linked to processing version
         job = ProcessingJob(
@@ -600,20 +588,15 @@ def segment_document(document_id):
             user_id=current_user.id
         )
         job.set_parameters({
-            'method': method, 
-            'chunk_size': chunk_size, 
+            'method': method,
+            'chunk_size': chunk_size,
             'overlap': overlap,
             'original_document_id': original_document.id,
-            'version_type': 'processed',
-            'prov_entity_id': prov_entity.prov_id,
-            'prov_activity_id': prov_activity.prov_id
+            'version_type': 'processed'
         })
         db.session.add(job)
         db.session.commit()
-        
-        # Import here to avoid circular imports
-        from app.models.text_segment import TextSegment
-        
+
         # Count created segments
         segment_count = processing_version.text_segments.count()
         
@@ -624,16 +607,19 @@ def segment_document(document_id):
             'overlap': overlap,
             'total_words': len(processing_version.content.split()) if processing_version.content else 0
         })
-        
-        # Complete PROV-O Activity
-        prov_activity.complete_activity({
-            'segmentation_method': method,
-            'segments_created': segment_count,
-            'chunk_size': chunk_size,
-            'overlap': overlap,
-            'total_words': len(processing_version.content.split()) if processing_version.content else 0
-        })
-        
+
+        # Track segmentation with PROV-O
+        from app.services.provenance_service import provenance_service
+        tool_name = 'nltk' if method == 'sentence' else None
+        provenance_service.track_document_segmentation(
+            processing_version,
+            current_user,
+            method=method,
+            segment_count=segment_count,
+            segments=list(processing_version.text_segments),
+            tool_name=tool_name
+        )
+
         db.session.commit()
         
         # Get base document ID for consistent redirection

@@ -23,11 +23,9 @@ from .term import Term, TermVersion, FuzzinessAdjustment
 from .context_anchor import ContextAnchor
 from .semantic_drift import SemanticDriftActivity, AnalysisAgent, ProvenanceChain
 
-# LLM Orchestration logging models
-from .orchestration_logs import OrchestrationDecision, ToolExecutionLog, MultiModelConsensus
-
-# Human-in-the-Loop feedback models
-from .orchestration_feedback import OrchestrationFeedback, LearningPattern, OrchestrationOverride
+# Settings and prompt templates
+from .app_settings import AppSetting
+from .prompt_template import PromptTemplate
 
 # Temporal experiment models for semantic change analysis
 from .temporal_experiment import (
@@ -60,14 +58,9 @@ __all__ = [
     'SemanticDriftActivity',
     'AnalysisAgent',
     'ProvenanceChain',
-    # LLM Orchestration models
-    'OrchestrationDecision',
-    'ToolExecutionLog',
-    'MultiModelConsensus',
-    # Human-in-the-Loop models
-    'OrchestrationFeedback',
-    'LearningPattern',
-    'OrchestrationOverride',
+    # Settings and templates
+    'AppSetting',
+    'PromptTemplate',
     # Temporal experiment models
     'DocumentTemporalMetadata',
     'OEDTimelineMarker',

@@ -84,22 +84,29 @@ class DocumentProcessor:
         """
         Split document text into paragraphs.
 
-        Uses double newline as paragraph delimiter (standard convention).
+        Uses regex pattern for robust paragraph splitting (handles various whitespace patterns).
 
         Args:
             text: The document text to segment
 
         Returns:
-            ProcessingResult with list of paragraphs
+            ProcessingResult with list of paragraphs (minimum 10 chars each)
         """
         try:
-            # Split on double newlines, remove empty strings
-            paragraphs = [p.strip() for p in text.split('\n\n') if p.strip()]
+            import re
+
+            # Robust paragraph splitting that handles various whitespace patterns
+            paragraphs = re.split(r'\n\s*\n', text.strip())
+
+            # Filter empty paragraphs and very short ones (< 10 chars)
+            paragraphs = [p.strip() for p in paragraphs if p.strip() and len(p.strip()) > 10]
 
             metadata = {
                 "count": len(paragraphs),
                 "avg_length": sum(len(p) for p in paragraphs) / len(paragraphs) if paragraphs else 0,
-                "method": "double_newline_split"
+                "total_chars": len(text),
+                "method": "regex_paragraph_split",
+                "min_length": 10
             }
 
             return ProcessingResult(

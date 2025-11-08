@@ -1,0 +1,45 @@
+{# Component for multi-document selection mode #}
+{# Shows full document selection UI with search and checkboxes #}
+
+<input type="text" class="form-control mb-3" id="document-search"
+       placeholder="🔍 Filter documents by name or content...">
+<small class="text-muted d-block mb-2">
+    <i class="fas fa-info-circle"></i> Type to filter the list of documents below
+</small>
+
+<div class="document-list border rounded p-3" style="max-height: 300px; overflow-y: auto;">
+    {% for document in documents %}
+    <div class="form-check document-item mb-2">
+        <input class="form-check-input document-checkbox" type="checkbox"
+               value="{{ document.id }}" id="doc-{{ document.id }}"
+               data-uuid="{{ document.uuid }}"
+               data-title="{{ document.get_display_name() }}"
+               data-words="{{ document.word_count or 0 }}">
+        <label class="form-check-label" for="doc-{{ document.id }}">
+            {% set filename = document.get_display_name().lower() %}
+            {% if filename.endswith('.pdf') %}
+                <i class="fas fa-file-pdf text-danger me-2" title="PDF Document"></i>
+            {% elif filename.endswith('.txt') %}
+                <i class="fas fa-file-alt text-secondary me-2" title="Text Document"></i>
+            {% elif filename.endswith('.md') %}
+                <i class="fas fa-file-code text-info me-2" title="Markdown Document"></i>
+            {% elif filename.endswith('.docx') or filename.endswith('.doc') %}
+                <i class="fas fa-file-word text-primary me-2" title="Word Document"></i>
+            {% elif filename.endswith('.html') %}
+                <i class="fas fa-code text-warning me-2" title="HTML Document"></i>
+            {% else %}
+                <i class="fas fa-file text-secondary me-2" title="Document"></i>
+            {% endif %}
+            <strong>{{ document.get_display_name() }}</strong>
+            <span class="text-muted">
+                ({{ document.word_count or 0 }} words)
+            </span>
+            {% if document.created_at %}
+            <small class="text-muted d-block">
+                Uploaded: {{ document.created_at.strftime('%Y-%m-%d %H:%M') }}
+            </small>
+            {% endif %}
+        </label>
+    </div>
+    {% endfor %}
+</div>

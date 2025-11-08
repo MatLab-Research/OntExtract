@@ -55,9 +55,7 @@ def create_app(config_name=None):
     from app.routes.temporal_visual import temporal_visual_bp
     from app.routes.embeddings_api import embeddings_bp, document_api_bp
     from app.routes.api import api_bp
-    from app.routes.orchestration_feedback import bp as orchestration_feedback_bp
     from app.routes.provenance_visualization import bp as provenance_bp
-    from app.routes.orchestration import orchestration_bp
 
     app.register_blueprint(auth_bp, url_prefix='/auth')
     app.register_blueprint(text_input_bp, url_prefix='/input')
@@ -72,9 +70,7 @@ def create_app(config_name=None):
     app.register_blueprint(embeddings_bp)
     app.register_blueprint(document_api_bp)
     app.register_blueprint(api_bp)
-    app.register_blueprint(orchestration_feedback_bp)
     app.register_blueprint(provenance_bp)
-    app.register_blueprint(orchestration_bp)
 
     # Composite documents removed - using inheritance-based versioning
     

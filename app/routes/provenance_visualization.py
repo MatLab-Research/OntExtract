@@ -97,6 +97,8 @@ def timeline():
         'document_save',
         'metadata_update',
         'metadata_field_update',
+        'document_segmentation',
+        'embedding_generation',
         'experiment_creation',
         'tool_execution',
         'orchestration_run'

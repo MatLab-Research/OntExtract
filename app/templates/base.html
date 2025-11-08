@@ -227,30 +227,6 @@
                                 </a></li>
                         </ul>
                     </li>
-                    <li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
-                            <i class="fas fa-diagram-project me-1"></i>Orchestration
-                        </a>
-                        <ul class="dropdown-menu">
-                            <li><a class="dropdown-item" href="{{ url_for('orchestration_feedback.dashboard') }}">
-                                    <i class="fas fa-tachometer-alt me-2"></i>Dashboard
-                                </a></li>
-                            <li><a class="dropdown-item" href="{{ url_for('orchestration_feedback.decisions') }}">
-                                    <i class="fas fa-list me-2"></i>All Decisions
-                                </a></li>
-                            <li><a class="dropdown-item"
-                                    href="{{ url_for('orchestration_feedback.learning_patterns') }}">
-                                    <i class="fas fa-lightbulb me-2"></i>Learning Patterns
-                                </a></li>
-                            <li>
-                                <hr class="dropdown-divider">
-                            </li>
-                            <li><a class="dropdown-item"
-                                    href="{{ url_for('orchestration_feedback.feedback_analytics') }}">
-                                    <i class="fas fa-chart-line me-2"></i>Analytics
-                                </a></li>
-                        </ul>
-                    </li>
                     {% endif %}
                     <li class="nav-item">
                         <a class="nav-link" href="{{ url_for('processing.processing_home') }}">
@@ -368,17 +344,17 @@
             document.getElementById('loadingSpinner').classList.remove('show');
         }
 
-        // Auto-hide alerts after 5 seconds (but not alerts inside collapse elements - those are help text)
-        setTimeout(() => {
-            const alerts = document.querySelectorAll('.alert');
-            alerts.forEach(alert => {
-                // Skip alerts that are inside a collapse element (help text, not flash messages)
-                if (!alert.closest('.collapse')) {
-                    const bsAlert = new bootstrap.Alert(alert);
-                    bsAlert.close();
-                }
-            });
-        }, 5000);
+        // Auto-hide alerts disabled - alerts remain visible until manually dismissed
+        // setTimeout(() => {
+        //     const alerts = document.querySelectorAll('.alert');
+        //     alerts.forEach(alert => {
+        //         // Skip alerts that are inside a collapse element (help text, not flash messages)
+        //         if (!alert.closest('.collapse')) {
+        //             const bsAlert = new bootstrap.Alert(alert);
+        //             bsAlert.close();
+        //         }
+        //     });
+        // }, 5000);
     </script>
 
     {% block extra_js %}{% endblock %}

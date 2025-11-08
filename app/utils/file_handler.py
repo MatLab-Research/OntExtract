@@ -76,6 +76,23 @@ class FileHandler:
         result = self.extract_text_with_method(file_path, original_filename)
         return result[0] if result else None
 
+    def _clean_extracted_text(self, text: str) -> str:
+        """Clean extracted text to remove null bytes and other problematic characters.
+
+        PostgreSQL doesn't allow null bytes in text fields, so they must be removed.
+        """
+        if not text:
+            return text
+
+        # Remove null bytes (0x00) which cause PostgreSQL errors
+        text = text.replace('\x00', '')
+
+        # Remove other control characters except newlines, tabs, and carriage returns
+        # Keep: \n (10), \r (13), \t (9)
+        cleaned = ''.join(char for char in text if ord(char) >= 32 or char in '\n\r\t')
+
+        return cleaned
+
     def extract_text_with_method(self, file_path: str, original_filename: str) -> Optional[tuple[str, str]]:
         """Extract text content and return the extraction method used
 
@@ -90,22 +107,28 @@ class FileHandler:
 
             if extension == 'txt':
                 text = self._extract_from_text(file_path)
+                text = self._clean_extracted_text(text) if text else None
                 return (text, 'python-builtin') if text else None
             elif extension == 'pdf':
                 text = self._extract_from_pdf(file_path)
+                text = self._clean_extracted_text(text) if text else None
                 return (text, 'pypdf') if text else None
             elif extension == 'docx':
                 text = self._extract_from_docx(file_path)
+                text = self._clean_extracted_text(text) if text else None
                 return (text, 'python-docx') if text else None
             elif extension in ['html', 'htm']:
                 text = self._extract_from_html(file_path)
+                text = self._clean_extracted_text(text) if text else None
                 return (text, 'beautifulsoup4') if text else None
             elif extension == 'md':
                 text = self._extract_from_markdown(file_path)
+                text = self._clean_extracted_text(text) if text else None
                 return (text, 'python-builtin') if text else None
             else:
                 # Try to read as plain text
                 text = self._extract_from_text(file_path)
+                text = self._clean_extracted_text(text) if text else None
                 return (text, 'python-builtin') if text else None
 
         except Exception as e:

@@ -420,6 +420,10 @@
                                             Document Saved
                                         {% elif activity_type == 'document_upload' %}
                                             Document Uploaded
+                                        {% elif activity_type == 'document_segmentation' %}
+                                            Segmentation ({{ params.method }}: {{ params.segment_count }} segments)
+                                        {% elif activity_type == 'embedding_generation' %}
+                                            Embeddings ({{ params.model_name }})
                                         {% else %}
                                             {{ activity_type|replace('_', ' ')|title }}
                                         {% endif %}
@@ -455,14 +459,25 @@
                         <i class="fas fa-plus-circle me-2"></i>Analysis
                     </h6>
                 </div>
-                <div class="card-body text-center">
+                <div class="card-body">
                     <p class="text-muted mb-3">
                         Create an experiment to analyze this document with processing tools like embeddings, segmentation, and entity extraction.
                     </p>
-                    <a href="{{ url_for('experiments.new') }}"
-                       class="btn btn-primary">
-                        <i class="fas fa-flask me-2"></i>Create Experiment
-                    </a>
+                    <div class="d-grid gap-2">
+                        <!-- Primary: Create Experiment -->
+                        <a href="{{ url_for('experiments.new') }}" class="btn btn-primary">
+                            <i class="fas fa-flask me-2"></i>Create Experiment
+                        </a>
+
+                        <!-- Secondary: Analyze this Document -->
+                        <a href="{{ url_for('experiments.new',
+                                            mode='single_document',
+                                            document_uuid=document.uuid,
+                                            document_title=document.title) }}"
+                           class="btn btn-outline-primary">
+                            <i class="fas fa-microscope me-2"></i>Analyze this Document
+                        </a>
+                    </div>
                 </div>
             </div>
         </div>

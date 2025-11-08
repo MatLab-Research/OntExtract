@@ -1,0 +1,21 @@
+{# Component for single-document selection mode #}
+{# Shows only the selected document, hides all selection UI #}
+{# NOTE: Using 'card' instead of 'alert' to avoid auto-hide behavior in base.html #}
+
+{% if selected_document %}
+<div class="card border-info bg-light mb-3">
+    <div class="card-body">
+        <i class="fas fa-file-alt text-info me-2"></i>
+        <strong>Selected Document:</strong> {{ selected_document.get_display_name() }}
+        <span class="text-muted">({{ (selected_document.word_count or 0) | int }} words)</span>
+    </div>
+</div>
+<input type="hidden" name="document_ids[]" value="{{ selected_document.id }}">
+{% else %}
+<div class="card border-warning bg-light mb-3">
+    <div class="card-body text-warning">
+        <i class="fas fa-exclamation-triangle me-2"></i>
+        Document not found. Please return to the document page and try again.
+    </div>
+</div>
+{% endif %}
