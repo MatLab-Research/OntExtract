@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+
+{% block title %}Processing Results Error{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-lg-6">
+            <div class="card border-danger">
+                <div class="card-header bg-danger text-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-exclamation-triangle me-2"></i>Error Loading Results
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <p class="mb-3">We encountered an error while loading the processing results:</p>
+                    <div class="alert alert-danger">
+                        <code>{{ error }}</code>
+                    </div>
+                    <div class="d-grid gap-2">
+                        <a href="{{ url_for('text_input.document_list') }}" class="btn btn-primary">
+                            <i class="fas fa-arrow-left me-2"></i>Back to Documents
+                        </a>
+                        {% if document %}
+                        <a href="{{ url_for('provenance.timeline', document_uuid=document.uuid) }}" class="btn btn-outline-secondary">
+                            <i class="fas fa-history me-2"></i>View Provenance Timeline
+                        </a>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

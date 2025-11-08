@@ -1,0 +1,231 @@
+{% extends "base.html" %}
+
+{% block title %}Segmentation Results - {{ document.title }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="row">
+        <div class="col-12">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="{{ url_for('text_input.document_list') }}">Documents</a></li>
+                    <li class="breadcrumb-item">{{ document.title }}</li>
+                    <li class="breadcrumb-item active">Segmentation Results</li>
+                </ol>
+            </nav>
+
+            <div class="d-flex justify-content-between align-items-start mb-4">
+                <div>
+                    <h2><i class="fas fa-cut me-2 text-warning"></i>Segmentation Results</h2>
+                    <p class="text-muted">{{ document.title }}</p>
+                </div>
+                <div>
+                    <a href="{{ url_for('provenance.timeline', document_uuid=document.uuid) }}"
+                       class="btn btn-outline-secondary" target="_blank">
+                        <i class="fas fa-history me-1"></i>View Provenance
+                    </a>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-lg-8">
+                    <!-- Statistics Card -->
+                    <div class="card mb-4">
+                        <div class="card-header bg-warning text-dark">
+                            <h5 class="mb-0"><i class="fas fa-chart-bar me-2"></i>Segmentation Statistics</h5>
+                        </div>
+                        <div class="card-body">
+                            {% if segments %}
+                                <div class="row text-center mb-4">
+                                    <div class="col-md-3">
+                                        <div class="border rounded p-3">
+                                            <h4 class="text-warning mb-1">{{ total_segments }}</h4>
+                                            <small class="text-muted">Total Segments</small>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <div class="border rounded p-3">
+                                            <h4 class="text-info mb-1">{{ avg_length|int }}</h4>
+                                            <small class="text-muted">Avg Characters</small>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <div class="border rounded p-3">
+                                            <h4 class="text-primary mb-1">{{ avg_words|int }}</h4>
+                                            <small class="text-muted">Avg Words</small>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <div class="border rounded p-3">
+                                            {% if jobs %}
+                                                {% set params = jobs[0].get_parameters() %}
+                                                <h4 class="text-success mb-1">{{ params.get('method', 'N/A')|title }}</h4>
+                                            {% else %}
+                                                <h4 class="text-success mb-1">N/A</h4>
+                                            {% endif %}
+                                            <small class="text-muted">Method</small>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {% if jobs %}
+                                    {% set latest_job = jobs[0] %}
+                                    {% set params = latest_job.get_parameters() %}
+                                    <h6 class="mb-3">Segmentation Parameters</h6>
+                                    <dl class="row">
+                                        <dt class="col-sm-4">Method</dt>
+                                        <dd class="col-sm-8"><span class="badge bg-secondary">{{ params.get('method', 'paragraph') }}</span></dd>
+
+                                        <dt class="col-sm-4">Chunk Size</dt>
+                                        <dd class="col-sm-8">{{ params.get('chunk_size', 500) }} characters</dd>
+
+                                        <dt class="col-sm-4">Overlap</dt>
+                                        <dd class="col-sm-8">{{ params.get('overlap', 50) }} characters</dd>
+
+                                        <dt class="col-sm-4">Created</dt>
+                                        <dd class="col-sm-8">{{ latest_job.created_at.strftime('%B %d, %Y at %I:%M %p') if latest_job.created_at else 'N/A' }}</dd>
+
+                                        <dt class="col-sm-4">Completed</dt>
+                                        <dd class="col-sm-8">
+                                            {% if latest_job.completed_at %}
+                                                {{ latest_job.completed_at.strftime('%B %d, %Y at %I:%M %p') }}
+                                                <span class="badge bg-success ms-2">
+                                                    {{ ((latest_job.completed_at - latest_job.created_at).total_seconds())|int }}s
+                                                </span>
+                                            {% else %}
+                                                <span class="text-muted">In progress</span>
+                                            {% endif %}
+                                        </dd>
+                                    </dl>
+                                {% endif %}
+                            {% else %}
+                                <div class="alert alert-info">
+                                    <i class="fas fa-info-circle me-2"></i>No segments found for this document.
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <!-- Segments List -->
+                    {% if segments %}
+                    <div class="card">
+                        <div class="card-header">
+                            <h6 class="mb-0">
+                                <i class="fas fa-list me-2"></i>Document Segments
+                                <span class="badge bg-secondary ms-2">{{ segments|length }}</span>
+                            </h6>
+                        </div>
+                        <div class="card-body">
+                            <div id="segments-container">
+                                {% for segment in segments[:20] %}
+                                <div class="card mb-3">
+                                    <div class="card-header bg-light">
+                                        <div class="d-flex justify-content-between align-items-center">
+                                            <span class="badge bg-warning">Segment {{ segment.segment_number }}</span>
+                                            <small class="text-muted">
+                                                {% if segment.word_count %}{{ segment.word_count }} words{% endif %}
+                                                {% if segment.character_count %} | {{ segment.character_count }} chars{% endif %}
+                                            </small>
+                                        </div>
+                                    </div>
+                                    <div class="card-body">
+                                        <p class="mb-0">{{ segment.content[:300] }}{% if segment.content|length > 300 %}...{% endif %}</p>
+                                        {% if segment.content|length > 300 %}
+                                        <button class="btn btn-link btn-sm p-0" onclick="toggleSegment({{ loop.index0 }})">
+                                            <small>Show more</small>
+                                        </button>
+                                        <div id="segment-full-{{ loop.index0 }}" style="display: none;">
+                                            <p class="mt-2 mb-0">{{ segment.content }}</p>
+                                        </div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                {% endfor %}
+                                {% if segments|length > 20 %}
+                                <p class="text-muted text-center">Showing first 20 of {{ segments|length }} segments</p>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+
+                <div class="col-lg-4">
+                    <!-- Processing History -->
+                    <div class="card mb-4">
+                        <div class="card-header">
+                            <h6 class="mb-0"><i class="fas fa-history me-2"></i>Processing History</h6>
+                        </div>
+                        <div class="card-body">
+                            {% if jobs|length > 1 %}
+                                <p class="small text-muted mb-3">
+                                    Document segmented {{ jobs|length }} times
+                                </p>
+                                <div class="list-group">
+                                    {% for job in jobs %}
+                                    <div class="list-group-item {{ 'active' if loop.first else '' }}">
+                                        <div class="d-flex w-100 justify-content-between">
+                                            <h6 class="mb-1">
+                                                Run {{ loop.index }}
+                                                {% if loop.first %}
+                                                <span class="badge bg-primary ms-2">Latest</span>
+                                                {% endif %}
+                                            </h6>
+                                            <small>{{ job.created_at.strftime('%m/%d %H:%M') if job.created_at else 'N/A' }}</small>
+                                        </div>
+                                        <p class="mb-1 small">
+                                            {% set params = job.get_parameters() %}
+                                            <span class="badge bg-secondary">{{ params.get('method', 'paragraph') }}</span>
+                                            <span class="badge {{ 'bg-success' if job.status == 'completed' else 'bg-warning' }} ms-1">
+                                                {{ job.status }}
+                                            </span>
+                                        </p>
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                            {% elif jobs %}
+                                <p class="text-muted">Single segmentation run</p>
+                            {% else %}
+                                <p class="text-muted">No processing history</p>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <!-- Actions -->
+                    <div class="card">
+                        <div class="card-header">
+                            <h6 class="mb-0"><i class="fas fa-cog me-2"></i>Actions</h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="d-grid gap-2">
+                                <a href="{{ url_for('provenance.timeline', document_uuid=document.uuid) }}"
+                                   class="btn btn-outline-primary" target="_blank">
+                                    <i class="fas fa-stream me-1"></i>View Full Timeline
+                                </a>
+                                <button class="btn btn-outline-secondary" onclick="alert('Export feature coming soon!')">
+                                    <i class="fas fa-download me-1"></i>Export Segments
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function toggleSegment(index) {
+    const fullText = document.getElementById(`segment-full-${index}`);
+    if (fullText.style.display === 'none') {
+        fullText.style.display = 'block';
+        event.target.textContent = 'Show less';
+    } else {
+        fullText.style.display = 'none';
+        event.target.textContent = 'Show more';
+    }
+}
+</script>
+{% endblock %}

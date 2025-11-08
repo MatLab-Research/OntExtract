@@ -1,0 +1,248 @@
+{% extends "base.html" %}
+
+{% block title %}Enhanced Processing Results - {{ document.title }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="row">
+        <div class="col-12">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="{{ url_for('text_input.document_list') }}">Documents</a></li>
+                    <li class="breadcrumb-item">{{ document.title }}</li>
+                    <li class="breadcrumb-item active">Enhanced Processing Results</li>
+                </ol>
+            </nav>
+
+            <div class="d-flex justify-content-between align-items-start mb-4">
+                <div>
+                    <h2><i class="fas fa-sparkles me-2 text-danger"></i>Enhanced Processing Results</h2>
+                    <p class="text-muted">{{ document.title }}</p>
+                </div>
+                <div>
+                    <a href="{{ url_for('provenance.timeline', document_uuid=document.uuid) }}"
+                       class="btn btn-outline-secondary" target="_blank">
+                        <i class="fas fa-history me-1"></i>View Provenance
+                    </a>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-lg-8">
+                    <!-- Statistics Card -->
+                    <div class="card mb-4">
+                        <div class="card-header bg-danger text-white">
+                            <h5 class="mb-0"><i class="fas fa-chart-line me-2"></i>Processing Statistics</h5>
+                        </div>
+                        <div class="card-body">
+                            {% if jobs %}
+                                {% set latest_job = jobs[0] %}
+                                {% set params = latest_job.get_parameters() %}
+
+                                <div class="row text-center mb-4">
+                                    <div class="col-md-4">
+                                        <div class="border rounded p-3">
+                                            <h4 class="text-danger mb-1">{{ total_terms }}</h4>
+                                            <small class="text-muted">Terms Extracted</small>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="border rounded p-3">
+                                            <h4 class="text-success mb-1">
+                                                {% if params.get('enrich_with_oed') %}Yes{% else %}No{% endif %}
+                                            </h4>
+                                            <small class="text-muted">OED Enrichment</small>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="border rounded p-3">
+                                            <h4 class="text-info mb-1">{{ params.get('min_term_frequency', 2) }}</h4>
+                                            <small class="text-muted">Min Frequency</small>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <h6 class="mb-3">Processing Parameters</h6>
+                                <dl class="row">
+                                    <dt class="col-sm-4">Extract Terms</dt>
+                                    <dd class="col-sm-8">
+                                        <span class="badge {{ 'bg-success' if params.get('extract_terms') else 'bg-secondary' }}">
+                                            {{ 'Yes' if params.get('extract_terms') else 'No' }}
+                                        </span>
+                                    </dd>
+
+                                    <dt class="col-sm-4">OED Enrichment</dt>
+                                    <dd class="col-sm-8">
+                                        <span class="badge {{ 'bg-success' if params.get('enrich_with_oed') else 'bg-secondary' }}">
+                                            {{ 'Enabled' if params.get('enrich_with_oed') else 'Disabled' }}
+                                        </span>
+                                    </dd>
+
+                                    <dt class="col-sm-4">Minimum Frequency</dt>
+                                    <dd class="col-sm-8">{{ params.get('min_term_frequency', 2) }} occurrences</dd>
+
+                                    <dt class="col-sm-4">Created</dt>
+                                    <dd class="col-sm-8">{{ latest_job.created_at.strftime('%B %d, %Y at %I:%M %p') if latest_job.created_at else 'N/A' }}</dd>
+
+                                    <dt class="col-sm-4">Completed</dt>
+                                    <dd class="col-sm-8">
+                                        {% if latest_job.completed_at %}
+                                            {{ latest_job.completed_at.strftime('%B %d, %Y at %I:%M %p') }}
+                                            <span class="badge bg-success ms-2">
+                                                {{ ((latest_job.completed_at - latest_job.created_at).total_seconds())|int }}s
+                                            </span>
+                                        {% else %}
+                                            <span class="text-muted">In progress</span>
+                                        {% endif %}
+                                    </dd>
+                                </dl>
+                            {% else %}
+                                <div class="alert alert-info">
+                                    <i class="fas fa-info-circle me-2"></i>No enhanced processing has been performed on this document.
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <!-- Extracted Terms -->
+                    {% if terms %}
+                    <div class="card mb-4">
+                        <div class="card-header">
+                            <h6 class="mb-0">
+                                <i class="fas fa-tags me-2"></i>Extracted Terms
+                                <span class="badge bg-secondary ms-2">{{ terms|length }}</span>
+                            </h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="table-responsive">
+                                <table class="table table-hover">
+                                    <thead>
+                                        <tr>
+                                            <th>Term</th>
+                                            <th>Frequency</th>
+                                            <th>OED Enriched</th>
+                                            <th>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for term in terms[:50] %}
+                                        <tr>
+                                            <td><strong>{{ term.name }}</strong></td>
+                                            <td>
+                                                <span class="badge bg-info">
+                                                    {{ term.frequency if hasattr(term, 'frequency') else 'N/A' }}
+                                                </span>
+                                            </td>
+                                            <td>
+                                                {% if term.oed_data %}
+                                                    <span class="badge bg-success">
+                                                        <i class="fas fa-check me-1"></i>Yes
+                                                    </span>
+                                                {% else %}
+                                                    <span class="badge bg-secondary">No</span>
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                <a href="#" class="btn btn-sm btn-outline-primary" onclick="alert('Term details coming soon!')">
+                                                    <i class="fas fa-info-circle"></i>
+                                                </a>
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                                {% if terms|length > 50 %}
+                                <p class="text-muted text-center">Showing first 50 of {{ terms|length }} terms</p>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    <!-- Term Frequency Chart -->
+                    {% if terms %}
+                    <div class="card">
+                        <div class="card-header">
+                            <h6 class="mb-0"><i class="fas fa-chart-bar me-2"></i>Term Frequency Distribution</h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="alert alert-info">
+                                <i class="fas fa-info-circle me-2"></i>Term frequency visualization will be available in a future update.
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+
+                <div class="col-lg-4">
+                    <!-- Processing History -->
+                    <div class="card mb-4">
+                        <div class="card-header">
+                            <h6 class="mb-0"><i class="fas fa-history me-2"></i>Processing History</h6>
+                        </div>
+                        <div class="card-body">
+                            {% if jobs|length > 1 %}
+                                <p class="small text-muted mb-3">
+                                    Enhanced processing run {{ jobs|length }} times
+                                </p>
+                                <div class="list-group">
+                                    {% for job in jobs %}
+                                    <div class="list-group-item {{ 'active' if loop.first else '' }}">
+                                        <div class="d-flex w-100 justify-content-between">
+                                            <h6 class="mb-1">
+                                                Run {{ loop.index }}
+                                                {% if loop.first %}
+                                                <span class="badge bg-primary ms-2">Latest</span>
+                                                {% endif %}
+                                            </h6>
+                                            <small>{{ job.created_at.strftime('%m/%d %H:%M') if job.created_at else 'N/A' }}</small>
+                                        </div>
+                                        <p class="mb-1 small">
+                                            {% set params = job.get_parameters() %}
+                                            <span class="badge bg-secondary">
+                                                {% if params.get('extract_terms') and params.get('enrich_with_oed') %}
+                                                    Terms+OED
+                                                {% elif params.get('extract_terms') %}
+                                                    Terms Only
+                                                {% else %}
+                                                    Basic
+                                                {% endif %}
+                                            </span>
+                                            <span class="badge {{ 'bg-success' if job.status == 'completed' else 'bg-warning' }} ms-1">
+                                                {{ job.status }}
+                                            </span>
+                                        </p>
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                            {% elif jobs %}
+                                <p class="text-muted">Single processing run</p>
+                            {% else %}
+                                <p class="text-muted">No processing history</p>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <!-- Actions -->
+                    <div class="card">
+                        <div class="card-header">
+                            <h6 class="mb-0"><i class="fas fa-cog me-2"></i>Actions</h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="d-grid gap-2">
+                                <a href="{{ url_for('provenance.timeline', document_uuid=document.uuid) }}"
+                                   class="btn btn-outline-primary" target="_blank">
+                                    <i class="fas fa-stream me-1"></i>View Full Timeline
+                                </a>
+                                <button class="btn btn-outline-secondary" onclick="alert('Export feature coming soon!')">
+                                    <i class="fas fa-download me-1"></i>Export Terms
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

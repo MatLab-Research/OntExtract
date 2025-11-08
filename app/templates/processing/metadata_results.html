@@ -1,0 +1,229 @@
+{% extends "base.html" %}
+
+{% block title %}Metadata Analysis Results - {{ document.title }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="row">
+        <div class="col-12">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="{{ url_for('text_input.document_list') }}">Documents</a></li>
+                    <li class="breadcrumb-item">{{ document.title }}</li>
+                    <li class="breadcrumb-item active">Metadata Results</li>
+                </ol>
+            </nav>
+
+            <div class="d-flex justify-content-between align-items-start mb-4">
+                <div>
+                    <h2><i class="fas fa-info-circle me-2 text-primary"></i>Metadata Analysis Results</h2>
+                    <p class="text-muted">{{ document.title }}</p>
+                </div>
+                <div>
+                    <a href="{{ url_for('provenance.timeline', document_uuid=document.uuid) }}"
+                       class="btn btn-outline-secondary" target="_blank">
+                        <i class="fas fa-history me-1"></i>View Provenance
+                    </a>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-lg-8">
+                    <!-- Document Metadata -->
+                    <div class="card mb-4">
+                        <div class="card-header bg-primary text-white">
+                            <h5 class="mb-0"><i class="fas fa-file-alt me-2"></i>Document Metadata</h5>
+                        </div>
+                        <div class="card-body">
+                            {% if document.source_metadata %}
+                                <dl class="row">
+                                    <dt class="col-sm-3">Title</dt>
+                                    <dd class="col-sm-9">{{ document.title or '—' }}</dd>
+
+                                    <dt class="col-sm-3">Authors</dt>
+                                    <dd class="col-sm-9">
+                                        {% if document.source_metadata.get('authors') %}
+                                            {% if document.source_metadata.authors is string %}
+                                                {{ document.source_metadata.authors }}
+                                            {% elif document.source_metadata.authors is sequence %}
+                                                {{ document.source_metadata.authors|join(', ') }}
+                                            {% endif %}
+                                        {% else %}
+                                            —
+                                        {% endif %}
+                                    </dd>
+
+                                    <dt class="col-sm-3">Publication Date</dt>
+                                    <dd class="col-sm-9">{{ document.source_metadata.get('publication_date', document.source_metadata.get('publication_year', '—')) }}</dd>
+
+                                    <dt class="col-sm-3">Journal/Publisher</dt>
+                                    <dd class="col-sm-9">{{ document.source_metadata.get('journal', '—') }}</dd>
+
+                                    <dt class="col-sm-3">Publisher</dt>
+                                    <dd class="col-sm-9">{{ document.source_metadata.get('publisher', '—') }}</dd>
+
+                                    <dt class="col-sm-3">Type</dt>
+                                    <dd class="col-sm-9">
+                                        {% if document.source_metadata.get('type') %}
+                                            <span class="badge bg-secondary">{{ document.source_metadata.type }}</span>
+                                        {% else %}
+                                            —
+                                        {% endif %}
+                                    </dd>
+
+                                    <dt class="col-sm-3">DOI</dt>
+                                    <dd class="col-sm-9">
+                                        {% if document.source_metadata.get('doi') %}
+                                            <a href="https://doi.org/{{ document.source_metadata.doi }}" target="_blank">
+                                                {{ document.source_metadata.doi }} <i class="fas fa-external-link-alt ms-1 small"></i>
+                                            </a>
+                                        {% else %}
+                                            —
+                                        {% endif %}
+                                    </dd>
+
+                                    <dt class="col-sm-3">ISBN</dt>
+                                    <dd class="col-sm-9">{{ document.source_metadata.get('isbn', '—') }}</dd>
+
+                                    <dt class="col-sm-3">URL</dt>
+                                    <dd class="col-sm-9">
+                                        {% if document.source_metadata.get('url') %}
+                                            <a href="{{ document.source_metadata.url }}" target="_blank" class="text-break">
+                                                {{ document.source_metadata.url[:50] }}{% if document.source_metadata.url|length > 50 %}...{% endif %}
+                                                <i class="fas fa-external-link-alt ms-1 small"></i>
+                                            </a>
+                                        {% else %}
+                                            —
+                                        {% endif %}
+                                    </dd>
+
+                                    <dt class="col-sm-3">Abstract</dt>
+                                    <dd class="col-sm-9">
+                                        {% if document.source_metadata.get('abstract') %}
+                                            <div class="small">{{ document.source_metadata.abstract }}</div>
+                                        {% else %}
+                                            —
+                                        {% endif %}
+                                    </dd>
+
+                                    <dt class="col-sm-3">Citation</dt>
+                                    <dd class="col-sm-9">
+                                        {% if document.source_metadata.get('citation') %}
+                                            <div class="small font-monospace bg-light p-2 rounded">{{ document.source_metadata.citation }}</div>
+                                        {% else %}
+                                            —
+                                        {% endif %}
+                                    </dd>
+                                </dl>
+                            {% else %}
+                                <div class="alert alert-info">
+                                    <i class="fas fa-info-circle me-2"></i>No metadata available for this document.
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <!-- Document Statistics -->
+                    <div class="card mb-4">
+                        <div class="card-header">
+                            <h6 class="mb-0"><i class="fas fa-chart-bar me-2"></i>Document Statistics</h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="row text-center">
+                                <div class="col-md-3">
+                                    <div class="border rounded p-3 mb-3">
+                                        <h4 class="text-primary mb-1">{{ document.content.split()|length if document.content else 0 }}</h4>
+                                        <small class="text-muted">Words</small>
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="border rounded p-3 mb-3">
+                                        <h4 class="text-info mb-1">{{ document.content|length if document.content else 0 }}</h4>
+                                        <small class="text-muted">Characters</small>
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="border rounded p-3 mb-3">
+                                        <h4 class="text-success mb-1">{{ document.detected_language|upper if document.detected_language else 'N/A' }}</h4>
+                                        <small class="text-muted">Language</small>
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="border rounded p-3 mb-3">
+                                        <h4 class="text-warning mb-1">
+                                            {% if document.language_confidence %}
+                                                {{ (document.language_confidence * 100)|int }}%
+                                            {% else %}
+                                                N/A
+                                            {% endif %}
+                                        </h4>
+                                        <small class="text-muted">Confidence</small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-lg-4">
+                    <!-- Processing History -->
+                    <div class="card mb-4">
+                        <div class="card-header">
+                            <h6 class="mb-0"><i class="fas fa-history me-2"></i>Processing History</h6>
+                        </div>
+                        <div class="card-body">
+                            {% if jobs|length > 1 %}
+                                <p class="small text-muted mb-3">
+                                    Metadata analyzed {{ jobs|length }} times
+                                </p>
+                                <div class="list-group">
+                                    {% for job in jobs %}
+                                    <div class="list-group-item {{ 'active' if loop.first else '' }}">
+                                        <div class="d-flex w-100 justify-content-between">
+                                            <h6 class="mb-1">
+                                                Run {{ loop.index }}
+                                                {% if loop.first %}
+                                                <span class="badge bg-primary ms-2">Latest</span>
+                                                {% endif %}
+                                            </h6>
+                                            <small>{{ job.created_at.strftime('%m/%d %H:%M') if job.created_at else 'N/A' }}</small>
+                                        </div>
+                                        <p class="mb-1 small">
+                                            <span class="badge {{ 'bg-success' if job.status == 'completed' else 'bg-warning' }} ms-1">
+                                                {{ job.status }}
+                                            </span>
+                                        </p>
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                            {% elif jobs %}
+                                <p class="text-muted">Single analysis run</p>
+                            {% else %}
+                                <p class="text-muted">No processing history</p>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <!-- Actions -->
+                    <div class="card">
+                        <div class="card-header">
+                            <h6 class="mb-0"><i class="fas fa-cog me-2"></i>Actions</h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="d-grid gap-2">
+                                <a href="{{ url_for('provenance.timeline', document_uuid=document.uuid) }}"
+                                   class="btn btn-outline-primary" target="_blank">
+                                    <i class="fas fa-stream me-1"></i>View Full Timeline
+                                </a>
+                                <button class="btn btn-outline-secondary" onclick="alert('Export feature coming soon!')">
+                                    <i class="fas fa-download me-1"></i>Export Metadata
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

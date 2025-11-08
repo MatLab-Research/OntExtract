@@ -1,11 +1,13 @@
 from flask import Blueprint, render_template, request, jsonify, current_app as app
 from flask_login import current_user
 from app.utils.auth_decorators import require_login_for_write, api_require_login_for_write
-from sqlalchemy import func
+from sqlalchemy import func, text
 import os
 from app import db
 from app.models.document import Document
 from app.models.processing_job import ProcessingJob
+from app.models.extracted_entity import ExtractedEntity
+from app.models.text_segment import TextSegment
 from app.models.provenance import ProvenanceEntity, ProvenanceActivity
 from app.services.enhanced_document_processor import EnhancedDocumentProcessor
 from app.services.inheritance_versioning_service import InheritanceVersioningService
@@ -1146,3 +1148,199 @@ def get_document_processing_jobs(document_uuid):
 
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
+
+@processing_bp.route('/document/<string:document_uuid>/results/embeddings', methods=['GET'])
+def view_embeddings_results(document_uuid):
+    """View embeddings results for a document"""
+    try:
+        document = Document.query.filter_by(uuid=document_uuid).first_or_404()
+
+        # Get all embedding jobs for this document (including processing versions)
+        jobs = ProcessingJob.query.filter_by(document_id=document.id, job_type='generate_embeddings').all()
+
+        # Also check for jobs in processing versions
+        all_potential_jobs = ProcessingJob.query.filter(
+            ProcessingJob.document_id != document.id,
+            ProcessingJob.job_type == 'generate_embeddings'
+        ).all()
+
+        for job in all_potential_jobs:
+            params = job.get_parameters()
+            if params.get('original_document_id') == document.id:
+                jobs.append(job)
+
+        # Sort by created_at desc
+        jobs.sort(key=lambda j: (j.created_at is None, j.created_at), reverse=True)
+
+        # Get embedding statistics
+        embeddings = db.session.query(
+            func.count().label('count'),
+            func.avg(func.length(text('embedding::text'))).label('avg_size')
+        ).filter_by(document_id=document.id).first()
+
+        from flask import render_template
+        return render_template('processing/embeddings_results.html',
+                             document=document,
+                             jobs=jobs,
+                             embedding_count=embeddings.count if embeddings else 0)
+
+    except Exception as e:
+        from flask import render_template
+        return render_template('processing/error.html',
+                             document=document,
+                             error=str(e)), 500
+
+@processing_bp.route('/document/<string:document_uuid>/results/entities', methods=['GET'])
+def view_entities_results(document_uuid):
+    """View entity extraction results for a document"""
+    try:
+        document = Document.query.filter_by(uuid=document_uuid).first_or_404()
+
+        # Get all entity extraction jobs
+        jobs = ProcessingJob.query.filter_by(
+            document_id=document.id,
+            job_type='extract_entities'
+        ).order_by(ProcessingJob.created_at.desc()).all()
+
+        # Get entities from database
+        entities = ExtractedEntity.query.filter_by(document_id=document.id).all()
+
+        # Group entities by type
+        entities_by_type = {}
+        for entity in entities:
+            entity_type = entity.entity_type or 'UNKNOWN'
+            if entity_type not in entities_by_type:
+                entities_by_type[entity_type] = []
+            entities_by_type[entity_type].append(entity)
+
+        # Prepare displaCy-style data
+        displacy_data = {
+            'text': document.content[:5000] if document.content else '',  # Limit to first 5000 chars
+            'ents': []
+        }
+
+        for entity in entities:
+            if entity.start_position is not None and entity.end_position is not None:
+                displacy_data['ents'].append({
+                    'start': entity.start_position,
+                    'end': entity.end_position,
+                    'label': entity.entity_type or 'UNKNOWN'
+                })
+
+        from flask import render_template
+        return render_template('processing/entities_results.html',
+                             document=document,
+                             jobs=jobs,
+                             entities=entities,
+                             entities_by_type=entities_by_type,
+                             displacy_data=displacy_data,
+                             total_entities=len(entities))
+
+    except Exception as e:
+        from flask import render_template
+        return render_template('processing/error.html',
+                             document=document,
+                             error=str(e)), 500
+
+@processing_bp.route('/document/<string:document_uuid>/results/segments', methods=['GET'])
+def view_segments_results(document_uuid):
+    """View segmentation results for a document"""
+    try:
+        document = Document.query.filter_by(uuid=document_uuid).first_or_404()
+
+        # Get segmentation jobs
+        jobs = ProcessingJob.query.filter_by(
+            document_id=document.id,
+            job_type='segment_document'
+        ).order_by(ProcessingJob.created_at.desc()).all()
+
+        # Also check processing versions
+        all_potential_jobs = ProcessingJob.query.filter(
+            ProcessingJob.document_id != document.id,
+            ProcessingJob.job_type == 'segment_document'
+        ).all()
+
+        for job in all_potential_jobs:
+            params = job.get_parameters()
+            if params.get('original_document_id') == document.id:
+                jobs.append(job)
+
+        jobs.sort(key=lambda j: (j.created_at is None, j.created_at), reverse=True)
+
+        # Get segments from database
+        segments = TextSegment.query.filter_by(document_id=document.id).order_by(TextSegment.segment_number).all()
+
+        # Calculate statistics
+        if segments:
+            avg_length = sum(s.character_count or 0 for s in segments) / len(segments)
+            avg_words = sum(s.word_count or 0 for s in segments) / len(segments)
+        else:
+            avg_length = 0
+            avg_words = 0
+
+        from flask import render_template
+        return render_template('processing/segments_results.html',
+                             document=document,
+                             jobs=jobs,
+                             segments=segments,
+                             total_segments=len(segments),
+                             avg_length=avg_length,
+                             avg_words=avg_words)
+
+    except Exception as e:
+        from flask import render_template
+        return render_template('processing/error.html',
+                             document=document,
+                             error=str(e)), 500
+
+@processing_bp.route('/document/<string:document_uuid>/results/metadata', methods=['GET'])
+def view_metadata_results(document_uuid):
+    """View metadata analysis results for a document"""
+    try:
+        document = Document.query.filter_by(uuid=document_uuid).first_or_404()
+
+        # Get metadata analysis jobs
+        jobs = ProcessingJob.query.filter_by(
+            document_id=document.id,
+            job_type='analyze_metadata'
+        ).order_by(ProcessingJob.created_at.desc()).all()
+
+        from flask import render_template
+        return render_template('processing/metadata_results.html',
+                             document=document,
+                             jobs=jobs)
+
+    except Exception as e:
+        from flask import render_template
+        return render_template('processing/error.html',
+                             document=document,
+                             error=str(e)), 500
+
+@processing_bp.route('/document/<string:document_uuid>/results/enhanced', methods=['GET'])
+def view_enhanced_results(document_uuid):
+    """View enhanced processing results for a document"""
+    try:
+        document = Document.query.filter_by(uuid=document_uuid).first_or_404()
+
+        # Get enhanced processing jobs
+        jobs = ProcessingJob.query.filter_by(
+            document_id=document.id,
+            job_type='enhanced_processing'
+        ).order_by(ProcessingJob.created_at.desc()).all()
+
+        # Get terms extracted for this document
+        from app.models.term import Term
+        terms = Term.query.filter_by(document_id=document.id).all()
+
+        from flask import render_template
+        return render_template('processing/enhanced_results.html',
+                             document=document,
+                             jobs=jobs,
+                             terms=terms,
+                             total_terms=len(terms))
+
+    except Exception as e:
+        from flask import render_template
+        return render_template('processing/error.html',
+                             document=document,
+                             error=str(e)), 500
