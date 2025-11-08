@@ -109,12 +109,12 @@ def start_processing(document_id):
     # Placeholder for now
     return jsonify({'message': 'Processing will be implemented in phase 2'})
 
-@processing_bp.route('/document/<int:document_id>/embeddings', methods=['POST'])
+@processing_bp.route('/document/<string:document_uuid>/embeddings', methods=['POST'])
 @api_require_login_for_write
-def generate_embeddings(document_id):
+def generate_embeddings(document_uuid):
     """Generate embeddings for a document (creates new version)"""
     try:
-        original_document = Document.query.get_or_404(document_id)
+        original_document = Document.query.filter_by(uuid=document_uuid).first_or_404()
         
         # Get embedding method from request or use default
         data = request.get_json() or {}
@@ -283,12 +283,12 @@ def generate_embeddings(document_id):
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
 
-@processing_bp.route('/document/<int:document_id>/segment', methods=['POST'])
-@api_require_login_for_write 
-def segment_document(document_id):
+@processing_bp.route('/document/<string:document_uuid>/segment', methods=['POST'])
+@api_require_login_for_write
+def segment_document(document_uuid):
     """Segment a document into chunks and create TextSegment objects (creates new version)"""
     try:
-        original_document = Document.query.get_or_404(document_id)
+        original_document = Document.query.filter_by(uuid=document_uuid).first_or_404()
         
         data = request.get_json() or {}
         method = data.get('method', 'paragraph')  # Get segmentation method
@@ -690,12 +690,12 @@ def delete_document_segments(document_id):
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
 
-@processing_bp.route('/document/<int:document_id>/entities', methods=['POST'])
+@processing_bp.route('/document/<string:document_uuid>/entities', methods=['POST'])
 @api_require_login_for_write
-def extract_entities(document_id):
+def extract_entities(document_uuid):
     """Extract entities from a document"""
     try:
-        document = Document.query.get_or_404(document_id)
+        document = Document.query.filter_by(uuid=document_uuid).first_or_404()
         
         data = request.get_json() or {}
         entity_types = data.get('entity_types', ['PERSON', 'ORG', 'GPE', 'DATE'])
@@ -708,7 +708,7 @@ def extract_entities(document_id):
             
         # Create processing job
         job = ProcessingJob(
-            document_id=document_id,
+            document_id=document.id,
             job_type='extract_entities',
             status='pending',
             user_id=current_user.id
@@ -741,16 +741,16 @@ def extract_entities(document_id):
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
 
-@processing_bp.route('/document/<int:document_id>/metadata', methods=['POST'])
+@processing_bp.route('/document/<string:document_uuid>/metadata', methods=['POST'])
 @api_require_login_for_write
-def analyze_metadata(document_id):
+def analyze_metadata(document_uuid):
     """Analyze and enhance document metadata"""
     try:
-        document = Document.query.get_or_404(document_id)
+        document = Document.query.filter_by(uuid=document_uuid).first_or_404()
         
         # Create processing job
         job = ProcessingJob(
-            document_id=document_id,
+            document_id=document.id,
             job_type='analyze_metadata',
             status='pending',
             user_id=current_user.id
@@ -814,12 +814,12 @@ def clear_document_jobs(document_id):
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
-@processing_bp.route('/document/<int:document_id>/enhanced', methods=['POST'])
+@processing_bp.route('/document/<string:document_uuid>/enhanced', methods=['POST'])
 @api_require_login_for_write
-def enhanced_document_processing(document_id):
+def enhanced_document_processing(document_uuid):
     """Enhanced document processing with term extraction and OED enrichment"""
     try:
-        document = Document.query.get_or_404(document_id)
+        document = Document.query.filter_by(uuid=document_uuid).first_or_404()
         
         if not document.content:
             return jsonify({
@@ -834,7 +834,7 @@ def enhanced_document_processing(document_id):
         
         # Create processing job
         job = ProcessingJob(
-            document_id=document_id,
+            document_id=document.id,
             job_type='enhanced_processing',
             status='pending',
             user_id=current_user.id
@@ -1050,8 +1050,99 @@ def get_langextract_details(job_id):
             'character_level_positions': params.get('character_level_positions', True),
             'prov_o_tracking_complete': params.get('prov_o_tracking_complete', False)
         }
-        
+
         return jsonify(response_data)
-        
+
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@processing_bp.route('/document/<string:document_uuid>/processing-jobs', methods=['GET'])
+def get_document_processing_jobs(document_uuid):
+    """Get all processing jobs for a document"""
+    try:
+        document = Document.query.filter_by(uuid=document_uuid).first_or_404()
+
+        # Get all processing jobs for this document in two ways:
+        # 1. Jobs directly linked to this document (document_id = this doc's id)
+        # 2. Jobs where parameters contain original_document_id = this document's id
+        #    (these are jobs created for processing versions like embeddings)
+
+        # First get direct jobs
+        jobs = ProcessingJob.query.filter_by(document_id=document.id).all()
+
+        # Then find indirect jobs (processing versions)
+        # These have parameters.original_document_id = document.id
+        all_potential_jobs = ProcessingJob.query.filter(
+            ProcessingJob.document_id != document.id
+        ).all()
+
+        indirect_job_ids = []
+        for job in all_potential_jobs:
+            params = job.get_parameters()
+            if params.get('original_document_id') == document.id:
+                indirect_job_ids.append(job.id)
+                jobs.append(job)
+
+        # Sort by created_at desc (put None values last)
+        jobs.sort(key=lambda j: (j.created_at is None, j.created_at), reverse=True)
+
+        # Group jobs by type and method combination to find duplicates
+        jobs_by_type = {}
+        for job in jobs:
+            params = job.get_parameters()
+
+            # Extract method/descriptor based on job type
+            method = 'default'
+            if job.job_type in ['generate_embeddings', 'segment_document']:
+                method = params.get('method', 'default')
+            elif job.job_type == 'extract_entities':
+                entity_types = params.get('entity_types', [])
+                method = f"{len(entity_types)} types" if entity_types else 'default'
+            elif job.job_type == 'analyze_metadata':
+                method = 'auto'
+            elif job.job_type == 'enhanced_processing':
+                extract_terms = params.get('extract_terms', False)
+                enrich_oed = params.get('enrich_with_oed', False)
+                method = 'terms+OED' if extract_terms and enrich_oed else 'terms' if extract_terms else 'default'
+
+            # Create unique key for this job type + method combination
+            key = f"{job.job_type}:{method}"
+
+            if key not in jobs_by_type:
+                jobs_by_type[key] = {
+                    'latest': job,
+                    'method': method,
+                    'all_jobs': []
+                }
+            jobs_by_type[key]['all_jobs'].append(job)
+
+        # Build response with only latest job per type, but include count
+        processing_operations = []
+        for key, group in jobs_by_type.items():
+            latest_job = group['latest']
+            all_jobs = group['all_jobs']
+            count = len(all_jobs)
+
+            processing_operations.append({
+                'id': latest_job.id,
+                'processing_type': latest_job.job_type,
+                'processing_method': group['method'],
+                'status': latest_job.status,
+                'created_at': latest_job.created_at.isoformat() if latest_job.created_at else None,
+                'completed_at': latest_job.completed_at.isoformat() if latest_job.completed_at else None,
+                'error_message': latest_job.error_message,
+                'run_count': count,
+                'has_history': count > 1,
+                'all_job_ids': [j.id for j in all_jobs] if count > 1 else []
+            })
+
+        # Sort by latest created_at
+        processing_operations.sort(key=lambda op: op['created_at'] if op['created_at'] else '', reverse=True)
+
+        return jsonify({
+            'success': True,
+            'processing_operations': processing_operations
+        })
+
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500

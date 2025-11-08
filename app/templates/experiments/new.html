@@ -25,12 +25,16 @@
                             <div class="col-md-6">
                                 <div class="mb-3">
                                     <label for="experiment-type" class="form-label">Experiment Type *</label>
-                                    <select class="form-select" id="experiment-type" required>
+                                    <select class="form-select" id="experiment-type" required {% if mode == 'single_document' %}disabled{% endif %}>
                                         <option value="single_document_analysis" {% if mode == 'single_document' %}selected{% endif %}>Single Document Analysis</option>
                                         <option value="document_analysis">Multi-Document Analysis</option>
                                         <option value="temporal_evolution" {% if mode != 'single_document' %}selected{% endif %}>Temporal Evolution</option>
                                         <option value="domain_comparison">Domain Comparison</option>
                                     </select>
+                                    {% if mode == 'single_document' %}
+                                    <input type="hidden" name="experiment_type" value="single_document_analysis">
+                                    <small class="text-muted">To create a different experiment type, <a href="{{ url_for('experiments.new') }}">start a new experiment</a>.</small>
+                                    {% endif %}
                                 </div>
                             </div>
                         </div>
@@ -38,7 +42,11 @@
                         <div class="mb-3">
                             <label for="experiment-description" class="form-label">Description</label>
                             <textarea class="form-control" id="experiment-description" rows="3"
-                                      placeholder="Describe the purpose of this experiment..."></textarea>
+                                      placeholder="Describe the purpose of this experiment...">{% if generated_description %}{{ generated_description }}{% endif %}</textarea>
+                            <small class="text-muted">
+                                <i class="fas fa-info-circle"></i>
+                                This description will inform LLM suggestions for processing methods and analysis tools.
+                            </small>
                         </div>
 
                         {# Document Selection #}

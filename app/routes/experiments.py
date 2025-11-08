@@ -26,6 +26,7 @@ def index():
 def new():
     """Show new experiment form - public view, but submit requires login"""
     from app.models.term import Term
+    from app.services.prompt_service import PromptService
 
     # Get documents and references separately for all users
     documents = Document.query.filter_by(document_type='document').order_by(Document.created_at.desc()).all()
@@ -41,8 +42,27 @@ def new():
 
     # If single-document mode, find the selected document
     selected_document = None
+    generated_description = None
     if mode == 'single_document' and document_uuid:
         selected_document = Document.query.filter_by(uuid=document_uuid, document_type='document').first()
+
+        # Generate description using prompt template
+        if selected_document:
+            try:
+                context = PromptService._build_experiment_context(
+                    experiment_type='single_document_analysis',
+                    documents=[selected_document],
+                    references=[],
+                    configuration={}
+                )
+                generated_description = PromptService.render_template(
+                    'experiment_description_single_document',
+                    context
+                )
+            except Exception as e:
+                logger.error(f"Error generating description: {e}")
+                # Fall back to simple description if template fails
+                generated_description = f"Analysis of '{selected_document.title}'"
 
     return render_template('experiments/new.html',
                          documents=documents,
@@ -51,7 +71,8 @@ def new():
                          mode=mode,
                          document_uuid=document_uuid,
                          document_title=document_title,
-                         selected_document=selected_document)
+                         selected_document=selected_document,
+                         generated_description=generated_description)
 
 @experiments_bp.route('/wizard')
 def wizard():
@@ -1504,7 +1525,7 @@ def document_pipeline(experiment_id):
     
     # Get experiment-specific document processing data using raw SQL
     query = """
-        SELECT d.id, d.title, d.original_filename, d.file_type, d.content_type, 
+        SELECT d.id, d.uuid, d.title, d.original_filename, d.file_type, d.content_type,
                d.word_count, d.created_at,
                COALESCE(ed.processing_status, 'pending') as processing_status,
                COALESCE(ed.embeddings_applied, false) as embeddings_applied,
@@ -1529,6 +1550,7 @@ def document_pipeline(experiment_id):
         
         processed_docs.append({
             'id': row.id,
+            'uuid': row.uuid,
             'name': row.original_filename or row.title,
             'file_type': row.file_type or row.content_type,
             'word_count': row.word_count or 0,
@@ -1551,39 +1573,40 @@ def document_pipeline(experiment_id):
                          progress_percentage=progress_percentage)
 
 
-@experiments_bp.route('/<int:experiment_id>/process_document/<int:document_id>')
-def process_document(experiment_id, document_id):
+@experiments_bp.route('/<int:experiment_id>/process_document/<string:document_uuid>')
+def process_document(experiment_id, document_uuid):
     """Process a specific document with experiment-specific context"""
     experiment = Experiment.query.filter_by(id=experiment_id).first_or_404()
+
+    # Get document by UUID
+    document = Document.query.filter_by(uuid=document_uuid).first_or_404()
 
     # Get the experiment-document association
     exp_doc = ExperimentDocument.query.filter_by(
         experiment_id=experiment_id,
-        document_id=document_id
+        document_id=document.id
     ).first_or_404()
-
-    document = exp_doc.document
 
     # Get processing operations for this experiment-document combination
     processing_operations = ExperimentDocumentProcessing.query.filter_by(
         experiment_document_id=exp_doc.id
     ).order_by(ExperimentDocumentProcessing.created_at.desc()).all()
 
-    # Get all experiment documents for navigation
+    # Get all experiment documents for navigation (using UUIDs)
     all_exp_docs = ExperimentDocument.query.filter_by(experiment_id=experiment_id).all()
-    all_doc_ids = [ed.document_id for ed in all_exp_docs]
+    all_doc_uuids = [ed.document.uuid for ed in all_exp_docs]
 
     try:
-        doc_index = all_doc_ids.index(document_id)
+        doc_index = all_doc_uuids.index(document.uuid)
     except ValueError:
         flash('Document not found in this experiment', 'error')
         return redirect(url_for('experiments.document_pipeline', experiment_id=experiment_id))
 
     # Prepare navigation info
     has_previous = doc_index > 0
-    has_next = doc_index < len(all_doc_ids) - 1
-    previous_doc_id = all_doc_ids[doc_index - 1] if has_previous else None
-    next_doc_id = all_doc_ids[doc_index + 1] if has_next else None
+    has_next = doc_index < len(all_doc_uuids) - 1
+    previous_doc_uuid = all_doc_uuids[doc_index - 1] if has_previous else None
+    next_doc_uuid = all_doc_uuids[doc_index + 1] if has_next else None
 
     # Calculate processing progress based on new model
     total_processing_types = 3  # embeddings, segmentation, entities
@@ -1601,11 +1624,11 @@ def process_document(experiment_id, document_id):
                          processing_operations=processing_operations,
                          processing_progress=processing_progress,
                          doc_index=doc_index,
-                         total_docs=len(all_doc_ids),
+                         total_docs=len(all_doc_uuids),
                          has_previous=has_previous,
                          has_next=has_next,
-                         previous_doc_id=previous_doc_id,
-                         next_doc_id=next_doc_id)
+                         previous_doc_uuid=previous_doc_uuid,
+                         next_doc_uuid=next_doc_uuid)
 
 
 @experiments_bp.route('/<int:experiment_id>/document/<int:document_id>/run_tools', methods=['POST'])

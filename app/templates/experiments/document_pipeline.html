@@ -151,12 +151,12 @@
                             
                             <div class="d-flex flex-column gap-2">
                                 {% if doc.status == 'pending' %}
-                                <a href="{{ url_for('experiments.process_document', experiment_id=experiment.id, document_id=doc.id) }}"
+                                <a href="{{ url_for('experiments.process_document', experiment_id=experiment.id, document_uuid=doc.uuid) }}"
                                    class="btn btn-sm btn-warning manual-process-btn">
                                     <i class="fas fa-cog"></i> Process Document
                                 </a>
                                 {% else %}
-                                <a href="{{ url_for('experiments.process_document', experiment_id=experiment.id, document_id=doc.id) }}"
+                                <a href="{{ url_for('experiments.process_document', experiment_id=experiment.id, document_uuid=doc.uuid) }}"
                                    class="btn btn-sm btn-success manual-process-btn">
                                     <i class="fas fa-check"></i> View Processing
                                 </a>
