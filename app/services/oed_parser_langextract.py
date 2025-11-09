@@ -32,7 +32,7 @@ class OEDParserLangExtract:
         else:
             # For Anthropic, we'll still need to use the existing approach
             # as LangExtract primarily supports Gemini natively
-            self.model_id = "claude-3-5-sonnet-20241022"
+            self.model_id = "claude-sonnet-4-5-20250929"
             self.use_anthropic_fallback = True
     
     def parse_pdf(self, pdf_path: str) -> Dict[str, Any]:
@@ -280,7 +280,7 @@ class OEDParserLangExtract:
         
         try:
             message = client.messages.create(  # type: ignore[attr-defined]
-                model="claude-3-5-sonnet-20241022",
+                model="claude-sonnet-4-5-20250929",
                 max_tokens=8000,
                 temperature=0.1,
                 messages=[{"role": "user", "content": clean_prompt}]

@@ -130,7 +130,7 @@ class PromptService:
         # Enhance with LLM
         try:
             provider = provider or AppSetting.get_setting('default_llm_provider', user.id if user else None, default='anthropic')
-            model = model or AppSetting.get_setting('llm_model', user.id if user else None, default='claude-3-5-sonnet-20241022')
+            model = model or AppSetting.get_setting('llm_model', user.id if user else None, default='claude-sonnet-4-5-20250929')
 
             enhanced_output, activity_id = PromptService._enhance_with_llm(
                 template=template,

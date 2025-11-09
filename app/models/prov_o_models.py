@@ -82,7 +82,7 @@ class ProvAgent(db.Model):
             
             if model_provider == 'anthropic':
                 metadata.update({
-                    'model_id': 'claude-3-5-sonnet-20241022',
+                    'model_id': 'claude-sonnet-4-5-20250929',
                     'reliability_score': 0.9
                 })
             elif model_provider == 'openai':

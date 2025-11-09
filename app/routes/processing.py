@@ -11,6 +11,7 @@ from app.models.text_segment import TextSegment
 from app.models.provenance import ProvenanceEntity, ProvenanceActivity
 from app.services.enhanced_document_processor import EnhancedDocumentProcessor
 from app.services.inheritance_versioning_service import InheritanceVersioningService
+from app.services.text_cleanup_service import TextCleanupService
 
 processing_bp = Blueprint('processing', __name__)
 
@@ -815,6 +816,126 @@ def clear_document_jobs(document_id):
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
 
+@processing_bp.route('/document/<string:document_uuid>/clean-text', methods=['POST'])
+@api_require_login_for_write
+def clean_text(document_uuid):
+    """Clean text using LLM to fix OCR errors, formatting, spelling"""
+    try:
+        document = Document.query.filter_by(uuid=document_uuid).first_or_404()
+
+        if not document.content:
+            return jsonify({
+                'success': False,
+                'error': 'Document has no content to clean'
+            }), 400
+
+        # Create processing job
+        job = ProcessingJob(
+            document_id=document.id,
+            job_type='clean_text',
+            status='running',
+            user_id=current_user.id
+        )
+        job.set_parameters({'original_length': len(document.content)})
+        db.session.add(job)
+        db.session.commit()
+
+        # Use TextCleanupService to clean the text
+        cleanup_service = TextCleanupService()
+
+        try:
+            cleaned_text, metadata = cleanup_service.clean_text(document.content)
+
+            # Update job with success
+            job.status = 'completed'
+            job.completed_at = db.func.now()
+            job.set_parameters({
+                'original_length': len(document.content),
+                'cleaned_length': len(cleaned_text),
+                'model': metadata.get('model'),
+                'input_tokens': metadata.get('input_tokens'),
+                'output_tokens': metadata.get('output_tokens'),
+                'chunks_processed': metadata.get('chunks_processed', 1)
+            })
+            db.session.commit()
+
+            return jsonify({
+                'success': True,
+                'job_id': job.id,
+                'original_text': document.content,
+                'cleaned_text': cleaned_text,
+                'metadata': metadata
+            })
+
+        except Exception as e:
+            # Update job with failure
+            job.status = 'failed'
+            job.completed_at = db.func.now()
+            job.set_parameters({
+                'error': str(e),
+                'original_length': len(document.content)
+            })
+            db.session.commit()
+
+            return jsonify({
+                'success': False,
+                'error': f'LLM text cleaning failed: {str(e)}'
+            }), 500
+
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@processing_bp.route('/document/<string:document_uuid>/save-cleaned-text', methods=['POST'])
+@api_require_login_for_write
+def save_cleaned_text(document_uuid):
+    """Save cleaned text after user review, creating a new document version"""
+    try:
+        document = Document.query.filter_by(uuid=document_uuid).first_or_404()
+        data = request.get_json()
+
+        if not data:
+            return jsonify({
+                'success': False,
+                'error': 'No data provided'
+            }), 400
+
+        cleaned_content = data.get('cleaned_content')
+        if not cleaned_content:
+            return jsonify({
+                'success': False,
+                'error': 'No cleaned content provided'
+            }), 400
+
+        changes_accepted = data.get('changes_accepted', 0)
+        changes_rejected = data.get('changes_rejected', 0)
+        original_length = data.get('original_length', 0)
+        cleaned_length = data.get('cleaned_length', len(cleaned_content))
+
+        # Create new document version with cleaned text
+        versioning_service = InheritanceVersioningService()
+        cleaned_version = versioning_service.create_processing_version(
+            original_document=document,
+            version_type='text_cleanup',
+            content=cleaned_content,
+            metadata={
+                'changes_accepted': changes_accepted,
+                'changes_rejected': changes_rejected,
+                'cleanup_method': 'llm_claude',
+                'original_length': original_length,
+                'cleaned_length': cleaned_length,
+                'processing_date': db.func.now()
+            }
+        )
+
+        return jsonify({
+            'success': True,
+            'version_uuid': str(cleaned_version.uuid),
+            'message': f'Saved cleaned text ({changes_accepted} changes accepted, {changes_rejected} rejected)',
+            'document_id': cleaned_version.id
+        })
+
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 @processing_bp.route('/document/<string:document_uuid>/enhanced', methods=['POST'])
 @api_require_login_for_write
@@ -1293,20 +1414,20 @@ def view_segments_results(document_uuid):
                              document=document,
                              error=str(e)), 500
 
-@processing_bp.route('/document/<string:document_uuid>/results/metadata', methods=['GET'])
-def view_metadata_results(document_uuid):
-    """View metadata analysis results for a document"""
+@processing_bp.route('/document/<string:document_uuid>/results/clean-text', methods=['GET'])
+def view_clean_text_results(document_uuid):
+    """View text cleanup results for a document"""
     try:
         document = Document.query.filter_by(uuid=document_uuid).first_or_404()
 
-        # Get metadata analysis jobs
+        # Get clean text jobs
         jobs = ProcessingJob.query.filter_by(
             document_id=document.id,
-            job_type='analyze_metadata'
+            job_type='clean_text'
         ).order_by(ProcessingJob.created_at.desc()).all()
 
         from flask import render_template
-        return render_template('processing/metadata_results.html',
+        return render_template('processing/clean_text_results.html',
                              document=document,
                              jobs=jobs)
 

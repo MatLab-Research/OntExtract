@@ -59,7 +59,7 @@ class Config:
     DEFAULT_LLM_PROVIDER = os.environ.get('DEFAULT_LLM_PROVIDER', 'anthropic')
     
     # Claude Model Configuration
-    CLAUDE_DEFAULT_MODEL = os.environ.get('CLAUDE_DEFAULT_MODEL', 'claude-3-5-sonnet-20241022')
+    CLAUDE_DEFAULT_MODEL = os.environ.get('CLAUDE_DEFAULT_MODEL', 'claude-sonnet-4-5-20250929')
     CLAUDE_API_VERSION = os.environ.get('CLAUDE_API_VERSION', '2023-06-01')
     CLAUDE_EMBEDDING_MODEL = os.environ.get('CLAUDE_EMBEDDING_MODEL', 'claude-3-embedding')
 
