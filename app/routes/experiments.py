@@ -1579,12 +1579,42 @@ def process_document(experiment_id, document_uuid):
     experiment = Experiment.query.filter_by(id=experiment_id).first_or_404()
 
     # Get document by UUID
-    document = Document.query.filter_by(uuid=document_uuid).first_or_404()
+    requested_document = Document.query.filter_by(uuid=document_uuid).first_or_404()
+
+    # If this is an original document, check if there's a newer version
+    # and redirect to the latest version instead
+    if requested_document.source_document_id is None:
+        # This is an original document - check for versions
+        latest_version = requested_document.versions.order_by(Document.created_at.desc()).first()
+        if latest_version:
+            # Redirect to the latest version
+            return redirect(url_for('experiments.process_document',
+                                  experiment_id=experiment_id,
+                                  document_uuid=latest_version.uuid))
+
+    # Use the requested document (which is now either a version, or an original with no versions)
+    document = requested_document
+
+    # Find the source document (original) - needed for multiple operations below
+    if document.source_document_id is None:
+        # This is an original document
+        source_doc = document
+    else:
+        # This is a version, get the source
+        source_doc = document.source_document
 
     # Get the experiment-document association
+    # For versions, we need to look up using the source document ID
+    if document.source_document_id:
+        # This is a version - use the original document's ID for the association
+        lookup_doc_id = document.source_document_id
+    else:
+        # This is an original document
+        lookup_doc_id = document.id
+
     exp_doc = ExperimentDocument.query.filter_by(
         experiment_id=experiment_id,
-        document_id=document.id
+        document_id=lookup_doc_id
     ).first_or_404()
 
     # Get processing operations for this experiment-document combination
@@ -1596,8 +1626,11 @@ def process_document(experiment_id, document_uuid):
     all_exp_docs = ExperimentDocument.query.filter_by(experiment_id=experiment_id).all()
     all_doc_uuids = [ed.document.uuid for ed in all_exp_docs]
 
+    # For navigation, use the source document's UUID if this is a version
+    navigation_uuid = source_doc.uuid if document.source_document_id else document.uuid
+
     try:
-        doc_index = all_doc_uuids.index(document.uuid)
+        doc_index = all_doc_uuids.index(navigation_uuid)
     except ValueError:
         flash('Document not found in this experiment', 'error')
         return redirect(url_for('experiments.document_pipeline', experiment_id=experiment_id))
@@ -1617,6 +1650,16 @@ def process_document(experiment_id, document_uuid):
 
     processing_progress = int((len(completed_types) / total_processing_types) * 100)
 
+    # Get all versions of this document (source_doc already defined above)
+    # Build versions list: [original, most_recent, ..., oldest]
+    all_versions = [source_doc] + list(source_doc.versions.order_by(Document.created_at.desc()).all())
+
+    # Find the currently displayed document in the versions list
+    current_version_index = next((i for i, v in enumerate(all_versions) if v.id == document.id), 0)
+
+    # Check if this is the latest version
+    is_latest_version = len(all_versions) > 1 and document.id == all_versions[1].id
+
     return render_template('experiments/process_document.html',
                          experiment=experiment,
                          document=document,
@@ -1628,7 +1671,11 @@ def process_document(experiment_id, document_uuid):
                          has_previous=has_previous,
                          has_next=has_next,
                          previous_doc_uuid=previous_doc_uuid,
-                         next_doc_uuid=next_doc_uuid)
+                         next_doc_uuid=next_doc_uuid,
+                         all_versions=all_versions,
+                         current_version_index=current_version_index,
+                         source_document=source_doc,
+                         is_latest_version=is_latest_version)
 
 
 @experiments_bp.route('/<int:experiment_id>/document/<int:document_id>/run_tools', methods=['POST'])

@@ -6,20 +6,24 @@
                 <h5 class="modal-title" id="textCleanupModalLabel">
                     <i class="fas fa-broom me-2"></i>Review Text Cleanup Changes
                 </h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                <button type="button" class="btn-close btn-close-white" id="cleanup-modal-close-btn" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body" style="background-color: #f8f9fa;">
-                <!-- Progress Indicator -->
+                <!-- Loading Indicator -->
                 <div id="cleanup-progress-container" style="display: none;">
-                    <div class="alert alert-info">
-                        <i class="fas fa-info-circle me-2"></i>
-                        <span id="cleanup-progress-message">Processing with AI...</span>
-                    </div>
-                    <div class="progress mb-3" style="height: 25px;">
-                        <div id="cleanup-progress-bar" class="progress-bar progress-bar-striped progress-bar-animated"
-                             role="progressbar" style="width: 0%">
-                            <span id="cleanup-progress-text">0%</span>
+                    <div class="text-center py-5">
+                        <div class="spinner-border text-primary mb-4" style="width: 4rem; height: 4rem;" role="status">
+                            <span class="visually-hidden">Loading...</span>
                         </div>
+                        <h4 class="mb-2 text-dark">
+                            <i class="fas fa-robot me-2"></i>
+                            <span id="cleanup-progress-message">Processing with Claude Sonnet 4.5...</span>
+                        </h4>
+                        <p class="text-dark">
+                            Analyzing your document and identifying improvements.<br>
+                            This may take up to a minute depending on document length and API load.<br>
+                            <strong>Please do not close this window.</strong>
+                        </p>
                     </div>
                 </div>
 
@@ -184,19 +188,24 @@
     let currentDiffData = null;
     let changeStates = {}; // Track which changes have been accepted/rejected
     let changeCounter = 0;
+    let isProcessing = false; // Track if currently processing
 
     function openTextCleanupModal(documentUuid) {
         // Reset state
         currentDiffData = null;
         changeStates = {};
         changeCounter = 0;
+        isProcessing = true;
 
         // Show modal
         const modal = new bootstrap.Modal(document.getElementById('textCleanupModal'));
         modal.show();
 
+        // Disable close button during processing
+        document.getElementById('cleanup-modal-close-btn').disabled = true;
+
         // Show progress
-        showCleanupProgress('Requesting AI text cleanup...');
+        showCleanupProgress('Processing with Claude Sonnet 4.5...');
 
         // Call backend to clean text
         fetch(`/process/document/${documentUuid}/clean-text`, {
@@ -229,6 +238,10 @@
     }
 
     function showCleanupError(message) {
+        // Processing complete (with error)
+        isProcessing = false;
+        document.getElementById('cleanup-modal-close-btn').disabled = false;
+
         document.getElementById('cleanup-progress-container').style.display = 'none';
         document.getElementById('cleanup-stats-container').style.display = 'none';
         document.getElementById('cleanup-editor-container').style.display = 'none';
@@ -238,6 +251,10 @@
     }
 
     function displayTrackChanges(originalText, cleanedText) {
+        // Processing complete
+        isProcessing = false;
+        document.getElementById('cleanup-modal-close-btn').disabled = false;
+
         // Hide progress
         document.getElementById('cleanup-progress-container').style.display = 'none';
 
@@ -451,6 +468,13 @@
             if (state === 'rejected') rejected++;
         });
 
+        // Warn if no changes were accepted
+        if (accepted === 0) {
+            if (!confirm('You have not accepted any changes. Are you sure you want to save?\n\nThis will create a new version with the exact same content as the original.')) {
+                return; // User cancelled
+            }
+        }
+
         // Show loading
         document.getElementById('save-cleaned-text-btn').disabled = true;
         document.getElementById('save-cleaned-text-btn').innerHTML =
@@ -479,8 +503,10 @@
                 // Show success message
                 alert(`Success! ${accepted} changes accepted, ${rejected} changes rejected.\n\nNew document version created.`);
 
-                // Reload the page to show updated processing status
-                window.location.reload();
+                // Navigate to the new version
+                const currentUrl = window.location.href;
+                const baseUrl = currentUrl.split('/process_document/')[0];
+                window.location.href = `${baseUrl}/process_document/${data.version_uuid}`;
             } else {
                 alert('Error saving cleaned text: ' + (data.error || 'Unknown error'));
                 document.getElementById('save-cleaned-text-btn').disabled = false;
@@ -495,4 +521,13 @@
                 '<i class="fas fa-save me-1"></i>Save Changes';
         });
     }
+
+    // Prevent modal close during processing
+    document.getElementById('textCleanupModal').addEventListener('hide.bs.modal', function (event) {
+        if (isProcessing) {
+            if (!confirm('Text cleanup is still in progress. Are you sure you want to close?\n\nClosing now will lose all progress.')) {
+                event.preventDefault();
+            }
+        }
+    });
 </script>

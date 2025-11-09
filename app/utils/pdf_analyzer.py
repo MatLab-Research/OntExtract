@@ -34,11 +34,18 @@ class PDFAnalyzer:
         self.has_pdfplumber = False
 
         try:
-            import PyPDF2
-            self.PyPDF2 = PyPDF2
+            # Try modern pypdf first (recommended)
+            import pypdf
+            self.PyPDF2 = pypdf
             self.has_pypdf2 = True
         except ImportError:
-            logger.warning("PyPDF2 not available - PDF analysis will be limited")
+            try:
+                # Fallback to legacy PyPDF2 if available
+                import PyPDF2
+                self.PyPDF2 = PyPDF2
+                self.has_pypdf2 = True
+            except ImportError:
+                logger.warning("pypdf/PyPDF2 not available - PDF analysis will be limited")
 
         try:
             import pdfplumber

@@ -913,19 +913,27 @@ def save_cleaned_text(document_uuid):
 
         # Create new document version with cleaned text
         versioning_service = InheritanceVersioningService()
-        cleaned_version = versioning_service.create_processing_version(
+        metadata = {
+            'changes_accepted': changes_accepted,
+            'changes_rejected': changes_rejected,
+            'cleanup_method': 'llm_claude',
+            'original_length': original_length,
+            'cleaned_length': cleaned_length
+        }
+
+        cleaned_version = versioning_service.create_new_version(
             original_document=document,
-            version_type='text_cleanup',
-            content=cleaned_content,
-            metadata={
-                'changes_accepted': changes_accepted,
-                'changes_rejected': changes_rejected,
-                'cleanup_method': 'llm_claude',
-                'original_length': original_length,
-                'cleaned_length': cleaned_length,
-                'processing_date': db.func.now()
-            }
+            processing_type='text_cleanup',
+            processing_metadata=metadata
         )
+
+        # Update the content with the cleaned version
+        cleaned_version.content = cleaned_content
+        cleaned_version.content_preview = cleaned_content[:500] if cleaned_content else None
+        cleaned_version.character_count = len(cleaned_content)
+        cleaned_version.word_count = len(cleaned_content.split()) if cleaned_content else 0
+
+        db.session.commit()
 
         return jsonify({
             'success': True,
