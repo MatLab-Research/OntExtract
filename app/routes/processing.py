@@ -977,13 +977,55 @@ def save_cleaned_text(document_uuid):
         cleaned_version.character_count = len(cleaned_content)
         cleaned_version.word_count = len(cleaned_content.split()) if cleaned_content else 0
 
+        # Find the original cleanup job to get model and token information
+        original_cleanup_job = ProcessingJob.query.filter_by(
+            document_id=document.id,
+            job_type='clean_text',
+            status='completed'
+        ).order_by(ProcessingJob.created_at.desc()).first()
+
+        # Create a processing job for the new version to track the cleanup
+        cleanup_job = ProcessingJob(
+            document_id=cleaned_version.id,
+            job_type='clean_text',
+            status='completed',
+            user_id=current_user.id,
+            completed_at=db.func.now()
+        )
+
+        # Copy parameters from original job if available
+        if original_cleanup_job:
+            original_params = original_cleanup_job.get_parameters()
+            cleanup_job.set_parameters({
+                'original_length': original_length,
+                'cleaned_length': cleaned_length,
+                'changes_accepted': changes_accepted,
+                'changes_rejected': changes_rejected,
+                'model': original_params.get('model', 'claude-sonnet-4-5-20250929'),
+                'input_tokens': original_params.get('input_tokens', 0),
+                'output_tokens': original_params.get('output_tokens', 0),
+                'chunks_processed': original_params.get('chunks_processed', 1),
+                'cleanup_method': 'llm_claude_reviewed'
+            })
+        else:
+            cleanup_job.set_parameters({
+                'original_length': original_length,
+                'cleaned_length': cleaned_length,
+                'changes_accepted': changes_accepted,
+                'changes_rejected': changes_rejected,
+                'model': 'claude-sonnet-4-5-20250929',
+                'cleanup_method': 'llm_claude_reviewed'
+            })
+
+        db.session.add(cleanup_job)
         db.session.commit()
 
         return jsonify({
             'success': True,
             'version_uuid': str(cleaned_version.uuid),
             'message': f'Saved cleaned text ({changes_accepted} changes accepted, {changes_rejected} rejected)',
-            'document_id': cleaned_version.id
+            'document_id': cleaned_version.id,
+            'job_id': cleanup_job.id
         })
 
     except Exception as e:

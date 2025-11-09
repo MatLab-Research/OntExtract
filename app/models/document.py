@@ -206,13 +206,71 @@ class Document(db.Model):
         """Get formatted citation for references"""
         if self.source_metadata and self.source_metadata.get('citation'):
             return self.source_metadata['citation']
-        
+
         # Generate basic citation if not provided
         source_info = self.get_source_info()
         if source_info:
             return f"{source_info}. {self.title}"
         return self.title
-    
+
+    def get_bibliographic_metadata(self):
+        """
+        Get bibliographic metadata (source_metadata) for this document.
+
+        For versioned documents, retrieves metadata from the root document
+        since bibliographic information belongs to the scholarly work, not the version.
+
+        Returns:
+            dict: source_metadata from root document, or this document's metadata if it's the root
+        """
+        root_doc = self.get_root_document()
+        return root_doc.source_metadata if root_doc.source_metadata else {}
+
+    def get_metadata_provenance(self):
+        """
+        Get metadata provenance for this document.
+
+        Like bibliographic metadata, provenance is stored on the root document.
+
+        Returns:
+            dict: metadata_provenance from root document
+        """
+        root_doc = self.get_root_document()
+        return root_doc.metadata_provenance if root_doc.metadata_provenance else {}
+
+    def get_all_experiment_associations(self):
+        """
+        Get all experiments associated with any version in this document family.
+
+        Returns experiments linked to any document in the version chain, since
+        experiments typically analyze the document as a whole, not just one version.
+
+        Returns:
+            list: List of (ExperimentDocument, Experiment) tuples
+        """
+        from app.models.experiment_document import ExperimentDocument
+        from app.models.experiment import Experiment
+
+        # Get all document IDs in this family
+        root_doc = self.get_root_document()
+        all_versions = self.get_all_versions()
+        all_doc_ids = [v.id for v in all_versions]
+
+        # Find all experiment associations for any version
+        exp_docs = ExperimentDocument.query.filter(
+            ExperimentDocument.document_id.in_(all_doc_ids)
+        ).all()
+
+        # Return unique experiments (may be linked to multiple versions)
+        seen_exp_ids = set()
+        unique_exp_docs = []
+        for exp_doc in exp_docs:
+            if exp_doc.experiment_id not in seen_exp_ids:
+                seen_exp_ids.add(exp_doc.experiment_id)
+                unique_exp_docs.append(exp_doc)
+
+        return unique_exp_docs
+
     # Document versioning methods
     
     def create_version(self, version_type='processed', experiment_id=None, processing_notes=None, **kwargs):

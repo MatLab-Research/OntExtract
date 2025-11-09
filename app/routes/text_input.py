@@ -261,31 +261,35 @@ def document_list():
     for doc in all_documents:
         # Determine the base document ID
         base_id = doc.source_document_id or doc.id
-        
+
         if base_id not in document_groups:
             document_groups[base_id] = {
                 'base_document': None,
+                'latest_version': None,
                 'versions': [],
                 'latest_created': None
             }
-        
+
         # Set the base document (original version)
         if doc.version_type == 'original':
             document_groups[base_id]['base_document'] = doc
-        
+
         # Add to versions list
         document_groups[base_id]['versions'].append(doc)
-        
+
         # Track latest creation date for sorting groups
         if document_groups[base_id]['latest_created'] is None or doc.created_at > document_groups[base_id]['latest_created']:
             document_groups[base_id]['latest_created'] = doc.created_at
-    
-    # Sort versions within each group (latest first)
+
+    # Sort versions within each group (latest first) and identify latest version
     for group in document_groups.values():
         group['versions'].sort(key=lambda x: x.version_number, reverse=True)
         # If no base document was found, use the original version
         if group['base_document'] is None and group['versions']:
             group['base_document'] = min(group['versions'], key=lambda x: x.version_number)
+        # Set the latest version (highest version number)
+        if group['versions']:
+            group['latest_version'] = group['versions'][0]  # Already sorted, so first is latest
     
     # Convert to list and sort by latest creation date
     grouped_documents = list(document_groups.values())
@@ -321,22 +325,26 @@ def document_detail(document_uuid):
     # Get document - public access for viewing
     document = Document.query.filter_by(uuid=document_uuid).first_or_404()
 
-    # Get experiments that include this document with their processing results
+    # Get experiments associated with this document FAMILY (not just this version)
     from app.models.experiment_document import ExperimentDocument
     from app.models.experiment_processing import DocumentProcessingIndex
 
-    # Get all experiment-document relationships for this document
-    experiment_documents = ExperimentDocument.query.filter_by(document_id=document.id).all()
+    # Use helper method to get experiments for entire document family
+    experiment_documents = document.get_all_experiment_associations()
+
+    # Get all document IDs in this family for processing lookup
+    all_versions = document.get_all_versions()
+    all_doc_ids = [v.id for v in all_versions]
 
     # Enrich with processing information
     document_experiments = []
     total_processing_count = 0
 
     for exp_doc in experiment_documents:
-        # Get processing operations for this experiment-document pair
-        processing_results = DocumentProcessingIndex.query.filter_by(
-            document_id=document.id,
-            experiment_id=exp_doc.experiment_id
+        # Get processing operations for this experiment across ALL versions
+        processing_results = DocumentProcessingIndex.query.filter(
+            DocumentProcessingIndex.document_id.in_(all_doc_ids),
+            DocumentProcessingIndex.experiment_id == exp_doc.experiment_id
         ).all()
 
         # Create a data structure for the template
