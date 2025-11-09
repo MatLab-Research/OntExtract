@@ -1660,6 +1660,12 @@ def process_document(experiment_id, document_uuid):
     # Check if this is the latest version
     is_latest_version = len(all_versions) > 1 and document.id == all_versions[1].id
 
+    # Get processing jobs from all versions (for clean_text, etc.)
+    all_version_ids = [v.id for v in all_versions]
+    processing_jobs = ProcessingJob.query.filter(
+        ProcessingJob.document_id.in_(all_version_ids)
+    ).order_by(ProcessingJob.created_at.desc()).all()
+
     return render_template('experiments/process_document.html',
                          experiment=experiment,
                          document=document,
@@ -1675,7 +1681,8 @@ def process_document(experiment_id, document_uuid):
                          all_versions=all_versions,
                          current_version_index=current_version_index,
                          source_document=source_doc,
-                         is_latest_version=is_latest_version)
+                         is_latest_version=is_latest_version,
+                         processing_jobs=processing_jobs)
 
 
 @experiments_bp.route('/<int:experiment_id>/document/<int:document_id>/run_tools', methods=['POST'])

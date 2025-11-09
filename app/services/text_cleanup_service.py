@@ -40,13 +40,14 @@ class TextCleanupService:
 
         return self._client
 
-    def clean_text(self, text: str, max_chunk_size: int = 8000) -> Tuple[str, Dict[str, Any]]:
+    def clean_text(self, text: str, max_chunk_size: int = 8000, progress_callback=None) -> Tuple[str, Dict[str, Any]]:
         """
         Clean text using Claude to fix errors and improve quality.
 
         Args:
             text: The text to clean
             max_chunk_size: Maximum characters per LLM call (for large documents)
+            progress_callback: Optional callback function(current_chunk, total_chunks) for progress updates
 
         Returns:
             Tuple of (cleaned_text, metadata_dict)
@@ -57,9 +58,11 @@ class TextCleanupService:
         # Handle large documents by chunking
         if len(text) > max_chunk_size:
             logger.info(f"Text length {len(text)} exceeds chunk size {max_chunk_size}, using chunking")
-            return self._clean_large_document(text, max_chunk_size)
+            return self._clean_large_document(text, max_chunk_size, progress_callback)
 
         # Clean single chunk
+        if progress_callback:
+            progress_callback(1, 1)
         return self._clean_chunk(text)
 
     def _clean_chunk(self, text: str) -> Tuple[str, Dict[str, Any]]:
@@ -123,7 +126,7 @@ Return ONLY the cleaned text with no explanations, commentary, or additional for
             logger.error(f"Error cleaning text with Claude: {e}")
             raise
 
-    def _clean_large_document(self, text: str, chunk_size: int) -> Tuple[str, Dict[str, Any]]:
+    def _clean_large_document(self, text: str, chunk_size: int, progress_callback=None) -> Tuple[str, Dict[str, Any]]:
         """
         Clean large documents by processing in chunks.
 
@@ -132,6 +135,7 @@ Return ONLY the cleaned text with no explanations, commentary, or additional for
         Args:
             text: The full text to clean
             chunk_size: Maximum characters per chunk
+            progress_callback: Optional callback function(current_chunk, total_chunks) for progress updates
 
         Returns:
             Tuple of (cleaned_text, metadata_dict)
@@ -139,46 +143,44 @@ Return ONLY the cleaned text with no explanations, commentary, or additional for
         # Split into paragraphs (preserving double newlines)
         paragraphs = text.split('\n\n')
 
-        cleaned_paragraphs = []
-        total_input_tokens = 0
-        total_output_tokens = 0
-        chunks_processed = 0
-
+        # Pre-calculate chunks to get total count for progress
+        chunks_to_process = []
         current_chunk = []
         current_length = 0
 
         for para in paragraphs:
             para_len = len(para)
 
-            # If adding this paragraph would exceed chunk size and we have content, process current chunk
             if current_length + para_len > chunk_size and current_chunk:
-                # Process current chunk
-                chunk_text = '\n\n'.join(current_chunk)
-                cleaned_chunk, chunk_meta = self._clean_chunk(chunk_text)
-                cleaned_paragraphs.append(cleaned_chunk)
-
-                # Update stats
-                total_input_tokens += chunk_meta.get('input_tokens', 0)
-                total_output_tokens += chunk_meta.get('output_tokens', 0)
-                chunks_processed += 1
-
-                # Start new chunk with current paragraph
+                chunks_to_process.append('\n\n'.join(current_chunk))
                 current_chunk = [para]
                 current_length = para_len
             else:
-                # Add to current chunk
                 current_chunk.append(para)
-                current_length += para_len + 2  # +2 for \n\n
+                current_length += para_len + 2
 
-        # Process final chunk
         if current_chunk:
-            chunk_text = '\n\n'.join(current_chunk)
+            chunks_to_process.append('\n\n'.join(current_chunk))
+
+        total_chunks = len(chunks_to_process)
+        logger.info(f"Processing {total_chunks} chunks for large document")
+
+        # Process each chunk
+        cleaned_paragraphs = []
+        total_input_tokens = 0
+        total_output_tokens = 0
+
+        for i, chunk_text in enumerate(chunks_to_process):
+            # Update progress before processing chunk
+            if progress_callback:
+                progress_callback(i + 1, total_chunks)
+
             cleaned_chunk, chunk_meta = self._clean_chunk(chunk_text)
             cleaned_paragraphs.append(cleaned_chunk)
 
+            # Update stats
             total_input_tokens += chunk_meta.get('input_tokens', 0)
             total_output_tokens += chunk_meta.get('output_tokens', 0)
-            chunks_processed += 1
 
         # Combine all cleaned chunks
         cleaned_text = '\n\n'.join(cleaned_paragraphs)
@@ -189,9 +191,9 @@ Return ONLY the cleaned text with no explanations, commentary, or additional for
             'output_tokens': total_output_tokens,
             'original_length': len(text),
             'cleaned_length': len(cleaned_text),
-            'chunks_processed': chunks_processed,
+            'chunks_processed': total_chunks,
             'chunking_used': True
         }
 
-        logger.info(f"Large document cleaned: {chunks_processed} chunks, {len(text)} -> {len(cleaned_text)} chars")
+        logger.info(f"Large document cleaned: {total_chunks} chunks, {len(text)} -> {len(cleaned_text)} chars")
         return cleaned_text, metadata
