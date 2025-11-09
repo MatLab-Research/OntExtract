@@ -819,7 +819,9 @@ def clear_document_jobs(document_id):
 @processing_bp.route('/document/<string:document_uuid>/clean-text', methods=['POST'])
 @api_require_login_for_write
 def clean_text(document_uuid):
-    """Clean text using LLM to fix OCR errors, formatting, spelling"""
+    """Clean text using LLM to fix OCR errors, formatting, spelling (runs asynchronously)"""
+    import threading
+
     try:
         document = Document.query.filter_by(uuid=document_uuid).first_or_404()
 
@@ -836,51 +838,93 @@ def clean_text(document_uuid):
             status='running',
             user_id=current_user.id
         )
-        job.set_parameters({'original_length': len(document.content)})
+        job.set_parameters({
+            'original_length': len(document.content),
+            'current_chunk': 0,
+            'total_chunks': 1,
+            'progress_message': 'Starting text cleanup...'
+        })
         db.session.add(job)
         db.session.commit()
 
-        # Use TextCleanupService to clean the text
-        cleanup_service = TextCleanupService()
+        job_id = job.id
+        document_content = document.content
 
-        try:
-            cleaned_text, metadata = cleanup_service.clean_text(document.content)
+        # Define background processing function
+        def process_in_background():
+            from app import create_app, db
+            from app.models.processing_job import ProcessingJob
 
-            # Update job with success
-            job.status = 'completed'
-            job.completed_at = db.func.now()
-            job.set_parameters({
-                'original_length': len(document.content),
-                'cleaned_length': len(cleaned_text),
-                'model': metadata.get('model'),
-                'input_tokens': metadata.get('input_tokens'),
-                'output_tokens': metadata.get('output_tokens'),
-                'chunks_processed': metadata.get('chunks_processed', 1)
-            })
-            db.session.commit()
+            # Create new app context for background thread
+            background_app = create_app()
+            with background_app.app_context():
+                try:
+                    # Get job in this thread's session
+                    job = ProcessingJob.query.get(job_id)
 
-            return jsonify({
-                'success': True,
-                'job_id': job.id,
-                'original_text': document.content,
-                'cleaned_text': cleaned_text,
-                'metadata': metadata
-            })
+                    # Progress callback to update job parameters
+                    def update_progress(current_chunk, total_chunks):
+                        job_refresh = ProcessingJob.query.get(job_id)
+                        job_refresh.set_parameters({
+                            'original_length': len(document_content),
+                            'current_chunk': current_chunk,
+                            'total_chunks': total_chunks,
+                            'progress_message': f'Processing chunk {current_chunk} of {total_chunks}...'
+                        })
+                        db.session.commit()
 
-        except Exception as e:
-            # Update job with failure
-            job.status = 'failed'
-            job.completed_at = db.func.now()
-            job.set_parameters({
-                'error': str(e),
-                'original_length': len(document.content)
-            })
-            db.session.commit()
+                    # Use TextCleanupService to clean the text
+                    cleanup_service = TextCleanupService()
+                    cleaned_text, metadata = cleanup_service.clean_text(
+                        document_content,
+                        progress_callback=update_progress
+                    )
 
-            return jsonify({
-                'success': False,
-                'error': f'LLM text cleaning failed: {str(e)}'
-            }), 500
+                    # Update job with success
+                    job.status = 'completed'
+                    job.completed_at = db.func.now()
+                    job.set_parameters({
+                        'original_length': len(document_content),
+                        'cleaned_length': len(cleaned_text),
+                        'model': metadata.get('model'),
+                        'input_tokens': metadata.get('input_tokens'),
+                        'output_tokens': metadata.get('output_tokens'),
+                        'chunks_processed': metadata.get('chunks_processed', 1),
+                        'current_chunk': metadata.get('chunks_processed', 1),
+                        'total_chunks': metadata.get('chunks_processed', 1),
+                        'progress_message': 'Cleanup complete'
+                    })
+                    job.set_result_data({
+                        'original_text': document_content,
+                        'cleaned_text': cleaned_text,
+                        'metadata': metadata
+                    })
+                    db.session.commit()
+
+                except Exception as e:
+                    # Update job with failure
+                    job_refresh = ProcessingJob.query.get(job_id)
+                    job_refresh.status = 'failed'
+                    job_refresh.completed_at = db.func.now()
+                    job_refresh.set_parameters({
+                        'error': str(e),
+                        'original_length': len(document_content),
+                        'progress_message': f'Error: {str(e)}'
+                    })
+                    db.session.commit()
+                    app.logger.error(f"Background text cleanup failed: {e}")
+
+        # Start background thread
+        thread = threading.Thread(target=process_in_background, daemon=True)
+        thread.start()
+
+        # Return job ID immediately for polling
+        return jsonify({
+            'success': True,
+            'job_id': job_id,
+            'status': 'running',
+            'message': 'Text cleanup started. Poll for progress updates.'
+        })
 
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
@@ -1183,6 +1227,39 @@ def get_langextract_details(job_id):
         }
 
         return jsonify(response_data)
+
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@processing_bp.route('/job/<int:job_id>/status', methods=['GET'])
+def get_job_status(job_id):
+    """Get status and progress of a specific processing job"""
+    try:
+        job = ProcessingJob.query.get_or_404(job_id)
+
+        params = job.get_parameters()
+        result_data = job.get_result_data()
+
+        response = {
+            'success': True,
+            'job_id': job.id,
+            'status': job.status,
+            'created_at': job.created_at.isoformat() if job.created_at else None,
+            'completed_at': job.completed_at.isoformat() if job.completed_at else None,
+            'parameters': params,
+            'result_data': result_data
+        }
+
+        # Add progress info if available
+        if 'current_chunk' in params and 'total_chunks' in params:
+            response['progress'] = {
+                'current': params['current_chunk'],
+                'total': params['total_chunks'],
+                'message': params.get('progress_message', ''),
+                'percentage': int((params['current_chunk'] / params['total_chunks']) * 100) if params['total_chunks'] > 0 else 0
+            }
+
+        return jsonify(response)
 
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500

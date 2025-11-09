@@ -19,6 +19,13 @@
                             <i class="fas fa-robot me-2"></i>
                             <span id="cleanup-progress-message">Processing with Claude Sonnet 4.5...</span>
                         </h4>
+                        <div class="container" style="max-width: 600px;">
+                            <div class="progress mb-3" style="height: 30px;">
+                                <div id="cleanup-progress-bar" class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width: 0%;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">
+                                    <span id="cleanup-progress-percent">0%</span>
+                                </div>
+                            </div>
+                        </div>
                         <p class="text-dark">
                             Analyzing your document and identifying improvements.<br>
                             This may take up to a minute depending on document length and API load.<br>
@@ -189,6 +196,8 @@
     let changeStates = {}; // Track which changes have been accepted/rejected
     let changeCounter = 0;
     let isProcessing = false; // Track if currently processing
+    let currentJobId = null;
+    let progressPollInterval = null;
 
     function openTextCleanupModal(documentUuid) {
         // Reset state
@@ -196,6 +205,7 @@
         changeStates = {};
         changeCounter = 0;
         isProcessing = true;
+        currentJobId = null;
 
         // Show modal
         const modal = new bootstrap.Modal(document.getElementById('textCleanupModal'));
@@ -205,9 +215,9 @@
         document.getElementById('cleanup-modal-close-btn').disabled = true;
 
         // Show progress
-        showCleanupProgress('Processing with Claude Sonnet 4.5...');
+        showCleanupProgress('Starting text cleanup...', 0);
 
-        // Call backend to clean text
+        // Call backend to start clean text job
         fetch(`/process/document/${documentUuid}/clean-text`, {
             method: 'POST',
             headers: {
@@ -216,11 +226,12 @@
         })
         .then(response => response.json())
         .then(data => {
-            if (data.success) {
-                // Display the diff
-                displayTrackChanges(data.original_text, data.cleaned_text);
+            if (data.success && data.job_id) {
+                // Start polling for progress
+                currentJobId = data.job_id;
+                startProgressPolling(documentUuid);
             } else {
-                showCleanupError(data.error || 'Unknown error occurred');
+                showCleanupError(data.error || 'Failed to start text cleanup');
             }
         })
         .catch(error => {
@@ -228,13 +239,63 @@
         });
     }
 
-    function showCleanupProgress(message) {
+    function startProgressPolling(documentUuid) {
+        // Poll every 1 second
+        progressPollInterval = setInterval(() => {
+            fetch(`/process/job/${currentJobId}/status`)
+                .then(response => response.json())
+                .then(data => {
+                    if (!data.success) {
+                        clearInterval(progressPollInterval);
+                        showCleanupError('Error checking job status');
+                        return;
+                    }
+
+                    // Update progress
+                    if (data.progress) {
+                        const percentage = data.progress.percentage || 0;
+                        const message = data.progress.message || 'Processing...';
+                        showCleanupProgress(message, percentage);
+                    }
+
+                    // Check if completed
+                    if (data.status === 'completed') {
+                        clearInterval(progressPollInterval);
+
+                        // Get result data
+                        const resultData = data.result_data || {};
+                        if (resultData.original_text && resultData.cleaned_text) {
+                            displayTrackChanges(resultData.original_text, resultData.cleaned_text);
+                        } else {
+                            showCleanupError('Cleanup completed but no result data found');
+                        }
+                    } else if (data.status === 'failed') {
+                        clearInterval(progressPollInterval);
+                        const error = data.parameters?.error || 'Unknown error';
+                        showCleanupError(`Text cleanup failed: ${error}`);
+                    }
+                })
+                .catch(error => {
+                    clearInterval(progressPollInterval);
+                    showCleanupError(`Error polling job status: ${error.message}`);
+                });
+        }, 1000); // Poll every second
+    }
+
+    function showCleanupProgress(message, percentage) {
         document.getElementById('cleanup-progress-container').style.display = 'block';
         document.getElementById('cleanup-stats-container').style.display = 'none';
         document.getElementById('cleanup-editor-container').style.display = 'none';
         document.getElementById('cleanup-error-container').style.display = 'none';
         document.getElementById('cleanup-progress-message').textContent = message;
         document.getElementById('save-cleaned-text-btn').disabled = true;
+
+        // Update progress bar
+        const progressBar = document.getElementById('cleanup-progress-bar');
+        const progressPercent = document.getElementById('cleanup-progress-percent');
+        progressBar.style.width = percentage + '%';
+        progressBar.setAttribute('aria-valuenow', percentage);
+        progressPercent.textContent = Math.round(percentage) + '%';
     }
 
     function showCleanupError(message) {
@@ -527,6 +588,18 @@
         if (isProcessing) {
             if (!confirm('Text cleanup is still in progress. Are you sure you want to close?\n\nClosing now will lose all progress.')) {
                 event.preventDefault();
+            } else {
+                // Clear polling if user confirms closing
+                if (progressPollInterval) {
+                    clearInterval(progressPollInterval);
+                    progressPollInterval = null;
+                }
+            }
+        } else {
+            // Clear polling when modal closes normally
+            if (progressPollInterval) {
+                clearInterval(progressPollInterval);
+                progressPollInterval = null;
             }
         }
     });

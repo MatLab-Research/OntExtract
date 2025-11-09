@@ -375,29 +375,72 @@ def document_detail(document_uuid):
 @text_input_bp.route('/document/<uuid:document_uuid>/delete', methods=['POST'])
 @write_login_required  # Require login for deletion
 def delete_document(document_uuid):
-    """Delete a document"""
+    """Delete a document and all its versions"""
+    from app.models import TextSegment, ProcessingJob
+    from sqlalchemy import text
+
     document = Document.query.filter_by(uuid=document_uuid).first_or_404()
-    
+
     try:
-        # Delete associated file
-        document.delete_file()
-        
-        # Delete database record (cascades to related records)
-        db.session.delete(document)
+        # Find base document and all versions
+        if document.source_document_id:
+            base_doc = Document.query.get(document.source_document_id)
+        else:
+            base_doc = document
+
+        # Get all document IDs in this family
+        version_docs = Document.query.filter_by(source_document_id=base_doc.id).all()
+        all_doc_ids = [base_doc.id] + [v.id for v in version_docs]
+
+        # 1. Delete processing jobs
+        ProcessingJob.query.filter(ProcessingJob.document_id.in_(all_doc_ids)).delete(synchronize_session=False)
+
+        # 2. Delete version changelog
+        db.session.execute(
+            text("DELETE FROM version_changelog WHERE document_id = ANY(:doc_ids)"),
+            {'doc_ids': all_doc_ids}
+        )
+
+        # 3. Delete text segments
+        TextSegment.query.filter(TextSegment.document_id.in_(all_doc_ids)).delete(synchronize_session=False)
+
+        # 4. Delete experiment associations (both tables)
+        db.session.execute(
+            text("DELETE FROM experiment_documents_v2 WHERE document_id = ANY(:doc_ids)"),
+            {'doc_ids': all_doc_ids}
+        )
+        db.session.execute(
+            text("DELETE FROM experiment_documents WHERE document_id = ANY(:doc_ids)"),
+            {'doc_ids': all_doc_ids}
+        )
+
+        # 5. Delete files for all documents
+        base_doc.delete_file()
+        for version in version_docs:
+            version.delete_file()
+
+        # 6. Delete version documents first
+        for version in version_docs:
+            db.session.delete(version)
+
+        # 7. Delete base document
+        db.session.delete(base_doc)
+
         db.session.commit()
-        
+
         if request.is_json:
-            return jsonify({'success': True, 'message': 'Document deleted successfully'})
-        
-        flash('Document deleted successfully', 'success')
+            return jsonify({'success': True, 'message': 'Document and all versions deleted successfully'})
+
+        flash('Document and all versions deleted successfully', 'success')
         return redirect(url_for('text_input.document_list'))
-        
+
     except Exception as e:
+        db.session.rollback()
         current_app.logger.error(f"Error deleting document: {str(e)}")
-        
+
         if request.is_json:
             return jsonify({'error': 'An error occurred while deleting the document'}), 500
-        
+
         flash('An error occurred while deleting the document', 'error')
         return redirect(url_for('text_input.document_detail', document_uuid=document_uuid))
 
