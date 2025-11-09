@@ -96,9 +96,13 @@
                                 <div class="mb-3">
                                     <label for="llm_model" class="form-label">Model</label>
                                     <select class="form-select" id="llm_model">
+                                        <option value="claude-sonnet-4-5-20250929"
+                                                {% if settings.llm.llm_model == 'claude-sonnet-4-5-20250929' %}selected{% endif %}>
+                                            Claude Sonnet 4.5 (Latest)
+                                        </option>
                                         <option value="claude-3-5-sonnet-20241022"
                                                 {% if settings.llm.llm_model == 'claude-3-5-sonnet-20241022' %}selected{% endif %}>
-                                            Claude 3.5 Sonnet
+                                            Claude 3.5 Sonnet (Legacy)
                                         </option>
                                         <option value="gpt-4"
                                                 {% if settings.llm.llm_model == 'gpt-4' %}selected{% endif %}>

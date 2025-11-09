@@ -66,85 +66,20 @@
         <!-- Main Document Processing Area -->
         <div class="col-lg-8">
             <!-- Document Header -->
-            <div class="d-flex justify-content-between align-items-start mb-4">
-                <div>
-                    <h1 class="h3 mb-2">{{ document.get_display_name() }}</h1>
-                    <div class="text-muted">
-                        <i class="fas fa-calendar me-2"></i>Created {{ document.created_at.strftime('%B %d, %Y at %I:%M %p') }}
-                        {% if document.content_type == 'file' %}
-                        <br><i class="fas fa-file me-2"></i>{{ document.original_filename }}
-                        ({{ "%.1f"|format(document.file_size / 1024) }} KB)
-                        {% endif %}
-                    </div>
+            <div class="mb-4">
+                <h1 class="h3 mb-2">{{ document.get_display_name() }}</h1>
+                <div class="text-muted">
+                    <i class="fas fa-calendar me-2"></i>Created {{ document.created_at.strftime('%B %d, %Y at %I:%M %p') }}
+                    {% if document.content_type == 'file' %}
+                    <br><i class="fas fa-file me-2"></i>{{ document.original_filename }}
+                    ({{ "%.1f"|format(document.file_size / 1024) }} KB)
+                    {% endif %}
                 </div>
-            </div>
-
-
-            <!-- Document Status with Navigation and Progress -->
-            <div class="card mb-4">
-                <div class="card-body">
-                    <div class="row mb-3">
-                        <div class="col-md-8">
-                            <h6 class="card-title mb-2">
-                                <i class="fas fa-info-circle me-2"></i>Document Status
-                            </h6>
-                            <div class="d-flex align-items-center">
-                                {% if document.status == 'uploaded' %}
-                                <span class="badge bg-primary">Uploaded</span>
-                                {% elif document.status == 'processing' %}
-                                <span class="badge bg-warning">Processing</span>
-                                {% elif document.status == 'completed' %}
-                                <span class="badge bg-success">Completed</span>
-                                {% elif document.status == 'error' %}
-                                <span class="badge bg-danger">Error</span>
-                                {% endif %}
-                                <span class="ms-2 text-muted">
-                                    {% if document.detected_language %}
-                                    • {{ document.detected_language.upper() }}
-                                    {% if document.language_confidence %}
-                                    ({{ "%.0f"|format(document.language_confidence * 100) }}% confidence)
-                                    {% endif %}
-                                    {% endif %}
-                                </span>
-                            </div>
-                        </div>
-                        <div class="col-md-4">
-                            <div class="d-flex align-items-center justify-content-between mb-2">
-                                <small class="text-muted">Progress:</small>
-                                <span class="badge bg-secondary">{{ doc_index + 1 }} of {{ total_docs }}</span>
-                            </div>
-                            <div class="progress mb-2" style="height: 4px;">
-                                <div class="progress-bar" role="progressbar" 
-                                     style="width: {{ ((doc_index + 1) / total_docs * 100)|round }}%"></div>
-                            </div>
-                            <a href="{{ url_for('text_input.document_detail', document_uuid=document.uuid) }}"
-                               class="btn btn-outline-secondary btn-sm w-100">
-                                <i class="fas fa-eye me-1"></i>View Full
-                            </a>
-                        </div>
-                    </div>
-                    
-                    <!-- Document Navigation -->
-                    <div class="d-grid gap-2">
-                        {% if has_previous %}
-                        <a href="{{ url_for('experiments.process_document', experiment_id=experiment.id, document_uuid=previous_doc_uuid) }}" 
-                           class="btn btn-outline-primary">
-                            <i class="fas fa-arrow-left me-2"></i>Previous Document
-                        </a>
-                        {% endif %}
-                        
-                        {% if has_next %}
-                        <a href="{{ url_for('experiments.process_document', experiment_id=experiment.id, document_uuid=next_doc_uuid) }}" 
-                           class="btn btn-outline-primary">
-                            <i class="fas fa-arrow-right me-2"></i>Next Document
-                        </a>
-                        {% else %}
-                        <a href="{{ url_for('experiments.document_pipeline', experiment_id=experiment.id) }}" 
-                           class="btn btn-success">
-                            <i class="fas fa-check me-2"></i>All Documents Complete
-                        </a>
-                        {% endif %}
-                    </div>
+                <div class="mt-2">
+                    <a href="{{ url_for('text_input.document_detail', document_uuid=document.uuid) }}"
+                       class="btn btn-outline-secondary btn-sm" target="_blank">
+                        <i class="fas fa-eye me-1"></i>View Full Document
+                    </a>
                 </div>
             </div>
 
@@ -226,20 +161,6 @@
                                 </div>
                             </div>
 
-                            <!-- Metadata Analysis Group -->
-                            <div class="border rounded p-3 mb-3 bg-secondary bg-opacity-10">
-                                <h6 class="mb-3">
-                                    <i class="fas fa-info-circle text-primary me-2"></i>Metadata Analysis
-                                </h6>
-                                <div class="form-check">
-                                    <input class="form-check-input tool-checkbox" type="checkbox"
-                                           value="metadata" id="tool-metadata">
-                                    <label class="form-check-label" for="tool-metadata">
-                                        <strong>Analyze Metadata</strong>
-                                        <br><small class="text-muted">Extract title, authors, dates, etc.</small>
-                                    </label>
-                                </div>
-                            </div>
 
                             <!-- Enhanced Processing Group -->
                             <div class="border rounded p-3 mb-3 bg-secondary bg-opacity-10">
@@ -276,13 +197,16 @@
 
             <!-- Text Content -->
             <div class="card mb-4">
-                <div class="card-header">
+                <div class="card-header d-flex justify-content-between align-items-center">
                     <h5 class="mb-0">
                         <i class="fas fa-align-left me-2"></i>Content
                         <span class="badge bg-secondary ms-2">
                             {{ document.content|length|int|filesizeformat if document.content else '0 bytes' }}
                         </span>
                     </h5>
+                    <button class="btn btn-primary btn-sm" onclick="openTextCleanupModal('{{ document.uuid }}')">
+                        <i class="fas fa-broom me-1"></i>Clean Text with AI
+                    </button>
                 </div>
                 <div class="card-body">
                     {% if document.content %}
@@ -299,6 +223,7 @@
                     {% endif %}
                 </div>
             </div>
+
         </div>
 
         <!-- Processing Sidebar -->
@@ -330,7 +255,7 @@
                             </button>
                         </div>
                         <div class="text-center mt-2">
-                            <small class="text-muted">Select tools from the list below</small>
+                            <small class="text-muted">Select from available processing tools</small>
                         </div>
 
                         <!-- Progress Bar -->
@@ -419,12 +344,11 @@ document.addEventListener('DOMContentLoaded', function() {
     const runAllToolsBtn = document.getElementById('run-all-tools-btn');
     if (runAllToolsBtn) {
         runAllToolsBtn.addEventListener('click', async function() {
-            // Optimal pipeline order: segment → embeddings → entities → metadata → enhanced
+            // Optimal pipeline order: segment → embeddings → entities → enhanced
             const allTools = [
                 'segment_paragraph',
                 'embeddings_local',
                 'entities_spacy',
-                'metadata',
                 'enhanced'
             ];
 
@@ -514,10 +438,6 @@ document.addEventListener('DOMContentLoaded', function() {
             endpoint = `/process/document/${documentId}/entities`;
             method = 'spacy';
             requestBody = { entity_types: ['PERSON', 'ORG', 'GPE', 'DATE'] };
-        } else if (tool === 'metadata') {
-            endpoint = `/process/document/${documentId}/metadata`;
-            method = 'metadata';
-            requestBody = {};
         } else if (tool === 'enhanced') {
             endpoint = `/process/document/${documentId}/enhanced`;
             method = 'enhanced';
@@ -601,7 +521,6 @@ document.addEventListener('DOMContentLoaded', function() {
         if (toolName.includes('segment')) return '<i class="fas fa-cut text-warning"></i>';
         if (toolName.includes('embeddings')) return '<i class="fas fa-vector-square text-info"></i>';
         if (toolName.includes('entities')) return '<i class="fas fa-tags text-success"></i>';
-        if (toolName.includes('metadata')) return '<i class="fas fa-info-circle text-primary"></i>';
         if (toolName.includes('enhanced')) return '<i class="fas fa-sparkles text-danger"></i>';
         return '<i class="fas fa-cog"></i>';
     }
@@ -613,11 +532,12 @@ document.addEventListener('DOMContentLoaded', function() {
             'embeddings_local': 'Local Embeddings',
             'embeddings_openai': 'OpenAI Embeddings',
             'entities_spacy': 'Entity Extraction (spaCy)',
-            'metadata': 'Metadata Analysis',
             'enhanced': 'Enhanced Processing'
         };
         return names[toolName] || toolName;
     }
+
+    // Text Cleanup Modal function is defined in text_cleanup_modal.html include
 
     function formatToolResult(result) {
         if (result.status !== 'success') {
@@ -929,5 +849,22 @@ function showAlert(type, message) {
         }
     }, 5000);
 }
+
+function toggleFullContent() {
+    const preview = document.querySelector('.content-preview');
+    const button = event.target;
+
+    if (preview.style.maxHeight === '400px' || !preview.style.maxHeight) {
+        preview.style.maxHeight = 'none';
+        button.innerHTML = '<i class="fas fa-compress me-2"></i>Show Less';
+    } else {
+        preview.style.maxHeight = '400px';
+        button.innerHTML = '<i class="fas fa-expand me-2"></i>Show Full Content';
+    }
+}
 </script>
+
+<!-- Include Text Cleanup Modal -->
+{% include 'processing/text_cleanup_modal.html' %}
+
 {% endblock %}

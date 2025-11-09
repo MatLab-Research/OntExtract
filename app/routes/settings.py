@@ -219,7 +219,7 @@ def test_llm_connection():
         test_prompt = "Respond with: 'Connection successful!'"
 
         if provider == 'anthropic':
-            result = PromptService._call_anthropic(test_prompt, 'claude-3-5-sonnet-20241022', api_key)
+            result = PromptService._call_anthropic(test_prompt, 'claude-sonnet-4-5-20250929', api_key)
         elif provider == 'openai':
             result = PromptService._call_openai(test_prompt, 'gpt-4', api_key)
         else:

@@ -1,0 +1,498 @@
+<!-- Text Cleanup Modal with Track Changes -->
+<div class="modal fade" id="textCleanupModal" tabindex="-1" aria-labelledby="textCleanupModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-fullscreen">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title" id="textCleanupModalLabel">
+                    <i class="fas fa-broom me-2"></i>Review Text Cleanup Changes
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body" style="background-color: #f8f9fa;">
+                <!-- Progress Indicator -->
+                <div id="cleanup-progress-container" style="display: none;">
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle me-2"></i>
+                        <span id="cleanup-progress-message">Processing with AI...</span>
+                    </div>
+                    <div class="progress mb-3" style="height: 25px;">
+                        <div id="cleanup-progress-bar" class="progress-bar progress-bar-striped progress-bar-animated"
+                             role="progressbar" style="width: 0%">
+                            <span id="cleanup-progress-text">0%</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Statistics Card -->
+                <div id="cleanup-stats-container" style="display: none;">
+                    <div class="card mb-3">
+                        <div class="card-body">
+                            <div class="row text-center">
+                                <div class="col-md-3">
+                                    <h6 class="text-muted mb-1">Total Changes</h6>
+                                    <h4 id="stats-total-changes" class="mb-0">0</h4>
+                                </div>
+                                <div class="col-md-3">
+                                    <h6 class="text-muted mb-1">Insertions</h6>
+                                    <h4 id="stats-insertions" class="mb-0 text-success">0</h4>
+                                </div>
+                                <div class="col-md-3">
+                                    <h6 class="text-muted mb-1">Deletions</h6>
+                                    <h4 id="stats-deletions" class="mb-0 text-danger">0</h4>
+                                </div>
+                                <div class="col-md-3">
+                                    <h6 class="text-muted mb-1">Pending</h6>
+                                    <h4 id="stats-pending" class="mb-0 text-warning">0</h4>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Track Changes Display -->
+                <div id="cleanup-editor-container" style="display: none;">
+                    <div class="card">
+                        <div class="card-header d-flex justify-content-between align-items-center">
+                            <div>
+                                <h6 class="mb-0">
+                                    <i class="fas fa-file-alt me-2"></i>Document with Tracked Changes
+                                </h6>
+                                <small class="text-muted">Click on individual changes to accept or reject them</small>
+                            </div>
+                            <div class="btn-group" role="group">
+                                <button type="button" class="btn btn-sm btn-outline-success" onclick="acceptAllChanges()">
+                                    <i class="fas fa-check-double me-1"></i>Accept All
+                                </button>
+                                <button type="button" class="btn btn-sm btn-outline-danger" onclick="rejectAllChanges()">
+                                    <i class="fas fa-times me-1"></i>Reject All
+                                </button>
+                            </div>
+                        </div>
+                        <div class="card-body" style="max-height: 60vh; overflow-y: auto; background-color: white; color: #000;">
+                            <div id="track-changes-display" style="font-family: 'Georgia', serif; font-size: 16px; line-height: 1.8;">
+                                <!-- Diff content will be inserted here -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Error Display -->
+                <div id="cleanup-error-container" style="display: none;">
+                    <div class="alert alert-danger">
+                        <i class="fas fa-exclamation-circle me-2"></i>
+                        <strong>Error:</strong> <span id="cleanup-error-message"></span>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    <i class="fas fa-times me-1"></i>Cancel
+                </button>
+                <button type="button" class="btn btn-primary" id="save-cleaned-text-btn" onclick="saveCleanedText()" disabled>
+                    <i class="fas fa-save me-1"></i>Save Changes
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Custom CSS for Track Changes -->
+<style>
+    /* Insertion styling */
+    .track-change-insert {
+        background-color: #d4edda;
+        border-bottom: 2px solid #28a745;
+        padding: 2px 4px;
+        cursor: pointer;
+        position: relative;
+        transition: all 0.2s ease;
+    }
+
+    .track-change-insert:hover {
+        background-color: #c3e6cb;
+    }
+
+    .track-change-insert.accepted {
+        background-color: transparent;
+        border-bottom: none;
+        cursor: default;
+    }
+
+    /* Deletion styling */
+    .track-change-delete {
+        background-color: #f8d7da;
+        text-decoration: line-through;
+        color: #721c24;
+        padding: 2px 4px;
+        cursor: pointer;
+        position: relative;
+        transition: all 0.2s ease;
+    }
+
+    .track-change-delete:hover {
+        background-color: #f5c6cb;
+    }
+
+    .track-change-delete.rejected {
+        display: none;
+    }
+
+    /* Action buttons on hover */
+    .track-change-actions {
+        display: none;
+        position: absolute;
+        top: -35px;
+        left: 0;
+        background: white;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        padding: 4px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+        z-index: 1000;
+    }
+
+    .track-change-insert:hover .track-change-actions,
+    .track-change-delete:hover .track-change-actions {
+        display: flex;
+        gap: 4px;
+    }
+
+    .track-change-actions button {
+        padding: 2px 8px;
+        font-size: 12px;
+        border: none;
+        border-radius: 3px;
+        cursor: pointer;
+    }
+
+    .track-change-actions .btn-accept {
+        background-color: #28a745;
+        color: white;
+    }
+
+    .track-change-actions .btn-reject {
+        background-color: #dc3545;
+        color: white;
+    }
+</style>
+
+<!-- diff-match-patch Library (Google) -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/diff_match_patch/20121119/diff_match_patch.js"></script>
+
+<!-- Track Changes JavaScript -->
+<script>
+    let currentDiffData = null;
+    let changeStates = {}; // Track which changes have been accepted/rejected
+    let changeCounter = 0;
+
+    function openTextCleanupModal(documentUuid) {
+        // Reset state
+        currentDiffData = null;
+        changeStates = {};
+        changeCounter = 0;
+
+        // Show modal
+        const modal = new bootstrap.Modal(document.getElementById('textCleanupModal'));
+        modal.show();
+
+        // Show progress
+        showCleanupProgress('Requesting AI text cleanup...');
+
+        // Call backend to clean text
+        fetch(`/process/document/${documentUuid}/clean-text`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Display the diff
+                displayTrackChanges(data.original_text, data.cleaned_text);
+            } else {
+                showCleanupError(data.error || 'Unknown error occurred');
+            }
+        })
+        .catch(error => {
+            showCleanupError(error.message);
+        });
+    }
+
+    function showCleanupProgress(message) {
+        document.getElementById('cleanup-progress-container').style.display = 'block';
+        document.getElementById('cleanup-stats-container').style.display = 'none';
+        document.getElementById('cleanup-editor-container').style.display = 'none';
+        document.getElementById('cleanup-error-container').style.display = 'none';
+        document.getElementById('cleanup-progress-message').textContent = message;
+        document.getElementById('save-cleaned-text-btn').disabled = true;
+    }
+
+    function showCleanupError(message) {
+        document.getElementById('cleanup-progress-container').style.display = 'none';
+        document.getElementById('cleanup-stats-container').style.display = 'none';
+        document.getElementById('cleanup-editor-container').style.display = 'none';
+        document.getElementById('cleanup-error-container').style.display = 'block';
+        document.getElementById('cleanup-error-message').textContent = message;
+        document.getElementById('save-cleaned-text-btn').disabled = true;
+    }
+
+    function displayTrackChanges(originalText, cleanedText) {
+        // Hide progress
+        document.getElementById('cleanup-progress-container').style.display = 'none';
+
+        // Show editor and stats
+        document.getElementById('cleanup-stats-container').style.display = 'block';
+        document.getElementById('cleanup-editor-container').style.display = 'block';
+        document.getElementById('save-cleaned-text-btn').disabled = false;
+
+        // Compute diff using diff-match-patch
+        const dmp = new diff_match_patch();
+        const diffs = dmp.diff_main(originalText, cleanedText);
+        dmp.diff_cleanupSemantic(diffs);
+
+        // Store diff data
+        currentDiffData = {
+            original: originalText,
+            cleaned: cleanedText,
+            diffs: diffs
+        };
+
+        // Render track changes
+        renderDiffHTML(diffs);
+
+        // Update statistics
+        updateStatistics();
+    }
+
+    function renderDiffHTML(diffs) {
+        const container = document.getElementById('track-changes-display');
+        container.innerHTML = '';
+
+        let insertCount = 0;
+        let deleteCount = 0;
+
+        diffs.forEach((diff, index) => {
+            const [operation, text] = diff;
+
+            if (operation === 0) {
+                // Equal - unchanged text
+                const span = document.createElement('span');
+                span.textContent = text;
+                container.appendChild(span);
+            } else if (operation === 1) {
+                // Insertion
+                const changeId = `insert-${changeCounter++}`;
+                changeStates[changeId] = 'pending';
+
+                const span = document.createElement('span');
+                span.className = 'track-change-insert';
+                span.id = changeId;
+                span.textContent = text;
+                span.title = 'Insertion - Click to accept or reject';
+
+                // Add action buttons
+                const actions = document.createElement('div');
+                actions.className = 'track-change-actions';
+                actions.innerHTML = `
+                    <button class="btn-accept" onclick="acceptChange('${changeId}', event)">Accept</button>
+                    <button class="btn-reject" onclick="rejectChange('${changeId}', event)">Reject</button>
+                `;
+                span.appendChild(actions);
+
+                container.appendChild(span);
+                insertCount++;
+            } else if (operation === -1) {
+                // Deletion
+                const changeId = `delete-${changeCounter++}`;
+                changeStates[changeId] = 'pending';
+
+                const span = document.createElement('span');
+                span.className = 'track-change-delete';
+                span.id = changeId;
+                span.textContent = text;
+                span.title = 'Deletion - Click to accept or reject';
+
+                // Add action buttons
+                const actions = document.createElement('div');
+                actions.className = 'track-change-actions';
+                actions.innerHTML = `
+                    <button class="btn-accept" onclick="acceptChange('${changeId}', event)">Accept</button>
+                    <button class="btn-reject" onclick="rejectChange('${changeId}', event)">Reject</button>
+                `;
+                span.appendChild(actions);
+
+                container.appendChild(span);
+                deleteCount++;
+            }
+        });
+    }
+
+    function acceptChange(changeId, event) {
+        if (event) event.stopPropagation();
+
+        const element = document.getElementById(changeId);
+        if (!element) return;
+
+        changeStates[changeId] = 'accepted';
+
+        if (changeId.startsWith('insert-')) {
+            element.classList.add('accepted');
+        } else if (changeId.startsWith('delete-')) {
+            element.classList.add('rejected'); // Accepting deletion = remove the text
+        }
+
+        updateStatistics();
+    }
+
+    function rejectChange(changeId, event) {
+        if (event) event.stopPropagation();
+
+        const element = document.getElementById(changeId);
+        if (!element) return;
+
+        changeStates[changeId] = 'rejected';
+
+        if (changeId.startsWith('insert-')) {
+            element.style.display = 'none'; // Rejecting insertion = hide it
+        } else if (changeId.startsWith('delete-')) {
+            element.style.textDecoration = 'none';
+            element.style.backgroundColor = 'transparent';
+            element.style.color = 'inherit';
+        }
+
+        updateStatistics();
+    }
+
+    function acceptAllChanges() {
+        Object.keys(changeStates).forEach(changeId => {
+            if (changeStates[changeId] === 'pending') {
+                acceptChange(changeId, null);
+            }
+        });
+    }
+
+    function rejectAllChanges() {
+        Object.keys(changeStates).forEach(changeId => {
+            if (changeStates[changeId] === 'pending') {
+                rejectChange(changeId, null);
+            }
+        });
+    }
+
+    function updateStatistics() {
+        let totalChanges = 0;
+        let insertions = 0;
+        let deletions = 0;
+        let pending = 0;
+
+        Object.keys(changeStates).forEach(changeId => {
+            totalChanges++;
+            if (changeId.startsWith('insert-')) {
+                insertions++;
+            } else if (changeId.startsWith('delete-')) {
+                deletions++;
+            }
+
+            if (changeStates[changeId] === 'pending') {
+                pending++;
+            }
+        });
+
+        document.getElementById('stats-total-changes').textContent = totalChanges;
+        document.getElementById('stats-insertions').textContent = insertions;
+        document.getElementById('stats-deletions').textContent = deletions;
+        document.getElementById('stats-pending').textContent = pending;
+    }
+
+    function getCleanedContent() {
+        // Reconstruct text based on accepted/rejected changes
+        if (!currentDiffData) return '';
+
+        let result = '';
+        let changeIndex = 0;
+
+        currentDiffData.diffs.forEach((diff, index) => {
+            const [operation, text] = diff;
+
+            if (operation === 0) {
+                // Unchanged text - always include
+                result += text;
+            } else if (operation === 1) {
+                // Insertion - include if accepted or pending
+                const changeId = `insert-${changeIndex}`;
+                if (changeStates[changeId] !== 'rejected') {
+                    result += text;
+                }
+                changeIndex++;
+            } else if (operation === -1) {
+                // Deletion - include if rejected, exclude if accepted or pending
+                const changeId = `delete-${changeIndex}`;
+                if (changeStates[changeId] === 'rejected') {
+                    result += text;
+                }
+                changeIndex++;
+            }
+        });
+
+        return result;
+    }
+
+    function saveCleanedText() {
+        const documentUuid = '{{ document.uuid }}';
+        const cleanedContent = getCleanedContent();
+
+        // Count accepted and rejected changes
+        let accepted = 0;
+        let rejected = 0;
+
+        Object.values(changeStates).forEach(state => {
+            if (state === 'accepted') accepted++;
+            if (state === 'rejected') rejected++;
+        });
+
+        // Show loading
+        document.getElementById('save-cleaned-text-btn').disabled = true;
+        document.getElementById('save-cleaned-text-btn').innerHTML =
+            '<i class="fas fa-spinner fa-spin me-1"></i>Saving...';
+
+        // Save to backend
+        fetch(`/process/document/${documentUuid}/save-cleaned-text`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                cleaned_content: cleanedContent,
+                changes_accepted: accepted,
+                changes_rejected: rejected,
+                original_length: currentDiffData.original.length,
+                cleaned_length: cleanedContent.length
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Close modal
+                bootstrap.Modal.getInstance(document.getElementById('textCleanupModal')).hide();
+
+                // Show success message
+                alert(`Success! ${accepted} changes accepted, ${rejected} changes rejected.\n\nNew document version created.`);
+
+                // Reload the page to show updated processing status
+                window.location.reload();
+            } else {
+                alert('Error saving cleaned text: ' + (data.error || 'Unknown error'));
+                document.getElementById('save-cleaned-text-btn').disabled = false;
+                document.getElementById('save-cleaned-text-btn').innerHTML =
+                    '<i class="fas fa-save me-1"></i>Save Changes';
+            }
+        })
+        .catch(error => {
+            alert('Error saving cleaned text: ' + error.message);
+            document.getElementById('save-cleaned-text-btn').disabled = false;
+            document.getElementById('save-cleaned-text-btn').innerHTML =
+                '<i class="fas fa-save me-1"></i>Save Changes';
+        });
+    }
+</script>

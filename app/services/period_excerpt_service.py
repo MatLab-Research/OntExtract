@@ -57,7 +57,7 @@ class PeriodExcerptService:
             try:
                 # Get LLM analysis using Anthropic client
                 message = self.client.messages.create(
-                    model=os.environ.get("CLAUDE_DEFAULT_MODEL", "claude-3-5-sonnet-20241022"),
+                    model=os.environ.get("CLAUDE_DEFAULT_MODEL", "claude-sonnet-4-5-20250929"),
                     max_tokens=800,
                     messages=[{"role": "user", "content": prompt}]
                 )

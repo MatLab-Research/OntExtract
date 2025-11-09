@@ -1,0 +1,178 @@
+{% extends "base.html" %}
+
+{% block title %}Text Cleanup Results - {{ document.title }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="row">
+        <div class="col-12">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="{{ url_for('text_input.document_list') }}">Documents</a></li>
+                    <li class="breadcrumb-item">{{ document.title }}</li>
+                    <li class="breadcrumb-item active">Text Cleanup Results</li>
+                </ol>
+            </nav>
+
+            <div class="d-flex justify-content-between align-items-start mb-4">
+                <div>
+                    <h2><i class="fas fa-broom me-2 text-primary"></i>Text Cleanup Results</h2>
+                    <p class="text-muted">{{ document.title }}</p>
+                </div>
+                <div>
+                    <a href="{{ url_for('provenance.timeline', document_uuid=document.uuid) }}"
+                       class="btn btn-outline-secondary" target="_blank">
+                        <i class="fas fa-history me-1"></i>View Provenance
+                    </a>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-lg-8">
+                    <!-- Status Card -->
+                    <div class="card mb-4">
+                        <div class="card-header bg-primary text-white">
+                            <h5 class="mb-0"><i class="fas fa-info-circle me-2"></i>Cleanup Status</h5>
+                        </div>
+                        <div class="card-body">
+                            {% if jobs %}
+                                {% set latest_job = jobs[0] %}
+                                {% set params = latest_job.get_parameters() %}
+
+                                <div class="alert alert-info">
+                                    <i class="fas fa-info-circle me-2"></i>
+                                    <strong>LLM Integration Pending</strong>
+                                    <p class="mb-0 mt-2">
+                                        Text cleanup has been requested and tracked. The LLM-based cleaning implementation is scheduled for future development.
+                                    </p>
+                                </div>
+
+                                <h6 class="mb-3">What Text Cleanup Will Do (Future)</h6>
+                                <ul class="list-unstyled">
+                                    <li class="mb-2">
+                                        <i class="fas fa-check text-success me-2"></i>
+                                        <strong>Fix OCR Errors:</strong> Correct common OCR mistakes and character recognition issues
+                                    </li>
+                                    <li class="mb-2">
+                                        <i class="fas fa-check text-success me-2"></i>
+                                        <strong>Spelling & Grammar:</strong> Correct spelling mistakes and grammar issues
+                                    </li>
+                                    <li class="mb-2">
+                                        <i class="fas fa-check text-success me-2"></i>
+                                        <strong>Formatting:</strong> Improve paragraph breaks, sentence boundaries, and whitespace
+                                    </li>
+                                    <li class="mb-2">
+                                        <i class="fas fa-check text-success me-2"></i>
+                                        <strong>Remove Artifacts:</strong> Clean up scanning artifacts, headers, footers, and noise
+                                    </li>
+                                    <li class="mb-2">
+                                        <i class="fas fa-check text-success me-2"></i>
+                                        <strong>Normalize Text:</strong> Standardize punctuation, quotes, and special characters
+                                    </li>
+                                </ul>
+
+                                <hr class="my-4">
+
+                                <h6 class="mb-3">Document Information</h6>
+                                <dl class="row">
+                                    <dt class="col-sm-4">Original Length</dt>
+                                    <dd class="col-sm-8">{{ params.get('original_length', len(document.content if document.content else '')) }} characters</dd>
+
+                                    <dt class="col-sm-4">Cleanup Requested</dt>
+                                    <dd class="col-sm-8">{{ latest_job.created_at.strftime('%B %d, %Y at %I:%M %p') if latest_job.created_at else 'N/A' }}</dd>
+
+                                    <dt class="col-sm-4">Status</dt>
+                                    <dd class="col-sm-8">
+                                        <span class="badge bg-info">Tracked - Implementation Pending</span>
+                                    </dd>
+                                </dl>
+                            {% else %}
+                                <div class="alert alert-info">
+                                    <i class="fas fa-info-circle me-2"></i>No text cleanup has been performed on this document.
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <!-- Implementation Notes -->
+                    <div class="card mb-4">
+                        <div class="card-header">
+                            <h6 class="mb-0"><i class="fas fa-code me-2"></i>Implementation Notes</h6>
+                        </div>
+                        <div class="card-body">
+                            <p class="text-muted">
+                                This feature will use LLM technology (Claude or GPT) to intelligently clean and improve document text quality.
+                            </p>
+                            <h6 class="mt-3 mb-2">Planned Capabilities:</h6>
+                            <ul>
+                                <li>Context-aware error correction</li>
+                                <li>Preserve technical terms and proper nouns</li>
+                                <li>Maintain document structure and meaning</li>
+                                <li>Create new document version with cleaned text</li>
+                                <li>Highlight changes made for review</li>
+                                <li>Provide before/after comparison</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-lg-4">
+                    <!-- Processing History -->
+                    <div class="card mb-4">
+                        <div class="card-header">
+                            <h6 class="mb-0"><i class="fas fa-history me-2"></i>Processing History</h6>
+                        </div>
+                        <div class="card-body">
+                            {% if jobs|length > 1 %}
+                                <p class="small text-muted mb-3">
+                                    Cleanup requested {{ jobs|length }} times
+                                </p>
+                                <div class="list-group">
+                                    {% for job in jobs %}
+                                    <div class="list-group-item {{ 'active' if loop.first else '' }}">
+                                        <div class="d-flex w-100 justify-content-between">
+                                            <h6 class="mb-1">
+                                                Run {{ loop.index }}
+                                                {% if loop.first %}
+                                                <span class="badge bg-primary ms-2">Latest</span>
+                                                {% endif %}
+                                            </h6>
+                                            <small>{{ job.created_at.strftime('%m/%d %H:%M') if job.created_at else 'N/A' }}</small>
+                                        </div>
+                                        <p class="mb-1 small">
+                                            <span class="badge bg-info ms-1">Tracked</span>
+                                        </p>
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                            {% elif jobs %}
+                                <p class="text-muted">Single cleanup request</p>
+                            {% else %}
+                                <p class="text-muted">No processing history</p>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <!-- Actions -->
+                    <div class="card">
+                        <div class="card-header">
+                            <h6 class="mb-0"><i class="fas fa-cog me-2"></i>Actions</h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="d-grid gap-2">
+                                <a href="{{ url_for('provenance.timeline', document_uuid=document.uuid) }}"
+                                   class="btn btn-outline-primary" target="_blank">
+                                    <i class="fas fa-stream me-1"></i>View Full Timeline
+                                </a>
+                                <button class="btn btn-outline-secondary" onclick="alert('LLM integration coming soon!')">
+                                    <i class="fas fa-magic me-1"></i>Configure Cleanup
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

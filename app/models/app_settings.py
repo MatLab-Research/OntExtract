@@ -136,7 +136,7 @@ class AppSetting(db.Model):
             # LLM Integration Settings
             ('default_llm_provider', 'anthropic', 'llm', 'string', 'Default LLM provider'),
             ('enable_llm_enhancement', False, 'llm', 'boolean', 'Enable LLM enhancement features'),
-            ('llm_model', 'claude-3-5-sonnet-20241022', 'llm', 'string', 'Default LLM model'),
+            ('llm_model', 'claude-sonnet-4-5-20250929', 'llm', 'string', 'Default LLM model'),
             ('llm_max_tokens', 500, 'llm', 'integer', 'Maximum tokens for LLM responses'),
 
             # UI Preferences
