@@ -1,0 +1,254 @@
+{% extends "base.html" %}
+
+{% block title %}Review Strategy - {{ experiment.name }} - OntExtract{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4">
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                    <h2>Review Processing Strategy</h2>
+                    <p class="text-muted mb-0">{{ experiment.name }}</p>
+                </div>
+                <div>
+                    <a href="{{ url_for('experiments.document_pipeline', experiment_id=experiment.id) }}"
+                       class="btn btn-outline-secondary">
+                        <i class="fas fa-arrow-left"></i> Back to Pipeline
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Experiment Goal -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-bullseye me-2"></i>Experiment Goal
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <p class="mb-2">{{ orchestration_run.experiment_goal }}</p>
+
+                    {% if orchestration_run.term_context %}
+                    <div class="alert alert-info mt-3 mb-0">
+                        <strong>Focus Term:</strong> "{{ orchestration_run.term_context }}"
+                        <p class="mb-0 mt-2 small">
+                            This experiment tracks semantic evolution - tools are optimized for
+                            understanding how this term's meaning and context change across documents.
+                        </p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recommended Strategy -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-brain me-2"></i>Recommended Strategy
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <!-- LLM Reasoning -->
+                    <div class="mb-4">
+                        <h6>LLM Reasoning:</h6>
+                        <p class="text-muted">{{ orchestration_run.strategy_reasoning }}</p>
+
+                        <div class="d-flex align-items-center mt-2">
+                            <span class="me-2">Confidence:</span>
+                            <div class="progress flex-grow-1" style="max-width: 300px;">
+                                <div class="progress-bar bg-success" role="progressbar"
+                                     style="width: {{ (orchestration_run.confidence * 100)|int }}%"
+                                     aria-valuenow="{{ (orchestration_run.confidence * 100)|int }}"
+                                     aria-valuemin="0" aria-valuemax="100">
+                                    {{ (orchestration_run.confidence * 100)|int }}%
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Document Strategies Table -->
+                    <h6 class="mt-4 mb-3">Processing Tools per Document:</h6>
+
+                    {% for doc_strategy in document_strategies %}
+                    <div class="card mb-3">
+                        <div class="card-header bg-light">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <strong>{{ doc_strategy.title }}</strong>
+                                    <span class="text-muted ms-2 small">
+                                        ({{ "{:,}".format(doc_strategy.word_count) if doc_strategy.word_count else 'N/A' }} words)
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-12">
+                                    <label class="form-label small text-muted">Selected Tools:</label>
+                                    <div class="tool-selection" data-document-id="{{ doc_strategy.id }}">
+                                        {% for tool_name, tool_def in tool_registry.items() %}
+                                        <div class="form-check form-check-inline">
+                                            <input class="form-check-input tool-checkbox"
+                                                   type="checkbox"
+                                                   id="tool-{{ doc_strategy.id }}-{{ tool_name }}"
+                                                   value="{{ tool_name }}"
+                                                   data-document="{{ doc_strategy.id }}"
+                                                   {% if tool_name in doc_strategy.recommended_tools %}checked{% endif %}>
+                                            <label class="form-check-label small" for="tool-{{ doc_strategy.id }}-{{ tool_name }}">
+                                                {{ tool_name }}
+                                                {% if tool_def.status.value == 'stub' %}
+                                                <span class="badge bg-warning text-dark ms-1">STUB</span>
+                                                {% elif tool_def.status.value == 'implemented' %}
+                                                <span class="badge bg-success ms-1">OK</span>
+                                                {% endif %}
+                                            </label>
+                                        </div>
+                                        {% endfor %}
+                                    </div>
+                                    <small class="text-muted d-block mt-2">
+                                        Modify tool selections as needed. Tools marked "STUB" have limited functionality.
+                                    </small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Review Notes -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-comment me-2"></i>Review Notes (Optional)
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <textarea id="review-notes" class="form-control" rows="3"
+                              placeholder="Add any notes about your strategy modifications..."></textarea>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Action Buttons -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-end gap-2">
+                <button id="cancel-btn" class="btn btn-outline-secondary">
+                    <i class="fas fa-times me-2"></i>Cancel
+                </button>
+                <button id="approve-btn" class="btn btn-success btn-lg">
+                    <i class="fas fa-check me-2"></i>Approve & Process
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Processing Modal -->
+<div class="modal fade" id="processingModal" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Processing Documents</h5>
+            </div>
+            <div class="modal-body">
+                <div class="text-center mb-3">
+                    <div class="spinner-border text-primary" role="status" style="width: 3rem; height: 3rem;">
+                        <span class="visually-hidden">Processing...</span>
+                    </div>
+                </div>
+                <p class="text-center mb-0">Processing documents with selected tools...</p>
+                <p class="text-center text-muted small">This may take a few minutes</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+const runId = '{{ orchestration_run.id }}';
+const experimentId = {{ experiment.id }};
+
+document.addEventListener('DOMContentLoaded', function() {
+    // Handle cancel
+    document.getElementById('cancel-btn').addEventListener('click', function() {
+        if (confirm('Are you sure you want to cancel? This will discard the recommended strategy.')) {
+            window.location.href = `/experiments/${experimentId}/document_pipeline`;
+        }
+    });
+
+    // Handle approve
+    document.getElementById('approve-btn').addEventListener('click', async function() {
+        const btn = this;
+        btn.disabled = true;
+
+        try {
+            // Build modified strategy from checkboxes
+            const modifiedStrategy = {};
+
+            document.querySelectorAll('.tool-selection').forEach(selection => {
+                const docId = selection.getAttribute('data-document-id');
+                const checkedTools = [];
+
+                selection.querySelectorAll('.tool-checkbox:checked').forEach(checkbox => {
+                    checkedTools.push(checkbox.value);
+                });
+
+                if (checkedTools.length > 0) {
+                    modifiedStrategy[docId] = checkedTools;
+                }
+            });
+
+            // Get review notes
+            const reviewNotes = document.getElementById('review-notes').value;
+
+            // Submit approval
+            const response = await fetch(`/orchestration/experiment/${runId}/approve`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    approved: true,
+                    modified_strategy: modifiedStrategy,
+                    review_notes: reviewNotes
+                })
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                // Show processing modal
+                const modal = new bootstrap.Modal(document.getElementById('processingModal'));
+                modal.show();
+
+                // Redirect to results after a delay
+                setTimeout(() => {
+                    window.location.href = `/orchestration/experiment/${runId}/results`;
+                }, 3000);
+            } else {
+                alert(`Error: ${data.error || 'Failed to approve strategy'}`);
+                btn.disabled = false;
+            }
+        } catch (error) {
+            alert(`Error: ${error.message}`);
+            btn.disabled = false;
+        }
+    });
+});
+</script>
+{% endblock %}
