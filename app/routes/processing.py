@@ -1018,6 +1018,56 @@ def save_cleaned_text(document_uuid):
             })
 
         db.session.add(cleanup_job)
+        db.session.flush()  # Flush to get cleanup_job.id
+
+        # Create experiment processing index entries for all experiments associated with this document family
+        # This makes the processing visible in the "Related Experiments" section of the document detail page
+        from app.models.experiment_document import ExperimentDocument
+        from app.models.experiment_processing import ExperimentDocumentProcessing, DocumentProcessingIndex
+
+        # Get root document to find experiment associations
+        root_doc = cleaned_version.get_root_document()
+        all_versions = root_doc.get_all_versions()
+        all_doc_ids = [v.id for v in all_versions]
+
+        # Find all experiments associated with any version in this document family
+        experiment_docs = ExperimentDocument.query.filter(
+            ExperimentDocument.document_id.in_(all_doc_ids)
+        ).all()
+
+        # Create processing records for each associated experiment
+        for exp_doc in experiment_docs:
+            # Create ExperimentDocumentProcessing entry
+            exp_processing = ExperimentDocumentProcessing(
+                experiment_document_id=exp_doc.id,
+                processing_type='clean_text',
+                processing_method='llm_claude',
+                status='completed',
+                started_at=cleanup_job.created_at,
+                completed_at=cleanup_job.completed_at
+            )
+            # Set results summary using the helper method
+            exp_processing.set_results_summary({
+                'processing_job_id': cleanup_job.id,
+                'changes_accepted': changes_accepted,
+                'changes_rejected': changes_rejected,
+                'original_length': original_length,
+                'cleaned_length': cleaned_length
+            })
+            db.session.add(exp_processing)
+            db.session.flush()  # Flush to get exp_processing.id
+
+            # Create DocumentProcessingIndex entry for quick lookup
+            index_entry = DocumentProcessingIndex(
+                document_id=cleaned_version.id,  # Use the new version
+                experiment_id=exp_doc.experiment_id,
+                processing_id=exp_processing.id,
+                processing_type='clean_text',
+                processing_method='llm_claude',
+                status='completed'
+            )
+            db.session.add(index_entry)
+
         db.session.commit()
 
         return jsonify({

@@ -40,8 +40,9 @@ class InheritanceVersioningService:
             new_version_number = (latest_version_in_family.version_number if latest_version_in_family else 0) + 1
             
             # 3. Create the new document object. It's based on the SOURCE content.
+            # IMPORTANT: Keep the original title - display version info via badges, not in title
             new_document = Document(
-                title=f"{source_document.title} ({processing_type})",
+                title=source_document.title,  # Keep original title clean
                 content_type=source_document.content_type,
                 document_type=source_document.document_type,
                 reference_subtype=source_document.reference_subtype,
