@@ -64,7 +64,7 @@ class ExperimentOrchestrationRun(db.Model):
     comparative_summary = db.Column(db.Text, nullable=True)
 
     # Relationships
-    experiment = db.relationship('Experiment', backref='orchestration_runs')
+    experiment = db.relationship('Experiment', backref=db.backref('orchestration_runs', passive_deletes=True))
     user = db.relationship('User', foreign_keys=[user_id], backref='orchestration_runs')
     reviewer = db.relationship('User', foreign_keys=[reviewed_by])
 
