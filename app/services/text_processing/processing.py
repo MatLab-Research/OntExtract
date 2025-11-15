@@ -5,6 +5,7 @@ Handles document and file processing operations.
 """
 
 import logging
+from typing import List
 from app import db
 
 logger = logging.getLogger(__name__)
@@ -91,6 +92,3 @@ class DocumentProcessing:
             chunks.append(current_chunk.strip())
 
         return chunks
-
-
-from typing import List
