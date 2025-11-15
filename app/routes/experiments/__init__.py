@@ -25,11 +25,11 @@ experiments_bp = Blueprint('experiments', __name__, url_prefix='/experiments')
 from . import crud  # noqa: F401, E402
 from . import terms  # noqa: F401, E402
 from . import temporal  # noqa: F401, E402
+from . import evolution  # noqa: F401, E402
 
 # Import remaining routes (temporary until fully extracted)
 from app.routes import experiments_remaining  # noqa: F401, E402
 
 # Note: Additional modules will be imported as they are extracted:
-# from . import evolution  # Evolution analysis
 # from . import orchestration  # LLM orchestration
 # from . import pipeline   # Document pipeline
