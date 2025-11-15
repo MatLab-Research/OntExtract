@@ -624,7 +624,7 @@ def start_experiment_processing():
 
             else:  # llm method - LangExtract + Gemini integration
                 try:
-                    from app.services.integrated_langextract_service import IntegratedLangExtractService
+                    from app.services.integrated_langextract import IntegratedLangExtractService
 
                     # Initialize LangExtract service
                     langextract_service = IntegratedLangExtractService()

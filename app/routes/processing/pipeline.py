@@ -296,7 +296,7 @@ def segment_document(document_id):
         # Handle LangExtract segmentation method
         if method == 'langextract':
             try:
-                from app.services.integrated_langextract_service import IntegratedLangExtractService
+                from app.services.integrated_langextract import IntegratedLangExtractService
 
                 # Check if the service can be initialized
                 try:
