@@ -3,16 +3,146 @@
 {% block content %}
 <div class="d-flex align-items-center mb-3">
   <i class="fas fa-chart-bar me-2"></i>
-  <h2 class="mb-0">Results</h2>
-  <span class="badge bg-secondary ms-2">Placeholder</span>
-  <a href="{{ url_for('experiments.index') }}" class="btn btn-outline-light btn-sm ms-auto"><i class="fas fa-flask me-1"></i> Experiments</a>
+  <h2 class="mb-0">Results Dashboard</h2>
+  <a href="{{ url_for('experiments.index') }}" class="btn btn-outline-light btn-sm ms-auto"><i class="fas fa-flask me-1"></i> All Experiments</a>
   <a href="{{ url_for('processing.processing_home') }}" class="btn btn-outline-light btn-sm ms-2"><i class="fas fa-cogs me-1"></i> Processing</a>
 </div>
 
-<div class="card">
+<!-- Summary Statistics -->
+<div class="row mb-4">
+  <div class="col-md-3">
+    <div class="card bg-primary text-white">
+      <div class="card-body">
+        <h5 class="card-title"><i class="fas fa-flask me-1"></i> Total Experiments</h5>
+        <h2 class="mb-0">{{ total_experiments }}</h2>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="card bg-success text-white">
+      <div class="card-body">
+        <h5 class="card-title"><i class="fas fa-check-circle me-1"></i> Completed</h5>
+        <h2 class="mb-0">{{ completed_experiments }}</h2>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="card bg-info text-white">
+      <div class="card-body">
+        <h5 class="card-title"><i class="fas fa-tasks me-1"></i> Total Jobs</h5>
+        <h2 class="mb-0">{{ total_jobs }}</h2>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="card bg-secondary text-white">
+      <div class="card-body">
+        <h5 class="card-title"><i class="fas fa-clipboard-check me-1"></i> Jobs Complete</h5>
+        <h2 class="mb-0">{{ completed_jobs }}</h2>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Recent Experiments -->
+<div class="card mb-4">
+  <div class="card-header">
+    <h5 class="mb-0"><i class="fas fa-flask me-2"></i>Recent Experiments</h5>
+  </div>
   <div class="card-body">
-    <p class="text-muted">This page will summarize recent experiment results and processing outputs. For now, use the Experiments section to view individual experiment results.</p>
-    <a href="{{ url_for('experiments.index') }}" class="btn btn-primary"><i class="fas fa-flask me-1"></i> Go to Experiments</a>
+    {% if recent_experiments %}
+    <div class="table-responsive">
+      <table class="table table-hover">
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Type</th>
+            <th>Status</th>
+            <th>Created</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for exp in recent_experiments %}
+          <tr>
+            <td><strong>{{ exp.name }}</strong></td>
+            <td><span class="badge bg-info">{{ exp.experiment_type or 'standard' }}</span></td>
+            <td>
+              {% if exp.status == 'completed' %}
+                <span class="badge bg-success">Completed</span>
+              {% elif exp.status == 'running' %}
+                <span class="badge bg-primary">Running</span>
+              {% elif exp.status == 'failed' %}
+                <span class="badge bg-danger">Failed</span>
+              {% else %}
+                <span class="badge bg-secondary">{{ exp.status or 'pending' }}</span>
+              {% endif %}
+            </td>
+            <td>{{ exp.created_at.strftime('%Y-%m-%d %H:%M') if exp.created_at else 'N/A' }}</td>
+            <td>
+              <a href="{{ url_for('experiments.view', id=exp.id) }}" class="btn btn-sm btn-primary">
+                <i class="fas fa-eye me-1"></i>View
+              </a>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <p class="text-muted">No experiments found. <a href="{{ url_for('experiments.index') }}">Create your first experiment</a>.</p>
+    {% endif %}
+  </div>
+</div>
+
+<!-- Recent Processing Jobs -->
+<div class="card">
+  <div class="card-header">
+    <h5 class="mb-0"><i class="fas fa-tasks me-2"></i>Recent Processing Jobs</h5>
+  </div>
+  <div class="card-body">
+    {% if recent_jobs %}
+    <div class="table-responsive">
+      <table class="table table-hover">
+        <thead>
+          <tr>
+            <th>Job ID</th>
+            <th>Type</th>
+            <th>Status</th>
+            <th>Created</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for job in recent_jobs %}
+          <tr>
+            <td><code>{{ job.id }}</code></td>
+            <td>{{ job.job_type or 'processing' }}</td>
+            <td>
+              {% if job.status == 'completed' %}
+                <span class="badge bg-success">Completed</span>
+              {% elif job.status == 'running' %}
+                <span class="badge bg-primary">Running</span>
+              {% elif job.status == 'failed' %}
+                <span class="badge bg-danger">Failed</span>
+              {% else %}
+                <span class="badge bg-secondary">{{ job.status or 'pending' }}</span>
+              {% endif %}
+            </td>
+            <td>{{ job.created_at.strftime('%Y-%m-%d %H:%M') if job.created_at else 'N/A' }}</td>
+            <td>
+              <a href="{{ url_for('results.job_results', job_id=job.id) }}" class="btn btn-sm btn-outline-primary">
+                <i class="fas fa-info-circle me-1"></i>Details
+              </a>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <p class="text-muted">No processing jobs found.</p>
+    {% endif %}
   </div>
 </div>
 {% endblock %}
