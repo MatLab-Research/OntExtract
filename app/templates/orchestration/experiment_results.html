@@ -238,19 +238,19 @@ document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('download-json-btn').addEventListener('click', function() {
         const results = {
             experiment_id: {{ experiment.id }},
-            experiment_name: '{{ experiment.name }}',
+            experiment_name: {{ experiment.name|tojson }},
             run_id: runId,
             started_at: '{{ orchestration_run.started_at }}',
             completed_at: '{{ orchestration_run.completed_at }}',
-            experiment_goal: '{{ orchestration_run.experiment_goal|escapejs }}',
+            experiment_goal: {{ orchestration_run.experiment_goal|tojson }},
             term_context: {{ orchestration_run.term_context|tojson if orchestration_run.term_context else 'null' }},
             recommended_strategy: {{ orchestration_run.recommended_strategy|tojson }},
             modified_strategy: {{ orchestration_run.modified_strategy|tojson if orchestration_run.modified_strategy else 'null' }},
-            strategy_reasoning: '{{ orchestration_run.strategy_reasoning|escapejs }}',
+            strategy_reasoning: {{ orchestration_run.strategy_reasoning|tojson }},
             confidence: {{ orchestration_run.confidence }},
-            cross_document_insights: '{{ orchestration_run.cross_document_insights|escapejs }}',
+            cross_document_insights: {{ orchestration_run.cross_document_insights|tojson }},
             term_evolution_analysis: {{ orchestration_run.term_evolution_analysis|tojson if orchestration_run.term_evolution_analysis else 'null' }},
-            comparative_summary: '{{ orchestration_run.comparative_summary|escapejs }}',
+            comparative_summary: {{ orchestration_run.comparative_summary|tojson }},
             processing_results: {{ orchestration_run.processing_results|tojson }},
             execution_trace: {{ orchestration_run.execution_trace|tojson }}
         };
