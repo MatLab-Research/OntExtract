@@ -161,9 +161,9 @@ app/routes/experiments/
 - [x] Confirmed backward compatible imports (no changes needed to app/__init__.py)
 
 **Deliverables:**
-1. `app/routes/experiments/__init__.py` - Blueprint definition (32 lines)
+1. `app/routes/experiments/__init__.py` - Blueprint definition (updated to import remaining routes)
 2. `app/routes/experiments/crud.py` - CRUD operations (404 lines, 13 routes)
-3. `app/routes/experiments.py` - Remaining routes (1,904 lines, 19 routes)
+3. `app/routes/experiments_remaining.py` - Remaining routes (1,904 lines, 19 routes) [renamed from experiments.py]
 4. `app/routes/experiments.py.backup` - Original file backup
 
 **File Structure Created:**
@@ -196,13 +196,21 @@ app/routes/experiments/
 - ✅ experiments.py reduced from 2,239 → 1,904 lines (15% reduction)
 - ✅ CRUD module is focused and maintainable (404 lines)
 
+**Issue Found During Testing:**
+- ❌ BuildError: `url_for('experiments.document_pipeline')` failed
+- **Root Cause**: experiments.py routes not imported in package __init__.py
+- **Fix Applied**: Renamed experiments.py → experiments_remaining.py, imported in __init__.py
+- ✅ Python syntax verified
+- ⏳ Awaiting user testing
+
 **Next Steps:**
-- User tests on local machine ← **YOU ARE HERE**
+- User tests fix on local machine ← **YOU ARE HERE**
 - If tests pass, continue with Session 3: Extract terms.py
 
 **Risk Assessment:** ✅ LOW
 - Backward compatible imports work
 - Python syntax valid
+- Route registration issue fixed
 - Ready for testing
 
 ---

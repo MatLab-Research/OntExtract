@@ -24,6 +24,9 @@ experiments_bp = Blueprint('experiments', __name__, url_prefix='/experiments')
 # This must come after blueprint creation
 from . import crud  # noqa: F401, E402
 
+# Import remaining routes (temporary until fully extracted)
+from app.routes import experiments_remaining  # noqa: F401, E402
+
 # Note: Additional modules will be imported as they are extracted:
 # from . import terms      # Term management
 # from . import temporal   # Temporal analysis
