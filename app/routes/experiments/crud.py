@@ -64,6 +64,13 @@ def create():
     try:
         data = request.get_json()
 
+        # DEBUG: Log incoming data
+        print(f"DEBUG: Received experiment creation request")
+        print(f"DEBUG: experiment_type = {data.get('experiment_type')}")
+        print(f"DEBUG: document_ids = {data.get('document_ids')}")
+        print(f"DEBUG: document_ids type = {type(data.get('document_ids'))}")
+        print(f"DEBUG: reference_ids = {data.get('reference_ids')}")
+
         # Validate required fields
         if not data.get('name'):
             return jsonify({'error': 'Experiment name is required'}), 400
@@ -75,6 +82,10 @@ def create():
         # Exception: domain_comparison can use references only when configuration.use_references is true.
         config = data.get('configuration', {}) or {}
         use_refs_only = data.get('experiment_type') == 'domain_comparison' and config.get('use_references')
+
+        print(f"DEBUG: use_refs_only = {use_refs_only}")
+        print(f"DEBUG: Validation check: {(not data.get('document_ids') or len(data['document_ids']) == 0)} and not {use_refs_only}")
+
         if (not data.get('document_ids') or len(data['document_ids']) == 0) and not use_refs_only:
             return jsonify({'error': 'At least one document must be selected'}), 400
 
