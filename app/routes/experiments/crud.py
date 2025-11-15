@@ -64,13 +64,6 @@ def create():
     try:
         data = request.get_json()
 
-        # DEBUG: Log incoming data
-        print(f"DEBUG: Received experiment creation request")
-        print(f"DEBUG: experiment_type = {data.get('experiment_type')}")
-        print(f"DEBUG: document_ids = {data.get('document_ids')}")
-        print(f"DEBUG: document_ids type = {type(data.get('document_ids'))}")
-        print(f"DEBUG: reference_ids = {data.get('reference_ids')}")
-
         # Validate required fields
         if not data.get('name'):
             return jsonify({'error': 'Experiment name is required'}), 400
@@ -82,9 +75,6 @@ def create():
         # All experiments can use either documents or references
         document_ids = data.get('document_ids') or []
         reference_ids = data.get('reference_ids') or []
-
-        print(f"DEBUG: document_ids count = {len(document_ids)}")
-        print(f"DEBUG: reference_ids count = {len(reference_ids)}")
 
         if len(document_ids) == 0 and len(reference_ids) == 0:
             return jsonify({'error': 'At least one document or reference must be selected'}), 400
