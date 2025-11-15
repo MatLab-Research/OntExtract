@@ -78,16 +78,16 @@ def create():
         if not data.get('experiment_type'):
             return jsonify({'error': 'Experiment type is required'}), 400
 
-        # For most experiments, at least one document is required.
-        # Exception: domain_comparison can use references only when configuration.use_references is true.
-        config = data.get('configuration', {}) or {}
-        use_refs_only = data.get('experiment_type') == 'domain_comparison' and config.get('use_references')
+        # Validate that at least one document or reference is selected
+        # All experiments can use either documents or references
+        document_ids = data.get('document_ids') or []
+        reference_ids = data.get('reference_ids') or []
 
-        print(f"DEBUG: use_refs_only = {use_refs_only}")
-        print(f"DEBUG: Validation check: {(not data.get('document_ids') or len(data['document_ids']) == 0)} and not {use_refs_only}")
+        print(f"DEBUG: document_ids count = {len(document_ids)}")
+        print(f"DEBUG: reference_ids count = {len(reference_ids)}")
 
-        if (not data.get('document_ids') or len(data['document_ids']) == 0) and not use_refs_only:
-            return jsonify({'error': 'At least one document must be selected'}), 400
+        if len(document_ids) == 0 and len(reference_ids) == 0:
+            return jsonify({'error': 'At least one document or reference must be selected'}), 400
 
         # Create the experiment
         experiment = Experiment(
@@ -102,13 +102,13 @@ def create():
         db.session.flush()  # ensure experiment has identity for association table
 
         # Add documents to the experiment
-        for doc_id in data.get('document_ids', []) or []:
+        for doc_id in document_ids:
             document = Document.query.filter_by(id=doc_id).first()
             if document:
                 experiment.add_document(document)
 
-        # Add references to the experiment (optional)
-        for ref_id in data.get('reference_ids', []) or []:
+        # Add references to the experiment
+        for ref_id in reference_ids:
             reference = Document.query.filter_by(id=ref_id, document_type='reference').first()
             if reference:
                 experiment.add_reference(reference, include_in_analysis=True)
