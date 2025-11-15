@@ -1,46 +1,34 @@
-from flask import Blueprint, render_template, request, jsonify, current_app
+"""
+Temporal Visual API Routes
+
+API endpoints for temporal evolution data and analysis.
+
+Routes:
+- GET  /temporal-visual/api/experiment/<id>/data     - Get experiment data
+- POST /temporal-visual/api/analyze                  - Analyze temporal evolution
+- GET  /temporal-visual/api/documents/<id>/details   - Get document details
+- GET  /temporal-visual/api/experiments/temporal     - List temporal experiments
+"""
+
+from flask import request, jsonify
 from app.models import Experiment, Document
 import logging
 
+from . import temporal_visual_bp
+
 logger = logging.getLogger(__name__)
 
-# Create blueprint
-temporal_visual_bp = Blueprint('temporal_visual', __name__, url_prefix='/temporal-visual')
-
-@temporal_visual_bp.route('/')
-def index():
-    """Main temporal evolution visual interface."""
-    return render_template('experiments/temporal_evolution_visual.html')
-
-@temporal_visual_bp.route('/experiment/<int:experiment_id>')
-def experiment_view(experiment_id):
-    """View temporal evolution for a specific experiment."""
-    try:
-        experiment = Experiment.query.get_or_404(experiment_id)
-        
-        # Verify this is a temporal evolution experiment
-        if experiment.experiment_type != 'temporal_evolution':
-            return jsonify({
-                'error': 'This experiment is not a temporal evolution type',
-                'experiment_type': experiment.experiment_type
-            }), 400
-            
-        return render_template('experiments/temporal_evolution_visual.html', 
-                             experiment=experiment)
-    except Exception as e:
-        logger.error(f"Error loading temporal evolution experiment {experiment_id}: {str(e)}")
-        return jsonify({'error': 'Failed to load experiment'}), 500
 
 @temporal_visual_bp.route('/api/experiment/<int:experiment_id>/data')
 def get_experiment_data(experiment_id):
     """API endpoint to get temporal evolution data for visualization."""
     try:
         experiment = Experiment.query.get_or_404(experiment_id)
-        
+
         # Get experiment documents and references
         documents = []
         references = []
-        
+
         if hasattr(experiment, 'documents'):
             for doc in experiment.documents:
                 documents.append({
@@ -50,7 +38,7 @@ def get_experiment_data(experiment_id):
                     'year': getattr(doc, 'year', None),
                     'metadata': doc.source_metadata or {}
                 })
-                
+
         # Note: OntExtract doesn't have a References model, only Documents
         # This section is kept for compatibility but may not be used
         if hasattr(experiment, 'references') and experiment.references:
@@ -58,11 +46,11 @@ def get_experiment_data(experiment_id):
                 references.append({
                     'id': ref.id,
                     'title': ref.title,
-                    'type': getattr(ref, 'document_type', 'unknown'), 
+                    'type': getattr(ref, 'document_type', 'unknown'),
                     'year': getattr(ref, 'year', None),
                     'metadata': getattr(ref, 'source_metadata', {}) or {}
                 })
-        
+
         # Get temporal evolution specific data
         temporal_data = None
         if hasattr(experiment, 'temporal_evolution'):
@@ -73,7 +61,7 @@ def get_experiment_data(experiment_id):
                     'time_periods': temporal_evolution.time_periods or [],
                     'analysis_results': temporal_evolution.analysis_results or {}
                 }
-        
+
         return jsonify({
             'experiment': {
                 'id': experiment.id,
@@ -86,10 +74,11 @@ def get_experiment_data(experiment_id):
             'references': references,
             'temporal_data': temporal_data
         })
-        
+
     except Exception as e:
         logger.error(f"Error getting experiment data for {experiment_id}: {str(e)}")
         return jsonify({'error': 'Failed to get experiment data'}), 500
+
 
 @temporal_visual_bp.route('/api/analyze', methods=['POST'])
 def analyze_temporal_evolution():
@@ -100,16 +89,16 @@ def analyze_temporal_evolution():
         time_range = data.get('time_range', '2000-2024')
         period_length = data.get('period_length', 5)
         experiment_id = data.get('experiment_id')
-        
+
         if not term:
             return jsonify({'error': 'Term is required'}), 400
-            
+
         # Parse time range
         try:
             start_year, end_year = map(int, time_range.split('-'))
         except ValueError:
             return jsonify({'error': 'Invalid time range format. Use YYYY-YYYY'}), 400
-            
+
         # Generate time periods
         periods = []
         current_year = start_year
@@ -122,11 +111,11 @@ def analyze_temporal_evolution():
                 'end_year': period_end
             })
             current_year += period_length
-            
+
         # Get documents for analysis (if experiment_id provided)
         documents_by_period = {}
         total_documents = 0
-        
+
         if experiment_id:
             experiment = Experiment.query.get(experiment_id)
             if experiment:
@@ -136,7 +125,7 @@ def analyze_temporal_evolution():
                     all_docs.extend(experiment.documents)
                 if hasattr(experiment, 'references'):
                     all_docs.extend(experiment.references)
-                    
+
                 for period in periods:
                     period_docs = []
                     for doc in all_docs:
@@ -150,7 +139,7 @@ def analyze_temporal_evolution():
                             })
                     documents_by_period[period['id']] = period_docs
                     total_documents += len(period_docs)
-        
+
         # Generate mock analysis results for now
         # In a real implementation, this would call the temporal analysis service
         import random
@@ -166,7 +155,7 @@ def analyze_temporal_evolution():
                 f"New associations: {', '.join(random.sample(['machine learning', 'artificial intelligence', 'data science', 'neural networks', 'automation'], 3))}"
             ]
         }
-        
+
         return jsonify({
             'success': True,
             'term': term,
@@ -176,10 +165,11 @@ def analyze_temporal_evolution():
             'documents_by_period': documents_by_period,
             'analysis_results': analysis_results
         })
-        
+
     except Exception as e:
         logger.error(f"Error analyzing temporal evolution: {str(e)}")
         return jsonify({'error': 'Analysis failed', 'details': str(e)}), 500
+
 
 @temporal_visual_bp.route('/api/documents/<int:document_id>/details')
 def get_document_details(document_id):
@@ -187,10 +177,10 @@ def get_document_details(document_id):
     try:
         # Find the document
         document = Document.query.get(document_id)
-            
+
         if not document:
             return jsonify({'error': 'Document not found'}), 404
-            
+
         details = {
             'id': document.id,
             'title': document.title,
@@ -201,19 +191,20 @@ def get_document_details(document_id):
             'file_path': getattr(document, 'file_path', None),
             'created_at': document.created_at.isoformat() if hasattr(document, 'created_at') and document.created_at else None
         }
-        
+
         return jsonify(details)
-        
+
     except Exception as e:
         logger.error(f"Error getting document details for {document_id}: {str(e)}")
         return jsonify({'error': 'Failed to get document details'}), 500
+
 
 @temporal_visual_bp.route('/api/experiments/temporal')
 def list_temporal_experiments():
     """List all temporal evolution experiments."""
     try:
         experiments = Experiment.query.filter_by(experiment_type='temporal_evolution').all()
-        
+
         experiment_list = []
         for exp in experiments:
             experiment_list.append({
@@ -225,12 +216,12 @@ def list_temporal_experiments():
                 'document_count': len(exp.documents) if hasattr(exp, 'documents') and exp.documents else 0,
                 'reference_count': len(exp.references) if hasattr(exp, 'references') and exp.references else 0
             })
-            
+
         return jsonify({
             'experiments': experiment_list,
             'total_count': len(experiment_list)
         })
-        
+
     except Exception as e:
         logger.error(f"Error listing temporal experiments: {str(e)}")
         return jsonify({'error': 'Failed to list experiments'}), 500
