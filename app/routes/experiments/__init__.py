@@ -5,13 +5,13 @@ This package contains the experiments blueprint and all its route modules.
 
 The experiments blueprint is organized into focused modules:
 - crud.py: Basic CRUD operations (create, read, update, delete, run)
-- terms.py: Term management for domain comparison (to be extracted)
-- temporal.py: Temporal term analysis (to be extracted)
-- evolution.py: Semantic evolution analysis (to be extracted)
-- orchestration.py: LLM orchestration (to be extracted)
-- pipeline.py: Document processing pipelines (to be extracted)
+- terms.py: Term management for domain comparison
+- temporal.py: Temporal term analysis
+- evolution.py: Semantic evolution analysis
+- orchestration.py: LLM orchestration
+- pipeline.py: Document processing pipelines
 
-The blueprint itself is registered here and route modules import it.
+All routes have been successfully extracted and organized into these focused modules.
 """
 
 from flask import Blueprint
@@ -27,9 +27,4 @@ from . import terms  # noqa: F401, E402
 from . import temporal  # noqa: F401, E402
 from . import evolution  # noqa: F401, E402
 from . import orchestration  # noqa: F401, E402
-
-# Import remaining routes (temporary until fully extracted)
-from app.routes import experiments_remaining  # noqa: F401, E402
-
-# Note: Additional modules will be imported as they are extracted:
-# from . import pipeline   # Document pipeline
+from . import pipeline  # noqa: F401, E402

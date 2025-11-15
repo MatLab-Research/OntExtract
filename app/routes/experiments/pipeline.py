@@ -1,54 +1,27 @@
 """
-Experiments Routes (Temporary - Being Refactored)
+Experiments Document Processing Pipeline Routes
 
-REFACTORING IN PROGRESS:
-- CRUD operations have been extracted to experiments/crud.py ✅
-- Remaining routes (terms, temporal, evolution, orchestration, pipeline) are still here
-- These will be extracted in future sessions
+This module handles document processing pipeline operations for experiments.
 
-This file will be removed once all routes are extracted to their respective modules.
+Routes:
+- GET  /experiments/<id>/document_pipeline                   - Pipeline overview
+- GET  /experiments/<id>/process_document/<doc_id>           - Process specific document
+- POST /experiments/<id>/document/<doc_id>/apply_embeddings  - Apply embeddings
+- POST /api/experiment-processing/start                       - Start processing operation
+- GET  /api/experiment-document/<id>/processing-status        - Get processing status
+- GET  /api/processing/<id>/artifacts                         - Get processing artifacts
 """
 
-# Import the blueprint from the new package location
-from app.routes.experiments import experiments_bp
-
-# Import dependencies needed for the remaining routes
-from flask import render_template, request, jsonify, flash, redirect, url_for, current_app
+from flask import render_template, request, jsonify, current_app
 from flask_login import current_user
 from app.utils.auth_decorators import api_require_login_for_write
 from sqlalchemy import text
 from app import db
-from app.models import Document, Experiment, ExperimentDocument, ProcessingJob
+from app.models import Document, Experiment, ExperimentDocument
 from app.models.experiment_processing import ExperimentDocumentProcessing, ProcessingArtifact, DocumentProcessingIndex
 from datetime import datetime
-import json
-import uuid
-from typing import List, Optional, Dict, Any
-from app.services.text_processing import TextProcessingService
-from app.services.oed_enrichment_service import OEDEnrichmentService
-from app.services.term_analysis_service import TermAnalysisService
-from app.services.llm_orchestration_coordinator import LLMOrchestrationCoordinator
-from app.services.adaptive_orchestration_service import AdaptiveOrchestrationService
-from app.services.experiment_embedding_service import ExperimentEmbeddingService
 
-# Note: experiments.configuration may include a `design` object per Phase 1b of metadata plan.
-# Analysis services should read optional design = config.get('design') to drive factor/group logic.
-
-# ==============================================================================
-# REMAINING ROUTES (To be extracted in future sessions)
-# ==============================================================================
-# Term management routes extracted to experiments/terms.py ✅
-
-
-# Evolution analysis routes extracted to experiments/evolution.py ✅
-# Temporal analysis routes extracted to experiments/temporal.py ✅
-
-
-# Orchestration routes extracted to experiments/orchestration.py ✅
-
-
-# Document Processing Pipeline Routes
-
+from . import experiments_bp
 @experiments_bp.route('/<int:experiment_id>/document_pipeline')
 def document_pipeline(experiment_id):
     """Step 2: Document Processing Pipeline Overview"""
@@ -848,5 +821,3 @@ def get_processing_artifacts(processing_id):
     except Exception as e:
         current_app.logger.error(f"Error getting processing artifacts: {str(e)}")
         return jsonify({'error': str(e)}), 500
-
-
