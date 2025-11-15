@@ -25,10 +25,11 @@
                             <div class="col-md-6">
                                 <div class="mb-3">
                                     <label for="experiment-type" class="form-label">Experiment Type *</label>
-                                    <select class="form-select" id="experiment-type" required {% if mode == 'single_document' %}disabled{% endif %}>
-                                        <option value="single_document_analysis" {% if mode == 'single_document' %}selected{% endif %}>Single Document Analysis</option>
-                                        <option value="document_analysis">Multi-Document Analysis</option>
-                                        <option value="temporal_evolution" {% if mode != 'single_document' %}selected{% endif %}>Temporal Evolution</option>
+                                    <select class="form-select" id="experiment-type" required>
+                                        <option value="">Select type...</option>
+                                        <option value="document_analysis">Document Analysis</option>
+                                        <!-- <option value="temporal_evolution">Temporal Evolution</option> -->
+                                        <!-- Temporal Evolution archived - needs refactoring of document/reference distinction -->
                                         <option value="domain_comparison">Domain Comparison</option>
                                     </select>
                                     {% if mode == 'single_document' %}
