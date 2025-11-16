@@ -1722,3 +1722,262 @@ Successfully demonstrates the same pattern as previous phases:
 
 **Last Updated:** 2025-11-16
 **Next Review:** Before completing Phase 3.4
+
+## Phase 3.4 (Part 5): Pipeline Routes Refactored ✅
+
+**Completion:** 100%
+**Status:** ✅ COMPLETE (pipeline.py)
+**Duration:** 1 session (~1.5 hours)
+**Date:** 2025-11-16
+
+### Deliverables
+
+- [x] `app/services/pipeline_service.py` - Document processing pipeline service (1,073 lines)
+- [x] `app/dto/pipeline_dto.py` - Pipeline DTOs with validation (168 lines)
+- [x] Refactored `app/routes/experiments/pipeline.py` - All 6 routes (844 → 302 lines)
+
+### Key Outcomes
+
+✅ **PipelineService Features** (1,073 lines)
+
+Complete service for document processing pipeline operations:
+- `get_pipeline_overview(experiment_id)` - Get pipeline overview data
+  - Builds processed documents list with operation types
+  - Calculates processing progress per document
+  - Determines overall status (pending/processing/completed)
+  - Computes overall progress percentage
+- `get_process_document_data(experiment_id, document_id)` - Get document processing data
+  - Retrieves processing operations
+  - Calculates navigation info (previous/next)
+  - Computes processing progress
+- `apply_embeddings(experiment_id, document_id)` - Apply embeddings
+  - Integrates with EmbeddingService
+  - Handles chunked vs single embeddings
+  - Updates experiment document with embedding info
+- `start_processing(exp_doc_id, processing_type, processing_method, user_id)` - Start processing
+  - Creates processing operation with index entry
+  - Executes processing based on type (embeddings/segmentation/entities)
+  - Handles errors and marks operations as failed if needed
+- `get_processing_status(exp_doc_id)` - Get processing status
+  - Returns all processing operations for a document
+- `get_processing_artifacts(processing_id)` - Get artifacts
+  - Returns all artifacts for a processing operation
+- Private processing methods:
+  - `_process_embeddings()` - Embeddings with ExperimentEmbeddingService
+  - `_process_segmentation()` - Paragraph/sentence/semantic segmentation
+  - `_process_entities()` - Entity extraction (spaCy/NLTK/LLM)
+  - `_extract_entities_spacy()` - spaCy NER + noun phrases
+  - `_extract_entities_nltk()` - NLTK named entity chunker
+  - `_extract_entities_llm()` - LangExtract + Gemini integration
+
+✅ **DTOs Created** (168 lines total)
+
+Twelve specialized DTOs for validation:
+1. **StartProcessingDTO** - Validates processing operation start
+2. **ProcessingStatusResponseDTO** - Processing status response
+3. **ProcessingArtifactsResponseDTO** - Artifacts response
+4. **OperationTypeInfo** - Operation type statistics
+5. **ProcessedDocumentDTO** - Processed document information
+6. **PipelineOverviewDTO** - Pipeline overview data
+7. **DocumentNavigationDTO** - Document navigation data
+8. **ProcessDocumentDataDTO** - Process document view data
+9. **EmbeddingInfoDTO** - Embedding metadata
+10. **ApplyEmbeddingsResponseDTO** - Apply embeddings response
+11. **StartProcessingResponseDTO** - Start processing response
+
+**Custom Validators:**
+- Processing type validation (embeddings, segmentation, entities, temporal, etymology)
+- Processing method validation (openai, sentence_transformers, gemini, paragraph, sentence, semantic, spacy, nltk, llm)
+- Experiment document ID validation
+
+✅ **Route Refactoring Summary**
+
+All 6 routes refactored using established pattern:
+
+| Route | Before | After | Reduction | Notes |
+|-------|--------|-------|-----------|-------|
+| GET `/document_pipeline` | 73 lines | 27 lines | 63% ⬇️ | Overview to service |
+| GET `/process_document/<doc_id>` | 55 lines | 39 lines | 29% ⬇️ | Navigation logic to service |
+| POST `/apply_embeddings` | 82 lines | 46 lines | 44% ⬇️ | Embedding logic to service |
+| POST `/api/experiment-processing/start` | 554 lines | 70 lines | 87% ⬇️ | All processing to service |
+| GET `/api/processing-status` | 21 lines | 37 lines | -76% | Error handling added |
+| GET `/api/artifacts` | 23 lines | 38 lines | -65% | Error handling added |
+| **Total** | **844 lines** | **302 lines** | **64% ⬇️** | **+1,073 service +168 DTOs** |
+
+### Business Logic Extraction
+
+**Moved to PipelineService:**
+- Pipeline overview calculation and metrics
+- Document navigation logic
+- Embedding generation and chunking
+- Processing operation creation and management
+- Document processing index management
+- **Segmentation processing:**
+  - NLTK paragraph detection with smart filtering
+  - NLTK sentence tokenization
+  - spaCy semantic chunking with entity boundaries
+- **Entity extraction:**
+  - spaCy NER with noun phrase extraction
+  - NLTK named entity chunker with POS tagging
+  - LangExtract + Gemini LLM integration
+  - Pattern-based fallback extraction
+- **Embeddings processing:**
+  - ExperimentEmbeddingService integration
+  - Real embedding generation with metadata
+- Processing artifact creation and storage
+- Error handling and failed operation tracking
+- All transaction management and logging
+
+**Kept in Routes:**
+- HTTP request/response handling
+- Template rendering
+- Flash messages
+- JSON responses for API routes
+- Current user extraction
+
+### Impact
+
+**Code Organization:**
+- ✅ All pipeline logic in `PipelineService` (1,073 lines)
+- ✅ Routes are thin controllers (only HTTP handling)
+- ✅ Complex processing logic centralized (embeddings, segmentation, entities)
+- ✅ NLP service integration isolated (spaCy, NLTK, LangExtract)
+- ✅ Entity extraction methods reusable
+
+**Validation:**
+- ✅ Automatic input validation with Pydantic DTOs
+- ✅ Processing type and method validation
+- ✅ Business rule validation (duplicate processing check)
+- ✅ Proper error messages for invalid requests
+
+**Error Handling:**
+- ✅ Specific exceptions: ValidationError, NotFoundError, ServiceError
+- ✅ Proper HTTP status codes: 200, 201, 400, 404, 500
+- ✅ Consistent error response structure
+- ✅ Comprehensive logging at service layer
+- ✅ Failed processing operations tracked in database
+
+**Testability:**
+- ✅ Service testable without Flask context
+- ✅ Embedding logic unit testable
+- ✅ Segmentation methods testable independently
+- ✅ Entity extraction testable in isolation
+- ✅ Processing artifact creation testable
+- ✅ Clear separation of concerns
+
+### Files Modified
+
+| File | Lines | Impact |
+|------|-------|--------|
+| `app/services/pipeline_service.py` | 1,073 (NEW) | All business logic extracted |
+| `app/dto/pipeline_dto.py` | 168 (NEW) | 11 DTOs for validation |
+| `app/routes/experiments/pipeline.py` | 844 → 302 | -542 lines (64% reduction) |
+
+### Routes Refactored (6 total)
+
+**1. GET `/document_pipeline`**
+- Uses: `pipeline_service.get_pipeline_overview()`
+- Returns: Template with documents, progress metrics
+- Features: Operation type tracking, status calculation
+
+**2. GET `/process_document/<doc_id>`**
+- Uses: `pipeline_service.get_process_document_data()`
+- Returns: Template with document, operations, navigation
+- Features: Document navigation, progress tracking
+
+**3. POST `/apply_embeddings`**
+- Uses: `pipeline_service.apply_embeddings()`
+- Validates: Document has content
+- Features: Chunked vs single embeddings, EmbeddingService integration
+
+**4. POST `/api/experiment-processing/start`**
+- Uses: `StartProcessingDTO`, `pipeline_service.start_processing()`
+- Validates: Processing type and method
+- Features: Multi-method processing (embeddings, segmentation, entities)
+
+**5. GET `/api/processing-status`**
+- Uses: `pipeline_service.get_processing_status()`
+- Returns: JSON with processing operations
+- Features: Status tracking for experiment documents
+
+**6. GET `/api/artifacts`**
+- Uses: `pipeline_service.get_processing_artifacts()`
+- Returns: JSON with processing artifacts
+- Features: Artifact retrieval by processing ID
+
+### Pattern Consistency
+
+Successfully demonstrates the same pattern as all previous phases:
+
+1. ✅ **DTO Validation** - All input validated automatically
+2. ✅ **Service Layer** - All business logic in testable methods
+3. ✅ **Error Handling** - Specific exceptions with proper HTTP codes
+4. ✅ **Logging** - Comprehensive at both route and service layers
+5. ✅ **Consistency** - All routes follow same pattern
+6. ✅ **Testability** - Services unit testable without HTTP context
+
+### Code Quality Highlights
+
+**NLP Integration:**
+- Clean integration with spaCy, NLTK, and LangExtract
+- Proper NLTK data downloading with error handling
+- Entity deduplication and confidence scoring
+- Context extraction for all entities
+
+**Processing Pipeline:**
+- Robust processing operation tracking
+- Failed operation recovery
+- Artifact creation with metadata
+- Index entry management for querying
+
+**Segmentation Methods:**
+- NLTK-enhanced paragraph detection with multi-sentence validation
+- Punkt tokenizer for sentence boundaries
+- spaCy entity-aware semantic chunking
+
+**Entity Extraction:**
+- Three methods: spaCy (NER + noun phrases), NLTK (POS + NE chunker), LLM (LangExtract)
+- Fallback pattern-based extraction if LLM fails
+- Confidence scoring for all methods
+- Character-level positioning
+
+### Phase 3.4 Complete! 🎉
+
+**All experiment routes now refactored using Service Layer + DTO pattern:**
+- ✅ Part 1: Term Management (terms.py) - 178 → 228 lines
+- ✅ Part 2: Evolution Analysis (evolution.py) - 255 → 136 lines
+- ✅ Part 3: Orchestration (orchestration.py) - 425 → 253 lines
+- ✅ Part 4: Temporal Analysis (temporal.py) - 516 → 246 lines
+- ✅ Part 5: Pipeline (pipeline.py) - 844 → 302 lines
+
+**Total Route Reduction:** 2,218 → 1,165 lines (47% overall reduction)
+
+**Services Created:**
+- TermService (352 lines)
+- EvolutionService (531 lines)
+- OrchestrationService (642 lines)
+- TemporalService (660 lines)
+- PipelineService (1,073 lines)
+- **Total: 3,258 lines of testable business logic**
+
+**DTOs Created:**
+- term_dto.py (115 lines)
+- evolution_dto.py (84 lines)
+- orchestration_dto.py (102 lines)
+- temporal_dto.py (146 lines)
+- pipeline_dto.py (168 lines)
+- **Total: 615 lines of validation logic**
+
+### Next Steps
+
+**Phase 3 Complete!** All experiment routes refactored.
+
+**Future Phases:**
+- **Phase 4**: Repository Pattern implementation
+- **Phase 5**: Comprehensive testing infrastructure
+- **Phase 6**: Type hints and documentation
+
+---
+
+**Last Updated:** 2025-11-16
+**Phase 3.4 Status:** ✅ COMPLETE
