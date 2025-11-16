@@ -30,7 +30,7 @@ from . import text_input_bp
 @write_login_required
 def upload_form():
     """Main upload form page"""
-    return render_template('text_input/upload.html')
+    return render_template('text_input/upload_enhanced.html')
 
 
 @text_input_bp.route('/paste')
@@ -91,11 +91,11 @@ def submit_text():
                 'success': True,
                 'document_id': document.id,
                 'message': 'Text submitted successfully',
-                'redirect_url': url_for('text_input.document_detail', document_id=document.id)
+                'redirect_url': url_for('text_input.document_detail', document_uuid=document.uuid)
             })
 
         flash('Text submitted successfully!', 'success')
-        return redirect(url_for('text_input.document_detail', document_id=document.id))
+        return redirect(url_for('text_input.document_detail', document_uuid=document.uuid))
 
     except Exception as e:
         current_app.logger.error(f"Error submitting text: {str(e)}")
@@ -201,11 +201,11 @@ def upload_file():
                 'success': True,
                 'document_id': document.id,
                 'message': 'File uploaded successfully',
-                'redirect_url': url_for('text_input.document_detail', document_id=document.id)
+                'redirect_url': url_for('text_input.document_detail', document_uuid=document.uuid)
             })
 
         flash('File uploaded successfully!', 'success')
-        return redirect(url_for('text_input.document_detail', document_id=document.id))
+        return redirect(url_for('text_input.document_detail', document_uuid=document.uuid))
 
     except Exception as e:
         current_app.logger.error(f"Error uploading file: {str(e)}")

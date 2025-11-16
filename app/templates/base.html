@@ -228,11 +228,12 @@
                         </ul>
                     </li>
                     {% endif %}
-                    <li class="nav-item">
+                    {# TEMPORARILY DISABLED - Processing routes commented out due to circular import #}
+                    {# <li class="nav-item">
                         <a class="nav-link" href="{{ url_for('processing.processing_home') }}">
                             <i class="fas fa-cogs me-1"></i>Processing
                         </a>
-                    </li>
+                    </li> #}
                     <li class="nav-item">
                         <a class="nav-link" href="{{ url_for('results.results_home') }}">
                             <i class="fas fa-chart-bar me-1"></i>Results

@@ -93,19 +93,19 @@ def document_list():
     return render_template('text_input/document_list.html', documents=pagination)
 
 
-@text_input_bp.route('/document/<int:document_id>')
+@text_input_bp.route('/document/<uuid:document_uuid>')
 @public_with_auth_context
-def document_detail(document_id):
+def document_detail(document_uuid):
     """Show document details - simplified experiment-centric view"""
     # Get document - public access for viewing
-    document = Document.query.filter_by(id=document_id).first_or_404()
+    document = Document.query.filter_by(uuid=document_uuid).first_or_404()
 
     # Get experiments that include this document with their processing results
     from app.models.experiment_document import ExperimentDocument
     from app.models.experiment_processing import DocumentProcessingIndex
 
     # Get all experiment-document relationships for this document
-    experiment_documents = ExperimentDocument.query.filter_by(document_id=document_id).all()
+    experiment_documents = ExperimentDocument.query.filter_by(document_id=document.id).all()
 
     # Enrich with processing information
     document_experiments = []
@@ -114,7 +114,7 @@ def document_detail(document_id):
     for exp_doc in experiment_documents:
         # Get processing operations for this experiment-document pair
         processing_results = DocumentProcessingIndex.query.filter_by(
-            document_id=document_id,
+            document_id=document.id,
             experiment_id=exp_doc.experiment_id
         ).all()
 

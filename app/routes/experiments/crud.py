@@ -57,10 +57,16 @@ def index():
 @experiments_bp.route('/new')
 def new():
     """Show new experiment form - public view, but submit requires login"""
+    from app.models import Term
+
     # Get documents and references separately for all users
     documents = Document.query.filter_by(document_type='document').order_by(Document.created_at.desc()).all()
     references = Document.query.filter_by(document_type='reference').order_by(Document.created_at.desc()).all()
-    return render_template('experiments/new.html', documents=documents, references=references)
+
+    # Get all terms for the focus term dropdown
+    terms = Term.query.order_by(Term.term_text).all()
+
+    return render_template('experiments/new.html', documents=documents, references=references, terms=terms)
 
 
 @experiments_bp.route('/wizard')

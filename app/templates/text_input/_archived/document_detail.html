@@ -29,7 +29,7 @@
                         <div class="btn-group btn-group-sm" role="group">
                             {% set all_versions = document.get_all_versions() %}
                             {% for version in all_versions %}
-                            <a href="{{ url_for('text_input.document_detail', document_id=version.id) }}"
+                            <a href="{{ url_for('text_input.document_detail', document_uuid=version.uuid) }}"
                                 class="btn {% if version.id == document.id %}btn-primary{% else %}btn-outline-primary{% endif %}">
                                 {% if version.version_type == 'original' %}
                                 <i class="fas fa-file me-1"></i>Original
