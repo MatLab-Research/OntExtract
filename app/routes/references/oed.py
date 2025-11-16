@@ -217,7 +217,7 @@ def add_oed_reference():
         if experiment and experiment.user_id == current_user.id:
             experiment.add_reference(document, include_in_analysis=(request.form.get('include_in_analysis') == 'true'))
             flash(f'Reference linked to experiment "{experiment.name}"', 'success')
-            return redirect(url_for('experiments.view', id=experiment_id))
+            return redirect(url_for('experiments.view', experiment_id=experiment_id))
 
     flash(f'Added OED reference for "{headword}"', 'success')
     return redirect(url_for('references.view', id=document.id))
@@ -342,7 +342,7 @@ def add_oed_references_batch():
                 experiment.add_reference(d, include_in_analysis=(request.form.get('include_in_analysis') == 'true'))
             db.session.commit()
             flash(f'Linked to experiment "{experiment.name}"', 'success')
-            return redirect(url_for('experiments.view', id=experiment_id))
+            return redirect(url_for('experiments.view', experiment_id=experiment_id))
 
     return redirect(url_for('references.index'))
 

@@ -227,7 +227,7 @@
                     {% if experiments_using %}
                         <div class="list-group list-group-flush">
                             {% for experiment in experiments_using %}
-                            <a href="{{ url_for('experiments.view', id=experiment.id) }}" 
+                            <a href="{{ url_for('experiments.view', experiment_id=experiment.id) }}"
                                class="list-group-item list-group-item-action">
                                 <div class="d-flex w-100 justify-content-between">
                                     <h6 class="mb-1">{{ experiment.name }}</h6>
