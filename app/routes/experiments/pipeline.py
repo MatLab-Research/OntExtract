@@ -26,48 +26,69 @@ from . import experiments_bp
 def document_pipeline(experiment_id):
     """Step 2: Document Processing Pipeline Overview"""
     experiment = Experiment.query.filter_by(id=experiment_id).first_or_404()
-    
-    # Get experiment-specific document processing data using raw SQL
-    query = """
-        SELECT d.id, d.title, d.original_filename, d.file_type, d.content_type, 
-               d.word_count, d.created_at,
-               COALESCE(ed.processing_status, 'pending') as processing_status,
-               COALESCE(ed.embeddings_applied, false) as embeddings_applied,
-               COALESCE(ed.segments_created, false) as segments_created,
-               COALESCE(ed.nlp_analysis_completed, false) as nlp_analysis_completed
-        FROM documents d
-        JOIN experiment_documents ed ON d.id = ed.document_id
-        WHERE ed.experiment_id = :experiment_id
-        ORDER BY d.created_at
-    """
-    
-    result = db.session.execute(text(query), {'experiment_id': experiment_id})
-    rows = result.fetchall()
-    
-    # Build processed documents list with experiment-specific data
+
+    # Get experiment documents with new processing model
+    from app.models.experiment_document import ExperimentDocument
+    from app.models.experiment_processing import ExperimentDocumentProcessing
+
+    exp_docs = ExperimentDocument.query.filter_by(experiment_id=experiment_id).all()
+
+    # Build processed documents list with detailed processing operations
     processed_docs = []
-    for row in rows:
-        # Calculate processing progress
-        total_steps = 3  # embeddings, segmentation, nlp_analysis
-        completed_steps = sum([row.embeddings_applied, row.segments_created, row.nlp_analysis_completed])
-        processing_progress = int((completed_steps / total_steps) * 100)
-        
+    for exp_doc in exp_docs:
+        doc = exp_doc.document
+
+        # Get all processing operations for this document
+        operations = ExperimentDocumentProcessing.query.filter_by(
+            experiment_document_id=exp_doc.id
+        ).all()
+
+        # Count operations by type and status
+        operation_types = {}
+        for op in operations:
+            if op.processing_type not in operation_types:
+                operation_types[op.processing_type] = {
+                    'total': 0,
+                    'completed': 0,
+                    'status': 'pending'
+                }
+            operation_types[op.processing_type]['total'] += 1
+            if op.status == 'completed':
+                operation_types[op.processing_type]['completed'] += 1
+                operation_types[op.processing_type]['status'] = 'completed'
+
+        # Calculate processing progress based on operation types
+        total_operation_types = 5  # segmentation, entities, temporal, embeddings, etymology
+        completed_operation_types = sum(1 for ot in operation_types.values() if ot['completed'] > 0)
+        processing_progress = int((completed_operation_types / total_operation_types) * 100) if total_operation_types > 0 else 0
+
+        # Determine overall status
+        if completed_operation_types == total_operation_types:
+            status = 'completed'
+        elif completed_operation_types > 0:
+            status = 'processing'
+        else:
+            status = 'pending'
+
         processed_docs.append({
-            'id': row.id,
-            'name': row.original_filename or row.title,
-            'file_type': row.file_type or row.content_type,
-            'word_count': row.word_count or 0,
-            'has_embeddings': row.embeddings_applied,
-            'status': row.processing_status,
+            'id': doc.id,
+            'exp_doc_id': exp_doc.id,
+            'name': doc.original_filename or doc.title,
+            'file_type': doc.file_type or doc.content_type,
+            'word_count': doc.word_count or 0,
+            'status': status,
             'processing_progress': processing_progress,
-            'created_at': row.created_at
+            'created_at': doc.created_at,
+            'operation_types': operation_types,
+            'total_operations': len(operations),
+            'completed_operations': sum(1 for op in operations if op.status == 'completed')
         })
-    
+
     # Calculate overall progress
     completed_count = sum(1 for doc in processed_docs if doc['status'] == 'completed')
     total_count = len(processed_docs)
     progress_percentage = (completed_count / total_count * 100) if total_count > 0 else 0
-    
+
     return render_template('experiments/document_pipeline.html',
                          experiment=experiment,
                          documents=processed_docs,
