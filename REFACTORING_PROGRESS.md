@@ -1145,9 +1145,183 @@ Successfully demonstrates the same pattern as Phase 3.2 & 3.3:
 - `app/routes/experiments/pipeline.py` - Document processing pipeline (844 lines)
 - `app/routes/experiments/temporal.py` - Temporal analysis (515 lines)
 - `app/routes/experiments/orchestration.py` - Orchestration (425 lines)
-- `app/routes/experiments/evolution.py` - Evolution analysis (255 lines)
 
-**Estimated Duration:** 3-4 additional sessions (~4-6 hours)
+**Estimated Duration:** 2-3 additional sessions (~3-4 hours)
+
+---
+
+## Phase 3.4 (Part 2): Evolution Analysis Routes Refactored ✅
+
+**Completion:** 100%
+**Status:** ✅ COMPLETE (evolution.py)
+**Duration:** 1 session (~45 min)
+**Date:** 2025-11-16
+
+### Deliverables
+
+- [x] `app/services/evolution_service.py` - Semantic evolution service (531 lines)
+- [x] `app/dto/evolution_dto.py` - Evolution DTOs with validation (84 lines)
+- [x] Refactored `app/routes/experiments/evolution.py` - Both routes (255 → 136 lines)
+
+### Key Outcomes
+
+✅ **EvolutionService Features** (531 lines)
+
+Complete service for semantic evolution analysis:
+- `get_evolution_visualization_data(experiment_id, term)` - Get all visualization data
+  - Determines target term from parameter or config
+  - Loads term record and versions from database
+  - Builds academic anchors from temporal versions
+  - Fetches OED data from database with fallback to files
+  - Fetches legal data from files
+  - Applies period-aware matching to definitions
+  - Calculates temporal span and domain metrics
+- `analyze_evolution(experiment_id, term, periods)` - Analyze semantic drift
+  - Integrates with TemporalAnalysisService
+  - Extracts temporal data across documents
+  - Analyzes semantic drift with metrics
+  - Generates comprehensive narrative
+  - Maps to PROV-O ontology concepts
+- Private helpers:
+  - `_get_term_record()` - Database lookup with validation
+  - `_get_term_versions()` - Load temporal versions
+  - `_build_academic_anchors()` - Transform versions to anchors
+  - `_get_oed_from_database()` - Query OED tables
+  - `_get_oed_from_files()` - Fallback file loading
+  - `_apply_period_matching()` - Period-aware matching service
+  - `_get_legal_data()` - Load legal reference data
+  - `_build_analysis_text()` - Construct narrative analysis
+  - `_get_prov_mapping()` - Ontology concept mapping
+
+✅ **DTOs Created** (84 lines total)
+
+Six specialized DTOs for validation:
+1. **AnalyzeEvolutionDTO** - Validates term and periods for analysis
+2. **DriftMetricsDTO** - Semantic drift quantitative measures
+3. **EvolutionAnalysisResponseDTO** - Complete analysis response
+4. **AcademicAnchorDTO** - Single temporal version representation
+5. **EvolutionVisualizationDataDTO** - Visualization data structure
+
+**Custom Validators:**
+- Ensures at least one period is provided
+- Term length constraints (1-200 characters)
+- Period list validation
+
+✅ **Route Refactoring Summary**
+
+Both routes refactored using established pattern:
+
+| Route | Before | After | Reduction | Notes |
+|-------|--------|-------|-----------|-------|
+| GET `/semantic_evolution_visual` | 151 lines | 77 lines | 49% ⬇️ | Complex logic to service |
+| POST `/analyze_evolution` | 82 lines | 55 lines | 33% ⬇️ | Drift analysis to service |
+| **Total** | **255 lines** | **136 lines** | **47% ⬇️** | **+531 service +84 DTOs** |
+
+### Business Logic Extraction
+
+**Moved to EvolutionService:**
+- Configuration parsing (target term determination)
+- Database queries (Term, TermVersion, OED models)
+- File-based data loading (OED, legal references)
+- Period matching service integration
+- Academic anchor construction
+- Temporal span and domain calculations
+- Semantic drift analysis
+- Evolution narrative generation
+- PROV-O ontology mapping
+- All error handling and logging
+
+**Kept in Routes:**
+- HTTP request/response handling
+- Template rendering
+- Flash messages for UI routes
+- JSON responses for API routes
+- Query parameter extraction
+
+### Impact
+
+**Code Organization:**
+- ✅ All evolution logic in `EvolutionService` (531 lines)
+- ✅ Routes are thin controllers (only HTTP handling)
+- ✅ Complex data loading logic centralized (database + files)
+- ✅ Period matching integration isolated in service
+- ✅ OED and legal data loading reusable
+
+**Validation:**
+- ✅ Automatic input validation with Pydantic DTOs
+- ✅ Business rule validation (term existence, versions exist)
+- ✅ Proper error messages for missing data
+
+**Error Handling:**
+- ✅ Specific exceptions: ValidationError, NotFoundError, ServiceError
+- ✅ Proper HTTP status codes: 200, 400, 500
+- ✅ Consistent error response structure
+- ✅ Comprehensive logging at service layer
+- ✅ Graceful degradation (database → file fallback)
+
+**Testability:**
+- ✅ Service testable without Flask context
+- ✅ Data loading logic unit testable (database vs files)
+- ✅ Period matching testable independently
+- ✅ Ontology mapping testable in isolation
+- ✅ Clear separation of concerns
+
+### Files Modified
+
+| File | Lines | Impact |
+|------|-------|--------|
+| `app/services/evolution_service.py` | 531 (NEW) | All business logic extracted |
+| `app/dto/evolution_dto.py` | 84 (NEW) | 5 DTOs for validation |
+| `app/routes/experiments/evolution.py` | 255 → 136 | -119 lines (47% reduction) |
+
+### Routes Refactored (2 total)
+
+**1. GET `/semantic_evolution_visual`**
+- Uses: `evolution_service.get_evolution_visualization_data()`
+- Returns: Template with academic anchors, OED data, metrics
+- Features: Database + file loading, period matching, domain analysis
+
+**2. POST `/analyze_evolution`**
+- Uses: `AnalyzeEvolutionDTO`, `evolution_service.analyze_evolution()`
+- Validates: Term required, periods list required
+- Features: Semantic drift analysis, PROV-O mapping, narrative generation
+
+### Pattern Consistency
+
+Successfully demonstrates the same pattern as previous phases:
+
+1. ✅ **DTO Validation** - All input validated automatically
+2. ✅ **Service Layer** - All business logic in testable methods
+3. ✅ **Error Handling** - Specific exceptions with proper HTTP codes
+4. ✅ **Logging** - Comprehensive at both route and service layers
+5. ✅ **Consistency** - All routes follow same pattern
+6. ✅ **Testability** - Services unit testable without HTTP context
+
+### Code Quality Highlights
+
+**Fallback Strategy:**
+- Database-first approach with file-based fallback
+- Graceful degradation when data sources unavailable
+- Maintains functionality across different deployment scenarios
+
+**Service Integration:**
+- Clean integration with `PeriodMatchingService`
+- Clean integration with `TemporalAnalysisService`
+- Singleton pattern for service management
+
+**Data Transformation:**
+- Clean separation: database models → DTOs → templates
+- Academic anchors built from TermVersion models
+- Temporal metrics calculated from anchor data
+
+### Next Steps
+
+**Phase 3.4 (continued):** Apply pattern to remaining large route files:
+- `app/routes/experiments/pipeline.py` - Document processing pipeline (844 lines)
+- `app/routes/experiments/temporal.py` - Temporal analysis (515 lines)
+- `app/routes/experiments/orchestration.py` - Orchestration (425 lines)
+
+**Estimated Duration:** 2-3 additional sessions (~3-4 hours)
 
 ---
 
