@@ -28,7 +28,6 @@ vulture==2.10        # Find dead code
 # Type Stubs
 types-requests==2.31.0.10
 types-PyYAML==6.0.12.12
-types-python-dotenv==1.0.0.3
 
 # Documentation
 sphinx==7.2.6

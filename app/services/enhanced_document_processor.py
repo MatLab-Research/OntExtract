@@ -11,7 +11,7 @@ from app import db
 from app.models.document import Document
 from app.models.term import Term
 from app.services.text_processing import TextProcessingService
-from app.services.oed_enrichment_service import OEDEnrichmentService
+from app.services.oed_enrichment import OEDEnrichmentService
 
 logger = logging.getLogger(__name__)
 

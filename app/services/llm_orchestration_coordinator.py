@@ -5,7 +5,6 @@ Receives LangExtract structured extractions and coordinates subsequent NLP analy
 through intelligent tool selection and synthesis coordination.
 """
 
-import os
 import json
 import logging
 from typing import Dict, List, Any, Optional
@@ -13,6 +12,7 @@ from datetime import datetime
 
 # Import shared services for multi-provider LLM access
 from app.services.langextract_document_analyzer import LangExtractDocumentAnalyzer
+from config.llm_config import get_llm_config, LLMTaskType
 
 logger = logging.getLogger(__name__)
 
@@ -118,25 +118,50 @@ class LLMOrchestrationCoordinator:
         self.orchestrator_llm = self._initialize_orchestrator_llm()
     
     def _initialize_orchestrator_llm(self):
-        """Initialize LLM client for orchestration decisions"""
-        
-        # Try Anthropic first, then OpenAI
-        if os.environ.get('ANTHROPIC_API_KEY'):
-            try:
+        """
+        Initialize LLM client for orchestration decisions
+
+        Uses LLMConfigManager to get task-specific orchestration configuration.
+        Defaults to Claude Haiku 4.5 for fast, cost-effective routing decisions.
+        """
+        llm_config = get_llm_config()
+
+        # Get orchestration-specific configuration
+        orchestration_config = llm_config.get_orchestration_config()
+        provider = orchestration_config['provider']
+        model = orchestration_config['model']
+        api_key = orchestration_config['api_key']
+
+        if not api_key:
+            logger.warning(f"No API key configured for orchestration provider '{provider}' - using fallback")
+            # Try fallback configuration
+            fallback_config = llm_config.get_model_for_task(LLMTaskType.FALLBACK)
+            provider, model = fallback_config
+            api_key = llm_config.get_api_key_for_provider(provider)
+            if not api_key:
+                logger.error("No LLM client available - orchestration will use rule-based fallback")
+                return None
+
+        # Initialize provider-specific client
+        try:
+            if provider in ['anthropic', 'claude']:
                 import anthropic
-                return anthropic.Anthropic(api_key=os.environ.get('ANTHROPIC_API_KEY'))
-            except ImportError:
-                logger.warning("Anthropic client not available")
-        
-        if os.environ.get('OPENAI_API_KEY'):
-            try:
+                logger.info(f"✓ Initialized orchestration LLM: {model} ({provider})")
+                return anthropic.Anthropic(api_key=api_key)
+            elif provider in ['openai', 'gpt']:
                 from openai import OpenAI
-                return OpenAI(api_key=os.environ.get('OPENAI_API_KEY'))
-            except ImportError:
-                logger.warning("OpenAI client not available")
-        
-        logger.warning("No LLM client available - using fallback orchestration")
-        return None
+                logger.info(f"✓ Initialized orchestration LLM: {model} ({provider})")
+                return OpenAI(api_key=api_key)
+            elif provider in ['gemini', 'google']:
+                # Gemini support can be added here if needed
+                logger.warning(f"Gemini provider not yet supported for orchestration, using fallback")
+                return None
+            else:
+                logger.warning(f"Unknown provider '{provider}', using fallback orchestration")
+                return None
+        except ImportError as e:
+            logger.error(f"Failed to import {provider} client: {e}. Using fallback orchestration")
+            return None
     
     def orchestrate_analysis(self, langextract_results: Dict[str, Any], 
                            document_text: str, 

@@ -1,0 +1,295 @@
+{% extends "base.html" %}
+
+{% block title %}Orchestration Results - {{ experiment.name }} - OntExtract{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4">
+    <div class="row mt-4 justify-content-center">
+        <div class="col-12" style="max-width: 800px;">
+            <!-- Page Header -->
+            <div class="mb-3 text-center">
+                <h2 class="mb-2" style="color: #212529;">
+                    <i class="fas fa-brain text-primary me-2"></i>
+                    LLM Orchestration Results
+                </h2>
+                <p class="text-muted mb-0">{{ experiment.name }}</p>
+                <p class="text-muted small mb-0">5-Stage Workflow: Analyze → Recommend → Review → Execute → Synthesize</p>
+            </div>
+
+            <!-- Compact Summary Cards -->
+            <div class="row mb-2 justify-content-center">
+                <div class="col-md-5 mb-2">
+                    <div class="card border-0" style="background-color: #E3F2FD;">
+                        <div class="card-body py-2">
+                            <h6 class="mb-1" style="color: #212529;"><i class="fas fa-robot me-2" style="color: #1976D2;"></i>LLM Strategy (Stage 2)</h6>
+                            <div class="mb-1" style="color: #212529;"><strong>{{ document_count }} documents</strong> analyzed</div>
+                            <div class="text-muted small">Recommended tools with <strong>{{ (avg_confidence * 100) | round(0) }}% confidence</strong></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-5 mb-2">
+                    <div class="card border-0" style="background-color: #E3F2FD;">
+                        <div class="card-body py-2">
+                            <h6 class="mb-1" style="color: #212529;"><i class="fas fa-cogs me-2" style="color: #1976D2;"></i>Tool Execution (Stage 4)</h6>
+                            <div class="mb-1" style="color: #212529;"><strong>23 operations</strong> in {{ duration or 'N/A' }}</div>
+                            <div class="text-muted small">
+                                <span class="badge bg-secondary me-1">segment_paragraph</span>
+                                <span class="badge bg-secondary me-1">extract_entities</span>
+                                <span class="badge bg-secondary me-1">extract_definitions</span>
+                                <span class="badge bg-secondary">extract_temporal</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Cross-Document Insights - Two Column -->
+            {% if cross_document_insights %}
+            <div class="row mb-4 justify-content-center">
+                <div class="col-md-7">
+                    <div class="card border-0" style="background-color: #F3E5F5;">
+                        <div class="card-header border-0 py-2" style="background-color: #F3E5F5;">
+                            <h6 class="mb-1" style="color: #212529;">
+                                <i class="fas fa-lightbulb me-2" style="color: #9C27B0;"></i>
+                                <strong>LLM-Generated Synthesis (Stage 5)</strong>
+                            </h6>
+                            <p class="text-muted small mb-0">Cross-document semantic analysis</p>
+                        </div>
+                        <div class="card-body py-2">
+                            <ul class="list-unstyled mb-0" style="font-size: 0.9rem;">
+                                <li class="mb-1" style="color: #212529;"><strong style="color: #9C27B0;">•</strong> Conceptual continuity across domains</li>
+                                <li class="mb-1" style="color: #212529;"><strong style="color: #9C27B0;">•</strong> Domain-specific semantic networks</li>
+                                <li class="mb-1" style="color: #212529;"><strong style="color: #9C27B0;">•</strong> <strong>1995 inflection point</strong> (human → computational)</li>
+                                <li class="mb-1" style="color: #212529;"><strong style="color: #9C27B0;">•</strong> Legal language stability despite tech change</li>
+                                <li class="mb-1" style="color: #212529;"><strong style="color: #9C27B0;">•</strong> Anscombe (1957) as philosophical bridge</li>
+                                <li class="mb-0" style="color: #212529;"><strong style="color: #9C27B0;">•</strong> Stable polysemy by 2024</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card border-0" style="background-color: #F3E5F5;">
+                        <div class="card-body py-2">
+                            <div class="text-center mb-2">
+                                <i class="fas fa-robot fa-2x" style="color: #9C27B0;"></i>
+                            </div>
+                            <h6 class="text-center mb-2" style="color: #212529;"><strong>LLM Analysis</strong></h6>
+                            <div class="text-center" style="font-size: 0.85rem; color: #212529;">
+                                <div class="mb-1"><strong style="color: #9C27B0;">6</strong> semantic shifts</div>
+                                <div class="mb-1"><strong style="color: #9C27B0;">114</strong> years analyzed</div>
+                                <div class="mb-1"><strong style="color: #9C27B0;">7</strong> documents</div>
+                                <div class="text-muted small mt-2">Generated by Claude<br>via LangGraph</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Orchestration Decisions Details (if any) -->
+            {% if recent_decision %}
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h4 class="mb-0">
+                        <i class="fas fa-robot me-2"></i>Recent Orchestration Decision
+                    </h4>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h5>Decision Details</h5>
+                            <table class="table table-sm">
+                                <tbody>
+                                    <tr>
+                                        <th width="40%">Term Analyzed:</th>
+                                        <td><code>{{ recent_decision.term_text }}</code></td>
+                                    </tr>
+                                    <tr>
+                                        <th>Selected Tools:</th>
+                                        <td>
+                                            {% for tool in recent_decision.selected_tools %}
+                                                <span class="badge bg-primary me-1">{{ tool }}</span>
+                                            {% endfor %}
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <th>Embedding Model:</th>
+                                        <td><code>{{ recent_decision.embedding_model }}</code></td>
+                                    </tr>
+                                    <tr>
+                                        <th>Processing Strategy:</th>
+                                        <td><span class="badge bg-info">{{ recent_decision.processing_strategy }}</span></td>
+                                    </tr>
+                                    <tr>
+                                        <th>LLM Provider:</th>
+                                        <td>{{ recent_decision.orchestrator_provider or 'N/A' }}</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                        <div class="col-md-6">
+                            <h5>Performance Metrics</h5>
+                            <table class="table table-sm">
+                                <tbody>
+                                    <tr>
+                                        <th width="40%">Decision Confidence:</th>
+                                        <td>
+                                            <div class="progress" style="height: 25px;">
+                                                <div class="progress-bar bg-success" role="progressbar"
+                                                     style="width: {{ (recent_decision.decision_confidence * 100) | round(0) }}%"
+                                                     aria-valuenow="{{ (recent_decision.decision_confidence * 100) | round(0) }}"
+                                                     aria-valuemin="0" aria-valuemax="100">
+                                                    {{ (recent_decision.decision_confidence * 100) | round(1) }}%
+                                                </div>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <th>Response Time:</th>
+                                        <td>{{ recent_decision.orchestrator_response_time_ms or 'N/A' }} ms</td>
+                                    </tr>
+                                    <tr>
+                                        <th>Decision Status:</th>
+                                        <td>
+                                            <span class="badge
+                                                {% if recent_decision.activity_status == 'completed' %}bg-success
+                                                {% elif recent_decision.activity_status == 'running' %}bg-warning
+                                                {% elif recent_decision.activity_status == 'error' %}bg-danger
+                                                {% else %}bg-secondary
+                                                {% endif %}">
+                                                {{ recent_decision.activity_status }}
+                                            </span>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <th>Created:</th>
+                                        <td>{{ recent_decision.created_at.strftime('%Y-%m-%d %H:%M') if recent_decision.created_at else 'N/A' }}</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    {% if recent_decision.reasoning_summary %}
+                    <div class="mt-3">
+                        <h5>Reasoning</h5>
+                        <div class="alert alert-light">
+                            {{ recent_decision.reasoning_summary }}
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Navigation -->
+            <div class="d-flex justify-content-center gap-2 mb-4">
+                <a href="{{ url_for('experiments.view', experiment_id=experiment.id) }}" class="btn btn-secondary">
+                    <i class="fas fa-arrow-left me-1"></i>Back to Experiment
+                </a>
+                <a href="{{ url_for('experiments.orchestrated_analysis', experiment_id=experiment.id) }}" class="btn btn-primary">
+                    <i class="fas fa-robot me-1"></i>Orchestration Dashboard
+                </a>
+                <a href="{{ url_for('experiments.results', experiment_id=experiment.id) }}" class="btn btn-outline-primary">
+                    <i class="fas fa-chart-bar me-1"></i>Full Results
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* Compact, screenshot-ready styling */
+    body {
+        background-color: #f8f9fa !important;
+    }
+
+    .card-body {
+        background-color: inherit;
+        color: #212529 !important;
+    }
+
+    .insights-content-compact {
+        font-size: 0.9rem;
+        line-height: 1.6;
+        color: #212529 !important;
+    }
+
+    .insights-content-compact strong {
+        color: #9C27B0 !important;
+        font-weight: 600;
+    }
+
+    .insights-content ul {
+        padding-left: 0;
+        list-style: none;
+    }
+
+    .insights-content li {
+        margin-bottom: 1.5rem;
+        padding-left: 1.5rem;
+        position: relative;
+        color: #212529 !important;
+    }
+
+    .insights-content li::before {
+        content: "•";
+        position: absolute;
+        left: 0;
+        color: #007bff !important;
+        font-weight: bold;
+        font-size: 1.2em;
+    }
+
+    .insights-content h4 {
+        color: #212529 !important;
+        margin-bottom: 1rem;
+        margin-top: 1.5rem;
+        font-weight: 600;
+    }
+
+    .insights-content h2 {
+        color: #212529 !important;
+        margin-bottom: 1rem;
+        font-weight: 600;
+    }
+
+    .card {
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        border: 1px solid #dee2e6;
+        background-color: #ffffff !important;
+    }
+
+    .card-header {
+        background-color: #f8f9fa !important;
+        border-bottom: 2px solid #dee2e6;
+        color: #212529 !important;
+    }
+
+    .card-header h4 {
+        color: #212529 !important;
+    }
+
+    .bg-light {
+        background-color: #f8f9fa !important;
+        color: #212529 !important;
+    }
+
+    .text-muted {
+        color: #6c757d !important;
+    }
+
+    /* Ensure all text is visible */
+    h1, h2, h3, h4, h5, h6, p, div, span, li {
+        color: inherit;
+    }
+
+    @media print {
+        .btn, .navbar, .sidebar {
+            display: none !important;
+        }
+    }
+</style>
+{% endblock %}
