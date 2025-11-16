@@ -1,0 +1,252 @@
+{% extends "base.html" %}
+
+{% block title %}Orchestration Results - {{ experiment.name }} - OntExtract{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4">
+    <div class="row mt-4">
+        <div class="col-12">
+            <!-- Page Header -->
+            <div class="mb-4">
+                <h2 class="mb-2">
+                    <i class="fas fa-brain text-primary me-2"></i>
+                    Orchestration Results
+                </h2>
+                <p class="text-muted mb-0">{{ experiment.name }}</p>
+            </div>
+
+            <!-- Processing Summary -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h4 class="mb-0">
+                        <i class="fas fa-chart-bar me-2"></i>Processing Summary
+                    </h4>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <!-- Documents Count -->
+                        <div class="col-md-3 mb-3">
+                            <div class="card bg-light h-100">
+                                <div class="card-body text-center">
+                                    <i class="fas fa-file-alt fa-3x text-primary mb-3"></i>
+                                    <h3 class="mb-2">{{ document_count }}</h3>
+                                    <p class="text-muted mb-0">Documents Analyzed</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Duration -->
+                        <div class="col-md-3 mb-3">
+                            <div class="card bg-light h-100">
+                                <div class="card-body text-center">
+                                    <i class="fas fa-clock fa-3x text-info mb-3"></i>
+                                    <h3 class="mb-2">{{ duration or 'N/A' }}</h3>
+                                    <p class="text-muted mb-0">Processing Time</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Confidence Score -->
+                        <div class="col-md-3 mb-3">
+                            <div class="card bg-light h-100">
+                                <div class="card-body text-center">
+                                    <i class="fas fa-chart-line fa-3x text-success mb-3"></i>
+                                    <h3 class="mb-2">{{ (avg_confidence * 100) | round(1) }}%</h3>
+                                    <p class="text-muted mb-0">Confidence Score</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Status -->
+                        <div class="col-md-3 mb-3">
+                            <div class="card bg-light h-100">
+                                <div class="card-body text-center">
+                                    <i class="fas fa-check-circle fa-3x
+                                        {% if experiment.status == 'completed' %}text-success
+                                        {% elif experiment.status == 'running' %}text-warning
+                                        {% elif experiment.status == 'error' %}text-danger
+                                        {% else %}text-secondary
+                                        {% endif %} mb-3"></i>
+                                    <h3 class="mb-2 text-capitalize">{{ experiment.status }}</h3>
+                                    <p class="text-muted mb-0">Status</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {% if total_decisions > 0 %}
+                    <div class="row mt-3">
+                        <div class="col-12">
+                            <div class="alert alert-info mb-0">
+                                <i class="fas fa-info-circle me-2"></i>
+                                <strong>Orchestration Activity:</strong>
+                                {{ completed_decisions }} of {{ total_decisions }} orchestration decisions completed
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Cross-Document Insights -->
+            {% if cross_document_insights %}
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h4 class="mb-0">
+                        <i class="fas fa-lightbulb me-2"></i>Cross-Document Insights
+                    </h4>
+                </div>
+                <div class="card-body">
+                    <div class="insights-content">
+                        {{ cross_document_insights | safe | replace('\n', '<br>') | replace('•', '<div class="mb-3">•') | replace('**', '<strong>') | replace('**', '</strong>') }}
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Orchestration Decisions Details (if any) -->
+            {% if recent_decision %}
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h4 class="mb-0">
+                        <i class="fas fa-robot me-2"></i>Recent Orchestration Decision
+                    </h4>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h5>Decision Details</h5>
+                            <table class="table table-sm">
+                                <tbody>
+                                    <tr>
+                                        <th width="40%">Term Analyzed:</th>
+                                        <td><code>{{ recent_decision.term_text }}</code></td>
+                                    </tr>
+                                    <tr>
+                                        <th>Selected Tools:</th>
+                                        <td>
+                                            {% for tool in recent_decision.selected_tools %}
+                                                <span class="badge bg-primary me-1">{{ tool }}</span>
+                                            {% endfor %}
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <th>Embedding Model:</th>
+                                        <td><code>{{ recent_decision.embedding_model }}</code></td>
+                                    </tr>
+                                    <tr>
+                                        <th>Processing Strategy:</th>
+                                        <td><span class="badge bg-info">{{ recent_decision.processing_strategy }}</span></td>
+                                    </tr>
+                                    <tr>
+                                        <th>LLM Provider:</th>
+                                        <td>{{ recent_decision.orchestrator_provider or 'N/A' }}</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                        <div class="col-md-6">
+                            <h5>Performance Metrics</h5>
+                            <table class="table table-sm">
+                                <tbody>
+                                    <tr>
+                                        <th width="40%">Decision Confidence:</th>
+                                        <td>
+                                            <div class="progress" style="height: 25px;">
+                                                <div class="progress-bar bg-success" role="progressbar"
+                                                     style="width: {{ (recent_decision.decision_confidence * 100) | round(0) }}%"
+                                                     aria-valuenow="{{ (recent_decision.decision_confidence * 100) | round(0) }}"
+                                                     aria-valuemin="0" aria-valuemax="100">
+                                                    {{ (recent_decision.decision_confidence * 100) | round(1) }}%
+                                                </div>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <th>Response Time:</th>
+                                        <td>{{ recent_decision.orchestrator_response_time_ms or 'N/A' }} ms</td>
+                                    </tr>
+                                    <tr>
+                                        <th>Decision Status:</th>
+                                        <td>
+                                            <span class="badge
+                                                {% if recent_decision.activity_status == 'completed' %}bg-success
+                                                {% elif recent_decision.activity_status == 'running' %}bg-warning
+                                                {% elif recent_decision.activity_status == 'error' %}bg-danger
+                                                {% else %}bg-secondary
+                                                {% endif %}">
+                                                {{ recent_decision.activity_status }}
+                                            </span>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <th>Created:</th>
+                                        <td>{{ recent_decision.created_at.strftime('%Y-%m-%d %H:%M') if recent_decision.created_at else 'N/A' }}</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    {% if recent_decision.reasoning_summary %}
+                    <div class="mt-3">
+                        <h5>Reasoning</h5>
+                        <div class="alert alert-light">
+                            {{ recent_decision.reasoning_summary }}
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Navigation -->
+            <div class="d-flex justify-content-between mb-4">
+                <a href="{{ url_for('experiments.view', experiment_id=experiment.id) }}" class="btn btn-secondary">
+                    <i class="fas fa-arrow-left me-1"></i>Back to Experiment
+                </a>
+                <div>
+                    <a href="{{ url_for('experiments.orchestrated_analysis', experiment_id=experiment.id) }}" class="btn btn-primary me-2">
+                        <i class="fas fa-robot me-1"></i>Orchestration Dashboard
+                    </a>
+                    <a href="{{ url_for('experiments.results', experiment_id=experiment.id) }}" class="btn btn-outline-primary">
+                        <i class="fas fa-chart-bar me-1"></i>Full Results
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .insights-content {
+        line-height: 1.8;
+    }
+
+    .insights-content strong {
+        color: #2c3e50;
+    }
+
+    .card {
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        border: 1px solid #e0e0e0;
+    }
+
+    .card-header {
+        background-color: #f8f9fa;
+        border-bottom: 2px solid #dee2e6;
+    }
+
+    .bg-light {
+        background-color: #f8f9fa !important;
+    }
+
+    @media print {
+        .btn, .navbar, .sidebar {
+            display: none !important;
+        }
+    }
+</style>
+{% endblock %}
