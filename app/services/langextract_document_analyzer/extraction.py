@@ -5,12 +5,12 @@ Handles LangExtract structured extraction with configurable model selection.
 Uses task-specific models from application config for optimal performance/cost.
 """
 
-import os
 import logging
 from typing import Dict, Any, Optional
 from datetime import datetime
 import langextract as lx
 from langextract import data
+from config.llm_config import get_llm_config, LLMTaskType
 
 logger = logging.getLogger(__name__)
 
@@ -20,7 +20,7 @@ class LangExtractExtractor:
     Core LangExtract structured extraction service
 
     Extracts structured information using configurable LLM models.
-    Supports multiple providers (Gemini, Claude, GPT) via environment config.
+    Supports multiple providers (Gemini, Claude, GPT) via centralized config.
     """
 
     def __init__(self, provider: Optional[str] = None, model_id: Optional[str] = None):
@@ -28,32 +28,44 @@ class LangExtractExtractor:
         Initialize extractor with model configuration
 
         Args:
-            provider: LLM provider ('gemini', 'anthropic', 'openai'). Defaults to LLM_EXTRACTION_PROVIDER from config.
-            model_id: Specific model ID. Defaults to LLM_EXTRACTION_MODEL from config.
+            provider: LLM provider ('gemini', 'anthropic', 'openai').
+                     Defaults to extraction task config from LLMConfigManager.
+            model_id: Specific model ID. Defaults to extraction task config from LLMConfigManager.
         """
-        # Get config from environment (set by Flask app from config)
-        self.provider = provider or os.environ.get('LLM_EXTRACTION_PROVIDER', 'gemini')
-        self.model_id = model_id or os.environ.get('LLM_EXTRACTION_MODEL', 'gemini-2.5-flash')
+        # Get configuration from centralized LLM config manager
+        llm_config = get_llm_config()
+
+        if provider is None or model_id is None:
+            # Use task-specific configuration for extraction
+            extraction_config = llm_config.get_extraction_config()
+            self.provider = provider or extraction_config['provider']
+            self.model_id = model_id or extraction_config['model']
+            self.api_key = extraction_config['api_key']
+        else:
+            # Use provided values and get API key from config manager
+            self.provider = provider
+            self.model_id = model_id
+            self.api_key = llm_config.get_api_key_for_provider(provider)
 
         # Configure provider-specific settings
-        if self.provider == 'gemini':
-            self.api_key = os.environ.get('GOOGLE_GEMINI_API_KEY')
+        if self.provider == 'gemini' or self.provider == 'google':
             self.language_model_type = lx.inference.GeminiLanguageModel
-        elif self.provider == 'anthropic':
-            self.api_key = os.environ.get('ANTHROPIC_API_KEY')
+        elif self.provider == 'anthropic' or self.provider == 'claude':
             # LangExtract may need provider adapter for Claude
             raise NotImplementedError("Claude provider not yet supported by LangExtract")
-        elif self.provider == 'openai':
-            self.api_key = os.environ.get('OPENAI_API_KEY')
+        elif self.provider == 'openai' or self.provider == 'gpt':
             # LangExtract may need provider adapter for OpenAI
             raise NotImplementedError("OpenAI provider not yet supported by LangExtract")
         else:
             raise ValueError(f"Unsupported provider: {self.provider}")
 
         if not self.api_key:
-            raise ValueError(f"API key required for {self.provider} provider")
+            raise ValueError(
+                f"API key required for {self.provider} provider. "
+                f"Please set the appropriate environment variable."
+            )
 
-        logger.info(f"Initialized LangExtract with {self.provider} provider, model: {self.model_id}")
+        logger.info(f"✓ Initialized LangExtract with {self.provider} provider, model: {self.model_id}")
 
     def extract_structured_information(self, text: str) -> Dict[str, Any]:
         """

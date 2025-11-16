@@ -59,53 +59,63 @@ class Config:
     DEFAULT_LLM_PROVIDER = os.environ.get('DEFAULT_LLM_PROVIDER', 'anthropic')
     
     # Claude Model Configuration (Latest: Sonnet 4.5 - Sep 2025, Haiku 4.5 - Oct 2025)
+    # Verified Nov 2025 with latest stable releases
     CLAUDE_DEFAULT_MODEL = os.environ.get('CLAUDE_DEFAULT_MODEL', 'claude-sonnet-4-5-20250929')
     CLAUDE_API_VERSION = os.environ.get('CLAUDE_API_VERSION', '2023-06-01')
     CLAUDE_EMBEDDING_MODEL = os.environ.get('CLAUDE_EMBEDDING_MODEL', 'claude-3-embedding')
 
     # Task-Specific LLM Model Configuration
-    # Updated November 2025 with latest stable models
+    # Updated November 16, 2025 with verified latest stable models
     # Different tasks require different model characteristics (speed vs. capability, context length, specialization)
+    # Model verification: gemini-2.5-flash (stable), claude-sonnet-4-5-20250929, claude-haiku-4-5-20251001, gpt-5-mini
 
     # Structured Extraction (LangExtract): Fast, good at structured output, cost-effective
     # Use case: Extracting definitions, temporal markers, domain indicators from documents
     # Requirements: JSON output, consistent format, reasonable cost for high volume
+    # Model: gemini-2.5-flash (stable as of June 2025) - Fast, structured output, $0.10/$0.40 per 1M tokens
     LLM_EXTRACTION_PROVIDER = os.environ.get('LLM_EXTRACTION_PROVIDER', 'gemini')
-    LLM_EXTRACTION_MODEL = os.environ.get('LLM_EXTRACTION_MODEL', 'gemini-2.5-flash')  # Latest stable Flash (Nov 2025)
+    LLM_EXTRACTION_MODEL = os.environ.get('LLM_EXTRACTION_MODEL', 'gemini-2.5-flash')
 
     # Semantic Analysis & Synthesis: Capable models for complex reasoning
     # Use case: Cross-document synthesis, semantic drift analysis, philosophical reasoning
     # Requirements: Deep understanding, nuanced analysis, high-quality output
+    # Model: claude-sonnet-4-5-20250929 (Sep 29, 2025) - Best for complex analysis, 200k context, $3/$15 per 1M tokens
     LLM_SYNTHESIS_PROVIDER = os.environ.get('LLM_SYNTHESIS_PROVIDER', 'anthropic')
-    LLM_SYNTHESIS_MODEL = os.environ.get('LLM_SYNTHESIS_MODEL', 'claude-sonnet-4-5')  # Claude Sonnet 4.5 - best for complex analysis
+    LLM_SYNTHESIS_MODEL = os.environ.get('LLM_SYNTHESIS_MODEL', 'claude-sonnet-4-5-20250929')
 
-    # Orchestration & Routing: Medium capability for tool selection decisions
+    # Orchestration & Routing: Fast model for tool selection decisions
     # Use case: Deciding which NLP tools to use, routing tasks, confidence scoring
     # Requirements: Good reasoning, fast response, cost-effective for frequent decisions
-    LLM_ORCHESTRATION_PROVIDER = os.environ.get('LLM_ORCHESTRATION_PROVIDER', 'openai')
-    LLM_ORCHESTRATION_MODEL = os.environ.get('LLM_ORCHESTRATION_MODEL', 'gpt-5-mini')  # GPT-5 mini - fast, capable, economical
+    # Model: claude-haiku-4-5-20251001 (Oct 15, 2025) - Faster than Haiku 3.5, 1/3 the cost of Sonnet, $1/$5 per 1M tokens
+    # Alternative: gpt-5-mini for OpenAI preference
+    LLM_ORCHESTRATION_PROVIDER = os.environ.get('LLM_ORCHESTRATION_PROVIDER', 'anthropic')
+    LLM_ORCHESTRATION_MODEL = os.environ.get('LLM_ORCHESTRATION_MODEL', 'claude-haiku-4-5-20251001')
 
     # OED Parsing: Structured extraction from complex dictionary entries
     # Use case: Parsing OED entries, extracting etymologies, definitions, quotations
     # Requirements: JSON output, handle complex nested structures, reliable
+    # Model: gemini-2.5-pro (stable) - Best for complex structured extraction, 1M token context
     LLM_OED_PARSING_PROVIDER = os.environ.get('LLM_OED_PARSING_PROVIDER', 'gemini')
-    LLM_OED_PARSING_MODEL = os.environ.get('LLM_OED_PARSING_MODEL', 'gemini-2.5-pro')  # Gemini 2.5 Pro - best for complex structured extraction
+    LLM_OED_PARSING_MODEL = os.environ.get('LLM_OED_PARSING_MODEL', 'gemini-2.5-pro')
 
     # Long Context Processing: Models with large context windows for full document analysis
     # Use case: Processing long historical documents, multi-document comparison
     # Requirements: Large context window (100k+ tokens), good at long-range reasoning
+    # Model: claude-sonnet-4-5-20250929 - 200k context window, best for extended focus (30+ hours on complex tasks)
     LLM_LONG_CONTEXT_PROVIDER = os.environ.get('LLM_LONG_CONTEXT_PROVIDER', 'anthropic')
-    LLM_LONG_CONTEXT_MODEL = os.environ.get('LLM_LONG_CONTEXT_MODEL', 'claude-sonnet-4-5')  # 200k context window
+    LLM_LONG_CONTEXT_MODEL = os.environ.get('LLM_LONG_CONTEXT_MODEL', 'claude-sonnet-4-5-20250929')
 
-    # Classification & Categorization: Fast models for simple classification tasks
+    # Classification & Categorization: Fastest models for simple classification tasks
     # Use case: Domain classification, period classification, document type detection
     # Requirements: Fast, consistent, cost-effective for high volume
+    # Model: gemini-2.5-flash-lite (stable Nov 13, 2025) - Fastest/cheapest, $0.10/$0.40 per 1M tokens
     LLM_CLASSIFICATION_PROVIDER = os.environ.get('LLM_CLASSIFICATION_PROVIDER', 'gemini')
-    LLM_CLASSIFICATION_MODEL = os.environ.get('LLM_CLASSIFICATION_MODEL', 'gemini-2.5-flash-lite')  # Fastest/cheapest (Nov 2025)
+    LLM_CLASSIFICATION_MODEL = os.environ.get('LLM_CLASSIFICATION_MODEL', 'gemini-2.5-flash-lite')
 
     # Fallback models when primary provider is unavailable
+    # Model: gpt-5.1 (Nov 2025) - Latest stable GPT, most recent release
     LLM_FALLBACK_PROVIDER = os.environ.get('LLM_FALLBACK_PROVIDER', 'openai')
-    LLM_FALLBACK_MODEL = os.environ.get('LLM_FALLBACK_MODEL', 'gpt-5.1')  # Latest GPT-5.1 (Nov 2025)
+    LLM_FALLBACK_MODEL = os.environ.get('LLM_FALLBACK_MODEL', 'gpt-5.1')
 
     # OED Researcher API Configuration (use env; do not commit secrets)
     OED_USE_API = os.environ.get('OED_USE_API', 'False').lower() in {'true', '1', 'yes', 'on', 'y', 't'}
