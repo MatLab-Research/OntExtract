@@ -300,12 +300,109 @@ def orchestration_results(experiment_id):
                 processed_lines.append(line)
         cross_document_insights = '\n'.join(processed_lines)
 
-    return render_template('experiments/orchestration_results.html',
+    # Allow template override via query parameter (for backward compatibility or screenshots)
+    template = request.args.get('template', 'enhanced')
+    if template == 'compact':
+        template_name = 'experiments/orchestration_results.html'
+    else:
+        template_name = 'experiments/orchestration_results_enhanced.html'
+
+    return render_template(template_name,
                          experiment=experiment,
+                         decisions=decisions,
                          total_decisions=total_decisions,
-                         completed_decisions=completed_decisions,
+                         completed_decisions=completed_count,
                          avg_confidence=float(avg_confidence) if avg_confidence else 0.0,
                          recent_decision=recent_decision,
                          cross_document_insights=cross_document_insights,
                          duration=duration,
-                         document_count=document_count)
+                         document_count=experiment.get_document_count())
+
+
+@experiments_bp.route('/<int:experiment_id>/orchestration-provenance.json')
+def orchestration_provenance_json(experiment_id):
+    """Download PROV-O compliant JSON provenance record for orchestration decisions"""
+    experiment = Experiment.query.filter_by(id=experiment_id).first_or_404()
+
+    # Get orchestration decisions for this experiment
+    from app.models.orchestration_logs import OrchestrationDecision
+    from sqlalchemy import desc
+
+    decisions = OrchestrationDecision.query.filter_by(
+        experiment_id=experiment.id
+    ).order_by(desc(OrchestrationDecision.created_at)).all()
+
+    # Build PROV-O compliant provenance record
+    provenance_data = {
+        '@context': 'http://www.w3.org/ns/prov',
+        '@type': 'prov:Bundle',
+        'prov:generatedAtTime': datetime.utcnow().isoformat() + 'Z',
+        'experiment': {
+            'id': experiment.id,
+            'name': experiment.name,
+            'type': experiment.experiment_type,
+            'created_at': experiment.created_at.isoformat() if experiment.started_at else None,
+            'started_at': experiment.started_at.isoformat() if experiment.started_at else None,
+            'completed_at': experiment.completed_at.isoformat() if experiment.completed_at else None,
+            'status': experiment.status,
+            'document_count': experiment.get_document_count()
+        },
+        'orchestration_decisions': []
+    }
+
+    # Add each orchestration decision as a PROV-O Activity
+    for decision in decisions:
+        decision_data = {
+            '@id': f'urn:orchestration:decision:{decision.id}',
+            '@type': 'prov:Activity',
+            'prov:startedAtTime': decision.started_at_time.isoformat() if decision.started_at_time else None,
+            'prov:endedAtTime': decision.ended_at_time.isoformat() if decision.ended_at_time else None,
+            'activity_status': decision.activity_status,
+
+            # Context
+            'experiment_id': decision.experiment_id,
+            'document_id': decision.document_id,
+            'term_analyzed': decision.term_text,
+
+            # LLM Orchestration Details
+            'orchestrator': {
+                'provider': decision.orchestrator_provider,
+                'model': decision.orchestrator_model,
+                'response_time_ms': decision.orchestrator_response_time_ms
+            },
+
+            # Decision Outputs
+            'decision': {
+                'selected_tools': decision.selected_tools,
+                'embedding_model': decision.embedding_model,
+                'processing_strategy': decision.processing_strategy,
+                'confidence': float(decision.decision_confidence) if decision.decision_confidence else None,
+                'expected_runtime_seconds': decision.expected_runtime_seconds,
+                'actual_runtime_seconds': decision.actual_runtime_seconds
+            },
+
+            # Input Metadata
+            'input_metadata': decision.input_metadata,
+            'document_characteristics': decision.document_characteristics,
+
+            # Reasoning
+            'reasoning_summary': decision.reasoning_summary,
+            'decision_factors': decision.decision_factors,
+
+            # Validation
+            'validated': decision.decision_validated,
+            'tool_execution_success': decision.tool_execution_success,
+
+            # Provenance Relationships
+            'prov:wasAssociatedWith': f'urn:agent:{decision.was_associated_with}' if decision.was_associated_with else None,
+            'prov:used': f'urn:entity:{decision.used_entity}' if decision.used_entity else None,
+
+            # Audit
+            'created_at': decision.created_at.isoformat() if decision.created_at else None,
+            'created_by': decision.created_by
+        }
+
+        provenance_data['orchestration_decisions'].append(decision_data)
+
+    # Return as JSON with appropriate headers
+    return jsonify(provenance_data)
