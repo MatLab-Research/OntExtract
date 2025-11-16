@@ -30,7 +30,7 @@ class User(UserMixin, db.Model):
     last_login = db.Column(db.DateTime)
     
     # Relationships
-    documents = db.relationship('Document', backref='owner', lazy='dynamic', cascade='all, delete-orphan')
+    documents = db.relationship('Document', backref='owner', lazy='dynamic', cascade='all, delete-orphan', overlaps="user,user_documents")
     processing_jobs = db.relationship('ProcessingJob', backref='user', lazy='dynamic', cascade='all, delete-orphan')
     
     def __init__(self, username, email, password, **kwargs):

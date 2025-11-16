@@ -7,214 +7,247 @@ Routes:
 - GET  /experiments/<id>/orchestrated_analysis         - Orchestrated analysis UI
 - POST /experiments/<id>/create_orchestration_decision - Create orchestration decision
 - POST /experiments/<id>/run_orchestrated_analysis     - Run orchestrated analysis
+- GET  /experiments/<id>/orchestration-results         - View orchestration results
+- GET  /experiments/<id>/orchestration-provenance.json - Download PROV-O JSON
+
+REFACTORED: Now uses OrchestrationService with DTO validation
 """
 
 from flask import render_template, request, jsonify
 from flask_login import current_user
 from app.utils.auth_decorators import api_require_login_for_write
-from app import db
-from app.models import Experiment
-from datetime import datetime
-import json
+from app.services.orchestration_service import get_orchestration_service
+from app.services.base_service import ServiceError, ValidationError, NotFoundError
+from app.dto.orchestration_dto import (
+    CreateOrchestrationDecisionDTO,
+    RunOrchestratedAnalysisDTO
+)
+from pydantic import ValidationError as PydanticValidationError
+import logging
 
 from . import experiments_bp
+
+logger = logging.getLogger(__name__)
+orchestration_service = get_orchestration_service()
 
 
 @experiments_bp.route('/<int:experiment_id>/orchestrated_analysis')
 @api_require_login_for_write
 def orchestrated_analysis(experiment_id):
-    """Human-in-the-loop orchestrated analysis interface"""
-    experiment = Experiment.query.filter_by(id=experiment_id).first_or_404()
+    """
+    Human-in-the-loop orchestrated analysis interface
 
-    # Get orchestration decisions for this experiment
-    from app.models.orchestration_logs import OrchestrationDecision
-    from app.models.orchestration_feedback import OrchestrationFeedback, LearningPattern
+    REFACTORED: Now uses OrchestrationService
+    """
+    try:
+        # Get orchestration UI data from service
+        data = orchestration_service.get_orchestration_ui_data(experiment_id)
 
-    decisions = OrchestrationDecision.query.filter_by(
-        experiment_id=experiment.id
-    ).order_by(OrchestrationDecision.created_at.desc()).all()
+        return render_template(
+            'experiments/orchestrated_analysis.html',
+            experiment=data['experiment'],
+            decisions=data['decisions'],
+            patterns=data['patterns'],
+            terms=data['terms']
+        )
 
-    # Get learning patterns
-    patterns = LearningPattern.query.filter_by(
-        pattern_status='active'
-    ).order_by(LearningPattern.confidence.desc()).limit(5).all()
+    except NotFoundError as e:
+        logger.warning(f"Experiment {experiment_id} not found: {e}")
+        from flask import abort
+        abort(404)
 
-    # Get experiment configuration
-    config = json.loads(experiment.configuration) if experiment.configuration else {}
-    terms = config.get('target_terms', [])
-
-    return render_template('experiments/orchestrated_analysis.html',
-                         experiment=experiment,
-                         decisions=decisions,
-                         patterns=patterns,
-                         terms=terms)
+    except ServiceError as e:
+        logger.error(f"Service error getting orchestration UI data: {e}", exc_info=True)
+        from flask import abort
+        abort(500)
 
 
 @experiments_bp.route('/<int:experiment_id>/create_orchestration_decision', methods=['POST'])
 @api_require_login_for_write
 def create_orchestration_decision(experiment_id):
-    """Create a new orchestration decision for human feedback"""
+    """
+    Create a new orchestration decision for human feedback
+
+    REFACTORED: Now uses OrchestrationService with DTO validation
+    """
     try:
-        experiment = Experiment.query.filter_by(id=experiment_id).first_or_404()
-        data = request.get_json()
+        # Validate request data using DTO
+        data = CreateOrchestrationDecisionDTO(**request.get_json())
 
-        term_text = data.get('term_text', '')
-        if not term_text:
-            return jsonify({'error': 'Term text is required'}), 400
-
-        # Get document characteristics
-        doc_characteristics = {
-            'document_count': experiment.get_document_count(),
-            'total_words': experiment.get_total_word_count(),
-            'experiment_type': experiment.experiment_type
-        }
-
-        # Create input metadata
-        config = json.loads(experiment.configuration) if experiment.configuration else {}
-        input_metadata = {
-            'experiment_id': experiment.id,
-            'experiment_type': experiment.experiment_type,
-            'document_count': experiment.get_document_count(),
-            'total_words': experiment.get_total_word_count(),
-            'time_periods': config.get('time_periods', []),
-            'domains': config.get('domains', [])
-        }
-
-        # Simulate LLM orchestration decision (in production, this would call actual LLM service)
-        selected_tools = ['spacy', 'embeddings']
-        embedding_model = 'bert-base-uncased'
-        decision_confidence = 0.85
-
-        # Apply learning patterns for more intelligent selection
-        from app.models.orchestration_feedback import LearningPattern
-        active_patterns = LearningPattern.query.filter_by(pattern_status='active').all()
-
-        reasoning_parts = [f"Selected tools for term '{term_text}' based on:"]
-        for pattern in active_patterns[:2]:  # Apply top 2 patterns
-            if pattern.pattern_type == 'preference':
-                pattern_tools = pattern.recommendations.get('tools', [])
-                selected_tools.extend([t for t in pattern_tools if t not in selected_tools])
-                reasoning_parts.append(f"- {pattern.pattern_name}: {pattern.recommendations.get('reasoning', 'Applied learned pattern')}")
-
-                # Apply embedding model recommendations
-                pattern_model = pattern.recommendations.get('embedding_model')
-                if pattern_model:
-                    embedding_model = pattern_model
-
-        reasoning = '\\n'.join(reasoning_parts)
-
-        # Create orchestration decision
-        from app.models.orchestration_logs import OrchestrationDecision
-
-        decision = OrchestrationDecision(
-            experiment_id=experiment.id,
-            term_text=term_text,
-            selected_tools=selected_tools,
-            embedding_model=embedding_model,
-            decision_confidence=decision_confidence,
-            orchestrator_provider='claude',
-            orchestrator_model='claude-3-sonnet',
-            orchestrator_prompt=f"Analyze term '{term_text}' and recommend optimal NLP processing approach",
-            orchestrator_response=f"Recommended: {', '.join(selected_tools)} with {embedding_model}",
-            orchestrator_response_time_ms=1200,
-            processing_strategy='sequential',
-            reasoning=reasoning,
-            input_metadata=input_metadata,
-            document_characteristics=doc_characteristics,
-            created_by=current_user.id
+        # Call service to create decision
+        result = orchestration_service.create_orchestration_decision(
+            experiment_id,
+            term_text=data.term_text,
+            user_id=current_user.id
         )
-
-        db.session.add(decision)
-        db.session.commit()
 
         return jsonify({
             'success': True,
             'message': 'Orchestration decision created successfully',
-            'decision_id': str(decision.id),
-            'selected_tools': selected_tools,
-            'embedding_model': embedding_model,
-            'confidence': decision_confidence,
-            'reasoning': reasoning
-        })
+            'decision_id': result['decision_id'],
+            'selected_tools': result['selected_tools'],
+            'embedding_model': result['embedding_model'],
+            'confidence': result['confidence'],
+            'reasoning': result['reasoning']
+        }), 201
+
+    except PydanticValidationError as e:
+        # Validation errors from DTO
+        logger.warning(f"Validation error creating orchestration decision for experiment {experiment_id}: {e}")
+        return jsonify({
+            'success': False,
+            'error': 'Validation failed',
+            'details': e.errors()
+        }), 400
+
+    except ValidationError as e:
+        # Business validation errors
+        logger.warning(f"Business validation error: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 400
+
+    except ServiceError as e:
+        # Service errors (database, etc.)
+        logger.error(f"Service error creating orchestration decision for experiment {experiment_id}: {e}", exc_info=True)
+        return jsonify({
+            'success': False,
+            'error': 'Failed to create orchestration decision'
+        }), 500
 
     except Exception as e:
-        db.session.rollback()
-        return jsonify({'error': str(e)}), 500
+        # Unexpected errors
+        logger.error(f"Unexpected error creating orchestration decision for experiment {experiment_id}: {e}", exc_info=True)
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
 
 
 @experiments_bp.route('/<int:experiment_id>/run_orchestrated_analysis', methods=['POST'])
 @api_require_login_for_write
 def run_orchestrated_analysis(experiment_id):
-    """Run analysis with LLM orchestration decisions and real-time feedback"""
+    """
+    Run analysis with LLM orchestration decisions and real-time feedback
+
+    REFACTORED: Now uses OrchestrationService with DTO validation
+    """
     try:
-        experiment = Experiment.query.filter_by(id=experiment_id).first_or_404()
-        data = request.get_json()
+        # Validate request data using DTO
+        data = RunOrchestratedAnalysisDTO(**request.get_json())
 
-        # Get analysis parameters
-        terms = data.get('terms', [])
-        if not terms:
-            return jsonify({'error': 'At least one term is required'}), 400
-
-        # Create orchestration decisions for each term
-        from app.models.orchestration_logs import OrchestrationDecision
-        from app.services.adaptive_orchestration_service import AdaptiveOrchestrationService
-
-        orchestration_service = AdaptiveOrchestrationService()
-        analysis_results = []
-
-        for term in terms:
-            # Create or get existing orchestration decision
-            existing_decision = OrchestrationDecision.query.filter_by(
-                experiment_id=experiment.id,
-                term_text=term
-            ).first()
-
-            if not existing_decision:
-                # Create new decision using adaptive service
-                decision_context = {
-                    'experiment_id': experiment.id,
-                    'term_text': term,
-                    'experiment_type': experiment.experiment_type,
-                    'document_count': experiment.get_document_count(),
-                    'user_id': current_user.id
-                }
-
-                decision = orchestration_service.create_adaptive_decision(decision_context)
-            else:
-                decision = existing_decision
-
-            # Simulate analysis execution with the orchestrated tools
-            analysis_result = {
-                'term': term,
-                'decision_id': str(decision.id),
-                'tools_used': decision.selected_tools,
-                'embedding_model': decision.embedding_model,
-                'confidence': float(decision.decision_confidence),
-                'processing_time': '2.3s',
-                'semantic_drift_detected': True,
-                'drift_magnitude': 0.32,
-                'periods_analyzed': 4,
-                'insights': [
-                    f"Term '{term}' shows moderate semantic drift over time",
-                    f"Most stable usage in period 2010-2015",
-                    f"Significant shift detected in recent period"
-                ]
-            }
-
-            analysis_results.append(analysis_result)
-
-        # Mark experiment as running
-        experiment.status = 'running'
-        experiment.started_at = datetime.utcnow()
-        db.session.commit()
+        # Call service to run analysis
+        result = orchestration_service.run_orchestrated_analysis(
+            experiment_id,
+            terms=data.terms,
+            user_id=current_user.id
+        )
 
         return jsonify({
             'success': True,
-            'message': f'Orchestrated analysis initiated for {len(terms)} terms',
-            'results': analysis_results,
-            'total_decisions': len(analysis_results)
-        })
+            'message': f'Orchestrated analysis initiated for {len(data.terms)} terms',
+            'results': result['results'],
+            'total_decisions': result['total_decisions']
+        }), 200
+
+    except PydanticValidationError as e:
+        # Validation errors from DTO
+        logger.warning(f"Validation error running orchestrated analysis for experiment {experiment_id}: {e}")
+        return jsonify({
+            'success': False,
+            'error': 'Validation failed',
+            'details': e.errors()
+        }), 400
+
+    except ValidationError as e:
+        # Business validation errors
+        logger.warning(f"Business validation error: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 400
+
+    except ServiceError as e:
+        # Service errors (database, etc.)
+        logger.error(f"Service error running orchestrated analysis for experiment {experiment_id}: {e}", exc_info=True)
+        return jsonify({
+            'success': False,
+            'error': 'Failed to run orchestrated analysis'
+        }), 500
 
     except Exception as e:
-        db.session.rollback()
-        return jsonify({'error': str(e)}), 500
+        # Unexpected errors
+        logger.error(f"Unexpected error running orchestrated analysis for experiment {experiment_id}: {e}", exc_info=True)
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
+@experiments_bp.route('/<int:experiment_id>/orchestration-results')
+def orchestration_results(experiment_id):
+    """
+    Display orchestration results for an experiment
+
+    REFACTORED: Now uses OrchestrationService
+    """
+    try:
+        # Get orchestration results from service
+        data = orchestration_service.get_orchestration_results(experiment_id)
+
+        # Allow template override via query parameter (for backward compatibility)
+        template = request.args.get('template', 'enhanced')
+        if template == 'compact':
+            template_name = 'experiments/orchestration_results.html'
+        else:
+            template_name = 'experiments/orchestration_results_enhanced.html'
+
+        return render_template(
+            template_name,
+            experiment=data['experiment'],
+            decisions=data['decisions'],
+            total_decisions=data['total_decisions'],
+            completed_decisions=data['completed_decisions'],
+            avg_confidence=data['avg_confidence'],
+            recent_decision=data['recent_decision'],
+            cross_document_insights=data['cross_document_insights'],
+            duration=data['duration'],
+            document_count=data['document_count']
+        )
+
+    except NotFoundError as e:
+        logger.warning(f"Experiment {experiment_id} not found: {e}")
+        from flask import abort
+        abort(404)
+
+    except ServiceError as e:
+        logger.error(f"Service error getting orchestration results: {e}", exc_info=True)
+        from flask import abort
+        abort(500)
+
+
+@experiments_bp.route('/<int:experiment_id>/orchestration-provenance.json')
+def orchestration_provenance_json(experiment_id):
+    """
+    Download PROV-O compliant JSON provenance record for orchestration decisions
+
+    REFACTORED: Now uses OrchestrationService
+    """
+    try:
+        # Get provenance data from service
+        provenance_data = orchestration_service.get_orchestration_provenance(experiment_id)
+
+        return jsonify(provenance_data), 200
+
+    except NotFoundError as e:
+        logger.warning(f"Experiment {experiment_id} not found: {e}")
+        return jsonify({
+            'error': 'Experiment not found'
+        }), 404
+
+    except ServiceError as e:
+        logger.error(f"Service error generating provenance: {e}", exc_info=True)
+        return jsonify({
+            'error': 'Failed to generate provenance data'
+        }), 500
