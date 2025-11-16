@@ -98,7 +98,7 @@
                 </div>
                 <div class="card-body">
                     <div class="insights-content">
-                        {{ cross_document_insights | safe | replace('\n', '<br>') | replace('•', '<div class="mb-3">•') | replace('**', '<strong>') | replace('**', '</strong>') }}
+                        {{ cross_document_insights | safe }}
                     </div>
                 </div>
             </div>
@@ -227,6 +227,31 @@
 
     .insights-content strong {
         color: #2c3e50;
+    }
+
+    .insights-content ul {
+        padding-left: 0;
+    }
+
+    .insights-content li {
+        margin-bottom: 1.5rem;
+        padding-left: 1.5rem;
+        position: relative;
+    }
+
+    .insights-content li::before {
+        content: "•";
+        position: absolute;
+        left: 0;
+        color: #007bff;
+        font-weight: bold;
+        font-size: 1.2em;
+    }
+
+    .insights-content h4 {
+        color: #2c3e50;
+        margin-bottom: 1rem;
+        margin-top: 0.5rem;
     }
 
     .card {
