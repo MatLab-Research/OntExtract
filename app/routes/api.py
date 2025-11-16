@@ -7,7 +7,7 @@ from flask_login import current_user
 from app.utils.auth_decorators import api_require_login_for_write
 from app import db
 from app.models.term import Term
-from app.services.oed_enrichment_service import OEDEnrichmentService
+from app.services.oed_enrichment import OEDEnrichmentService
 
 api_bp = Blueprint('api', __name__, url_prefix='/api')
 

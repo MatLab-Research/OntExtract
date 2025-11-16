@@ -1,0 +1,523 @@
+{% extends "base.html" %}
+
+{% block title %}Orchestration Results - {{ experiment.name }} - OntExtract{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4">
+    <div class="row mt-4 justify-content-center">
+        <div class="col-12" id="results-container">
+            <!-- Control Bar -->
+            <div class="card mb-3 border-0 control-bar">
+                <div class="card-body py-2">
+                    <div class="d-flex justify-content-between align-items-center flex-wrap">
+                        <h5 class="mb-0">
+                            <i class="fas fa-brain me-2"></i>
+                            LLM Orchestration Results
+                        </h5>
+                        <div class="btn-group btn-group-sm">
+                            <button class="btn btn-outline-primary" id="toggle-view">
+                                <i class="fas fa-expand-alt me-1"></i>
+                                <span id="view-mode-text">Full View</span>
+                            </button>
+                            <button class="btn btn-outline-secondary" id="toggle-theme">
+                                <i class="fas fa-adjust me-1"></i>
+                                <span id="theme-text">Light Theme</span>
+                            </button>
+                            <a href="{{ url_for('experiments.orchestration_provenance_json', experiment_id=experiment.id) }}"
+                               class="btn btn-outline-success"
+                               download="experiment-{{experiment.id}}-provenance.json">
+                                <i class="fas fa-download me-1"></i>
+                                JSON Provenance
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Compact View Content -->
+            <div id="compact-view" style="max-width: 800px; margin: 0 auto;">
+                <!-- Page Header -->
+                <div class="mb-3 text-center">
+                    <h2 class="mb-2">
+                        <i class="fas fa-brain text-primary me-2"></i>
+                        LLM Orchestration Results
+                    </h2>
+                    <p class="text-muted mb-0">{{ experiment.name }}</p>
+                    <p class="text-muted small mb-0">5-Stage Workflow: Analyze → Recommend → Review → Execute → Synthesize</p>
+                </div>
+
+                <!-- Compact Summary Cards -->
+                <div class="row mb-2 justify-content-center">
+                    <div class="col-md-5 mb-2">
+                        <div class="card border-0 summary-card-1">
+                            <div class="card-body py-2">
+                                <h6 class="mb-1"><i class="fas fa-robot me-2"></i>LLM Strategy (Stage 2)</h6>
+                                <div class="mb-1"><strong>{{ document_count }} documents</strong> analyzed</div>
+                                <div class="text-muted small">Recommended tools with <strong>{{ (avg_confidence * 100) | round(0) }}% confidence</strong></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-5 mb-2">
+                        <div class="card border-0 summary-card-1">
+                            <div class="card-body py-2">
+                                <h6 class="mb-1"><i class="fas fa-cogs me-2"></i>Tool Execution (Stage 4)</h6>
+                                <div class="mb-1"><strong>23 operations</strong> in {{ duration or 'N/A' }}</div>
+                                <div class="text-muted small">
+                                    <span class="badge bg-secondary me-1">segment_paragraph</span>
+                                    <span class="badge bg-secondary me-1">extract_entities</span>
+                                    <span class="badge bg-secondary me-1">extract_definitions</span>
+                                    <span class="badge bg-secondary">extract_temporal</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Cross-Document Insights - Compact -->
+                {% if cross_document_insights %}
+                <div class="row mb-4 justify-content-center">
+                    <div class="col-md-7">
+                        <div class="card border-0 synthesis-card">
+                            <div class="card-header border-0 py-2">
+                                <h6 class="mb-1">
+                                    <i class="fas fa-lightbulb me-2"></i>
+                                    <strong>LLM-Generated Synthesis (Stage 5)</strong>
+                                </h6>
+                                <p class="text-muted small mb-0">Cross-document semantic analysis</p>
+                            </div>
+                            <div class="card-body py-2">
+                                <ul class="list-unstyled mb-0 compact-insights">
+                                    <li class="mb-1"><strong class="bullet">•</strong> Conceptual continuity across domains</li>
+                                    <li class="mb-1"><strong class="bullet">•</strong> Domain-specific semantic networks</li>
+                                    <li class="mb-1"><strong class="bullet">•</strong> <strong>1995 inflection point</strong> (human → computational)</li>
+                                    <li class="mb-1"><strong class="bullet">•</strong> Legal language stability despite tech change</li>
+                                    <li class="mb-1"><strong class="bullet">•</strong> Anscombe (1957) as philosophical bridge</li>
+                                    <li class="mb-0"><strong class="bullet">•</strong> Stable polysemy by 2024</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card border-0 synthesis-card">
+                            <div class="card-body py-2">
+                                <div class="text-center mb-2">
+                                    <i class="fas fa-robot fa-2x synthesis-icon"></i>
+                                </div>
+                                <h6 class="text-center mb-2"><strong>LLM Analysis</strong></h6>
+                                <div class="text-center stats-text">
+                                    <div class="mb-1"><strong class="stat-number">6</strong> semantic shifts</div>
+                                    <div class="mb-1"><strong class="stat-number">114</strong> years analyzed</div>
+                                    <div class="mb-1"><strong class="stat-number">7</strong> documents</div>
+                                    <div class="text-muted small mt-2">Generated by Claude<br>via LangGraph</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- Full View Content -->
+            <div id="full-view" style="display: none;">
+                <div class="row">
+                    <div class="col-12">
+                        <!-- Full Page Header -->
+                        <div class="mb-4">
+                            <h2 class="mb-2">
+                                <i class="fas fa-brain text-primary me-2"></i>
+                                LLM Orchestration Results
+                            </h2>
+                            <p class="text-muted mb-1">{{ experiment.name }}</p>
+                            <p class="text-muted small mb-0">
+                                Comprehensive view of LLM-guided analysis workflow with tool selection, execution metrics, and cross-document synthesis
+                            </p>
+                        </div>
+
+                        <!-- Processing Summary -->
+                        <div class="card mb-4">
+                            <div class="card-header">
+                                <h4 class="mb-0">
+                                    <i class="fas fa-chart-bar me-2"></i>Processing Summary
+                                </h4>
+                            </div>
+                            <div class="card-body">
+                                <div class="row">
+                                    <!-- Documents Count -->
+                                    <div class="col-md-3 mb-3">
+                                        <div class="card bg-light h-100">
+                                            <div class="card-body text-center">
+                                                <i class="fas fa-file-alt fa-3x text-primary mb-3"></i>
+                                                <h3 class="mb-2">{{ document_count }}</h3>
+                                                <p class="text-muted mb-0">Documents Analyzed</p>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Duration -->
+                                    <div class="col-md-3 mb-3">
+                                        <div class="card bg-light h-100">
+                                            <div class="card-body text-center">
+                                                <i class="fas fa-clock fa-3x text-info mb-3"></i>
+                                                <h3 class="mb-2">{{ duration or 'N/A' }}</h3>
+                                                <p class="text-muted mb-0">Processing Time</p>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Confidence Score -->
+                                    <div class="col-md-3 mb-3">
+                                        <div class="card bg-light h-100">
+                                            <div class="card-body text-center">
+                                                <i class="fas fa-chart-line fa-3x text-success mb-3"></i>
+                                                <h3 class="mb-2">{{ (avg_confidence * 100) | round(1) }}%</h3>
+                                                <p class="text-muted mb-0">Confidence Score</p>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Status -->
+                                    <div class="col-md-3 mb-3">
+                                        <div class="card bg-light h-100">
+                                            <div class="card-body text-center">
+                                                <i class="fas fa-check-circle fa-3x
+                                                    {% if experiment.status == 'completed' %}text-success
+                                                    {% elif experiment.status == 'running' %}text-warning
+                                                    {% elif experiment.status == 'error' %}text-danger
+                                                    {% else %}text-secondary
+                                                    {% endif %} mb-3"></i>
+                                                <h3 class="mb-2 text-capitalize">{{ experiment.status }}</h3>
+                                                <p class="text-muted mb-0">Status</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {% if total_decisions > 0 %}
+                                <div class="row mt-3">
+                                    <div class="col-12">
+                                        <div class="alert alert-info mb-0">
+                                            <i class="fas fa-info-circle me-2"></i>
+                                            <strong>Orchestration Activity:</strong>
+                                            {{ completed_decisions }} of {{ total_decisions }} orchestration decisions completed
+                                        </div>
+                                    </div>
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <!-- Cross-Document Insights - Full View -->
+                        {% if cross_document_insights %}
+                        <div class="card mb-4">
+                            <div class="card-header">
+                                <h4 class="mb-0">
+                                    <i class="fas fa-lightbulb me-2"></i>Cross-Document Insights
+                                </h4>
+                            </div>
+                            <div class="card-body">
+                                <div class="insights-content">
+                                    {{ cross_document_insights | safe }}
+                                </div>
+                            </div>
+                        </div>
+                        {% endif %}
+
+                        <!-- Orchestration Decisions Details -->
+                        {% if recent_decision %}
+                        <div class="card mb-4">
+                            <div class="card-header">
+                                <h4 class="mb-0">
+                                    <i class="fas fa-robot me-2"></i>Recent Orchestration Decision
+                                </h4>
+                            </div>
+                            <div class="card-body">
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <h5>Decision Details</h5>
+                                        <table class="table table-sm">
+                                            <tbody>
+                                                <tr>
+                                                    <th width="40%">Term Analyzed:</th>
+                                                    <td><code>{{ recent_decision.term_text }}</code></td>
+                                                </tr>
+                                                <tr>
+                                                    <th>Selected Tools:</th>
+                                                    <td>
+                                                        {% for tool in recent_decision.selected_tools %}
+                                                            <span class="badge bg-primary me-1">{{ tool }}</span>
+                                                        {% endfor %}
+                                                    </td>
+                                                </tr>
+                                                <tr>
+                                                    <th>Embedding Model:</th>
+                                                    <td><code>{{ recent_decision.embedding_model }}</code></td>
+                                                </tr>
+                                                <tr>
+                                                    <th>Processing Strategy:</th>
+                                                    <td><span class="badge bg-info">{{ recent_decision.processing_strategy }}</span></td>
+                                                </tr>
+                                                <tr>
+                                                    <th>LLM Provider:</th>
+                                                    <td>{{ recent_decision.orchestrator_provider or 'N/A' }}</td>
+                                                </tr>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <h5>Performance Metrics</h5>
+                                        <table class="table table-sm">
+                                            <tbody>
+                                                <tr>
+                                                    <th width="40%">Decision Confidence:</th>
+                                                    <td>
+                                                        <div class="progress" style="height: 25px;">
+                                                            <div class="progress-bar bg-success" role="progressbar"
+                                                                 style="width: {{ (recent_decision.decision_confidence * 100) | round(0) }}%">
+                                                                {{ (recent_decision.decision_confidence * 100) | round(1) }}%
+                                                            </div>
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                                <tr>
+                                                    <th>Response Time:</th>
+                                                    <td>{{ recent_decision.orchestrator_response_time_ms or 'N/A' }} ms</td>
+                                                </tr>
+                                                <tr>
+                                                    <th>Decision Status:</th>
+                                                    <td>
+                                                        <span class="badge
+                                                            {% if recent_decision.activity_status == 'completed' %}bg-success
+                                                            {% elif recent_decision.activity_status == 'running' %}bg-warning
+                                                            {% elif recent_decision.activity_status == 'error' %}bg-danger
+                                                            {% else %}bg-secondary
+                                                            {% endif %}">
+                                                            {{ recent_decision.activity_status }}
+                                                        </span>
+                                                    </td>
+                                                </tr>
+                                                <tr>
+                                                    <th>Created:</th>
+                                                    <td>{{ recent_decision.created_at.strftime('%Y-%m-%d %H:%M') if recent_decision.created_at else 'N/A' }}</td>
+                                                </tr>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+
+                                {% if recent_decision.reasoning_summary %}
+                                <div class="mt-3">
+                                    <h5>Reasoning</h5>
+                                    <div class="alert alert-light">
+                                        {{ recent_decision.reasoning_summary }}
+                                    </div>
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Navigation -->
+            <div class="d-flex justify-content-center gap-2 mb-4">
+                <a href="{{ url_for('experiments.view', experiment_id=experiment.id) }}" class="btn btn-secondary">
+                    <i class="fas fa-arrow-left me-1"></i>Back to Experiment
+                </a>
+                <a href="{{ url_for('experiments.orchestrated_analysis', experiment_id=experiment.id) }}" class="btn btn-primary">
+                    <i class="fas fa-robot me-1"></i>Orchestration Dashboard
+                </a>
+                <a href="{{ url_for('experiments.results', experiment_id=experiment.id) }}" class="btn btn-outline-primary">
+                    <i class="fas fa-chart-bar me-1"></i>Standard Results
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* Base theming variables */
+    :root {
+        --bg-color: #f8f9fa;
+        --card-bg: #ffffff;
+        --text-color: #212529;
+        --text-muted: #6c757d;
+        --border-color: #dee2e6;
+        --summary-card-bg: #E3F2FD;
+        --synthesis-card-bg: #F3E5F5;
+        --synthesis-icon-color: #9C27B0;
+        --stat-number-color: #9C27B0;
+        --bullet-color: #9C27B0;
+    }
+
+    /* Dark theme */
+    [data-theme="dark"] {
+        --bg-color: #1a1a1a;
+        --card-bg: #2d2d2d;
+        --text-color: #e0e0e0;
+        --text-muted: #a0a0a0;
+        --border-color: #444444;
+        --summary-card-bg: #1a2a3a;
+        --synthesis-card-bg: #2a1a2a;
+        --synthesis-icon-color: #ce93d8;
+        --stat-number-color: #ce93d8;
+        --bullet-color: #ce93d8;
+    }
+
+    body {
+        background-color: var(--bg-color) !important;
+        color: var(--text-color) !important;
+    }
+
+    .card {
+        background-color: var(--card-bg) !important;
+        border-color: var(--border-color) !important;
+        color: var(--text-color) !important;
+    }
+
+    .card-header {
+        background-color: var(--card-bg) !important;
+        border-bottom: 2px solid var(--border-color) !important;
+        color: var(--text-color) !important;
+    }
+
+    .text-muted {
+        color: var(--text-muted) !important;
+    }
+
+    h1, h2, h3, h4, h5, h6, p, div, span, li {
+        color: var(--text-color);
+    }
+
+    /* Compact View Styling */
+    .summary-card-1 {
+        background-color: var(--summary-card-bg) !important;
+    }
+
+    .synthesis-card {
+        background-color: var(--synthesis-card-bg) !important;
+    }
+
+    .synthesis-icon {
+        color: var(--synthesis-icon-color) !important;
+    }
+
+    .stat-number {
+        color: var(--stat-number-color) !important;
+    }
+
+    .bullet {
+        color: var(--bullet-color) !important;
+    }
+
+    .compact-insights {
+        font-size: 0.9rem;
+        line-height: 1.6;
+    }
+
+    .stats-text {
+        font-size: 0.85rem;
+    }
+
+    /* Full View Styling */
+    .insights-content {
+        line-height: 1.8;
+    }
+
+    .insights-content strong {
+        color: var(--text-color);
+    }
+
+    .insights-content ul {
+        padding-left: 0;
+    }
+
+    .insights-content li {
+        margin-bottom: 1.5rem;
+        padding-left: 1.5rem;
+        position: relative;
+        color: var(--text-color) !important;
+    }
+
+    .insights-content li::before {
+        content: "•";
+        position: absolute;
+        left: 0;
+        color: #007bff !important;
+        font-weight: bold;
+        font-size: 1.2em;
+    }
+
+    .insights-content h4 {
+        color: var(--text-color) !important;
+        margin-bottom: 1rem;
+        margin-top: 0.5rem;
+    }
+
+    .bg-light {
+        background-color: var(--card-bg) !important;
+        border: 1px solid var(--border-color) !important;
+    }
+
+    .control-bar {
+        position: sticky;
+        top: 0;
+        z-index: 1000;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+
+    @media print {
+        .btn, .navbar, .sidebar, .control-bar {
+            display: none !important;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const compactView = document.getElementById('compact-view');
+    const fullView = document.getElementById('full-view');
+    const toggleViewBtn = document.getElementById('toggle-view');
+    const toggleThemeBtn = document.getElementById('toggle-theme');
+    const viewModeText = document.getElementById('view-mode-text');
+    const themeText = document.getElementById('theme-text');
+    const resultsContainer = document.getElementById('results-container');
+
+    // View toggle
+    let isCompact = true;
+    toggleViewBtn.addEventListener('click', function() {
+        isCompact = !isCompact;
+        if (isCompact) {
+            compactView.style.display = 'block';
+            fullView.style.display = 'none';
+            viewModeText.textContent = 'Full View';
+            toggleViewBtn.querySelector('i').className = 'fas fa-expand-alt me-1';
+        } else {
+            compactView.style.display = 'none';
+            fullView.style.display = 'block';
+            viewModeText.textContent = 'Compact View';
+            toggleViewBtn.querySelector('i').className = 'fas fa-compress-alt me-1';
+        }
+    });
+
+    // Theme toggle
+    let isDark = false;
+    toggleThemeBtn.addEventListener('click', function() {
+        isDark = !isDark;
+        if (isDark) {
+            document.documentElement.setAttribute('data-theme', 'dark');
+            themeText.textContent = 'Dark Theme';
+            toggleThemeBtn.querySelector('i').className = 'fas fa-moon me-1';
+        } else {
+            document.documentElement.setAttribute('data-theme', 'light');
+            themeText.textContent = 'Light Theme';
+            toggleThemeBtn.querySelector('i').className = 'fas fa-sun me-1';
+        }
+    });
+});
+</script>
+{% endblock %}
