@@ -165,27 +165,29 @@
                     <div class="form-text">Upload a PDF file for analysis</div>
                 </div>
 
-                <div class="alert alert-info mb-3">
-                    <i class="fas fa-magic"></i>
-                    <strong>Automatic Metadata Extraction:</strong>
-                    Leave fields blank and we'll automatically extract the DOI or title from your PDF, then fetch metadata from CrossRef!
+                <div class="alert alert-warning mb-3">
+                    <i class="fas fa-info-circle"></i>
+                    <strong>Manual Metadata Entry Required:</strong>
+                    Please provide title and publication year. Automatic PDF extraction is temporarily disabled and will be improved in a future update.
                 </div>
 
                 <div class="row">
                     <div class="col-md-6 mb-3">
-                        <label for="file-title" class="form-label">Title (optional)</label>
-                        <input type="text" class="form-control" id="file-title" placeholder="Leave blank for automatic extraction">
-                        <div class="form-text">If provided, will be used to search CrossRef</div>
+                        <label for="file-title" class="form-label">Title <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="file-title" placeholder="Enter document title" required>
+                        <div class="form-text">Full title of the document</div>
                     </div>
                     <div class="col-md-6 mb-3">
-                        <label for="file-year" class="form-label">Year (optional)</label>
-                        <input type="number" class="form-control" id="file-year" placeholder="e.g., 2020" min="1800" max="2026">
+                        <label for="file-year" class="form-label">Publication Year <span class="text-danger">*</span></label>
+                        <input type="number" class="form-control" id="file-year" placeholder="e.g., 1957" min="1800" max="2026" required>
+                        <div class="form-text">Original publication year</div>
                     </div>
                 </div>
 
                 <div class="mb-3">
                     <label for="file-authors" class="form-label">Authors (optional)</label>
                     <input type="text" class="form-control" id="file-authors" placeholder="Comma-separated author names">
+                    <div class="form-text">Author names separated by commas</div>
                 </div>
 
                 <button type="submit" class="btn btn-primary btn-lg">

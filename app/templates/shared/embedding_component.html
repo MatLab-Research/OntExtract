@@ -19,7 +19,7 @@
                     <li><h6 class="dropdown-header">Available Experiments</h6></li>
                     {% if experiments %}
                         {% for experiment in experiments %}
-                        <li><a class="dropdown-item" href="{{ url_for('experiments.process_document', experiment_id=experiment.id, document_id=document.id) }}">
+                        <li><a class="dropdown-item" href="{{ url_for('experiments.process_document', experiment_id=experiment.id, document_uuid=document.uuid) }}">
                             <i class="fas fa-flask me-2"></i>{{ experiment.name }}
                             <small class="text-muted d-block">{{ experiment.experiment_type }}</small>
                         </a></li>

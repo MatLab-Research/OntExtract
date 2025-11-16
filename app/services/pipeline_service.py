@@ -81,6 +81,7 @@ class PipelineService(BaseService):
 
                 processed_docs.append({
                     'id': doc.id,
+                    'uuid': doc.uuid,  # Add UUID for template URL generation
                     'exp_doc_id': exp_doc.id,
                     'name': doc.original_filename or doc.title,
                     'file_type': doc.file_type or doc.content_type,

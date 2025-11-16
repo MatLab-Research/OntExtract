@@ -60,14 +60,19 @@ def document_pipeline(experiment_id):
         abort(500)
 
 
-@experiments_bp.route('/<int:experiment_id>/process_document/<int:document_id>')
-def process_document(experiment_id, document_id):
+@experiments_bp.route('/<int:experiment_id>/process_document/<uuid:document_uuid>')
+def process_document(experiment_id, document_uuid):
     """
     Process a specific document with experiment-specific context
 
     REFACTORED: Now uses PipelineService
     """
     try:
+        # Convert UUID to ID for service (service layer still uses IDs internally)
+        from app.models import Document
+        document = Document.query.filter_by(uuid=document_uuid).first_or_404()
+        document_id = document.id
+
         # Get process document data from service
         data = pipeline_service.get_process_document_data(experiment_id, document_id)
 

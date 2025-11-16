@@ -225,7 +225,7 @@ def upload_document():
                 return redirect(url_for('experiments.view', experiment_id=experiment_id))
         
         # All documents now go to the same detail page with full processing options
-        return redirect(url_for('text_input.document_detail', document_id=document.id))
+        return redirect(url_for('text_input.document_detail', document_uuid=document.uuid))
             
     except Exception as e:
         current_app.logger.error(f"Error uploading document: {str(e)}")
@@ -319,26 +319,15 @@ def extract_metadata():
                 crossref_metadata = {}
                 crossref_provenance = {}
 
-                # If no title provided and file is PDF, try automatic extraction
+                # DISABLED: Automatic PDF extraction (unreliable for historical documents)
+                # Will revisit later to improve title extraction accuracy
+                # if not title and file.filename.lower().endswith('.pdf'):
+                #     current_app.logger.info(f"No title provided, attempting PDF analysis for {file.filename}")
+                #     pdf_result = upload_service.extract_metadata_from_pdf(upload_result.temp_path)
+                #     ...
+                # For now, users should manually provide title and year
                 if not title and file.filename.lower().endswith('.pdf'):
-                    current_app.logger.info(f"No title provided, attempting PDF analysis for {file.filename}")
-                    pdf_result = upload_service.extract_metadata_from_pdf(upload_result.temp_path)
-
-                    if pdf_result.success:
-                        crossref_metadata = pdf_result.metadata
-                        # Track CrossRef provenance with automatic extraction note
-                        for key, value in crossref_metadata.items():
-                            if value is not None and key not in ['extracted_doi', 'extracted_title', 'extraction_method']:
-                                crossref_provenance[key] = {
-                                    'source': 'crossref_auto',
-                                    'confidence': 0.90,
-                                    'timestamp': datetime.utcnow().isoformat(),
-                                    'raw_value': value,
-                                    'extraction_method': pdf_result.metadata.get('extraction_method', 'auto')
-                                }
-                        current_app.logger.info(f"PDF extraction successful: {pdf_result.metadata.get('extraction_method')}")
-                    else:
-                        current_app.logger.warning(f"PDF extraction failed: {pdf_result.error if hasattr(pdf_result, 'error') else 'Unknown'}")
+                    current_app.logger.info(f"Automatic PDF extraction disabled - please provide title and year manually")
 
                 # If title was provided by user, use that
                 if title:
@@ -492,6 +481,21 @@ def save_document():
         )
 
         db.session.add(document)
+        db.session.flush()  # Get document ID
+
+        # Create temporal metadata if publication_year is provided
+        if metadata.get('publication_year'):
+            from app.models import DocumentTemporalMetadata
+
+            temporal_metadata = DocumentTemporalMetadata(
+                document_id=document.id,
+                publication_year=metadata.get('publication_year'),
+                discipline=metadata.get('discipline'),  # If provided in form
+                key_definition=metadata.get('abstract'),  # Use abstract as key definition if available
+                created_at=datetime.utcnow()
+            )
+            db.session.add(temporal_metadata)
+
         db.session.commit()
 
         # Track document lifecycle with PROV-O (granular tracking)

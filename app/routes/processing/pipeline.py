@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, request, jsonify, current_app as app
+from flask import render_template, request, jsonify, current_app as app
 from flask_login import current_user
 from app.utils.auth_decorators import require_login_for_write, api_require_login_for_write
 from sqlalchemy import func, text
@@ -13,7 +13,8 @@ from app.services.enhanced_document_processor import EnhancedDocumentProcessor
 from app.services.inheritance_versioning_service import InheritanceVersioningService
 from app.services.text_cleanup_service import TextCleanupService
 
-processing_bp = Blueprint('processing', __name__)
+# Get the blueprint from the package using relative import
+from . import processing_bp
 
 @processing_bp.route('/')
 def processing_home():

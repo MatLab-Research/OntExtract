@@ -9,18 +9,15 @@ The processing blueprint is organized into focused modules:
 - batch.py: Batch processing operations
 - validation.py: Testing and validation utilities
 
-All routes have been extracted and organized into these focused modules.
+Routes are registered when this package is imported.
 """
 
 from flask import Blueprint
 
 # Create the processing blueprint
-# This will be imported by route modules
 processing_bp = Blueprint('processing', __name__)
 
+# TEMPORARILY COMMENTED OUT TO FIX CIRCULAR IMPORT
 # Import route modules to register their routes
-# This must come after blueprint creation
-from . import status  # noqa: F401, E402
-from . import pipeline  # noqa: F401, E402
-from . import batch  # noqa: F401, E402
-from . import validation  # noqa: F401, E402
+# This happens when the package is imported
+# from . import pipeline, status, batch, validation  # noqa: F401

@@ -111,8 +111,24 @@ class CrossRefMetadataExtractor:
             if not items:
                 return None
 
-            # Return best match (first result)
+            # Get best match (first result) but verify it's actually a good match
             best_match = items[0]
+            match_score = best_match.get('score', 0)
+
+            # CrossRef scores typically range from 0-100+
+            # Only accept matches with score > 60 to avoid false positives
+            # (especially important for historical documents with non-standard titles)
+            # Historical documents often have header text extracted as "title" which produces
+            # low-quality matches (e.g., "Bedford Square London" with score 35)
+            MIN_MATCH_SCORE = 60.0
+
+            if match_score < MIN_MATCH_SCORE:
+                logger.warning(
+                    f"CrossRef match score too low ({match_score:.2f}) for title '{title}'. "
+                    f"Returned title: '{self._extract_title(best_match)}'. "
+                    f"Rejecting match to avoid false positive."
+                )
+                return None
 
             metadata = {
                 'title': self._extract_title(best_match),
@@ -125,8 +141,13 @@ class CrossRefMetadataExtractor:
                 'type': best_match.get('type'),
                 'url': best_match.get('URL'),
                 'raw_date': self._extract_raw_date(best_match),
-                'match_score': best_match.get('score')  # CrossRef relevance score
+                'match_score': match_score  # CrossRef relevance score
             }
+
+            logger.info(
+                f"Accepted CrossRef match (score: {match_score:.2f}) for '{title}': "
+                f"'{metadata['title']}' ({metadata.get('publication_year')})"
+            )
 
             return metadata
 

@@ -46,7 +46,7 @@
               </span>
             </td>
             <td>
-              <a href="{{ url_for('text_input.document_detail', document_id=operation.experiment_document.document.id) }}" class="text-decoration-none">
+              <a href="{{ url_for('text_input.document_detail', document_uuid=operation.experiment_document.document.uuid) }}" class="text-decoration-none">
                 {{ operation.experiment_document.document.get_display_name()[:30] }}...
               </a>
             </td>
