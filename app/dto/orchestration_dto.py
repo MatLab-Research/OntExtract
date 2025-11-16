@@ -21,9 +21,7 @@ class CreateOrchestrationDecisionDTO(BaseDTO):
     term_text: str = Field(..., min_length=1, max_length=200, description="Term to analyze")
 
 
-class RunOrchestrated
-
-AnalysisDTO(BaseDTO):
+class RunOrchestratedAnalysisDTO(BaseDTO):
     """
     DTO for running orchestrated analysis
 
