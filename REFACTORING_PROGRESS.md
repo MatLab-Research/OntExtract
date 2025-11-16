@@ -11,9 +11,12 @@
 | Phase | Status | Completion | Started | Completed |
 |-------|--------|------------|---------|-----------|
 | Phase 0: Foundation & Tooling | ✅ Complete | 100% | 2025-11-15 | 2025-11-15 |
-| Phase 1: File Decomposition | 🔄 In Progress | 20% | 2025-11-15 | - |
-| Phase 2: Repository Pattern | ⏳ Not Started | 0% | - | - |
-| Phase 3: Testing | ⏳ Not Started | 0% | - | - |
+| Phase 1: File Decomposition | ✅ Complete | 100% | 2025-11-15 | 2025-11-15 |
+| Phase 2a: Service Refactoring | ✅ Complete | 100% | 2025-11-15 | 2025-11-15 |
+| Phase 2b: LLM Configuration | ✅ Complete | 100% | 2025-11-16 | 2025-11-16 |
+| Phase 3: Business Logic Extraction | ⏳ Not Started | 0% | - | - |
+| Phase 4: Repository Pattern | ⏳ Not Started | 0% | - | - |
+| Phase 5: Testing Infrastructure | ⏳ Not Started | 0% | - | - |
 
 **Legend:**
 - ✅ Complete
@@ -578,3 +581,143 @@ ruff check app/routes/experiments/
 
 **Last Updated:** 2025-11-15
 **Next Review:** Before Session 2
+
+---
+
+## Phase 2b: LLM Configuration System ✅
+
+**Completion:** 100%
+**Status:** ✅ COMPLETE
+**Duration:** 1 session (~2 hours)
+**Date:** 2025-11-16
+
+### Deliverables
+
+- [x] `config/llm_config.py` - LLMConfigManager class with task-specific configuration
+- [x] Updated `config/__init__.py` - Verified latest stable model IDs (Nov 2025)
+- [x] Updated `app/services/langextract_document_analyzer/extraction.py` - Uses LLMConfigManager
+- [x] Updated `app/services/llm_orchestration_coordinator.py` - Uses LLMConfigManager
+- [x] `docs/LLM_CONFIGURATION.md` - Comprehensive documentation
+
+### Key Outcomes
+
+✅ **Task-Specific Model Selection**
+- Extraction → Gemini 2.5 Flash (fast, structured output, cost-effective)
+- Synthesis → Claude Sonnet 4.5 (complex reasoning & analysis)
+- Orchestration → Claude Haiku 4.5 (fast routing, economical) ⭐ **Updated to Haiku 4.5**
+- OED Parsing → Gemini 2.5 Pro (complex nested structures)
+- Long Context → Claude Sonnet 4.5 (200k token window)
+- Classification → Gemini 2.5 Flash-Lite (fastest/cheapest)
+- Fallback → GPT-5.1 (latest stable)
+
+✅ **Verified Latest Model IDs (November 16, 2025)**
+
+Performed web research to verify all model IDs are latest stable versions:
+
+| Model | ID | Release Date | Verification |
+|-------|-----|--------------|--------------|
+| Gemini 2.5 Flash | `gemini-2.5-flash` | June 2025 | ✅ Stable |
+| Gemini 2.5 Flash-Lite | `gemini-2.5-flash-lite` | Nov 13, 2025 | ✅ Stable |
+| Gemini 2.5 Pro | `gemini-2.5-pro` | 2025 | ✅ Stable |
+| Claude Sonnet 4.5 | `claude-sonnet-4-5-20250929` | Sep 29, 2025 | ✅ Verified |
+| Claude Haiku 4.5 | `claude-haiku-4-5-20251001` | Oct 15, 2025 | ✅ Verified |
+| GPT-5 mini | `gpt-5-mini` | Aug 2025 | ✅ Stable |
+| GPT-5.1 | `gpt-5.1` | Nov 2025 | ✅ Latest |
+
+✅ **LLMConfigManager Features**
+- `get_model_for_task(task_type)` - Get provider and model for specific task
+- `get_extraction_config()` - Get full configuration for extraction tasks
+- `get_synthesis_config()` - Get full configuration for synthesis tasks
+- `get_orchestration_config()` - Get full configuration for orchestration tasks
+- `get_oed_parsing_config()` - Get full configuration for OED parsing
+- `get_long_context_config()` - Get full configuration for long context processing
+- `get_classification_config()` - Get full configuration for classification
+- `get_api_key_for_provider(provider)` - Get API key for specific provider
+- `validate_configuration()` - Validate all LLM configurations
+- `get_all_configurations()` - Get all task configurations for debugging
+
+✅ **Service Integration**
+- Updated `LangExtractExtractor` to use LLMConfigManager
+- Updated `LLMOrchestrationCoordinator` to use LLMConfigManager
+- Both services now use centralized configuration with fallback support
+
+✅ **Cost Optimization**
+- Orchestration switched from GPT-5 mini → Claude Haiku 4.5 for better performance at lower cost
+- Claude Haiku 4.5 is 1/3 the cost of Sonnet while being faster than Haiku 3.5
+- Pricing: $1/$5 per 1M tokens vs. $3/$15 for Sonnet
+
+### Session Details
+
+**Session 1 (2025-11-16):** Complete Phase 2b
+
+**Accomplishments:**
+1. Created `config/llm_config.py` with LLMConfigManager class
+2. Web research to verify latest stable model IDs
+3. Updated config/__init__.py with verified model IDs and detailed comments
+4. Switched orchestration to Claude Haiku 4.5 for efficiency
+5. Updated langextract extraction.py to use LLMConfigManager
+6. Updated llm_orchestration_coordinator.py to use LLMConfigManager
+7. Created comprehensive documentation in docs/LLM_CONFIGURATION.md
+
+**Duration:** ~2 hours
+
+**Impact:**
+- ✅ Centralized LLM configuration management
+- ✅ Latest stable models verified and documented
+- ✅ Services updated to use task-specific models
+- ✅ Cost optimization through intelligent model selection
+- ✅ Complete documentation for future development
+- ✅ Backward compatible (uses defaults if not configured)
+
+### Cost Comparison
+
+| Task Type | Before | After | Savings |
+|-----------|--------|-------|---------|
+| Extraction | ❌ Hardcoded gemini-1.5-flash | ✅ gemini-2.5-flash (configurable) | - |
+| Synthesis | ❌ Mixed providers | ✅ claude-sonnet-4-5 (best for complex) | - |
+| Orchestration | ❌ Direct env access | ✅ claude-haiku-4-5 (1/3 cost of Sonnet) | 66% |
+| Classification | ❌ No optimization | ✅ gemini-2.5-flash-lite (cheapest) | 90%+ |
+
+### Example Usage
+
+```python
+from config.llm_config import get_llm_config, LLMTaskType
+
+# Get singleton config manager
+llm_config = get_llm_config()
+
+# Get configuration for specific task
+extraction_config = llm_config.get_extraction_config()
+# Returns: {'provider': 'gemini', 'model': 'gemini-2.5-flash', 'api_key': '...'}
+
+# Or get provider and model directly
+provider, model = llm_config.get_model_for_task(LLMTaskType.ORCHESTRATION)
+# Returns: ('anthropic', 'claude-haiku-4-5-20251001')
+
+# Validate all configurations
+validation = llm_config.validate_configuration()
+if validation['valid']:
+    print("✅ All LLM configurations valid")
+```
+
+### Files Changed
+
+| File | Changes | Impact |
+|------|---------|--------|
+| `config/llm_config.py` | ✅ Created (349 lines) | New LLMConfigManager class |
+| `config/__init__.py` | ✅ Updated model IDs and comments | Latest stable models verified |
+| `app/services/langextract_document_analyzer/extraction.py` | ✅ Updated to use LLMConfigManager | Centralized config |
+| `app/services/llm_orchestration_coordinator.py` | ✅ Updated to use LLMConfigManager | Centralized config + Haiku 4.5 |
+| `docs/LLM_CONFIGURATION.md` | ✅ Created (500+ lines) | Complete documentation |
+
+### Next Steps
+
+Phase 2b is complete! Ready to proceed with:
+- **Phase 3**: Extract business logic from routes to services
+- **Phase 4**: Implement repository pattern for data access
+- **Phase 5**: Add comprehensive testing infrastructure
+
+---
+
+**Last Updated:** 2025-11-16
+**Next Review:** Before Phase 3
