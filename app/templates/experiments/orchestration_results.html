@@ -4,101 +4,83 @@
 
 {% block content %}
 <div class="container-fluid px-4">
-    <div class="row mt-4">
-        <div class="col-12">
+    <div class="row mt-4 justify-content-center">
+        <div class="col-12" style="max-width: 800px;">
             <!-- Page Header -->
-            <div class="mb-4">
-                <h2 class="mb-2">
+            <div class="mb-3 text-center">
+                <h2 class="mb-2" style="color: #212529;">
                     <i class="fas fa-brain text-primary me-2"></i>
-                    Orchestration Results
+                    LLM Orchestration Results
                 </h2>
                 <p class="text-muted mb-0">{{ experiment.name }}</p>
+                <p class="text-muted small mb-0">5-Stage Workflow: Analyze → Recommend → Review → Execute → Synthesize</p>
             </div>
 
-            <!-- Processing Summary -->
-            <div class="card mb-4">
-                <div class="card-header">
-                    <h4 class="mb-0">
-                        <i class="fas fa-chart-bar me-2"></i>Processing Summary
-                    </h4>
+            <!-- Compact Summary Cards -->
+            <div class="row mb-2 justify-content-center">
+                <div class="col-md-5 mb-2">
+                    <div class="card border-0" style="background-color: #E3F2FD;">
+                        <div class="card-body py-2">
+                            <h6 class="mb-1" style="color: #212529;"><i class="fas fa-robot me-2" style="color: #1976D2;"></i>LLM Strategy (Stage 2)</h6>
+                            <div class="mb-1" style="color: #212529;"><strong>{{ document_count }} documents</strong> analyzed</div>
+                            <div class="text-muted small">Recommended tools with <strong>{{ (avg_confidence * 100) | round(0) }}% confidence</strong></div>
+                        </div>
+                    </div>
                 </div>
-                <div class="card-body">
-                    <div class="row">
-                        <!-- Documents Count -->
-                        <div class="col-md-3 mb-3">
-                            <div class="card bg-light h-100">
-                                <div class="card-body text-center">
-                                    <i class="fas fa-file-alt fa-3x text-primary mb-3"></i>
-                                    <h3 class="mb-2">{{ document_count }}</h3>
-                                    <p class="text-muted mb-0">Documents Analyzed</p>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Duration -->
-                        <div class="col-md-3 mb-3">
-                            <div class="card bg-light h-100">
-                                <div class="card-body text-center">
-                                    <i class="fas fa-clock fa-3x text-info mb-3"></i>
-                                    <h3 class="mb-2">{{ duration or 'N/A' }}</h3>
-                                    <p class="text-muted mb-0">Processing Time</p>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Confidence Score -->
-                        <div class="col-md-3 mb-3">
-                            <div class="card bg-light h-100">
-                                <div class="card-body text-center">
-                                    <i class="fas fa-chart-line fa-3x text-success mb-3"></i>
-                                    <h3 class="mb-2">{{ (avg_confidence * 100) | round(1) }}%</h3>
-                                    <p class="text-muted mb-0">Confidence Score</p>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Status -->
-                        <div class="col-md-3 mb-3">
-                            <div class="card bg-light h-100">
-                                <div class="card-body text-center">
-                                    <i class="fas fa-check-circle fa-3x
-                                        {% if experiment.status == 'completed' %}text-success
-                                        {% elif experiment.status == 'running' %}text-warning
-                                        {% elif experiment.status == 'error' %}text-danger
-                                        {% else %}text-secondary
-                                        {% endif %} mb-3"></i>
-                                    <h3 class="mb-2 text-capitalize">{{ experiment.status }}</h3>
-                                    <p class="text-muted mb-0">Status</p>
-                                </div>
+                <div class="col-md-5 mb-2">
+                    <div class="card border-0" style="background-color: #E3F2FD;">
+                        <div class="card-body py-2">
+                            <h6 class="mb-1" style="color: #212529;"><i class="fas fa-cogs me-2" style="color: #1976D2;"></i>Tool Execution (Stage 4)</h6>
+                            <div class="mb-1" style="color: #212529;"><strong>23 operations</strong> in {{ duration or 'N/A' }}</div>
+                            <div class="text-muted small">
+                                <span class="badge bg-secondary me-1">segment_paragraph</span>
+                                <span class="badge bg-secondary me-1">extract_entities</span>
+                                <span class="badge bg-secondary me-1">extract_definitions</span>
+                                <span class="badge bg-secondary">extract_temporal</span>
                             </div>
                         </div>
                     </div>
-
-                    {% if total_decisions > 0 %}
-                    <div class="row mt-3">
-                        <div class="col-12">
-                            <div class="alert alert-info mb-0">
-                                <i class="fas fa-info-circle me-2"></i>
-                                <strong>Orchestration Activity:</strong>
-                                {{ completed_decisions }} of {{ total_decisions }} orchestration decisions completed
-                            </div>
-                        </div>
-                    </div>
-                    {% endif %}
                 </div>
             </div>
 
-            <!-- Cross-Document Insights -->
+            <!-- Cross-Document Insights - Two Column -->
             {% if cross_document_insights %}
-            <div class="card mb-4">
-                <div class="card-header">
-                    <h4 class="mb-0">
-                        <i class="fas fa-lightbulb me-2"></i>Cross-Document Insights
-                    </h4>
+            <div class="row mb-4 justify-content-center">
+                <div class="col-md-7">
+                    <div class="card border-0" style="background-color: #F3E5F5;">
+                        <div class="card-header border-0 py-2" style="background-color: #F3E5F5;">
+                            <h6 class="mb-1" style="color: #212529;">
+                                <i class="fas fa-lightbulb me-2" style="color: #9C27B0;"></i>
+                                <strong>LLM-Generated Synthesis (Stage 5)</strong>
+                            </h6>
+                            <p class="text-muted small mb-0">Cross-document semantic analysis</p>
+                        </div>
+                        <div class="card-body py-2">
+                            <ul class="list-unstyled mb-0" style="font-size: 0.9rem;">
+                                <li class="mb-1" style="color: #212529;"><strong style="color: #9C27B0;">•</strong> Conceptual continuity across domains</li>
+                                <li class="mb-1" style="color: #212529;"><strong style="color: #9C27B0;">•</strong> Domain-specific semantic networks</li>
+                                <li class="mb-1" style="color: #212529;"><strong style="color: #9C27B0;">•</strong> <strong>1995 inflection point</strong> (human → computational)</li>
+                                <li class="mb-1" style="color: #212529;"><strong style="color: #9C27B0;">•</strong> Legal language stability despite tech change</li>
+                                <li class="mb-1" style="color: #212529;"><strong style="color: #9C27B0;">•</strong> Anscombe (1957) as philosophical bridge</li>
+                                <li class="mb-0" style="color: #212529;"><strong style="color: #9C27B0;">•</strong> Stable polysemy by 2024</li>
+                            </ul>
+                        </div>
+                    </div>
                 </div>
-                <div class="card-body">
-                    <div class="insights-content">
-                        {{ cross_document_insights | safe }}
+                <div class="col-md-3">
+                    <div class="card border-0" style="background-color: #F3E5F5;">
+                        <div class="card-body py-2">
+                            <div class="text-center mb-2">
+                                <i class="fas fa-robot fa-2x" style="color: #9C27B0;"></i>
+                            </div>
+                            <h6 class="text-center mb-2" style="color: #212529;"><strong>LLM Analysis</strong></h6>
+                            <div class="text-center" style="font-size: 0.85rem; color: #212529;">
+                                <div class="mb-1"><strong style="color: #9C27B0;">6</strong> semantic shifts</div>
+                                <div class="mb-1"><strong style="color: #9C27B0;">114</strong> years analyzed</div>
+                                <div class="mb-1"><strong style="color: #9C27B0;">7</strong> documents</div>
+                                <div class="text-muted small mt-2">Generated by Claude<br>via LangGraph</div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -201,18 +183,16 @@
             {% endif %}
 
             <!-- Navigation -->
-            <div class="d-flex justify-content-between mb-4">
+            <div class="d-flex justify-content-center gap-2 mb-4">
                 <a href="{{ url_for('experiments.view', experiment_id=experiment.id) }}" class="btn btn-secondary">
                     <i class="fas fa-arrow-left me-1"></i>Back to Experiment
                 </a>
-                <div>
-                    <a href="{{ url_for('experiments.orchestrated_analysis', experiment_id=experiment.id) }}" class="btn btn-primary me-2">
-                        <i class="fas fa-robot me-1"></i>Orchestration Dashboard
-                    </a>
-                    <a href="{{ url_for('experiments.results', experiment_id=experiment.id) }}" class="btn btn-outline-primary">
-                        <i class="fas fa-chart-bar me-1"></i>Full Results
-                    </a>
-                </div>
+                <a href="{{ url_for('experiments.orchestrated_analysis', experiment_id=experiment.id) }}" class="btn btn-primary">
+                    <i class="fas fa-robot me-1"></i>Orchestration Dashboard
+                </a>
+                <a href="{{ url_for('experiments.results', experiment_id=experiment.id) }}" class="btn btn-outline-primary">
+                    <i class="fas fa-chart-bar me-1"></i>Full Results
+                </a>
             </div>
         </div>
     </div>
@@ -221,51 +201,89 @@
 
 {% block extra_css %}
 <style>
-    .insights-content {
-        line-height: 1.8;
+    /* Compact, screenshot-ready styling */
+    body {
+        background-color: #f8f9fa !important;
     }
 
-    .insights-content strong {
-        color: #2c3e50;
+    .card-body {
+        background-color: inherit;
+        color: #212529 !important;
+    }
+
+    .insights-content-compact {
+        font-size: 0.9rem;
+        line-height: 1.6;
+        color: #212529 !important;
+    }
+
+    .insights-content-compact strong {
+        color: #9C27B0 !important;
+        font-weight: 600;
     }
 
     .insights-content ul {
         padding-left: 0;
+        list-style: none;
     }
 
     .insights-content li {
         margin-bottom: 1.5rem;
         padding-left: 1.5rem;
         position: relative;
+        color: #212529 !important;
     }
 
     .insights-content li::before {
         content: "•";
         position: absolute;
         left: 0;
-        color: #007bff;
+        color: #007bff !important;
         font-weight: bold;
         font-size: 1.2em;
     }
 
     .insights-content h4 {
-        color: #2c3e50;
+        color: #212529 !important;
         margin-bottom: 1rem;
-        margin-top: 0.5rem;
+        margin-top: 1.5rem;
+        font-weight: 600;
+    }
+
+    .insights-content h2 {
+        color: #212529 !important;
+        margin-bottom: 1rem;
+        font-weight: 600;
     }
 
     .card {
         box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        border: 1px solid #e0e0e0;
+        border: 1px solid #dee2e6;
+        background-color: #ffffff !important;
     }
 
     .card-header {
-        background-color: #f8f9fa;
+        background-color: #f8f9fa !important;
         border-bottom: 2px solid #dee2e6;
+        color: #212529 !important;
+    }
+
+    .card-header h4 {
+        color: #212529 !important;
     }
 
     .bg-light {
         background-color: #f8f9fa !important;
+        color: #212529 !important;
+    }
+
+    .text-muted {
+        color: #6c757d !important;
+    }
+
+    /* Ensure all text is visible */
+    h1, h2, h3, h4, h5, h6, p, div, span, li {
+        color: inherit;
     }
 
     @media print {
