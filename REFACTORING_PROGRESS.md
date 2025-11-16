@@ -1318,12 +1318,407 @@ Successfully demonstrates the same pattern as previous phases:
 
 **Phase 3.4 (continued):** Apply pattern to remaining large route files:
 - `app/routes/experiments/pipeline.py` - Document processing pipeline (844 lines)
-- `app/routes/experiments/temporal.py` - Temporal analysis (515 lines)
-- `app/routes/experiments/orchestration.py` - Orchestration (425 lines)
+- `app/routes/experiments/temporal.py` - Temporal analysis (515 lines) ✅
+- `app/routes/experiments/orchestration.py` - Orchestration (425 lines) ✅
 
 **Estimated Duration:** 2-3 additional sessions (~3-4 hours)
 
 ---
 
+## Phase 3.4 (Part 3): Orchestration Routes Refactored ✅
+
+**Completion:** 100%
+**Status:** ✅ COMPLETE (orchestration.py)
+**Duration:** 1 session (~45 min)
+**Date:** 2025-11-16
+
+### Deliverables
+
+- [x] `app/services/orchestration_service.py` - LLM orchestration service (642 lines)
+- [x] `app/dto/orchestration_dto.py` - Orchestration DTOs with validation (102 lines)
+- [x] Refactored `app/routes/experiments/orchestration.py` - All 5 endpoints (425 → 253 lines)
+
+### Key Outcomes
+
+✅ **OrchestrationService Features** (642 lines)
+
+Complete service for human-in-the-loop LLM orchestration:
+- `get_orchestration_ui_data(experiment_id)` - Get UI data for orchestrated analysis
+  - Loads experiment with validation
+  - Fetches orchestration decisions
+  - Loads learning patterns from database
+  - Gets target terms from configuration
+- `create_orchestration_decision(experiment_id, term_text, user_id)` - Create decision
+  - Validates term input
+  - Applies learning patterns from past decisions
+  - Integrates with LLMOrchestrationCoordinator
+  - Saves decision with confidence and reasoning
+- `run_orchestrated_analysis(experiment_id, terms, user_id)` - Run analysis
+  - Validates terms list
+  - Creates decisions for each term
+  - Executes analysis pipeline
+  - Collects and aggregates results
+- `get_orchestration_results(experiment_id)` - View results
+  - Fetches decisions with metrics
+  - Calculates summary statistics
+  - Converts markdown to HTML
+  - Formats duration strings
+- `get_orchestration_provenance(experiment_id)` - PROV-O export
+  - Generates PROV-O compliant JSON
+  - Maps decisions to ontology concepts
+  - Includes full provenance chain
+- Private helpers:
+  - `_apply_learning_patterns()` - Pattern application logic
+  - `_execute_term_analysis()` - Single term analysis
+  - `_convert_markdown_to_html()` - Markdown rendering
+  - `_format_duration()` - Duration formatting
+
+✅ **DTOs Created** (102 lines total)
+
+Seven specialized DTOs for validation:
+1. **CreateOrchestrationDecisionDTO** - Validates decision creation
+2. **RunOrchestratedAnalysisDTO** - Validates analysis requests
+3. **OrchestrationDecisionResponseDTO** - Decision creation response
+4. **AnalysisResultDTO** - Single term analysis result
+5. **RunAnalysisResponseDTO** - Complete analysis response
+6. **OrchestrationResultsDTO** - Results view data
+
+**Custom Validators:**
+- Ensures at least one term is provided
+- Validates all terms are strings
+- Term length constraints (1-200 characters)
+
+✅ **Route Refactoring Summary**
+
+All 5 endpoints refactored using established pattern:
+
+| Route | Before | After | Reduction | Notes |
+|-------|--------|-------|-----------|-------|
+| GET `/orchestrated_analysis` | 58 lines | 27 lines | 53% ⬇️ | UI data to service |
+| POST `/create_orchestration_decision` | 120 lines | 59 lines | 51% ⬇️ | Decision logic to service |
+| POST `/run_orchestrated_analysis` | 115 lines | 52 lines | 55% ⬇️ | Analysis logic to service |
+| GET `/orchestration-results` | 76 lines | 42 lines | 45% ⬇️ | Results logic to service |
+| GET `/orchestration-provenance.json` | 23 lines | 19 lines | 17% ⬇️ | PROV-O to service |
+| **Total** | **425 lines** | **253 lines** | **40% ⬇️** | **+642 service +102 DTOs** |
+
+### Business Logic Extraction
+
+**Moved to OrchestrationService:**
+- Experiment and configuration validation
+- Learning pattern application logic
+- LLM orchestration coordinator integration
+- Decision creation and persistence
+- Multi-term analysis execution
+- Results aggregation and formatting
+- Markdown to HTML conversion
+- PROV-O provenance generation
+- All error handling and logging
+
+**Kept in Routes:**
+- HTTP request/response handling
+- Template rendering
+- JSON responses for API routes
+- Current user extraction
+
+### Impact
+
+**Code Organization:**
+- ✅ All orchestration logic in `OrchestrationService` (642 lines)
+- ✅ Routes are thin controllers (only HTTP handling)
+- ✅ Complex LLM integration centralized
+- ✅ Learning pattern logic reusable
+- ✅ PROV-O generation isolated
+
+**Validation:**
+- ✅ Automatic input validation with Pydantic DTOs
+- ✅ Business rule validation (term requirements)
+- ✅ Proper error messages for invalid requests
+
+**Error Handling:**
+- ✅ Specific exceptions: ValidationError, NotFoundError, ServiceError
+- ✅ Proper HTTP status codes: 200, 201, 400, 404, 500
+- ✅ Consistent error response structure
+- ✅ Comprehensive logging at service layer
+
+**Testability:**
+- ✅ Service testable without Flask context
+- ✅ LLM integration logic unit testable
+- ✅ Pattern application testable independently
+- ✅ PROV-O generation testable in isolation
+- ✅ Clear separation of concerns
+
+### Files Modified
+
+| File | Lines | Impact |
+|------|-------|--------|
+| `app/services/orchestration_service.py` | 642 (NEW) | All business logic extracted |
+| `app/dto/orchestration_dto.py` | 102 (NEW) | 6 DTOs for validation |
+| `app/routes/experiments/orchestration.py` | 425 → 253 | -172 lines (40% reduction) |
+
+### Routes Refactored (5 total)
+
+**1. GET `/orchestrated_analysis`**
+- Uses: `orchestration_service.get_orchestration_ui_data()`
+- Returns: Template with experiment, decisions, patterns, terms
+- Features: Learning pattern integration
+
+**2. POST `/create_orchestration_decision`**
+- Uses: `CreateOrchestrationDecisionDTO`, `orchestration_service.create_orchestration_decision()`
+- Validates: Term text required (1-200 chars)
+- Features: LLM-driven tool selection, pattern application
+
+**3. POST `/run_orchestrated_analysis`**
+- Uses: `RunOrchestratedAnalysisDTO`, `orchestration_service.run_orchestrated_analysis()`
+- Validates: Terms list required, all strings
+- Features: Multi-term batch processing, result aggregation
+
+**4. GET `/orchestration-results`**
+- Uses: `orchestration_service.get_orchestration_results()`
+- Returns: Template with decisions, metrics, insights (HTML)
+- Features: Markdown rendering, statistics calculation
+
+**5. GET `/orchestration-provenance.json`**
+- Uses: `orchestration_service.get_orchestration_provenance()`
+- Returns: PROV-O compliant JSON
+- Features: W3C PROV-O ontology mapping
+
+### Pattern Consistency
+
+Successfully demonstrates the same pattern as previous phases:
+
+1. ✅ **DTO Validation** - All input validated automatically
+2. ✅ **Service Layer** - All business logic in testable methods
+3. ✅ **Error Handling** - Specific exceptions with proper HTTP codes
+4. ✅ **Logging** - Comprehensive at both route and service layers
+5. ✅ **Consistency** - All routes follow same pattern
+6. ✅ **Testability** - Services unit testable without HTTP context
+
+### Code Quality Highlights
+
+**LLM Integration:**
+- Clean integration with `LLMOrchestrationCoordinator`
+- Learning pattern application from database
+- Confidence and reasoning tracking
+
+**Provenance Tracking:**
+- W3C PROV-O compliant JSON generation
+- Full decision chain captured
+- Ontology-based concept mapping
+
+**Markdown Support:**
+- Cross-document insights rendered as HTML
+- Safe markdown conversion
+- Template-ready output
+
+### Next Steps
+
+**Phase 3.4 (continued):** Apply pattern to remaining route files:
+- `app/routes/experiments/pipeline.py` - Document processing pipeline (844 lines)
+- `app/routes/experiments/temporal.py` - Temporal analysis (515 lines) ✅
+
+**Estimated Duration:** 1-2 additional sessions (~2-3 hours)
+
+---
+
+## Phase 3.4 (Part 4): Temporal Analysis Routes Refactored ✅
+
+**Completion:** 100%
+**Status:** ✅ COMPLETE (temporal.py)
+**Duration:** 1 session (~1 hour)
+**Date:** 2025-11-16
+
+### Deliverables
+
+- [x] `app/services/temporal_service.py` - Temporal evolution service (660 lines)
+- [x] `app/dto/temporal_dto.py` - Temporal DTOs with validation (146 lines)
+- [x] Refactored `app/routes/experiments/temporal.py` - All 4 routes (516 → 246 lines)
+
+### Key Outcomes
+
+✅ **TemporalService Features** (660 lines)
+
+Complete service for temporal evolution analysis with OED integration:
+- `generate_time_periods(start_year, end_year, interval)` - Static utility method
+  - Generates period lists between years
+  - Ensures start/end years included
+  - Configurable interval (default 5 years)
+- `get_temporal_ui_data(experiment_id)` - Get UI data
+  - Validates experiment type (temporal_evolution only)
+  - Parses configuration for terms and periods
+  - Fetches OED data for each term
+  - Generates term-specific periods from OED quotations
+  - Updates configuration with OED period data
+  - Loads orchestration decisions
+- `update_temporal_configuration(experiment_id, terms, periods, temporal_data)` - Update config
+  - Validates experiment exists
+  - Updates terms, periods, and temporal data
+  - Commits changes with timestamp update
+- `get_temporal_configuration(experiment_id)` - Get config
+  - Returns terms, periods, temporal_data from configuration
+- `fetch_temporal_analysis(experiment_id, term, periods, use_oed)` - Complex analysis
+  - Uses term-specific periods from OED if available
+  - Integrates with TemporalAnalysisService
+  - Fetches OED quotations and extracts years
+  - Creates hybrid analysis (OED + document data)
+  - Scales OED frequencies for visualization
+  - Analyzes semantic drift across periods
+  - Generates evolution narrative
+- Private helpers:
+  - `_fetch_oed_periods_for_terms()` - Fetch OED data for multiple terms
+  - `_fetch_oed_data_for_term()` - Fetch OED data for single term
+  - `_extract_years_from_quotations()` - Extract years from OED API response
+  - `_create_hybrid_temporal_analysis()` - Combine OED + document data
+  - `_extract_frequency_data()` - Extract frequencies for visualization
+
+✅ **DTOs Created** (146 lines total)
+
+Nine specialized DTOs for validation:
+1. **UpdateTemporalTermsDTO** - Validates temporal configuration updates
+2. **FetchTemporalDataDTO** - Validates temporal analysis requests
+3. **TemporalConfigurationDTO** - Configuration response structure
+4. **OEDPeriodDataDTO** - OED-derived temporal information
+5. **PeriodDataDTO** - Single period analysis results
+6. **DriftAnalysisDTO** - Semantic drift metrics
+7. **TemporalAnalysisResponseDTO** - Complete analysis response
+8. **TemporalUIDataDTO** - UI data structure
+
+**Custom Validators:**
+- Year validation (1000-3000 range)
+- Ensures at least one term when required
+- Period list validation for temporal analysis
+
+✅ **Route Refactoring Summary**
+
+All 4 routes refactored using established pattern:
+
+| Route | Before | After | Reduction | Notes |
+|-------|--------|-------|-----------|-------|
+| GET `/manage_temporal_terms` | 138 lines | 37 lines | 73% ⬇️ | OED integration to service |
+| POST `/update_temporal_terms` | 23 lines | 57 lines | -148% | Error handling added |
+| GET `/get_temporal_terms` | 15 lines | 37 lines | -147% | Error handling added |
+| POST `/fetch_temporal_data` | 276 lines | 101 lines | 63% ⬇️ | Complex analysis to service |
+| **Total** | **516 lines** | **246 lines** | **52% ⬇️** | **+660 service +146 DTOs** |
+
+### Business Logic Extraction
+
+**Moved to TemporalService:**
+- Configuration parsing and JSON handling
+- Experiment type validation (temporal_evolution only)
+- OED service integration and quotation fetching
+- Year extraction from OED quotations
+- Time period generation from OED date ranges
+- Term-specific period management
+- Hybrid analysis combining OED and document data
+- TemporalAnalysisService integration
+- Semantic drift analysis
+- Evolution narrative generation
+- Frequency data extraction and scaling
+- Transaction management and error handling
+
+**Kept in Routes:**
+- HTTP request/response handling
+- Template rendering
+- Flash messages for UI routes
+- JSON responses for API routes
+- Current user extraction
+
+### Impact
+
+**Code Organization:**
+- ✅ All temporal logic in `TemporalService` (660 lines)
+- ✅ Routes are thin controllers (only HTTP handling)
+- ✅ Complex OED integration centralized
+- ✅ Hybrid analysis logic isolated and testable
+- ✅ Period generation utility reusable
+
+**Validation:**
+- ✅ Automatic input validation with Pydantic DTOs
+- ✅ Business rule validation (experiment type, year ranges)
+- ✅ Proper error messages for invalid requests
+
+**Error Handling:**
+- ✅ Specific exceptions: ValidationError, NotFoundError, ServiceError
+- ✅ Proper HTTP status codes: 200, 400, 404, 500
+- ✅ Consistent error response structure
+- ✅ Comprehensive logging at service layer
+- ✅ Graceful error handling for OED failures
+
+**Testability:**
+- ✅ Service testable without Flask context
+- ✅ OED integration logic unit testable
+- ✅ Period generation testable independently
+- ✅ Hybrid analysis testable in isolation
+- ✅ Clear separation of concerns
+
+### Files Modified
+
+| File | Lines | Impact |
+|------|-------|--------|
+| `app/services/temporal_service.py` | 660 (NEW) | All business logic extracted |
+| `app/dto/temporal_dto.py` | 146 (NEW) | 8 DTOs for validation |
+| `app/routes/experiments/temporal.py` | 516 → 246 | -270 lines (52% reduction) |
+
+### Routes Refactored (4 total)
+
+**1. GET `/manage_temporal_terms`**
+- Uses: `temporal_service.get_temporal_ui_data()`
+- Returns: Template with terms, periods, OED data, decisions
+- Features: Automatic OED period generation, term-specific periods
+
+**2. POST `/update_temporal_terms`**
+- Uses: `UpdateTemporalTermsDTO`, `temporal_service.update_temporal_configuration()`
+- Validates: Year ranges (1000-3000)
+- Features: Configuration update with temporal data
+
+**3. GET `/get_temporal_terms`**
+- Uses: `temporal_service.get_temporal_configuration()`
+- Returns: JSON with terms, periods, temporal_data
+- Features: Simple configuration retrieval
+
+**4. POST `/fetch_temporal_data`**
+- Uses: `FetchTemporalDataDTO`, `temporal_service.fetch_temporal_analysis()`
+- Validates: Term required, periods or OED integration
+- Features: Hybrid OED + document analysis, drift analysis, narrative generation
+
+### Pattern Consistency
+
+Successfully demonstrates the same pattern as previous phases:
+
+1. ✅ **DTO Validation** - All input validated automatically
+2. ✅ **Service Layer** - All business logic in testable methods
+3. ✅ **Error Handling** - Specific exceptions with proper HTTP codes
+4. ✅ **Logging** - Comprehensive at both route and service layers
+5. ✅ **Consistency** - All routes follow same pattern
+6. ✅ **Testability** - Services unit testable without HTTP context
+
+### Code Quality Highlights
+
+**OED Integration:**
+- Clean integration with OEDService
+- Robust quotation year extraction (handles various formats)
+- Graceful error handling for API failures
+- Detailed logging of OED data retrieval
+
+**Hybrid Analysis:**
+- Combines OED historical data with document analysis
+- Prefers document data when available
+- Falls back to OED for historical periods
+- Scales OED frequencies for visualization consistency
+
+**Period Management:**
+- Term-specific periods from OED quotations
+- Overall period ranges for display
+- Flexible interval configuration
+- Ensures start/end years included
+
+### Next Steps
+
+**Phase 3.4 (final):** Apply pattern to final route file:
+- `app/routes/experiments/pipeline.py` - Document processing pipeline (844 lines)
+
+**Estimated Duration:** 1 session (~1.5 hours)
+
+---
+
 **Last Updated:** 2025-11-16
-**Next Review:** Before continuing Phase 3.4
+**Next Review:** Before completing Phase 3.4
