@@ -126,6 +126,10 @@ class ExperimentService(BaseService):
             if user_id is not None and experiment.user_id != user_id:
                 raise PermissionError(f"User {user_id} does not have permission to update experiment {experiment_id}")
 
+            # Cannot update running experiments
+            if experiment.status == 'running':
+                raise ValidationError("Cannot update an experiment that is currently running")
+
             # Update fields if provided
             if data.name is not None:
                 experiment.name = data.name
@@ -136,6 +140,23 @@ class ExperimentService(BaseService):
             if data.configuration is not None:
                 experiment.configuration = json.dumps(data.configuration)
 
+            # Update documents if provided
+            if data.document_ids is not None:
+                # Clear existing documents and add new ones
+                experiment.documents = []
+                self.flush()
+                self._add_documents_to_experiment(experiment, data.document_ids)
+
+            # Update references if provided
+            if data.reference_ids is not None:
+                # Clear existing references and add new ones
+                experiment.references = []
+                self.flush()
+                self._add_references_to_experiment(experiment, data.reference_ids)
+
+            # Update timestamp
+            experiment.updated_at = datetime.utcnow()
+
             # Commit changes
             self.commit()
 
@@ -143,7 +164,7 @@ class ExperimentService(BaseService):
 
             return experiment
 
-        except (NotFoundError, PermissionError):
+        except (NotFoundError, PermissionError, ValidationError):
             raise
         except Exception as e:
             self.rollback()
@@ -156,7 +177,17 @@ class ExperimentService(BaseService):
         user_id: Optional[int] = None
     ) -> bool:
         """
-        Delete an experiment
+        Delete an experiment and all associated processing data
+
+        This performs cascading deletes of:
+        - Processing artifacts
+        - Document processing indices
+        - Experiment document processing records
+        - Experiment-document associations
+        - Experiment-reference associations
+        - The experiment itself
+
+        Note: Original documents are preserved (not deleted)
 
         Args:
             experiment_id: ID of experiment to delete
@@ -168,6 +199,7 @@ class ExperimentService(BaseService):
         Raises:
             NotFoundError: If experiment doesn't exist
             PermissionError: If user doesn't have permission
+            ValidationError: If experiment cannot be deleted (e.g., running)
             ServiceError: If deletion fails
         """
         try:
@@ -178,15 +210,73 @@ class ExperimentService(BaseService):
             if user_id is not None and experiment.user_id != user_id:
                 raise PermissionError(f"User {user_id} does not have permission to delete experiment {experiment_id}")
 
-            # Delete experiment
+            # Cannot delete running experiments
+            if experiment.status == 'running':
+                raise ValidationError("Cannot delete an experiment that is currently running")
+
+            # Import models for cascading deletes (avoid circular imports)
+            from app.models.experiment_document import ExperimentDocument
+            from app.models.experiment_processing import (
+                ExperimentDocumentProcessing,
+                ProcessingArtifact,
+                DocumentProcessingIndex
+            )
+
+            # Delete all processing artifacts first (most dependent)
+            # Get all processing operations for this experiment's documents
+            processing_ops = db.session.query(ExperimentDocumentProcessing).join(
+                ExperimentDocument,
+                ExperimentDocumentProcessing.experiment_document_id == ExperimentDocument.id
+            ).filter(
+                ExperimentDocument.experiment_id == experiment_id
+            ).all()
+
+            artifact_count = 0
+            index_count = 0
+            processing_count = len(processing_ops)
+
+            for processing_op in processing_ops:
+                # Delete all artifacts for this processing operation
+                artifacts_deleted = ProcessingArtifact.query.filter_by(
+                    processing_id=processing_op.id
+                ).delete()
+                artifact_count += artifacts_deleted
+
+                # Delete index entries for this processing operation
+                indices_deleted = DocumentProcessingIndex.query.filter_by(
+                    processing_id=processing_op.id
+                ).delete()
+                index_count += indices_deleted
+
+                # Delete the processing operation itself
+                db.session.delete(processing_op)
+
+            # Delete all ExperimentDocument associations
+            exp_docs_deleted = ExperimentDocument.query.filter_by(
+                experiment_id=experiment_id
+            ).delete()
+
+            # Clear the many-to-many relationships
+            # These use association tables, so clear them manually
+            experiment.documents = []
+            experiment.references = []
+            self.flush()
+
+            # Finally delete the experiment itself
             self.delete(experiment)
+
+            # Commit all deletions
             self.commit()
 
-            logger.info(f"Deleted experiment {experiment_id}")
+            logger.info(
+                f"Deleted experiment {experiment_id} with cascading deletes: "
+                f"{processing_count} processing ops, {artifact_count} artifacts, "
+                f"{index_count} indices, {exp_docs_deleted} experiment documents"
+            )
 
             return True
 
-        except (NotFoundError, PermissionError):
+        except (NotFoundError, PermissionError, ValidationError):
             raise
         except Exception as e:
             self.rollback()
