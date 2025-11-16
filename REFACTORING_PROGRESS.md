@@ -999,15 +999,157 @@ The refactoring successfully demonstrates:
 
 ### Next Steps
 
-**Phase 3.4:** Apply the same pattern to other route files:
-- `app/routes/experiments/pipeline.py` - Document processing pipeline
-- `app/routes/processing.py` - Processing routes
-- `app/routes/references/` - Reference management routes
-- `app/routes/terms.py` - Term routes
+**Phase 3.4:** Apply the same pattern to other route files (IN PROGRESS)
 
-**Estimated Duration:** 3-4 sessions (~4-6 hours)
+---
+
+## Phase 3.4: Term Management Routes Refactored ✅
+
+**Completion:** 100% (of first module)
+**Status:** ✅ COMPLETE (terms.py)
+**Duration:** 1 session (~1 hour)
+**Date:** 2025-11-16
+
+### Deliverables
+
+- [x] `app/services/term_service.py` - Term management service (352 lines)
+- [x] `app/dto/term_dto.py` - Term DTOs with validation (115 lines)
+- [x] Refactored `app/routes/experiments/terms.py` - All 4 routes (178 → 228 lines)
+
+### Key Outcomes
+
+✅ **TermService Features** (352 lines)
+
+Complete service for term management:
+- `get_term_configuration(experiment_id)` - Get terms, domains, definitions
+- `update_term_configuration(experiment_id, terms, domains, definitions)` - Update configuration
+- `fetch_definitions(experiment_id, term, domains)` - Fetch from references and ontologies
+- Private helpers:
+  - `_get_experiment()` - Get experiment with validation
+  - `_parse_configuration()` - Parse JSON configuration
+  - `_search_references_for_term()` - Search references for definitions
+  - `_map_to_ontology()` - Map terms to ontology concepts (PROV-O)
+- Singleton pattern via `get_term_service()`
+
+✅ **DTOs Created** (115 lines total)
+
+Five specialized DTOs for validation:
+1. **UpdateTermsDTO** - Validates terms and domains for updates
+2. **FetchDefinitionsDTO** - Validates definition fetch requests
+3. **TermConfigurationDTO** - Response DTO for configuration
+4. **DefinitionDTO** - Single definition representation
+5. **OntologyMappingDTO** - Ontology concept mapping
+
+**Custom Validators:**
+- Ensures terms and domains are lists of strings
+- Validates at least one domain is provided
+- Term length constraints (1-200 characters)
+
+✅ **Route Refactoring Summary**
+
+All 4 routes refactored using established pattern:
+
+| Route | Before | After | Change | Notes |
+|-------|--------|-------|--------|-------|
+| GET `/manage_terms` | 24 lines | 37 lines | +13 | Error handling added |
+| POST `/update_terms` | 24 lines | 57 lines | +33 | DTO validation + error handling |
+| GET `/get_terms` | 16 lines | 40 lines | +24 | Error handling added |
+| POST `/fetch_definitions` | 80 lines | 50 lines | -30 | Logic moved to service |
+| **Total** | **178 lines** | **228 lines** | **+50** | **+352 service +115 DTOs** |
+
+### Business Logic Extraction
+
+**Moved to TermService:**
+- Configuration parsing and JSON handling
+- Experiment type validation (domain_comparison only)
+- Term and domain management
+- Definition search across experiment references
+- Ontology mapping logic (PROV-O concepts)
+- Transaction management and error handling
+
+**Kept in Routes:**
+- HTTP request/response handling
+- Template rendering
+- Flash messages for UI routes
+- JSON responses for API routes
+
+### Impact
+
+**Code Organization:**
+- ✅ All term management logic in `TermService` (352 lines)
+- ✅ Routes are thin controllers (only HTTP handling)
+- ✅ Complex reference search logic centralized
+- ✅ Ontology mapping logic reusable
+
+**Validation:**
+- ✅ Automatic input validation with Pydantic DTOs
+- ✅ Business rule validation (experiment type check)
+- ✅ Proper error messages for invalid requests
+
+**Error Handling:**
+- ✅ Specific exceptions: ValidationError, ServiceError
+- ✅ Proper HTTP status codes: 200, 400, 500
+- ✅ Consistent error response structure
+- ✅ Comprehensive logging at service layer
+
+**Testability:**
+- ✅ Service testable without Flask context
+- ✅ Reference search logic unit testable
+- ✅ Ontology mapping logic testable independently
+- ✅ Clear separation of concerns
+
+### Files Modified
+
+| File | Lines | Impact |
+|------|-------|--------|
+| `app/services/term_service.py` | 352 (NEW) | All business logic extracted |
+| `app/dto/term_dto.py` | 115 (NEW) | 5 DTOs for validation |
+| `app/routes/experiments/terms.py` | 178 → 228 | +50 lines (error handling) |
+
+### Routes Refactored (4 total)
+
+**1. GET `/manage_terms`**
+- Uses: `term_service.get_term_configuration()`
+- Returns: Template with terms, domains, definitions
+- Validates: Experiment type (domain_comparison only)
+
+**2. POST `/update_terms`**
+- Uses: `UpdateTermsDTO`, `term_service.update_term_configuration()`
+- Validates: Terms/domains are lists, proper structure
+- Updates: Configuration with terms, domains, definitions
+
+**3. GET `/get_terms`**
+- Uses: `term_service.get_term_configuration()`
+- Returns: JSON with terms, domains, definitions
+- Cached configuration from service
+
+**4. POST `/fetch_definitions`**
+- Uses: `FetchDefinitionsDTO`, `term_service.fetch_definitions()`
+- Validates: Term required, at least one domain
+- Features: Reference search + ontology mapping
+
+### Pattern Consistency
+
+Successfully demonstrates the same pattern as Phase 3.2 & 3.3:
+
+1. ✅ **DTO Validation** - All input validated automatically
+2. ✅ **Service Layer** - All business logic in testable methods
+3. ✅ **Error Handling** - Specific exceptions with proper HTTP codes
+4. ✅ **Logging** - Comprehensive at both route and service layers
+5. ✅ **Consistency** - All routes follow same pattern
+6. ✅ **Testability** - Services unit testable without HTTP context
+
+### Next Steps
+
+**Phase 3.4 (continued):** Apply pattern to remaining route files:
+- `app/routes/experiments/pipeline.py` - Document processing pipeline (844 lines)
+- `app/routes/experiments/temporal.py` - Temporal analysis (515 lines)
+- `app/routes/experiments/orchestration.py` - Orchestration (425 lines)
+- `app/routes/experiments/evolution.py` - Evolution analysis (255 lines)
+
+**Estimated Duration:** 3-4 additional sessions (~4-6 hours)
 
 ---
 
 **Last Updated:** 2025-11-16
-**Next Review:** Before Phase 3.4
+**Next Review:** Before continuing Phase 3.4
