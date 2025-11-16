@@ -61,6 +61,8 @@ class UpdateExperimentDTO(BaseDTO):
     name: Optional[str] = Field(None, min_length=1, max_length=200)
     description: Optional[str] = Field(None, max_length=2000)
     configuration: Optional[Dict[str, Any]] = None
+    document_ids: Optional[List[int]] = None
+    reference_ids: Optional[List[int]] = None
 
 
 class ExperimentResponseDTO(ResponseDTO):

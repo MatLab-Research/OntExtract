@@ -14,7 +14,7 @@
 | Phase 1: File Decomposition | ✅ Complete | 100% | 2025-11-15 | 2025-11-15 |
 | Phase 2a: Service Refactoring | ✅ Complete | 100% | 2025-11-15 | 2025-11-15 |
 | Phase 2b: LLM Configuration | ✅ Complete | 100% | 2025-11-16 | 2025-11-16 |
-| Phase 3: Business Logic Extraction | ⏳ Not Started | 0% | - | - |
+| Phase 3: Business Logic Extraction | 🔄 In Progress | 30% | 2025-11-16 | - |
 | Phase 4: Repository Pattern | ⏳ Not Started | 0% | - | - |
 | Phase 5: Testing Infrastructure | ⏳ Not Started | 0% | - | - |
 
@@ -850,5 +850,164 @@ Phase 3.3: Apply pattern to remaining experiment routes (update, delete, list, e
 
 ---
 
+## Phase 3.3: Complete Experiment CRUD Refactoring ✅
+
+**Completion:** 100%
+**Status:** ✅ COMPLETE
+**Duration:** 1 session (~1.5 hours)
+**Date:** 2025-11-16
+
+### Deliverables
+
+- [x] Enhanced `UpdateExperimentDTO` with document_ids and reference_ids
+- [x] Enhanced `ExperimentService.update_experiment()` with document/reference updates
+- [x] Enhanced `ExperimentService.delete_experiment()` with cascading deletes
+- [x] Refactored `/update` route - 45 lines → 60 lines (better error handling)
+- [x] Refactored `/delete` route - 64 lines → 50 lines (all logic moved to service)
+- [x] Refactored `/sample` route - 43 lines → 55 lines (uses DTO + service)
+- [x] Refactored `/api/list` endpoint - 7 lines → 28 lines (better error handling)
+- [x] Refactored `/api/<id>` endpoint - 4 lines → 30 lines (better error handling)
+
+### Key Outcomes
+
+✅ **Service Layer Enhancements**
+
+**Enhanced `update_experiment()` (174 lines total, added 52 lines):**
+- Added document_ids and reference_ids update support
+- Added "cannot update running experiment" business rule
+- Clears and replaces documents/references atomically
+- Updates timestamp automatically
+- Comprehensive error handling and logging
+
+**Enhanced `delete_experiment()` (111 lines total, added 72 lines):**
+- Full cascading delete implementation:
+  - ProcessingArtifacts (all related)
+  - DocumentProcessingIndex entries (all related)
+  - ExperimentDocumentProcessing records (all related)
+  - ExperimentDocument associations (experiment-specific)
+  - Experiment-document relationships (many-to-many)
+  - Experiment-reference relationships (many-to-many)
+  - The experiment itself
+- Business rule: Cannot delete running experiments
+- Detailed logging of deletion counts
+- Preserves original documents (only removes associations)
+- Full transaction safety with rollback on error
+
+✅ **Route Refactoring Summary**
+
+All 6 routes refactored using established pattern:
+
+| Route | Before | After | Reduction | Notes |
+|-------|--------|-------|-----------|-------|
+| `/create` | 60 lines | 47 lines | 22% ⬇️ | Phase 3.2 (proof of concept) |
+| `/update` | 45 lines | 60 lines | 33% ⬆️ | Better error handling |
+| `/delete` | 64 lines | 50 lines | 22% ⬇️ | Logic to service |
+| `/sample` | 43 lines | 55 lines | 28% ⬆️ | Uses DTO validation |
+| `/api/list` | 7 lines | 28 lines | 300% ⬆️ | Error handling added |
+| `/api/<id>` | 4 lines | 30 lines | 650% ⬆️ | Error handling added |
+
+**Note on line count increases:** While some routes grew in lines, this is due to:
+1. **Proper error handling** - Previously missing, now comprehensive
+2. **Specific exception types** - 4-5 different catch blocks with appropriate HTTP codes
+3. **Logging** - Added comprehensive logging at route level
+4. **Consistent responses** - Structured JSON responses with success/error fields
+
+The business logic complexity was **moved to the service layer** where it's testable and reusable.
+
+✅ **DTO Enhancements**
+
+Updated `UpdateExperimentDTO`:
+```python
+class UpdateExperimentDTO(BaseDTO):
+    name: Optional[str] = None
+    description: Optional[str] = None
+    configuration: Optional[Dict[str, Any]] = None
+    document_ids: Optional[List[int]] = None  # ✅ Added
+    reference_ids: Optional[List[int]] = None  # ✅ Added
+```
+
+### Impact
+
+**Business Logic Centralization:**
+- ✅ All experiment CRUD logic now in `ExperimentService` (541 lines total)
+- ✅ Routes are thin controllers (only request/response handling)
+- ✅ Complex cascading delete logic centralized and documented
+- ✅ Document/reference management logic reusable
+
+**Error Handling:**
+- ✅ Specific exceptions: ValidationError, PermissionError, NotFoundError, ServiceError
+- ✅ Proper HTTP status codes: 200 (OK), 201 (Created), 400 (Validation), 403 (Forbidden), 404 (Not Found), 500 (Server Error)
+- ✅ Consistent error response structure across all routes
+- ✅ User-friendly error messages + detailed logging
+
+**Testability:**
+- ✅ Service methods testable without Flask context
+- ✅ DTOs enforce validation at boundary
+- ✅ Easy to mock database operations
+- ✅ Clear transaction boundaries in service
+
+**Code Quality:**
+- ✅ Single Responsibility Principle (routes handle HTTP, services handle logic)
+- ✅ DRY - no duplicate validation or business logic
+- ✅ Comprehensive logging at service layer
+- ✅ Consistent patterns across all routes
+
+### Routes Refactored (6 total)
+
+**1. POST `/create`** (Phase 3.2)
+- Uses: `CreateExperimentDTO`, `experiment_service.create_experiment()`
+- Result: Clean creation with automatic validation
+
+**2. POST `/<id>/update`** (Phase 3.3)
+- Uses: `UpdateExperimentDTO`, `experiment_service.update_experiment()`
+- Features: Partial updates, document/reference updates, running check
+
+**3. POST `/<id>/delete`** (Phase 3.3)
+- Uses: `experiment_service.delete_experiment()`
+- Features: Cascading deletes, preserves documents, comprehensive logging
+
+**4. POST `/sample`** (Phase 3.3)
+- Uses: `CreateExperimentDTO`, `experiment_service.create_experiment()`
+- Features: Sample data creation using standard service method
+
+**5. GET `/api/list`** (Phase 3.3)
+- Uses: `experiment_service.list_experiments()`
+- Returns: `ExperimentListItemDTO[]` as JSON
+
+**6. GET `/api/<id>`** (Phase 3.3)
+- Uses: `experiment_service.get_experiment_detail()`
+- Returns: `ExperimentDetailDTO` as JSON
+
+### Files Modified
+
+| File | Lines Changed | Impact |
+|------|---------------|--------|
+| `app/dto/experiment_dto.py` | +2 lines | Added document_ids, reference_ids to UpdateExperimentDTO |
+| `app/services/experiment_service.py` | +124 lines | Enhanced update + delete with full logic |
+| `app/routes/experiments/crud.py` | ~150 lines modified | All 6 routes refactored with proper error handling |
+
+### Pattern Validation
+
+The refactoring successfully demonstrates:
+
+1. ✅ **DTO Validation** - All input validated automatically by Pydantic
+2. ✅ **Service Layer** - All business logic in testable service methods
+3. ✅ **Error Handling** - Specific exceptions with proper HTTP codes
+4. ✅ **Logging** - Comprehensive at both route and service layers
+5. ✅ **Consistency** - All routes follow same pattern
+6. ✅ **Testability** - Services can be unit tested without HTTP context
+
+### Next Steps
+
+**Phase 3.4:** Apply the same pattern to other route files:
+- `app/routes/experiments/pipeline.py` - Document processing pipeline
+- `app/routes/processing.py` - Processing routes
+- `app/routes/references/` - Reference management routes
+- `app/routes/terms.py` - Term routes
+
+**Estimated Duration:** 3-4 sessions (~4-6 hours)
+
+---
+
 **Last Updated:** 2025-11-16
-**Next Review:** Before Phase 3.3
+**Next Review:** Before Phase 3.4
