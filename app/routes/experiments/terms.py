@@ -8,171 +8,221 @@ Routes:
 - POST /experiments/<id>/update_terms       - Update terms and domains
 - GET  /experiments/<id>/get_terms          - Get saved terms
 - POST /experiments/<id>/fetch_definitions  - Fetch term definitions
+
+REFACTORED: Now uses TermService with DTO validation
 """
 
 from flask import render_template, request, jsonify, flash, redirect, url_for
 from flask_login import current_user
 from app.utils.auth_decorators import api_require_login_for_write
-from app import db
-from app.models import Experiment
-from datetime import datetime
-import json
-from typing import Dict, List
+from app.services.term_service import get_term_service
+from app.services.base_service import ServiceError, ValidationError
+from app.dto.term_dto import UpdateTermsDTO, FetchDefinitionsDTO
+from pydantic import ValidationError as PydanticValidationError
+import logging
 
 from . import experiments_bp
+
+logger = logging.getLogger(__name__)
+term_service = get_term_service()
 
 
 @experiments_bp.route('/<int:experiment_id>/manage_terms')
 @api_require_login_for_write
 def manage_terms(experiment_id):
-    """Manage terms for domain comparison experiment"""
-    experiment = Experiment.query.filter_by(id=experiment_id).first_or_404()
+    """
+    Manage terms for domain comparison experiment
 
-    # Only for domain comparison experiments
-    if experiment.experiment_type != 'domain_comparison':
-        flash('Term management is only available for domain comparison experiments', 'warning')
+    REFACTORED: Now uses TermService
+    """
+    try:
+        # Get term configuration from service
+        config = term_service.get_term_configuration(experiment_id)
+
+        # Get experiment for template context
+        from app.models import Experiment
+        experiment = Experiment.query.filter_by(id=experiment_id).first_or_404()
+
+        return render_template(
+            'experiments/term_manager.html',
+            experiment=experiment,
+            domains=config['domains'],
+            terms=config['terms']
+        )
+
+    except ValidationError as e:
+        # Not a domain comparison experiment
+        flash(str(e), 'warning')
         return redirect(url_for('experiments.view', experiment_id=experiment_id))
 
-    # Parse configuration to get domains and terms
-    config = json.loads(experiment.configuration) if experiment.configuration else {}
-    domains = config.get('domains', [])
-    terms = config.get('target_terms', [])
+    except ServiceError as e:
+        logger.error(f"Service error getting term configuration: {e}", exc_info=True)
+        flash('Failed to load term configuration', 'danger')
+        return redirect(url_for('experiments.view', experiment_id=experiment_id))
 
-    # If no domains specified, use default
-    if not domains:
-        domains = ['Computer Science', 'Philosophy', 'Law']
+    except Exception as e:
+        logger.error(f"Unexpected error getting term configuration: {e}", exc_info=True)
+        flash('An unexpected error occurred', 'danger')
+        return redirect(url_for('experiments.view', experiment_id=experiment_id))
 
-    return render_template('experiments/term_manager.html',
-                         experiment=experiment,
-                         domains=domains,
-                         terms=terms)
 
 @experiments_bp.route('/<int:experiment_id>/update_terms', methods=['POST'])
 @api_require_login_for_write
 def update_terms(experiment_id):
-    """Update terms and domains for an experiment"""
+    """
+    Update terms and domains for an experiment
+
+    REFACTORED: Now uses TermService with DTO validation
+    """
     try:
-        experiment = Experiment.query.filter_by(id=experiment_id).first_or_404()
+        # Validate request data using DTO
+        data = UpdateTermsDTO(**request.get_json())
 
-        data = request.get_json()
-        terms = data.get('terms', [])
-        domains = data.get('domains', [])
-        definitions = data.get('definitions', {})
+        # Call service to update configuration
+        term_service.update_term_configuration(
+            experiment_id,
+            terms=data.terms,
+            domains=data.domains,
+            definitions=data.definitions
+        )
 
-        # Update configuration
-        config = json.loads(experiment.configuration) if experiment.configuration else {}
-        config['target_terms'] = terms
-        config['domains'] = domains
-        config['term_definitions'] = definitions
+        return jsonify({
+            'success': True,
+            'message': 'Terms updated successfully'
+        }), 200
 
-        experiment.configuration = json.dumps(config)
-        experiment.updated_at = datetime.utcnow()
-        db.session.commit()
+    except PydanticValidationError as e:
+        # Validation errors from DTO
+        logger.warning(f"Validation error updating terms for experiment {experiment_id}: {e}")
+        return jsonify({
+            'success': False,
+            'error': 'Validation failed',
+            'details': e.errors()
+        }), 400
 
-        return jsonify({'success': True, 'message': 'Terms updated successfully'})
+    except ValidationError as e:
+        # Business validation errors
+        logger.warning(f"Business validation error: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 400
+
+    except ServiceError as e:
+        # Service errors (database, etc.)
+        logger.error(f"Service error updating terms for experiment {experiment_id}: {e}", exc_info=True)
+        return jsonify({
+            'success': False,
+            'error': 'Failed to update terms'
+        }), 500
 
     except Exception as e:
-        db.session.rollback()
-        return jsonify({'error': str(e)}), 500
+        # Unexpected errors
+        logger.error(f"Unexpected error updating terms for experiment {experiment_id}: {e}", exc_info=True)
+        return jsonify({
+            'success': False,
+            'error': 'An unexpected error occurred'
+        }), 500
+
 
 @experiments_bp.route('/<int:experiment_id>/get_terms')
 @api_require_login_for_write
 def get_terms(experiment_id):
-    """Get saved terms and definitions for an experiment"""
-    try:
-        experiment = Experiment.query.filter_by(id=experiment_id).first_or_404()
+    """
+    Get saved terms and definitions for an experiment
 
-        config = json.loads(experiment.configuration) if experiment.configuration else {}
+    REFACTORED: Now uses TermService
+    """
+    try:
+        # Get term configuration from service
+        config = term_service.get_term_configuration(experiment_id)
 
         return jsonify({
             'success': True,
-            'terms': config.get('target_terms', []),
-            'domains': config.get('domains', []),
-            'definitions': config.get('term_definitions', {})
-        })
+            'terms': config['terms'],
+            'domains': config['domains'],
+            'definitions': config['definitions']
+        }), 200
+
+    except ValidationError as e:
+        # Business validation errors
+        logger.warning(f"Validation error getting terms for experiment {experiment_id}: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 400
+
+    except ServiceError as e:
+        # Service errors
+        logger.error(f"Service error getting terms for experiment {experiment_id}: {e}", exc_info=True)
+        return jsonify({
+            'success': False,
+            'error': 'Failed to get terms'
+        }), 500
 
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        # Unexpected errors
+        logger.error(f"Unexpected error getting terms for experiment {experiment_id}: {e}", exc_info=True)
+        return jsonify({
+            'success': False,
+            'error': 'An unexpected error occurred'
+        }), 500
+
 
 @experiments_bp.route('/<int:experiment_id>/fetch_definitions', methods=['POST'])
 @api_require_login_for_write
 def fetch_definitions(experiment_id):
-    """Fetch definitions for a term from references and ontologies"""
+    """
+    Fetch definitions for a term from references and ontologies
+
+    REFACTORED: Now uses TermService with DTO validation
+    """
     try:
-        experiment = Experiment.query.filter_by(id=experiment_id).first_or_404()
+        # Validate request data using DTO
+        data = FetchDefinitionsDTO(**request.get_json())
 
-        data = request.get_json()
-        term = data.get('term')
-        domains = data.get('domains', [])
-
-        # Initialize services
-        from app.services.text_processing import TextProcessingService
-        from shared_services.ontology.ontology_importer import OntologyImporter
-
-        text_service = TextProcessingService()
-        ontology_importer = OntologyImporter()
-
-        definitions = {}
-        ontology_mappings = {}
-
-        # For each domain, try to find definitions from references
-        for domain in domains:
-            # Search in experiment references for this domain
-            domain_definitions = []
-
-            for ref in experiment.references:
-                # Check if reference matches domain (simple heuristic)
-                ref_content = ref.content or ''
-                if term.lower() in ref_content.lower():
-                    # Extract definition context
-                    lines = ref_content.split('\n')
-                    for i, line in enumerate(lines):
-                        if term.lower() in line.lower():
-                            # Get surrounding context
-                            start = max(0, i - 2)
-                            end = min(len(lines), i + 3)
-                            context = '\n'.join(lines[start:end])
-
-                            domain_definitions.append({
-                                'text': context[:500],  # Limit length
-                                'source': ref.get_display_name()
-                            })
-                            break
-
-            # Use the first definition found for this domain
-            if domain_definitions:
-                definitions[domain] = domain_definitions[0]
-            else:
-                definitions[domain] = {
-                    'text': f'No definition found for "{term}" in {domain} references',
-                    'source': None
-                }
-
-            # Try to map to ontology concepts (using PROV-O as example)
-            ontology_mappings[domain] = []
-
-            # Simple mapping based on common terms
-            if term.lower() in ['agent', 'actor', 'person', 'user']:
-                ontology_mappings[domain].append({
-                    'label': 'prov:Agent',
-                    'description': 'An agent is something that bears some form of responsibility for an activity taking place'
-                })
-            elif term.lower() in ['activity', 'process', 'action', 'task']:
-                ontology_mappings[domain].append({
-                    'label': 'prov:Activity',
-                    'description': 'An activity is something that occurs over a period of time and acts upon or with entities'
-                })
-            elif term.lower() in ['entity', 'object', 'data', 'document']:
-                ontology_mappings[domain].append({
-                    'label': 'prov:Entity',
-                    'description': 'An entity is a physical, digital, conceptual, or other kind of thing'
-                })
+        # Call service to fetch definitions
+        result = term_service.fetch_definitions(
+            experiment_id,
+            term=data.term,
+            domains=data.domains
+        )
 
         return jsonify({
             'success': True,
-            'definitions': definitions,
-            'ontology_mappings': ontology_mappings
-        })
+            'definitions': result['definitions'],
+            'ontology_mappings': result['ontology_mappings']
+        }), 200
+
+    except PydanticValidationError as e:
+        # Validation errors from DTO
+        logger.warning(f"Validation error fetching definitions for experiment {experiment_id}: {e}")
+        return jsonify({
+            'success': False,
+            'error': 'Validation failed',
+            'details': e.errors()
+        }), 400
+
+    except ValidationError as e:
+        # Business validation errors
+        logger.warning(f"Business validation error: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 400
+
+    except ServiceError as e:
+        # Service errors
+        logger.error(f"Service error fetching definitions for experiment {experiment_id}: {e}", exc_info=True)
+        return jsonify({
+            'success': False,
+            'error': 'Failed to fetch definitions'
+        }), 500
 
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        # Unexpected errors
+        logger.error(f"Unexpected error fetching definitions for experiment {experiment_id}: {e}", exc_info=True)
+        return jsonify({
+            'success': False,
+            'error': 'An unexpected error occurred'
+        }), 500

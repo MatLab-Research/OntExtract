@@ -152,7 +152,28 @@
                         <p>{{ experiment.results_summary }}</p>
                     </div>
                     {% endif %}
-                    
+
+                    <!-- Results and Analysis Links -->
+                    {% if experiment.status == 'completed' %}
+                    <div class="mb-4">
+                        <h5><i class="fas fa-chart-bar"></i> Analysis Results</h5>
+                        <div class="btn-group" role="group">
+                            <a href="{{ url_for('experiments.results', experiment_id=experiment.id) }}"
+                               class="btn btn-outline-primary">
+                                <i class="fas fa-chart-line"></i> Standard Results
+                            </a>
+                            <a href="{{ url_for('experiments.orchestration_results', experiment_id=experiment.id) }}"
+                               class="btn btn-outline-info">
+                                <i class="fas fa-brain"></i> LLM Orchestration Results
+                            </a>
+                        </div>
+                        <p class="text-muted small mt-2 mb-0">
+                            <strong>Standard Results:</strong> Traditional analysis output (embeddings, entities, segments)<br>
+                            <strong>Orchestration Results:</strong> LLM-guided tool selection and cross-document synthesis
+                        </p>
+                    </div>
+                    {% endif %}
+
                     <div class="d-flex justify-content-between">
                         <a href="{{ url_for('experiments.index') }}" class="btn btn-secondary">
                             <i class="fas fa-arrow-left"></i> Back to Experiments

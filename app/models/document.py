@@ -76,7 +76,7 @@ class Document(db.Model):
     parent_document_id = db.Column(db.Integer, db.ForeignKey('documents.id'), index=True)
     
     # Relationships
-    user = db.relationship('User', backref='user_documents')
+    user = db.relationship('User', backref=db.backref('user_documents', overlaps="owner"), overlaps="documents,owner")
     processing_jobs = db.relationship('ProcessingJob', backref='document', lazy='dynamic', cascade='all, delete-orphan')
     
     # Document versioning relationships

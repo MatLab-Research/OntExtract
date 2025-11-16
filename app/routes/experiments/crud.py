@@ -26,11 +26,25 @@ from app import db
 from app.models import Document, Experiment
 from app.services.text_processing import TextProcessingService
 from app.services.experiment_domain_comparison import DomainComparisonService
+from app.services.experiment_service import get_experiment_service
+from app.dto.experiment_dto import (
+    CreateExperimentDTO,
+    UpdateExperimentDTO,
+    ExperimentResponseDTO,
+    ExperimentListItemDTO,
+    ExperimentDetailDTO
+)
+from app.services.base_service import ServiceError, ValidationError
+from pydantic import ValidationError as PydanticValidationError
 from datetime import datetime
 import json
 from typing import Optional
+import logging
 
 from . import experiments_bp
+
+logger = logging.getLogger(__name__)
+experiment_service = get_experiment_service()
 
 
 @experiments_bp.route('/')
@@ -60,75 +74,79 @@ def wizard():
 @experiments_bp.route('/create', methods=['POST'])
 @api_require_login_for_write
 def create():
-    """Create a new experiment - requires login"""
+    """
+    Create a new experiment - requires login
+
+    REFACTORED: Now uses ExperimentService with DTO validation
+    """
     try:
-        data = request.get_json()
+        # Validate request data using DTO (automatic validation)
+        data = CreateExperimentDTO(**request.get_json())
 
-        # Validate required fields
-        if not data.get('name'):
-            return jsonify({'error': 'Experiment name is required'}), 400
+        # Call service to create experiment (all business logic in service)
+        experiment = experiment_service.create_experiment(data, current_user.id)
 
-        if not data.get('experiment_type'):
-            return jsonify({'error': 'Experiment type is required'}), 400
-
-        # Validate that at least one document or reference is selected
-        # All experiments can use either documents or references
-        document_ids = data.get('document_ids') or []
-        reference_ids = data.get('reference_ids') or []
-
-        if len(document_ids) == 0 and len(reference_ids) == 0:
-            return jsonify({'error': 'At least one document or reference must be selected'}), 400
-
-        # Create the experiment
-        experiment = Experiment(
-            name=data['name'],
-            description=data.get('description', ''),
-            experiment_type=data['experiment_type'],
-            user_id=current_user.id,
-            configuration=json.dumps(data.get('configuration', {}))
-        )
-        # Important: Add to session before touching dynamic relationships
-        db.session.add(experiment)
-        db.session.flush()  # ensure experiment has identity for association table
-
-        # Add documents to the experiment
-        for doc_id in document_ids:
-            document = Document.query.filter_by(id=doc_id).first()
-            if document:
-                experiment.add_document(document)
-
-        # Add references to the experiment
-        for ref_id in reference_ids:
-            reference = Document.query.filter_by(id=ref_id, document_type='reference').first()
-            if reference:
-                experiment.add_reference(reference, include_in_analysis=True)
-
-        db.session.commit()
-
-        # Redirect to document processing pipeline based on experiment type
+        # Return consistent response
         return jsonify({
             'success': True,
             'message': 'Experiment created successfully',
             'experiment_id': experiment.id,
             'redirect': url_for('experiments.document_pipeline', experiment_id=experiment.id)
-        })
+        }), 201
+
+    except PydanticValidationError as e:
+        # Validation errors from DTO
+        logger.warning(f"Validation error creating experiment: {e}")
+        return jsonify({
+            'success': False,
+            'error': 'Validation failed',
+            'details': e.errors()
+        }), 400
+
+    except ValidationError as e:
+        # Business validation errors from service
+        logger.warning(f"Business validation error: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 400
+
+    except ServiceError as e:
+        # Service errors (database, etc.)
+        logger.error(f"Service error creating experiment: {e}", exc_info=True)
+        return jsonify({
+            'success': False,
+            'error': 'Failed to create experiment'
+        }), 500
 
     except Exception as e:
-        db.session.rollback()
-        return jsonify({'error': str(e)}), 500
+        # Unexpected errors
+        logger.error(f"Unexpected error creating experiment: {e}", exc_info=True)
+        return jsonify({
+            'success': False,
+            'error': 'An unexpected error occurred'
+        }), 500
 
 
 @experiments_bp.route('/sample', methods=['POST', 'GET'])
 @api_require_login_for_write
 def create_sample():
-    """Create a sample domain comparison experiment using available references and a simple design."""
+    """
+    Create a sample domain comparison experiment
+
+    REFACTORED: Now uses ExperimentService with DTO validation
+    """
     try:
         # Pick up to 6 most recent references
-        refs = Document.query.filter_by(document_type='reference').order_by(Document.created_at.desc()).limit(6).all()
+        refs = Document.query.filter_by(document_type='reference').order_by(
+            Document.created_at.desc()
+        ).limit(6).all()
+
         if not refs:
             flash('No references found. Please upload reference PDFs first (References → Upload).', 'warning')
             return redirect(url_for('experiments.index'))
 
+        # Build sample configuration
         config = {
             "use_references": True,
             "target_terms": ["agent", "agency"],
@@ -141,24 +159,28 @@ def create_sample():
             }
         }
 
-        experiment = Experiment(
+        # Create DTO with sample data
+        data = CreateExperimentDTO(
             name='Sample: Agent Domain Comparison',
             description='Auto-created sample comparing terminology across sources with a simple design.',
             experiment_type='domain_comparison',
-            user_id=current_user.id,
-            configuration=json.dumps(config)
+            reference_ids=[r.id for r in refs],
+            configuration=config
         )
-        db.session.add(experiment)
-        db.session.flush()
 
-        for r in refs:
-            experiment.add_reference(r, include_in_analysis=True)
+        # Call service to create experiment (all business logic in service)
+        experiment = experiment_service.create_experiment(data, current_user.id)
 
-        db.session.commit()
         flash('Sample experiment created.', 'success')
         return redirect(url_for('experiments.view', experiment_id=experiment.id))
+
+    except ServiceError as e:
+        logger.error(f"Service error creating sample experiment: {e}", exc_info=True)
+        flash(f'Error creating sample experiment: {e}', 'danger')
+        return redirect(url_for('experiments.index'))
+
     except Exception as e:
-        db.session.rollback()
+        logger.error(f"Unexpected error creating sample experiment: {e}", exc_info=True)
         flash(f'Error creating sample experiment: {e}', 'danger')
         return redirect(url_for('experiments.index'))
 
@@ -196,114 +218,117 @@ def edit(experiment_id):
 @experiments_bp.route('/<int:experiment_id>/update', methods=['POST'])
 @api_require_login_for_write
 def update(experiment_id):
-    """Update experiment"""
+    """
+    Update an existing experiment
+
+    REFACTORED: Now uses ExperimentService with DTO validation
+    """
     try:
-        experiment = Experiment.query.filter_by(id=experiment_id).first_or_404()
+        # Validate request data using DTO (automatic validation)
+        data = UpdateExperimentDTO(**request.get_json())
 
-        # Can only update experiments that are not running
-        if experiment.status == 'running':
-            return jsonify({'error': 'Cannot update an experiment that is currently running'}), 400
+        # Call service to update experiment (all business logic in service)
+        experiment = experiment_service.update_experiment(experiment_id, data, current_user.id)
 
-        data = request.get_json()
-
-        # Update basic fields
-        if 'name' in data:
-            experiment.name = data['name']
-        if 'description' in data:
-            experiment.description = data['description']
-        if 'experiment_type' in data:
-            experiment.experiment_type = data['experiment_type']
-        if 'configuration' in data:
-            experiment.configuration = json.dumps(data['configuration'])
-
-        # Update documents if provided
-        if 'document_ids' in data:
-            # Clear existing documents
-            experiment.documents = []
-
-            # Add new documents
-            for doc_id in data['document_ids']:
-                document = Document.query.filter_by(id=doc_id).first()
-                if document:
-                    experiment.add_document(document)
-
-        experiment.updated_at = datetime.utcnow()
-        db.session.commit()
-
+        # Return consistent response
         return jsonify({
             'success': True,
-            'message': 'Experiment updated successfully'
-        })
+            'message': 'Experiment updated successfully',
+            'experiment_id': experiment.id
+        }), 200
+
+    except PydanticValidationError as e:
+        # Validation errors from DTO
+        logger.warning(f"Validation error updating experiment {experiment_id}: {e}")
+        return jsonify({
+            'success': False,
+            'error': 'Validation failed',
+            'details': e.errors()
+        }), 400
+
+    except ValidationError as e:
+        # Business validation errors (e.g., cannot update running experiment)
+        logger.warning(f"Business validation error: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 400
+
+    except PermissionError as e:
+        # Permission errors
+        logger.warning(f"Permission error: {e}")
+        return jsonify({
+            'success': False,
+            'error': 'Permission denied'
+        }), 403
+
+    except ServiceError as e:
+        # Service errors (database, etc.)
+        logger.error(f"Service error updating experiment {experiment_id}: {e}", exc_info=True)
+        return jsonify({
+            'success': False,
+            'error': 'Failed to update experiment'
+        }), 500
 
     except Exception as e:
-        db.session.rollback()
-        return jsonify({'error': str(e)}), 500
+        # Unexpected errors
+        logger.error(f"Unexpected error updating experiment {experiment_id}: {e}", exc_info=True)
+        return jsonify({
+            'success': False,
+            'error': 'An unexpected error occurred'
+        }), 500
 
 
 @experiments_bp.route('/<int:experiment_id>/delete', methods=['POST'])
 @api_require_login_for_write
 def delete(experiment_id):
-    """Delete experiment and all associated processing data (but preserve original documents)"""
+    """
+    Delete experiment and all associated processing data
+
+    REFACTORED: Now uses ExperimentService with cascading deletes
+    Note: Original documents are preserved (not deleted)
+    """
     try:
-        experiment = Experiment.query.filter_by(id=experiment_id).first_or_404()
+        # Call service to delete experiment (all cascading logic in service)
+        experiment_service.delete_experiment(experiment_id, current_user.id)
 
-        # Can only delete experiments that are not running
-        if experiment.status == 'running':
-            return jsonify({'error': 'Cannot delete an experiment that is currently running'}), 400
-
-        # Import models here to avoid circular imports
-        from app.models.experiment_document import ExperimentDocument
-        from app.models.experiment_processing import (
-            ExperimentDocumentProcessing,
-            ProcessingArtifact,
-            DocumentProcessingIndex
-        )
-
-        # Delete all processing artifacts first (most dependent)
-        # Get all processing operations for this experiment's documents
-        processing_ops = db.session.query(ExperimentDocumentProcessing).join(
-            ExperimentDocument,
-            ExperimentDocumentProcessing.experiment_document_id == ExperimentDocument.id
-        ).filter(
-            ExperimentDocument.experiment_id == experiment_id
-        ).all()
-
-        for processing_op in processing_ops:
-            # Delete all artifacts for this processing operation
-            ProcessingArtifact.query.filter_by(processing_id=processing_op.id).delete()
-
-            # Delete index entries for this processing operation
-            DocumentProcessingIndex.query.filter_by(processing_id=processing_op.id).delete()
-
-            # Delete the processing operation itself
-            db.session.delete(processing_op)
-
-        # Delete all ExperimentDocument associations
-        ExperimentDocument.query.filter_by(experiment_id=experiment_id).delete()
-
-        # Clear the many-to-many relationships (experiment_documents and experiment_references)
-        # These use association tables, so we need to clear them manually
-        experiment.documents = []  # This clears the association table entries
-        experiment.references = []  # This clears the reference associations
-        db.session.flush()  # Ensure the associations are cleared before deleting the experiment
-
-        # Finally delete the experiment itself
-        db.session.delete(experiment)
-
-        # Commit all deletions
-        db.session.commit()
-
+        # Return consistent response
         return jsonify({
             'success': True,
             'message': 'Experiment and all associated processing data deleted successfully'
-        })
+        }), 200
+
+    except ValidationError as e:
+        # Business validation errors (e.g., cannot delete running experiment)
+        logger.warning(f"Validation error deleting experiment {experiment_id}: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 400
+
+    except PermissionError as e:
+        # Permission errors
+        logger.warning(f"Permission error deleting experiment {experiment_id}: {e}")
+        return jsonify({
+            'success': False,
+            'error': 'Permission denied'
+        }), 403
+
+    except ServiceError as e:
+        # Service errors (database, etc.)
+        logger.error(f"Service error deleting experiment {experiment_id}: {e}", exc_info=True)
+        return jsonify({
+            'success': False,
+            'error': 'Failed to delete experiment'
+        }), 500
 
     except Exception as e:
-        db.session.rollback()
-        import traceback
-        error_details = traceback.format_exc()
-        print(f"Error deleting experiment {experiment_id}: {error_details}")
-        return jsonify({'error': str(e)}), 500
+        # Unexpected errors
+        logger.error(f"Unexpected error deleting experiment {experiment_id}: {e}", exc_info=True)
+        return jsonify({
+            'success': False,
+            'error': 'An unexpected error occurred'
+        }), 500
 
 
 @experiments_bp.route('/<int:experiment_id>/run', methods=['POST'])
@@ -391,15 +416,63 @@ def results(experiment_id):
 
 @experiments_bp.route('/api/list')
 def api_list():
-    """API endpoint to list experiments"""
-    experiments = Experiment.query.order_by(Experiment.created_at.desc()).all()
-    return jsonify({
-        'experiments': [exp.to_dict() for exp in experiments]
-    })
+    """
+    API endpoint to list experiments
+
+    REFACTORED: Now uses ExperimentService with DTOs
+    """
+    try:
+        # Get experiments from service (returns DTOs)
+        experiments = experiment_service.list_experiments()
+
+        # Convert DTOs to dicts for JSON response
+        return jsonify({
+            'success': True,
+            'experiments': [exp.to_dict() for exp in experiments]
+        }), 200
+
+    except ServiceError as e:
+        logger.error(f"Service error listing experiments: {e}", exc_info=True)
+        return jsonify({
+            'success': False,
+            'error': 'Failed to list experiments'
+        }), 500
+
+    except Exception as e:
+        logger.error(f"Unexpected error listing experiments: {e}", exc_info=True)
+        return jsonify({
+            'success': False,
+            'error': 'An unexpected error occurred'
+        }), 500
 
 
 @experiments_bp.route('/api/<int:experiment_id>')
 def api_get(experiment_id):
-    """API endpoint to get experiment details"""
-    experiment = Experiment.query.filter_by(id=experiment_id).first_or_404()
-    return jsonify(experiment.to_dict(include_documents=True))
+    """
+    API endpoint to get experiment details
+
+    REFACTORED: Now uses ExperimentService with DTOs
+    """
+    try:
+        # Get experiment detail from service (returns DTO)
+        experiment = experiment_service.get_experiment_detail(experiment_id)
+
+        # Convert DTO to dict for JSON response
+        return jsonify({
+            'success': True,
+            'experiment': experiment.to_dict()
+        }), 200
+
+    except ServiceError as e:
+        logger.error(f"Service error getting experiment {experiment_id}: {e}", exc_info=True)
+        return jsonify({
+            'success': False,
+            'error': 'Experiment not found'
+        }), 404
+
+    except Exception as e:
+        logger.error(f"Unexpected error getting experiment {experiment_id}: {e}", exc_info=True)
+        return jsonify({
+            'success': False,
+            'error': 'An unexpected error occurred'
+        }), 500

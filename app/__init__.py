@@ -53,7 +53,7 @@ def create_app(config_name=None):
     from app.routes.terms import terms_bp
     from app.routes.merriam_webster import merriam_bp
     from app.routes.temporal_visual import temporal_visual_bp
-    from app.routes.embeddings_api import embeddings_bp, document_api_bp
+    from app.routes.embeddings import embeddings_bp, document_api_bp
     from app.routes.api import api_bp
     from app.routes.provenance_visualization import bp as provenance_bp
     from app.routes.settings import settings_bp
