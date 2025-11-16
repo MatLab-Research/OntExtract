@@ -21,7 +21,7 @@
                     {% for exp_doc in experiment_documents %}
                     <tr>
                         <td>
-                            <a href="{{ url_for('text_input.document_detail', document_uuid=exp_doc.document.uuid) }}"
+                            <a href="{{ url_for('text_input.document_detail', document_id=exp_doc.document.uuid) }}"
                                class="text-decoration-none">
                                 {{ exp_doc.document.title[:50] }}{% if exp_doc.document.title|length > 50 %}...{% endif %}
                             </a>

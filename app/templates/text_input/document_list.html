@@ -85,7 +85,7 @@
                 <div class="card-header d-flex justify-content-between align-items-center">
                     <div>
                         <h5 class="mb-0 d-inline">
-                            <a href="{{ url_for('text_input.document_detail', document_uuid=group.latest_version.uuid) }}"
+                            <a href="{{ url_for('text_input.document_detail', document_id=group.latest_version.id) }}"
                                class="text-decoration-none text-dark">
                                 {{ group.latest_version.title }}
                             </a>
@@ -167,7 +167,7 @@
                                                 • {{ version.created_at.strftime('%b %d, %Y at %I:%M %p') }}
                                             </small>
                                         </div>
-                                        <a href="{{ url_for('text_input.document_detail', document_uuid=version.uuid) }}"
+                                        <a href="{{ url_for('text_input.document_detail', document_id=version.id) }}"
                                            class="btn btn-sm btn-outline-primary">
                                             View
                                         </a>
@@ -188,7 +188,7 @@
                             {% endif %}
                             • Created {{ group.base_document.created_at.strftime('%b %d, %Y') }}
                         </small>
-                        <a href="{{ url_for('text_input.document_detail', document_uuid=group.latest_version.uuid) }}"
+                        <a href="{{ url_for('text_input.document_detail', document_id=group.latest_version.id) }}"
                             class="btn btn-sm btn-outline-primary">
                             View Latest
                         </a>
