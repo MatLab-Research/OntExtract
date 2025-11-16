@@ -149,7 +149,7 @@ def upload():
                 experiment.add_reference(document,
                                        include_in_analysis=request.form.get('include_in_analysis') == 'true')
                 flash(f'Reference linked to experiment "{experiment.name}"', 'success')
-                return redirect(url_for('experiments.view', id=experiment_id))
+                return redirect(url_for('experiments.view', experiment_id=experiment_id))
 
         return redirect(url_for('references.view', id=document.id))
 
@@ -330,6 +330,6 @@ def upload_dictionary():
             experiment.add_reference(document,
                                    include_in_analysis=request.form.get('include_in_analysis') == 'true')
             flash(f'Dictionary entry linked to experiment "{experiment.name}"', 'success')
-            return redirect(url_for('experiments.view', id=experiment_id))
+            return redirect(url_for('experiments.view', experiment_id=experiment_id))
 
     return redirect(url_for('references.view', id=document.id))

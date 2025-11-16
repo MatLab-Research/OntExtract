@@ -227,7 +227,7 @@ def upload_document():
                         db.session.commit()
                 
                 flash(f'Document linked to experiment "{experiment.name}"', 'success')
-                return redirect(url_for('experiments.view', id=experiment_id))
+                return redirect(url_for('experiments.view', experiment_id=experiment_id))
         
         # All documents now go to the same detail page with full processing options
         return redirect(url_for('text_input.document_detail', document_id=document.id))
