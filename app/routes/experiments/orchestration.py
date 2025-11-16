@@ -298,6 +298,36 @@ def orchestration_results(experiment_id):
             minutes = int((duration_seconds % 3600) / 60)
             duration = f"{hours}h {minutes}m"
 
+    # Convert markdown-style formatting to HTML
+    if cross_document_insights:
+        import re
+        # Convert **bold** to <strong>bold</strong>
+        cross_document_insights = re.sub(r'\*\*(.+?)\*\*', r'<strong>\1</strong>', cross_document_insights)
+        # Convert ### headers to h4
+        cross_document_insights = re.sub(r'###\s*(.+?)$', r'<h4>\1</h4>', cross_document_insights, flags=re.MULTILINE)
+        # Convert bullet points to proper HTML list items
+        cross_document_insights = re.sub(r'•\s*(.+?)$', r'<li>\1</li>', cross_document_insights, flags=re.MULTILINE)
+        # Wrap list items in ul
+        if '<li>' in cross_document_insights:
+            cross_document_insights = re.sub(r'(<li>.*?</li>)', r'<ul class="list-unstyled mb-4">\n\1\n</ul>', cross_document_insights, flags=re.DOTALL)
+            # Clean up multiple ul tags
+            cross_document_insights = cross_document_insights.replace('</ul>\n<ul class="list-unstyled mb-4">', '')
+        # Convert newlines to br tags (but not within ul/li)
+        lines = cross_document_insights.split('\n')
+        processed_lines = []
+        in_list = False
+        for line in lines:
+            if '<ul' in line:
+                in_list = True
+            elif '</ul>' in line:
+                in_list = False
+
+            if line.strip() and not in_list and '<h4>' not in line and '<ul' not in line and '</ul>' not in line and '<li>' not in line:
+                processed_lines.append(line + '<br>')
+            else:
+                processed_lines.append(line)
+        cross_document_insights = '\n'.join(processed_lines)
+
     return render_template('experiments/orchestration_results.html',
                          experiment=experiment,
                          decisions=decisions,
