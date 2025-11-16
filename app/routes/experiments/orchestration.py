@@ -228,16 +228,31 @@ def orchestration_results(experiment_id):
 
     # Query experiment_orchestration_runs directly (no model class exists yet)
     from sqlalchemy import text
+    from app.models.orchestration_logs import OrchestrationDecision
     import re
+
+    # Get orchestration decisions for this experiment
+    decisions = OrchestrationDecision.query.filter_by(
+        experiment_id=experiment.id
+    ).order_by(OrchestrationDecision.created_at.desc()).all()
+
+    total_decisions = len(decisions)
+    completed_decisions = sum(1 for d in decisions if d.activity_status == 'completed')
+
+    # Get most recent decision
+    recent_decision = decisions[0] if decisions else None
 
     # Set defaults
     avg_confidence = 0.0
     cross_document_insights = None
     duration = None
     document_count = experiment.documents.count()
-    recent_decision = None
-    total_decisions = 0
-    completed_decisions = 0
+
+    # Calculate average confidence from decisions
+    if decisions:
+        valid_confidences = [float(d.decision_confidence) for d in decisions if d.decision_confidence]
+        if valid_confidences:
+            avg_confidence = sum(valid_confidences) / len(valid_confidences)
 
     # Get the most recent completed orchestration run via raw SQL
     query = text("""
@@ -252,7 +267,9 @@ def orchestration_results(experiment_id):
 
     # If we have orchestration run data, use it
     if result:
-        avg_confidence = result[0] or 0.0
+        # Use orchestration run confidence if available, otherwise use decisions average
+        if result[0]:
+            avg_confidence = result[0]
         cross_document_insights = result[1]
         started_at = result[2]
         completed_at = result[3]
@@ -311,7 +328,7 @@ def orchestration_results(experiment_id):
                          experiment=experiment,
                          decisions=decisions,
                          total_decisions=total_decisions,
-                         completed_decisions=completed_count,
+                         completed_decisions=completed_decisions,
                          avg_confidence=float(avg_confidence) if avg_confidence else 0.0,
                          recent_decision=recent_decision,
                          cross_document_insights=cross_document_insights,
