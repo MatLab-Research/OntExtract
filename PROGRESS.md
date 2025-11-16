@@ -1,0 +1,213 @@
+# OntExtract Refactoring Progress Tracker
+
+**Branch:** `claude/ontextract-refactoring-01CKdfmiV2WVqf9aRu2zNATY`
+**Started:** 2025-11-16
+**Status:** 🟡 In Progress - Testing Phase
+
+---
+
+## Session Timeline
+
+### 2025-11-16 - Dependency Updates & Testing Preparation
+
+#### ✅ Completed Tasks
+
+1. **sentence-transformers Version Update**
+   - **Time:** Session start
+   - **Change:** Updated from 2.3.1 → 5.1.2 in `requirements.txt`
+   - **Commit:** `8c5df75` - "Update sentence-transformers from 2.3.1 to 5.1.2"
+   - **Pushed:** Yes ✓
+   - **Rationale:**
+     - Major version with improved HuggingFace integration
+     - Better model saving/loading
+     - Enhanced loss compatibilities
+     - Test on feature branch before production
+
+2. **Documentation Updates**
+   - Created `CLAUDE.md` - Session context and continuation guide
+   - Created `PROGRESS.md` - Detailed progress tracking (this file)
+   - Referenced existing `DEPLOYMENT_UPDATE_GUIDE.md` for deployment context
+
+#### 🔄 In Progress
+
+1. **Test Experiment Creation**
+   - **Status:** Awaiting user action
+   - **Purpose:** Validate sentence-transformers 5.1.2 compatibility
+   - **Watch For:**
+     - Import errors
+     - Model loading failures
+     - Encoding API changes
+     - Offline mode issues
+     - Dimension mismatches
+
+#### 📋 Pending Tasks
+
+1. **Address Compatibility Issues**
+   - Fix any breaking changes from sentence-transformers update
+   - Update code if API has changed
+   - Verify embedding dimensions remain consistent
+
+2. **Production Deployment Preparation**
+   - Follow steps in `DEPLOYMENT_UPDATE_GUIDE.md`
+   - Test all entity extraction features
+   - Verify processing dashboard functionality
+   - Ensure database migrations work correctly
+
+---
+
+## Code Changes Summary
+
+### Modified Files
+
+| File | Change | Status | Commit |
+|------|--------|--------|--------|
+| `requirements.txt` | sentence-transformers 2.3.1→5.1.2 | ✅ Committed | 8c5df75 |
+| `CLAUDE.md` | Created session guide | ✅ Done | Pending |
+| `PROGRESS.md` | Created progress tracker | ✅ Done | Pending |
+
+### Files to Watch (Potentially Affected by Update)
+
+| File | Reason | Risk Level |
+|------|--------|------------|
+| `shared_services/embedding/embedding_service.py` | Direct SentenceTransformer usage, offline mode | 🟡 Medium |
+| `app/services/experiment_embedding_service.py` | Model initialization and encoding | 🟡 Medium |
+| `app/services/period_aware_embedding_service.py` | References embedding models | 🟢 Low |
+
+---
+
+## Known Issues & Risks
+
+### Current Risks
+
+1. **sentence-transformers 5.1.2 Compatibility**
+   - **Risk:** Major version jump may introduce breaking changes
+   - **Mitigation:** Testing on feature branch first
+   - **Status:** 🟡 Monitoring
+
+2. **Offline Mode Behavior**
+   - **Risk:** HuggingFace Hub integration may require different offline config
+   - **Current Code:** Uses `HF_HUB_OFFLINE=1` and `TRANSFORMERS_OFFLINE=1` env vars
+   - **Status:** 🟡 Needs testing
+
+3. **Embedding Dimension Consistency**
+   - **Risk:** Model may return different dimensions
+   - **Expected:** 384 for all-MiniLM-L6-v2
+   - **Status:** 🟡 Needs verification
+
+### Resolved Issues
+
+None yet - first testing session.
+
+---
+
+## Testing Checklist
+
+### Pre-Test Setup
+- [x] Update requirements.txt with new version
+- [x] Commit changes to feature branch
+- [x] Push to remote repository
+- [x] Document changes and instructions
+- [ ] Install updated dependencies locally (user action)
+
+### Test Execution
+- [ ] Create new test experiment
+- [ ] Verify experiment creation succeeds
+- [ ] Check embedding generation works
+- [ ] Validate embedding dimensions
+- [ ] Test entity extraction functionality
+- [ ] Verify processing dashboard displays correctly
+
+### Error Scenarios to Test
+- [ ] Model initialization with offline mode
+- [ ] Text encoding with various inputs
+- [ ] Period-aware model selection
+- [ ] Long text handling
+- [ ] Batch embedding generation
+
+### Post-Test Verification
+- [ ] All tests pass
+- [ ] No compatibility errors
+- [ ] Embeddings have correct dimensions
+- [ ] Performance is acceptable
+- [ ] Ready for production deployment
+
+---
+
+## Deployment Readiness
+
+### Pre-Deployment Checklist (from DEPLOYMENT_UPDATE_GUIDE.md)
+
+#### Phase 1: Pre-Deployment Preparation
+- [ ] Create database backup
+- [ ] Check current production schema
+- [ ] Prepare migration files
+
+#### Phase 2: Application Code Deployment
+- [ ] Stop Gunicorn service
+- [ ] Backup current code
+- [ ] Deploy new code
+- [ ] Update dependencies
+
+#### Phase 3: Database Migration
+- [ ] Check Flask migration system
+- [ ] Run database initialization/migration
+- [ ] Verify migration success
+
+#### Phase 4: Environment Configuration
+- [ ] Update environment variables
+- [ ] Verify Nginx configuration
+
+#### Phase 5: Service Restart and Verification
+- [ ] Start Gunicorn service
+- [ ] Verify application health
+- [ ] Test new features
+
+### Rollback Plan
+Documented in `DEPLOYMENT_UPDATE_GUIDE.md` - Emergency rollback procedures available.
+
+---
+
+## Dependencies Updated This Session
+
+| Package | Old Version | New Version | Status |
+|---------|-------------|-------------|--------|
+| sentence-transformers | 2.3.1 | 5.1.2 | ✅ Updated |
+
+---
+
+## Next Session Priorities
+
+1. Complete test experiment validation
+2. Address any compatibility issues found
+3. Update embedding service code if needed
+4. Proceed with additional dependency updates if all tests pass
+5. Begin production deployment preparation
+
+---
+
+## Notes & Observations
+
+### Session Notes
+
+- User is actively monitoring for errors during test creation
+- Approach: Fix issues as they arise rather than pre-emptive changes
+- Branch naming follows pattern: `claude/ontextract-refactoring-[session-id]`
+- Git stop hook ensures all commits are pushed before session end
+
+### Technical Decisions
+
+1. **Why Update Now:**
+   - On feature branch, safe to test
+   - Major version updates need testing anyway
+   - Better to update dependencies together
+
+2. **Testing Strategy:**
+   - Create real test experiment
+   - Monitor actual errors in production-like scenario
+   - Fix compatibility issues reactively
+
+---
+
+**Last Updated:** 2025-11-16
+**Next Review:** After test experiment creation
+**Session Status:** 🟡 Active - Awaiting test results
