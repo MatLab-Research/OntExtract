@@ -225,7 +225,7 @@ def upload_document():
                 return redirect(url_for('experiments.view', experiment_id=experiment_id))
         
         # All documents now go to the same detail page with full processing options
-        return redirect(url_for('text_input.document_detail', document_uuid=document.uuid))
+        return redirect(url_for('text_input.document_detail', document_id=document.id))
             
     except Exception as e:
         current_app.logger.error(f"Error uploading document: {str(e)}")

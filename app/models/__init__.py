@@ -17,6 +17,8 @@ from .experiment_processing import ExperimentDocumentProcessing, ProcessingArtif
 
 # Experiment orchestration models
 from .experiment_orchestration_run import ExperimentOrchestrationRun
+from .orchestration_logs import OrchestrationDecision, ToolExecutionLog, MultiModelConsensus
+from .orchestration_feedback import OrchestrationFeedback, LearningPattern, OrchestrationOverride
 
 # Term management models
 from .term import Term, TermVersion, FuzzinessAdjustment
@@ -50,6 +52,12 @@ __all__ = [
     'DocumentProcessingIndex',
     # Experiment orchestration models
     'ExperimentOrchestrationRun',
+    'OrchestrationDecision',
+    'ToolExecutionLog',
+    'MultiModelConsensus',
+    'OrchestrationFeedback',
+    'LearningPattern',
+    'OrchestrationOverride',
     # Term management models
     'Term',
     'TermVersion',
