@@ -61,6 +61,9 @@ def document_list():
         # If no base document was found, use the original version
         if group['base_document'] is None and group['versions']:
             group['base_document'] = min(group['versions'], key=lambda x: x.version_number)
+        # Set latest_version to the first (newest) version
+        if group['versions']:
+            group['latest_version'] = group['versions'][0]
 
     # Convert to list and sort by latest creation date
     grouped_documents = list(document_groups.values())
