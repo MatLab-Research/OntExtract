@@ -58,10 +58,54 @@ class Config:
     OPENAI_API_KEY = os.environ.get('OPENAI_API_KEY')
     DEFAULT_LLM_PROVIDER = os.environ.get('DEFAULT_LLM_PROVIDER', 'anthropic')
     
-    # Claude Model Configuration
-    CLAUDE_DEFAULT_MODEL = os.environ.get('CLAUDE_DEFAULT_MODEL', 'claude-3-5-sonnet-20241022')
+    # Claude Model Configuration (Latest: Sonnet 4.5 - Sep 2025, Haiku 4.5 - Oct 2025)
+    CLAUDE_DEFAULT_MODEL = os.environ.get('CLAUDE_DEFAULT_MODEL', 'claude-sonnet-4-5-20250929')
     CLAUDE_API_VERSION = os.environ.get('CLAUDE_API_VERSION', '2023-06-01')
     CLAUDE_EMBEDDING_MODEL = os.environ.get('CLAUDE_EMBEDDING_MODEL', 'claude-3-embedding')
+
+    # Task-Specific LLM Model Configuration
+    # Updated November 2025 with latest stable models
+    # Different tasks require different model characteristics (speed vs. capability, context length, specialization)
+
+    # Structured Extraction (LangExtract): Fast, good at structured output, cost-effective
+    # Use case: Extracting definitions, temporal markers, domain indicators from documents
+    # Requirements: JSON output, consistent format, reasonable cost for high volume
+    LLM_EXTRACTION_PROVIDER = os.environ.get('LLM_EXTRACTION_PROVIDER', 'gemini')
+    LLM_EXTRACTION_MODEL = os.environ.get('LLM_EXTRACTION_MODEL', 'gemini-2.5-flash')  # Latest stable Flash (Nov 2025)
+
+    # Semantic Analysis & Synthesis: Capable models for complex reasoning
+    # Use case: Cross-document synthesis, semantic drift analysis, philosophical reasoning
+    # Requirements: Deep understanding, nuanced analysis, high-quality output
+    LLM_SYNTHESIS_PROVIDER = os.environ.get('LLM_SYNTHESIS_PROVIDER', 'anthropic')
+    LLM_SYNTHESIS_MODEL = os.environ.get('LLM_SYNTHESIS_MODEL', 'claude-sonnet-4-5')  # Claude Sonnet 4.5 - best for complex analysis
+
+    # Orchestration & Routing: Medium capability for tool selection decisions
+    # Use case: Deciding which NLP tools to use, routing tasks, confidence scoring
+    # Requirements: Good reasoning, fast response, cost-effective for frequent decisions
+    LLM_ORCHESTRATION_PROVIDER = os.environ.get('LLM_ORCHESTRATION_PROVIDER', 'openai')
+    LLM_ORCHESTRATION_MODEL = os.environ.get('LLM_ORCHESTRATION_MODEL', 'gpt-5-mini')  # GPT-5 mini - fast, capable, economical
+
+    # OED Parsing: Structured extraction from complex dictionary entries
+    # Use case: Parsing OED entries, extracting etymologies, definitions, quotations
+    # Requirements: JSON output, handle complex nested structures, reliable
+    LLM_OED_PARSING_PROVIDER = os.environ.get('LLM_OED_PARSING_PROVIDER', 'gemini')
+    LLM_OED_PARSING_MODEL = os.environ.get('LLM_OED_PARSING_MODEL', 'gemini-2.5-pro')  # Gemini 2.5 Pro - best for complex structured extraction
+
+    # Long Context Processing: Models with large context windows for full document analysis
+    # Use case: Processing long historical documents, multi-document comparison
+    # Requirements: Large context window (100k+ tokens), good at long-range reasoning
+    LLM_LONG_CONTEXT_PROVIDER = os.environ.get('LLM_LONG_CONTEXT_PROVIDER', 'anthropic')
+    LLM_LONG_CONTEXT_MODEL = os.environ.get('LLM_LONG_CONTEXT_MODEL', 'claude-sonnet-4-5')  # 200k context window
+
+    # Classification & Categorization: Fast models for simple classification tasks
+    # Use case: Domain classification, period classification, document type detection
+    # Requirements: Fast, consistent, cost-effective for high volume
+    LLM_CLASSIFICATION_PROVIDER = os.environ.get('LLM_CLASSIFICATION_PROVIDER', 'gemini')
+    LLM_CLASSIFICATION_MODEL = os.environ.get('LLM_CLASSIFICATION_MODEL', 'gemini-2.5-flash-lite')  # Fastest/cheapest (Nov 2025)
+
+    # Fallback models when primary provider is unavailable
+    LLM_FALLBACK_PROVIDER = os.environ.get('LLM_FALLBACK_PROVIDER', 'openai')
+    LLM_FALLBACK_MODEL = os.environ.get('LLM_FALLBACK_MODEL', 'gpt-5.1')  # Latest GPT-5.1 (Nov 2025)
 
     # OED Researcher API Configuration (use env; do not commit secrets)
     OED_USE_API = os.environ.get('OED_USE_API', 'False').lower() in {'true', '1', 'yes', 'on', 'y', 't'}
