@@ -16,66 +16,7 @@ from app.services.text_cleanup_service import TextCleanupService
 # Get the blueprint from the package using relative import
 from . import processing_bp
 
-@processing_bp.route('/')
-def processing_home():
-    """Processing pipeline home page - shows live experiment processing status"""
-    # Import experiment models
-    from app.models.experiment_processing import ExperimentDocumentProcessing
-    from app.models.experiment import Experiment
-    from app.models.experiment_document import ExperimentDocument
-
-    # Aggregate document stats (total documents in system)
-    doc_total = db.session.query(func.count(Document.id)).scalar() or 0
-    doc_uploaded = db.session.query(func.count(Document.id)).filter(Document.status == 'uploaded').scalar() or 0
-    doc_processing = db.session.query(func.count(Document.id)).filter(Document.status == 'processing').scalar() or 0
-    doc_completed = db.session.query(func.count(Document.id)).filter(Document.status == 'completed').scalar() or 0
-    doc_error = db.session.query(func.count(Document.id)).filter(Document.status == 'error').scalar() or 0
-
-    # Aggregate experiment processing stats (actual live processing operations)
-    processing_total = db.session.query(func.count(ExperimentDocumentProcessing.id)).scalar() or 0
-    processing_pending = db.session.query(func.count(ExperimentDocumentProcessing.id)).filter(ExperimentDocumentProcessing.status == 'pending').scalar() or 0
-    processing_running = db.session.query(func.count(ExperimentDocumentProcessing.id)).filter(ExperimentDocumentProcessing.status == 'running').scalar() or 0
-    processing_completed = db.session.query(func.count(ExperimentDocumentProcessing.id)).filter(ExperimentDocumentProcessing.status == 'completed').scalar() or 0
-    processing_failed = db.session.query(func.count(ExperimentDocumentProcessing.id)).filter(ExperimentDocumentProcessing.status == 'failed').scalar() or 0
-
-    stats = {
-        'documents': {
-            'total': doc_total,
-            'uploaded': doc_uploaded,
-            'processing': doc_processing,
-            'completed': doc_completed,
-            'error': doc_error,
-        },
-        'processing_operations': {
-            'total': processing_total,
-            'pending': processing_pending,
-            'running': processing_running,
-            'completed': processing_completed,
-            'failed': processing_failed,
-        }
-    }
-
-    # Recent documents from experiments
-    recent_documents = (
-        db.session.query(Document)
-        .join(ExperimentDocument, Document.id == ExperimentDocument.document_id)
-        .order_by(ExperimentDocument.added_at.desc())
-        .limit(10)
-        .all()
-    )
-
-    # Recent processing operations instead of old processing jobs
-    recent_processing = (
-        db.session.query(ExperimentDocumentProcessing)
-        .join(ExperimentDocument, ExperimentDocumentProcessing.experiment_document_id == ExperimentDocument.id)
-        .join(Document, ExperimentDocument.document_id == Document.id)
-        .join(Experiment, ExperimentDocument.experiment_id == Experiment.id)
-        .order_by(ExperimentDocumentProcessing.created_at.desc())
-        .limit(10)
-        .all()
-    )
-
-    return render_template('processing/index.html', stats=stats, recent_documents=recent_documents, recent_processing=recent_processing)
+# Note: processing_home() route is defined in status.py to avoid duplication
 
 @processing_bp.route('/jobs')
 def job_list():

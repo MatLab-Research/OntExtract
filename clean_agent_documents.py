@@ -75,7 +75,7 @@ def clean_documents():
 
                 # Create cleaned version manually
                 cleaned_version = Document(
-                    title=f"{document.title} (Cleaned)",
+                    title=document.title,
                     content=cleaned_text,
                     content_type='file',
                     file_type=document.file_type,
@@ -85,10 +85,29 @@ def clean_documents():
                     version_number=2,
                     parent_document_id=document.id,
                     created_at=datetime.utcnow(),
-                    original_filename=document.original_filename
+                    original_filename=document.original_filename,
+                    # Copy metadata from parent
+                    source_metadata=document.source_metadata if document.source_metadata else None
                 )
                 db.session.add(cleaned_version)
                 db.session.flush()  # Get the ID
+
+                # Copy temporal metadata from parent
+                from app.models import DocumentTemporalMetadata
+                parent_temporal = DocumentTemporalMetadata.query.filter_by(
+                    document_id=document.id
+                ).first()
+
+                if parent_temporal:
+                    child_temporal = DocumentTemporalMetadata(
+                        document_id=cleaned_version.id,
+                        publication_year=parent_temporal.publication_year,
+                        discipline=parent_temporal.discipline,
+                        key_definition=parent_temporal.key_definition,
+                        created_at=datetime.utcnow()
+                    )
+                    db.session.add(child_temporal)
+                    print(f"   ✅ Copied temporal metadata: {parent_temporal.publication_year} - {parent_temporal.discipline}")
 
                 # Create processing job record
                 job = ProcessingJob(

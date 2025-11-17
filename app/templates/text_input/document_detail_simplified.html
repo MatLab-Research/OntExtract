@@ -8,8 +8,33 @@
         <div class="col-lg-8">
             <!-- Document Header -->
             <div class="d-flex justify-content-between align-items-start mb-4">
-                <div>
+                <div class="flex-grow-1">
                     <h1 class="h3 mb-2">{{ document.title }}</h1>
+
+                    <!-- Version Selector -->
+                    {% if version_family and version_family|length > 1 %}
+                    <div class="d-flex align-items-center mb-2">
+                        <label class="text-muted me-2 mb-0">Version:</label>
+                        <select class="form-select form-select-sm" style="width: auto;"
+                                onchange="window.location.href='/input/document/' + this.value">
+                            {% for version in version_family %}
+                            <option value="{{ version.uuid }}"
+                                    {% if version.id == document.id %}selected{% endif %}>
+                                v{{ version.version_number }} - {{ version.version_type|title }}
+                                {% if version.is_latest_version() %} (Latest){% endif %}
+                            </option>
+                            {% endfor %}
+                        </select>
+
+                        {% if not is_latest_version %}
+                        <span class="badge bg-warning ms-2">
+                            <i class="fas fa-exclamation-triangle me-1"></i>
+                            Older Version
+                        </span>
+                        {% endif %}
+                    </div>
+                    {% endif %}
+
                     <div class="text-muted">
                         <i class="fas fa-calendar me-2"></i>Created {{ document.created_at.strftime('%B %d, %Y at %I:%M %p') }}
                         {% if document.content_type == 'file' %}
@@ -18,7 +43,9 @@
                         ({{ "%.1f"|format(document.file_size / 1024) }} KB)
                         {% endif %}
                         {% endif %}
-                        {% if document.detected_language %}
+                        {% if temporal_metadata %}
+                        <br><i class="fas fa-book me-2"></i>{{ temporal_metadata.publication_year }} - {{ temporal_metadata.discipline|title }}
+                        {% elif document.detected_language %}
                         <br><i class="fas fa-language me-2"></i>{{ document.detected_language.upper() }}
                         {% if document.language_confidence %}
                         ({{ "%.0f"|format(document.language_confidence * 100) }}% confidence)
@@ -224,16 +251,29 @@
             </div>
 
             <!-- Related Experiments -->
-            {% if document_experiments %}
+            {% if this_version_experiments or all_version_experiments %}
             <div class="card mb-4">
-                <div class="card-header">
+                <div class="card-header d-flex justify-content-between align-items-center">
                     <h6 class="mb-0">
                         <i class="fas fa-flask me-2"></i>Related Experiments
-                        <span class="badge bg-info ms-2">{{ document_experiments|length }}</span>
                     </h6>
+                    <div class="btn-group btn-group-sm" role="group">
+                        <input type="radio" class="btn-check" name="expScope" id="expThisVersion" checked autocomplete="off">
+                        <label class="btn btn-outline-primary" for="expThisVersion" onclick="showExperimentScope('this')">
+                            This Version ({{ this_version_experiments|length }})
+                        </label>
+
+                        <input type="radio" class="btn-check" name="expScope" id="expAllVersions" autocomplete="off">
+                        <label class="btn btn-outline-primary" for="expAllVersions" onclick="showExperimentScope('all')">
+                            All Versions ({{ all_version_experiments|length }})
+                        </label>
+                    </div>
                 </div>
                 <div class="card-body">
-                    {% for exp_doc in document_experiments %}
+                    <!-- This Version Experiments -->
+                    <div id="this-version-exps">
+                        {% if this_version_experiments %}
+                        {% for exp_doc in this_version_experiments %}
                     <div class="experiment-item border rounded p-3 mb-3">
                         <div class="d-flex justify-content-between align-items-start">
                             <div class="flex-grow-1">
@@ -273,6 +313,64 @@
                         </div>
                     </div>
                     {% endfor %}
+                        {% else %}
+                        <p class="text-muted mb-0">No experiments using this specific version</p>
+                        {% endif %}
+                    </div>
+
+                    <!-- All Versions Experiments -->
+                    <div id="all-version-exps" style="display: none;">
+                        {% if all_version_experiments %}
+                        {% for exp_doc in all_version_experiments %}
+                    <div class="experiment-item border rounded p-3 mb-3">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div class="flex-grow-1">
+                                <!-- Version Badge -->
+                                <span class="badge {% if exp_doc.is_current_version %}bg-success{% else %}bg-secondary{% endif %} mb-2">
+                                    <i class="fas fa-file-alt me-1"></i>v{{ exp_doc.document_version }} - {{ exp_doc.version_type|title }}
+                                    {% if exp_doc.is_current_version %} (Current){% endif %}
+                                </span>
+
+                                <h6 class="mb-1">
+                                    <a href="{{ url_for('experiments.view', experiment_id=exp_doc.experiment.id) }}"
+                                       class="text-decoration-none">
+                                        {{ exp_doc.experiment.name }}
+                                    </a>
+                                </h6>
+                                <p class="text-muted small mb-2">
+                                    <i class="fas fa-tag me-1"></i>Term:
+                                    <strong>{{ exp_doc.experiment.term.name if exp_doc.experiment.term else 'No term' }}</strong>
+                                </p>
+                                {% if exp_doc.processing_results %}
+                                <div class="processing-badges">
+                                    <small class="text-muted">Processing applied:</small><br>
+                                    {% for processing in exp_doc.processing_results %}
+                                    <span class="badge bg-secondary me-1 mb-1">
+                                        {{ processing.processing_type|title }}: {{ processing.processing_method|title }}
+                                        {% if processing.status == 'completed' %}
+                                        <i class="fas fa-check-circle text-success ms-1"></i>
+                                        {% elif processing.status == 'running' %}
+                                        <i class="fas fa-spinner fa-spin text-warning ms-1"></i>
+                                        {% elif processing.status == 'failed' %}
+                                        <i class="fas fa-exclamation-circle text-danger ms-1"></i>
+                                        {% endif %}
+                                    </span>
+                                    {% endfor %}
+                                </div>
+                                {% else %}
+                                <small class="text-muted">No processing applied yet</small>
+                                {% endif %}
+                            </div>
+                            <div class="text-end">
+                                <small class="text-muted">{{ exp_doc.experiment.created_at.strftime('%m/%d/%Y') }}</small>
+                            </div>
+                        </div>
+                    </div>
+                        {% endfor %}
+                        {% else %}
+                        <p class="text-muted mb-0">No experiments across any version</p>
+                        {% endif %}
+                    </div>
                 </div>
             </div>
             {% endif %}
@@ -487,6 +585,19 @@
 
 {% block extra_js %}
 <script>
+    function showExperimentScope(scope) {
+        const thisVersionDiv = document.getElementById('this-version-exps');
+        const allVersionsDiv = document.getElementById('all-version-exps');
+
+        if (scope === 'this') {
+            thisVersionDiv.style.display = 'block';
+            allVersionsDiv.style.display = 'none';
+        } else {
+            thisVersionDiv.style.display = 'none';
+            allVersionsDiv.style.display = 'block';
+        }
+    }
+
     function toggleFullContent() {
         const preview = document.querySelector('.content-preview');
         const button = event.target;
