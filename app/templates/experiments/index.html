@@ -95,8 +95,8 @@
                                                 <i class="fas fa-chart-bar"></i>
                                             </a>
                                             {% endif %}
-                                            {% if experiment.status != 'running' %}
-                                            <button class="btn btn-outline-danger delete-experiment" 
+                                            {% if experiment.status != 'running' and current_user.can_delete_resource(experiment) %}
+                                            <button class="btn btn-outline-danger delete-experiment"
                                                     data-id="{{ experiment.id }}" title="Delete">
                                                 <i class="fas fa-trash"></i>
                                             </button>
