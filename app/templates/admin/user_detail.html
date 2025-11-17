@@ -1,0 +1,169 @@
+{% extends "base.html" %}
+
+{% block title %}{{ user.username }} - User Details{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <h1><i class="fas fa-user"></i> {{ user.username }}</h1>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="{{ url_for('admin.dashboard') }}">Admin</a></li>
+                    <li class="breadcrumb-item"><a href="{{ url_for('admin.list_users') }}">Users</a></li>
+                    <li class="breadcrumb-item active">{{ user.username }}</li>
+                </ol>
+            </nav>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- User Info -->
+        <div class="col-md-6">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">User Information</h5>
+                </div>
+                <div class="card-body">
+                    <table class="table">
+                        <tr>
+                            <th>ID:</th>
+                            <td>{{ user.id }}</td>
+                        </tr>
+                        <tr>
+                            <th>Username:</th>
+                            <td>{{ user.username }}</td>
+                        </tr>
+                        <tr>
+                            <th>Email:</th>
+                            <td>{{ user.email }}</td>
+                        </tr>
+                        <tr>
+                            <th>Full Name:</th>
+                            <td>{{ user.get_full_name() }}</td>
+                        </tr>
+                        <tr>
+                            <th>Organization:</th>
+                            <td>{{ user.organization or 'N/A' }}</td>
+                        </tr>
+                        <tr>
+                            <th>Status:</th>
+                            <td>
+                                {% if user.account_status == 'active' %}
+                                    <span class="badge bg-success">Active</span>
+                                {% elif user.account_status == 'suspended' %}
+                                    <span class="badge bg-warning">Suspended</span>
+                                {% else %}
+                                    <span class="badge bg-secondary">{{ user.account_status }}</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        <tr>
+                            <th>Role:</th>
+                            <td>
+                                {% if user.is_admin %}
+                                    <span class="badge bg-info"><i class="fas fa-crown"></i> Admin</span>
+                                {% else %}
+                                    <span class="badge bg-secondary">User</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        <tr>
+                            <th>Joined:</th>
+                            <td>{{ user.created_at.strftime('%Y-%m-%d %H:%M:%S') if user.created_at else 'N/A' }}</td>
+                        </tr>
+                        <tr>
+                            <th>Last Login:</th>
+                            <td>{{ user.last_login.strftime('%Y-%m-%d %H:%M:%S') if user.last_login else 'Never' }}</td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- User Content Stats -->
+        <div class="col-md-6">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">Content Statistics</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row text-center">
+                        <div class="col-md-4">
+                            <h3>{{ experiments_count }}</h3>
+                            <p class="text-muted">Experiments</p>
+                        </div>
+                        <div class="col-md-4">
+                            <h3>{{ documents_count }}</h3>
+                            <p class="text-muted">Documents</p>
+                        </div>
+                        <div class="col-md-4">
+                            <h3>{{ terms_count }}</h3>
+                            <p class="text-muted">Terms</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Actions -->
+            <div class="card">
+                <div class="card-header bg-danger text-white">
+                    <h5 class="mb-0">Admin Actions</h5>
+                </div>
+                <div class="card-body">
+                    {% if user.id != current_user.id %}
+                        <a href="{{ url_for('admin.edit_user', user_id=user.id) }}" class="btn btn-primary w-100 mb-2">
+                            <i class="fas fa-edit"></i> Edit User
+                        </a>
+
+                        <!-- Set Password Form -->
+                        <button class="btn btn-info w-100 mb-2" type="button" data-bs-toggle="collapse" data-bs-target="#setPasswordForm">
+                            <i class="fas fa-key"></i> Set Password
+                        </button>
+                        <div class="collapse mb-2" id="setPasswordForm">
+                            <div class="card card-body">
+                                <form method="post" action="{{ url_for('admin.set_user_password', user_id=user.id) }}">
+                                    <div class="mb-2">
+                                        <label for="new_password" class="form-label small">New Password:</label>
+                                        <input type="password" class="form-control form-control-sm" id="new_password" name="new_password" required minlength="6">
+                                    </div>
+                                    <div class="mb-2">
+                                        <label for="confirm_password" class="form-label small">Confirm Password:</label>
+                                        <input type="password" class="form-control form-control-sm" id="confirm_password" name="confirm_password" required minlength="6">
+                                    </div>
+                                    <button type="submit" class="btn btn-info btn-sm w-100">
+                                        <i class="fas fa-check"></i> Set Password
+                                    </button>
+                                    <small class="text-muted d-block mt-1">Min. 6 characters</small>
+                                </form>
+                            </div>
+                        </div>
+
+                        {% if user.account_status == 'active' %}
+                        <form method="post" action="{{ url_for('admin.suspend_user', user_id=user.id) }}" onsubmit="return confirm('Suspend {{ user.username }}?');">
+                            <button type="submit" class="btn btn-warning w-100 mb-2">
+                                <i class="fas fa-ban"></i> Suspend User
+                            </button>
+                        </form>
+                        {% else %}
+                        <form method="post" action="{{ url_for('admin.activate_user', user_id=user.id) }}">
+                            <button type="submit" class="btn btn-success w-100 mb-2">
+                                <i class="fas fa-check"></i> Activate User
+                            </button>
+                        </form>
+                        {% endif %}
+
+                        <form method="post" action="{{ url_for('admin.delete_user', user_id=user.id) }}" onsubmit="return confirm('DELETE {{ user.username }} and ALL their content? This cannot be undone!');">
+                            <button type="submit" class="btn btn-danger w-100">
+                                <i class="fas fa-trash"></i> Delete User
+                            </button>
+                        </form>
+                    {% else %}
+                        <p class="text-muted text-center">You cannot modify your own account from this interface.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

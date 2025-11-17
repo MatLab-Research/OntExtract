@@ -5,6 +5,7 @@ from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 from flask_login import LoginManager
 from flask_cors import CORS
+from flask_mail import Mail
 import os
 
 # Initialize extensions
@@ -12,6 +13,7 @@ db = SQLAlchemy()
 migrate = Migrate()
 login_manager: LoginManager = LoginManager()
 cors = CORS()
+mail = Mail()
 
 def create_app(config_name=None):
     """Application factory pattern"""
@@ -29,13 +31,18 @@ def create_app(config_name=None):
     db.init_app(app)
     migrate.init_app(app, db)
     cors.init_app(app)
+    mail.init_app(app)
     
     # Configure login manager
     login_manager.init_app(app)
     login_manager.login_view = 'auth.login'
     login_manager.login_message = 'Please log in to access this page.'
     login_manager.login_message_category = 'info'
-    
+
+    # Use custom AnonymousUser with permission methods
+    from app.models.user import AnonymousUser
+    login_manager.anonymous_user = AnonymousUser
+
     @login_manager.user_loader
     def load_user(user_id):
         from app.models.user import User
@@ -44,6 +51,7 @@ def create_app(config_name=None):
     
     # Register blueprints
     from app.routes.auth import auth_bp
+    from app.routes.admin import admin_bp
     from app.routes.text_input import text_input_bp
     from app.routes.processing import processing_bp
     from app.routes.results import results_bp
@@ -60,6 +68,7 @@ def create_app(config_name=None):
     from app.routes.orchestration import orchestration_bp
 
     app.register_blueprint(auth_bp, url_prefix='/auth')
+    app.register_blueprint(admin_bp)
     app.register_blueprint(text_input_bp, url_prefix='/input')
     app.register_blueprint(processing_bp, url_prefix='/process')
     app.register_blueprint(results_bp, url_prefix='/results')

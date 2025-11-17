@@ -22,19 +22,24 @@ class Document(db.Model):
     original_filename = db.Column(db.String(255))
     file_path = db.Column(db.String(500))  # Path to stored file
     file_size = db.Column(db.Integer)  # Size in bytes
-    
-    # Source metadata for references (JSON field)
+
+    # Bibliographic metadata (normalized columns for standard fields)
+    authors = db.Column(db.Text)  # Comma-separated author names
+    publication_date = db.Column(db.Date)  # Publication date
+    journal = db.Column(db.String(200))  # Journal or conference name
+    publisher = db.Column(db.String(200))  # Publisher name
+    doi = db.Column(db.String(100), unique=True)  # Digital Object Identifier
+    isbn = db.Column(db.String(20))  # ISBN for books
+    document_subtype = db.Column(db.String(50))  # article, book, conference_paper, etc.
+    abstract = db.Column(db.Text)  # Document abstract or summary
+    url = db.Column(db.String(500))  # Source URL
+    citation = db.Column(db.Text)  # Formatted citation string
+
+    # Flexible metadata for custom/non-standard fields (JSONB for indexing support)
     source_metadata = db.Column(db.JSON)
-    # Expected fields in source_metadata:
-    # - authors: list of author names
-    # - publication_date: date of publication
-    # - journal: journal or publisher name
-    # - doi: Digital Object Identifier
-    # - isbn: ISBN for books
-    # - url: source URL
-    # - abstract: paper abstract
-    # - citation: formatted citation
-    
+    # Reserved for custom metadata not covered by standard bibliographic fields above
+    # Examples: conference_location, presentation_type, dataset_doi, etc.
+
     # Text content (for pasted text or extracted from files)
     content = db.Column(db.Text)
     content_preview = db.Column(db.Text)  # First 500 characters for display
@@ -140,20 +145,41 @@ class Document(db.Model):
         return True
     
     def get_content_summary(self):
-        """Get a brief summary of the content"""
+        """Get a brief summary of the content
+
+        Priority:
+        1. Show abstract if available (from bibliographic metadata)
+        2. Show first 10 lines of content
+        3. Show "No content available" if empty
+        """
+        # First, check if we have an abstract from bibliographic metadata
+        root_doc = self.get_root_document()
+        if root_doc.abstract:
+            # Truncate abstract if it's too long
+            if len(root_doc.abstract) > 300:
+                return root_doc.abstract[:297] + '...'
+            return root_doc.abstract
+
+        # If no abstract, show first 10 lines of content
         if not self.content:
             return "No content available"
-        
+
         lines = self.content.split('\n')
         non_empty_lines = [line.strip() for line in lines if line.strip()]
-        
+
         if not non_empty_lines:
             return "Empty document"
-        
-        if len(non_empty_lines) == 1:
-            return non_empty_lines[0][:100] + ('...' if len(non_empty_lines[0]) > 100 else '')
-        
-        return f"First line: {non_empty_lines[0][:80]}..." if len(non_empty_lines[0]) > 80 else non_empty_lines[0]
+
+        # Show first 10 non-empty lines (or fewer if document is shorter)
+        lines_to_show = min(10, len(non_empty_lines))
+        preview_lines = non_empty_lines[:lines_to_show]
+        preview = ' '.join(preview_lines)
+
+        # Truncate if still too long
+        if len(preview) > 300:
+            return preview[:297] + '...'
+
+        return preview
     
     def is_reference(self):
         """Check if this document is a reference"""
@@ -215,16 +241,39 @@ class Document(db.Model):
 
     def get_bibliographic_metadata(self):
         """
-        Get bibliographic metadata (source_metadata) for this document.
+        Get bibliographic metadata from normalized columns.
 
         For versioned documents, retrieves metadata from the root document
         since bibliographic information belongs to the scholarly work, not the version.
 
         Returns:
-            dict: source_metadata from root document, or this document's metadata if it's the root
+            dict: Bibliographic metadata from columns + custom fields from JSONB
         """
         root_doc = self.get_root_document()
-        return root_doc.source_metadata if root_doc.source_metadata else {}
+
+        # Build metadata from normalized columns
+        metadata = {
+            'title': root_doc.title,
+            'authors': root_doc.authors,
+            'publication_date': root_doc.publication_date.isoformat() if root_doc.publication_date else None,
+            'journal': root_doc.journal,
+            'publisher': root_doc.publisher,
+            'doi': root_doc.doi,
+            'isbn': root_doc.isbn,
+            'type': root_doc.document_subtype,
+            'abstract': root_doc.abstract,
+            'url': root_doc.url,
+            'citation': root_doc.citation
+        }
+
+        # Add custom fields from source_metadata JSONB (if any)
+        if root_doc.source_metadata:
+            for key, value in root_doc.source_metadata.items():
+                if key not in metadata:  # Don't override standard fields
+                    metadata[key] = value
+
+        # Remove None values for cleaner output
+        return {k: v for k, v in metadata.items() if v is not None}
 
     def get_metadata_provenance(self):
         """

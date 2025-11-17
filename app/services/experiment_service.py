@@ -12,6 +12,7 @@ from datetime import datetime
 
 from app import db
 from app.models import Experiment, Document
+from app.models.user import User
 from app.services.base_service import BaseService, ServiceError, NotFoundError, ValidationError
 from app.dto.experiment_dto import (
     CreateExperimentDTO,
@@ -123,8 +124,10 @@ class ExperimentService(BaseService):
             experiment = self.get_experiment(experiment_id)
 
             # Check permissions if user_id provided
-            if user_id is not None and experiment.user_id != user_id:
-                raise PermissionError(f"User {user_id} does not have permission to update experiment {experiment_id}")
+            if user_id is not None:
+                user = User.query.get(user_id)
+                if not user or not user.can_edit_resource(experiment):
+                    raise PermissionError(f"User {user_id} does not have permission to update experiment {experiment_id}")
 
             # Cannot update running experiments
             if experiment.status == 'running':
@@ -207,8 +210,10 @@ class ExperimentService(BaseService):
             experiment = self.get_experiment(experiment_id)
 
             # Check permissions if user_id provided
-            if user_id is not None and experiment.user_id != user_id:
-                raise PermissionError(f"User {user_id} does not have permission to delete experiment {experiment_id}")
+            if user_id is not None:
+                user = User.query.get(user_id)
+                if not user or not user.can_delete_resource(experiment):
+                    raise PermissionError(f"User {user_id} does not have permission to delete experiment {experiment_id}")
 
             # Cannot delete running experiments
             if experiment.status == 'running':

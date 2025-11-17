@@ -86,7 +86,7 @@
                     <div>
                         <h5 class="mb-0 d-inline">
                             <a href="{{ url_for('text_input.document_detail', document_uuid=group.latest_version.uuid) }}"
-                               class="text-decoration-none text-dark">
+                               class="text-decoration-none text-white fw-semibold">
                                 {{ group.latest_version.title }}
                             </a>
                         </h5>
@@ -110,37 +110,42 @@
                 <div class="card-body">
                     <!-- Bibliographic Metadata from Root Document -->
                     {% set metadata = group.latest_version.get_bibliographic_metadata() %}
-                    {% if metadata %}
-                    <div class="mb-3">
+                    {% if metadata and (metadata.get('authors') or metadata.get('publication_date') or metadata.get('journal') or metadata.get('doi')) %}
+                    <div class="mb-3 small text-muted">
                         {% if metadata.get('authors') %}
-                        <p class="mb-1">
-                            <strong>Authors:</strong>
-                            {% if metadata.authors is string %}
-                            {{ metadata.authors }}
-                            {% else %}
-                            {{ metadata.authors|join(', ') }}
-                            {% endif %}
-                        </p>
+                        <div class="mb-1">
+                            <i class="fas fa-users me-1"></i>
+                            <strong>Authors:</strong> {{ metadata.authors }}
+                        </div>
                         {% endif %}
-                        {% if metadata.get('publication_year') or metadata.get('publication_date') %}
-                        <p class="mb-1">
-                            <strong>Published:</strong> {{ metadata.get('publication_year') or metadata.get('publication_date') }}
+                        {% if metadata.get('publication_date') %}
+                        <div class="mb-1">
+                            <i class="far fa-calendar me-1"></i>
+                            <strong>Published:</strong> {{ metadata.publication_date }}
                             {% if metadata.get('journal') %}
                             in <em>{{ metadata.journal }}</em>
                             {% elif metadata.get('publisher') %}
                             by {{ metadata.publisher }}
                             {% endif %}
-                        </p>
+                        </div>
                         {% endif %}
                         {% if metadata.get('doi') %}
-                        <p class="mb-1">
+                        <div class="mb-1">
+                            <i class="fas fa-link me-1"></i>
                             <strong>DOI:</strong> <a href="https://doi.org/{{ metadata.doi }}" target="_blank">{{ metadata.doi }}</a>
-                        </p>
+                        </div>
+                        {% endif %}
+                        {% if metadata.get('type') %}
+                        <div class="mb-1">
+                            <i class="fas fa-tag me-1"></i>
+                            <span class="badge bg-secondary">{{ metadata.type }}</span>
+                        </div>
                         {% endif %}
                     </div>
                     {% endif %}
 
-                    <p class="text-muted mb-3">
+                    <!-- Content Summary (shows abstract if available, otherwise first 10 lines) -->
+                    <p class="mb-3">
                         {{ group.latest_version.get_content_summary() }}
                     </p>
 

@@ -1,9 +1,22 @@
 from flask_sqlalchemy import SQLAlchemy
-from flask_login import UserMixin
+from flask_login import UserMixin, AnonymousUserMixin
 from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime
 from flask import current_app
 from app import db
+
+
+class AnonymousUser(AnonymousUserMixin):
+    """Custom anonymous user with safe defaults for permission methods"""
+
+    def can_edit_resource(self, resource):
+        """Anonymous users cannot edit any resources"""
+        return False
+
+    def can_delete_resource(self, resource):
+        """Anonymous users cannot delete any resources"""
+        return False
+
 
 class User(UserMixin, db.Model):
     """User model for authentication and session management"""
@@ -23,7 +36,13 @@ class User(UserMixin, db.Model):
     # Account status
     is_active = db.Column(db.Boolean, default=True, nullable=False)
     is_admin = db.Column(db.Boolean, default=False, nullable=False)
-    
+    account_status = db.Column(db.String(20), default='pending', nullable=False)  # 'pending', 'active', 'suspended'
+
+    # Email verification
+    email_verified = db.Column(db.Boolean, default=False, nullable=False)
+    email_verification_token = db.Column(db.String(100), unique=True, nullable=True)
+    email_verification_sent_at = db.Column(db.DateTime, nullable=True)
+
     # Timestamps
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
@@ -55,6 +74,18 @@ class User(UserMixin, db.Model):
             return f"{self.first_name} {self.last_name}"
         return self.username
     
+    def can_edit_resource(self, resource):
+        """Check if user can edit a resource (ownership or admin)"""
+        if self.is_admin:
+            return True
+        return hasattr(resource, 'user_id') and resource.user_id == self.id
+
+    def can_delete_resource(self, resource):
+        """Check if user can delete a resource (ownership or admin)"""
+        if self.is_admin:
+            return True
+        return hasattr(resource, 'user_id') and resource.user_id == self.id
+
     def to_dict(self):
         """Convert user to dictionary for API responses"""
         return {
@@ -65,6 +96,8 @@ class User(UserMixin, db.Model):
             'organization': self.organization,
             'is_active': self.is_active,
             'is_admin': self.is_admin,
+            'account_status': self.account_status,
+            'email_verified': self.email_verified,
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'last_login': self.last_login.isoformat() if self.last_login else None
         }

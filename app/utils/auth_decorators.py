@@ -1,5 +1,5 @@
 from functools import wraps
-from flask import jsonify, redirect, url_for, flash, request
+from flask import jsonify, redirect, url_for, flash, request, abort
 from flask_login import current_user
 
 def write_login_required(f):
@@ -92,7 +92,7 @@ def api_require_login_for_write(f):
         # Allow all GET requests without authentication
         if request.method == 'GET':
             return f(*args, **kwargs)
-        
+
         # Require authentication for POST, PUT, DELETE, PATCH
         if not current_user.is_authenticated:
             return jsonify({
@@ -100,5 +100,24 @@ def api_require_login_for_write(f):
                 'message': 'Please sign in to perform this action.',
                 'redirect': url_for('auth.login')
             }), 401
+        return f(*args, **kwargs)
+    return decorated_function
+
+
+def admin_required(f):
+    """
+    Decorator that requires user to be an admin.
+    Redirects to index with error flash for non-admins.
+    """
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if not current_user.is_authenticated:
+            flash('Please sign in to access admin features.', 'error')
+            return redirect(url_for('auth.login', next=request.url))
+
+        if not current_user.is_admin:
+            flash('Admin access required.', 'error')
+            abort(403)
+
         return f(*args, **kwargs)
     return decorated_function
