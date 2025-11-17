@@ -1,0 +1,135 @@
+{% extends "base.html" %}
+
+{% block title %}Admin Dashboard - OntExtract{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <h1><i class="fas fa-user-shield"></i> Admin Dashboard</h1>
+            <p class="text-muted">System administration and user management</p>
+        </div>
+    </div>
+
+    <!-- Statistics Cards -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card bg-primary text-white">
+                <div class="card-body">
+                    <h5 class="card-title"><i class="fas fa-users"></i> Total Users</h5>
+                    <h2 class="mb-0">{{ total_users }}</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-success text-white">
+                <div class="card-body">
+                    <h5 class="card-title"><i class="fas fa-check-circle"></i> Active</h5>
+                    <h2 class="mb-0">{{ active_users }}</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-warning text-white">
+                <div class="card-body">
+                    <h5 class="card-title"><i class="fas fa-ban"></i> Suspended</h5>
+                    <h2 class="mb-0">{{ suspended_users }}</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-info text-white">
+                <div class="card-body">
+                    <h5 class="card-title"><i class="fas fa-crown"></i> Admins</h5>
+                    <h2 class="mb-0">{{ admin_users }}</h2>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header bg-dark text-white">
+                    <h5 class="mb-0"><i class="fas fa-bolt"></i> Quick Actions</h5>
+                </div>
+                <div class="card-body">
+                    <a href="{{ url_for('admin.list_users') }}" class="btn btn-primary">
+                        <i class="fas fa-users"></i> Manage Users
+                    </a>
+                    <a href="{{ url_for('admin.list_users', status='suspended') }}" class="btn btn-warning">
+                        <i class="fas fa-ban"></i> View Suspended Users
+                    </a>
+                    <a href="{{ url_for('admin.list_users', role='admin') }}" class="btn btn-info">
+                        <i class="fas fa-crown"></i> View Admins
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Users -->
+    <div class="row">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-clock"></i> Recent Users</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Username</th>
+                                    <th>Email</th>
+                                    <th>Status</th>
+                                    <th>Role</th>
+                                    <th>Joined</th>
+                                    <th>Last Login</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for user in recent_users %}
+                                <tr>
+                                    <td>{{ user.username }}</td>
+                                    <td>{{ user.email }}</td>
+                                    <td>
+                                        {% if user.account_status == 'active' %}
+                                            <span class="badge bg-success">Active</span>
+                                        {% elif user.account_status == 'suspended' %}
+                                            <span class="badge bg-warning">Suspended</span>
+                                        {% else %}
+                                            <span class="badge bg-secondary">{{ user.account_status }}</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if user.is_admin %}
+                                            <span class="badge bg-info"><i class="fas fa-crown"></i> Admin</span>
+                                        {% else %}
+                                            <span class="badge bg-secondary">User</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ user.created_at.strftime('%Y-%m-%d') if user.created_at else 'N/A' }}</td>
+                                    <td>{{ user.last_login.strftime('%Y-%m-%d') if user.last_login else 'Never' }}</td>
+                                    <td>
+                                        <a href="{{ url_for('admin.view_user', user_id=user.id) }}" class="btn btn-sm btn-primary">
+                                            <i class="fas fa-eye"></i> View
+                                        </a>
+                                    </td>
+                                </tr>
+                                {% else %}
+                                <tr>
+                                    <td colspan="7" class="text-center text-muted">No users found</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
