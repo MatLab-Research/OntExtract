@@ -56,6 +56,7 @@ click==8.1.7
 gunicorn==22.0.0
 python-slugify==8.0.1
 markdown==3.5.2
+psutil==6.1.1
 
 # File handling
 python-magic==0.4.27
