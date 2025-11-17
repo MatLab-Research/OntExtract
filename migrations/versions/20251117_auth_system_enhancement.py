@@ -34,8 +34,8 @@ def upgrade():
     op.execute("""
         UPDATE users
         SET account_status='active',
-            email_verified=1,
-            is_admin=1
+            email_verified=TRUE,
+            is_admin=TRUE
         WHERE username='chris'
     """)
 
@@ -43,7 +43,7 @@ def upgrade():
     op.execute("""
         UPDATE users
         SET account_status='active',
-            email_verified=1
+            email_verified=TRUE
         WHERE username != 'chris'
     """)
 
