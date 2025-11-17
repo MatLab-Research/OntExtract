@@ -46,7 +46,8 @@ def document_pipeline(experiment_id):
             documents=data['documents'],
             total_count=data['total_count'],
             completed_count=data['completed_count'],
-            progress_percentage=data['progress_percentage']
+            progress_percentage=data['progress_percentage'],
+            orchestration_run=data.get('orchestration_run')
         )
 
     except NotFoundError as e:
@@ -82,6 +83,7 @@ def process_document(experiment_id, document_uuid):
             document=data['document'],
             experiment_document=data['experiment_document'],
             processing_operations=data['processing_operations'],
+            llm_operations=data.get('llm_operations', {}),
             processing_progress=data['processing_progress'],
             doc_index=data['doc_index'],
             total_docs=data['total_docs'],

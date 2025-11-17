@@ -10,7 +10,7 @@ from uuid import UUID
 import logging
 
 from app import db
-from app.models import Document, Experiment, ExperimentDocument
+from app.models import Document, Experiment, ExperimentDocument, ExperimentOrchestrationRun
 from app.models.experiment_processing import ExperimentDocumentProcessing, ProcessingArtifact, DocumentProcessingIndex
 from app.services.base_service import BaseService, ServiceError, NotFoundError, ValidationError
 
@@ -39,6 +39,16 @@ class PipelineService(BaseService):
             if not experiment:
                 raise NotFoundError(f"Experiment {experiment_id} not found")
 
+            # Get most recent orchestration run for this experiment
+            orchestration_run = ExperimentOrchestrationRun.query.filter_by(
+                experiment_id=experiment_id
+            ).order_by(ExperimentOrchestrationRun.started_at.desc()).first()
+
+            # Extract orchestration results (JSONB field with document_id -> {tool_name -> results})
+            orchestration_results = {}
+            if orchestration_run and orchestration_run.processing_results:
+                orchestration_results = orchestration_run.processing_results
+
             # Get experiment documents
             exp_docs = ExperimentDocument.query.filter_by(experiment_id=experiment_id).all()
 
@@ -47,24 +57,46 @@ class PipelineService(BaseService):
             for exp_doc in exp_docs:
                 doc = exp_doc.document
 
-                # Get all processing operations for this document
+                # Get all processing operations for this document (manual/user operations)
                 operations = ExperimentDocumentProcessing.query.filter_by(
                     experiment_document_id=exp_doc.id
                 ).all()
 
-                # Count operations by type and status
+                # Count operations by type and status (manual processing)
                 operation_types = {}
                 for op in operations:
                     if op.processing_type not in operation_types:
                         operation_types[op.processing_type] = {
                             'total': 0,
                             'completed': 0,
-                            'status': 'pending'
+                            'status': 'pending',
+                            'source': 'user'  # Manual processing
                         }
                     operation_types[op.processing_type]['total'] += 1
                     if op.status == 'completed':
                         operation_types[op.processing_type]['completed'] += 1
                         operation_types[op.processing_type]['status'] = 'completed'
+
+                # Merge orchestration results (LLM processing)
+                doc_id_str = str(doc.id)
+                if doc_id_str in orchestration_results:
+                    llm_ops = orchestration_results[doc_id_str]
+                    for tool_name, tool_result in llm_ops.items():
+                        # Map tool names to processing types
+                        processing_type = tool_name  # Or map: segment_paragraph -> segmentation, etc.
+                        if tool_result.get('status') == 'executed':
+                            if processing_type not in operation_types:
+                                operation_types[processing_type] = {
+                                    'total': 1,
+                                    'completed': 1,
+                                    'status': 'completed',
+                                    'source': 'llm'  # LLM orchestration
+                                }
+                            else:
+                                # If both LLM and user processed this, mark as llm (most recent)
+                                operation_types[processing_type]['source'] = 'llm'
+                                operation_types[processing_type]['completed'] += 1
+                                operation_types[processing_type]['status'] = 'completed'
 
                 # Calculate processing progress
                 total_operation_types = 5  # segmentation, entities, temporal, embeddings, etymology
@@ -106,7 +138,8 @@ class PipelineService(BaseService):
                 'documents': processed_docs,
                 'total_count': total_count,
                 'completed_count': completed_count,
-                'progress_percentage': progress_percentage
+                'progress_percentage': progress_percentage,
+                'orchestration_run': orchestration_run  # Include for attribution/display
             }
 
         except NotFoundError:
@@ -146,10 +179,21 @@ class PipelineService(BaseService):
 
             document = exp_doc.document
 
-            # Get processing operations
+            # Get processing operations (manual/user processing)
             processing_operations = ExperimentDocumentProcessing.query.filter_by(
                 experiment_document_id=exp_doc.id
             ).order_by(ExperimentDocumentProcessing.created_at.desc()).all()
+
+            # Get orchestration results for LLM-processed operations
+            orchestration_run = ExperimentOrchestrationRun.query.filter_by(
+                experiment_id=experiment_id
+            ).order_by(ExperimentOrchestrationRun.started_at.desc()).first()
+
+            llm_operations = {}
+            if orchestration_run and orchestration_run.processing_results:
+                doc_id_str = str(document_id)
+                if doc_id_str in orchestration_run.processing_results:
+                    llm_operations = orchestration_run.processing_results[doc_id_str]
 
             # Get all experiment documents for navigation
             all_exp_docs = ExperimentDocument.query.filter_by(experiment_id=experiment_id).all()
@@ -182,6 +226,7 @@ class PipelineService(BaseService):
                 'document': document,
                 'experiment_document': exp_doc,
                 'processing_operations': processing_operations,
+                'llm_operations': llm_operations,  # Add LLM processing operations
                 'processing_progress': processing_progress,
                 'doc_index': doc_index,
                 'total_docs': len(all_doc_ids),
