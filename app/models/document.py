@@ -398,16 +398,23 @@ class Document(db.Model):
     
     def get_root_document(self):
         """Get the root document for this version chain"""
+        # Check source_document_id first (proper versioning field)
         if self.source_document_id:
             return self.source_document
+        # Fall back to parent_document_id for backwards compatibility
+        elif self.parent_document_id:
+            parent = Document.query.get(self.parent_document_id)
+            if parent:
+                return parent.get_root_document()  # Recurse to find root
         return self
-    
+
     def get_all_versions(self):
         """Get all versions in this document family"""
         root_doc = self.get_root_document()
         return db.session.query(Document)\
             .filter(db.or_(
                 Document.source_document_id == root_doc.id,
+                Document.parent_document_id == root_doc.id,
                 Document.id == root_doc.id
             ))\
             .order_by(Document.version_number)\
@@ -421,7 +428,12 @@ class Document(db.Model):
     def is_original(self):
         """Check if this is the original document"""
         return self.version_type == 'original' and self.source_document_id is None
-    
+
+    def is_latest_version(self):
+        """Check if this is the latest version in the family"""
+        latest = self.get_latest_version()
+        return latest.id == self.id if latest else True
+
     def is_experimental(self):
         """Check if this is an experimental version"""
         return self.version_type == 'experimental' and self.experiment_id is not None

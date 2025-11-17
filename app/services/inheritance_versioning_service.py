@@ -63,7 +63,28 @@ class InheritanceVersioningService:
             
             db.session.add(new_document)
             db.session.flush()  # Get the ID
-            
+
+            # Copy metadata from source document
+            if source_document.source_metadata:
+                new_document.source_metadata = source_document.source_metadata
+
+            # Copy temporal metadata from source document
+            from app.models import DocumentTemporalMetadata
+            source_temporal = DocumentTemporalMetadata.query.filter_by(
+                document_id=source_document.id
+            ).first()
+
+            if source_temporal:
+                new_temporal = DocumentTemporalMetadata(
+                    document_id=new_document.id,
+                    publication_year=source_temporal.publication_year,
+                    discipline=source_temporal.discipline,
+                    key_definition=source_temporal.key_definition,
+                    created_at=datetime.utcnow()
+                )
+                db.session.add(new_temporal)
+                logger.info(f"Copied temporal metadata from document {source_document.id} to {new_document.id}")
+
             # CRITICAL CHANGE: Do NOT inherit processing data from the previous version.
             # Each processed version is clean and only contains its own analysis.
             

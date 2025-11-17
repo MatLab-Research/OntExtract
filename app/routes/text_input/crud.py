@@ -79,15 +79,17 @@ def document_list():
     has_prev = page > 1
     has_next = end < total_groups
 
+    total_pages = (total_groups + per_page - 1) // per_page
+
     pagination = type('Pagination', (), {
         'items': paginated_groups,
         'page': page,
-        'pages': (total_groups + per_page - 1) // per_page,
+        'pages': total_pages,
         'has_prev': has_prev,
         'has_next': has_next,
         'prev_num': page - 1 if has_prev else None,
         'next_num': page + 1 if has_next else None,
-        'iter_pages': lambda: range(1, (total_groups + per_page - 1) // per_page + 1)
+        'iter_pages': lambda *args: range(1, total_pages + 1)
     })()
 
     return render_template('text_input/document_list.html', documents=pagination)
@@ -100,18 +102,33 @@ def document_detail(document_uuid):
     # Get document - public access for viewing
     document = Document.query.filter_by(uuid=document_uuid).first_or_404()
 
+    # Get version family (all versions of this document)
+    version_family = document.get_all_versions()
+
+    # Get temporal metadata for display
+    from app.models import DocumentTemporalMetadata
+    temporal_metadata = DocumentTemporalMetadata.query.filter_by(
+        document_id=document.id
+    ).first()
+
     # Get experiments that include this document with their processing results
     from app.models.experiment_document import ExperimentDocument
     from app.models.experiment_processing import DocumentProcessingIndex
 
-    # Get all experiment-document relationships for this document
-    experiment_documents = ExperimentDocument.query.filter_by(document_id=document.id).all()
+    # Get all experiment-document relationships for THIS VERSION
+    this_version_experiments = ExperimentDocument.query.filter_by(document_id=document.id).all()
 
-    # Enrich with processing information
+    # Get all experiment-document relationships for ALL VERSIONS in family
+    all_version_doc_ids = [v.id for v in version_family]
+    all_version_experiments = ExperimentDocument.query.filter(
+        ExperimentDocument.document_id.in_(all_version_doc_ids)
+    ).all()
+
+    # Enrich with processing information - THIS VERSION
     document_experiments = []
     total_processing_count = 0
 
-    for exp_doc in experiment_documents:
+    for exp_doc in this_version_experiments:
         # Get processing operations for this experiment-document pair
         processing_results = DocumentProcessingIndex.query.filter_by(
             document_id=document.id,
@@ -121,6 +138,8 @@ def document_detail(document_uuid):
         # Create a data structure for the template
         exp_data = {
             'experiment': exp_doc.experiment,
+            'document_version': document.version_number,
+            'is_current_version': True,
             'processing_results': [
                 {
                     'processing_type': proc.processing_type,
@@ -133,9 +152,41 @@ def document_detail(document_uuid):
         document_experiments.append(exp_data)
         total_processing_count += len(processing_results)
 
+    # Enrich with processing information - ALL VERSIONS
+    all_experiments = []
+    for exp_doc in all_version_experiments:
+        # Find which version this is
+        version_doc = next((v for v in version_family if v.id == exp_doc.document_id), None)
+
+        # Get processing operations
+        processing_results = DocumentProcessingIndex.query.filter_by(
+            document_id=exp_doc.document_id,
+            experiment_id=exp_doc.experiment_id
+        ).all()
+
+        exp_data = {
+            'experiment': exp_doc.experiment,
+            'document_version': version_doc.version_number if version_doc else 0,
+            'version_type': version_doc.version_type if version_doc else 'unknown',
+            'is_current_version': exp_doc.document_id == document.id,
+            'processing_results': [
+                {
+                    'processing_type': proc.processing_type,
+                    'processing_method': proc.processing_method,
+                    'status': proc.status
+                }
+                for proc in processing_results
+            ]
+        }
+        all_experiments.append(exp_data)
+
     return render_template('text_input/document_detail_simplified.html',
                          document=document,
-                         document_experiments=document_experiments,
+                         version_family=version_family,
+                         temporal_metadata=temporal_metadata,
+                         is_latest_version=document.is_latest_version(),
+                         this_version_experiments=document_experiments,
+                         all_version_experiments=all_experiments,
                          total_processing_count=total_processing_count)
 
 
