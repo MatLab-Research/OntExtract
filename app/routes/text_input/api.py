@@ -9,11 +9,19 @@ Routes:
 - GET /input/document/<uuid>/metadata  - Get document metadata (public)
 - PUT /input/document/<uuid>/metadata  - Update document metadata (requires auth)
 
-Metadata Architecture:
-- source_metadata (JSONB on Document): Canonical bibliographic metadata
+Metadata Architecture (Hybrid Normalized + JSONB):
+
+- Normalized Columns (Standard Bibliographic Fields):
+  - title, authors, publication_date, journal, publisher, doi, isbn
+  - document_subtype, abstract, url, citation
+  - Stored as database columns for better performance and validation
   - User-editable via this API
   - Displayed in document views
-  - Fields: title, authors, publication_date, journal, publisher, type, doi, isbn, url, abstract, citation
+
+- source_metadata (JSONB): Custom/non-standard metadata only
+  - Reserved for domain-specific or unusual metadata fields
+  - Examples: conference_location, dataset_doi, presentation_type
+  - Flexible storage for fields not covered by standard bibliographic schema
 
 - DocumentTemporalMetadata (separate table): Experiment-specific temporal analysis
   - Only used for semantic drift experiments
@@ -65,14 +73,35 @@ def api_document_list():
 def get_document_metadata(document_uuid):
     """Get document metadata - public access for viewing
 
-    Returns ONLY source_metadata (canonical bibliographic metadata).
-    DocumentTemporalMetadata is kept completely separate for experiment-specific analysis.
+    Returns normalized bibliographic fields from database columns,
+    plus any custom fields from source_metadata JSONB.
     """
     try:
         document = Document.query.filter_by(uuid=document_uuid).first_or_404()
 
-        # Return source_metadata only - no mixing with temporal data
-        metadata = document.source_metadata if document.source_metadata else {}
+        # Build metadata from normalized columns
+        metadata = {
+            'title': document.title,
+            'authors': document.authors,
+            'publication_date': document.publication_date.isoformat() if document.publication_date else None,
+            'journal': document.journal,
+            'publisher': document.publisher,
+            'doi': document.doi,
+            'isbn': document.isbn,
+            'type': document.document_subtype,
+            'abstract': document.abstract,
+            'url': document.url,
+            'citation': document.citation
+        }
+
+        # Add custom fields from source_metadata JSONB (if any)
+        if document.source_metadata:
+            for key, value in document.source_metadata.items():
+                if key not in metadata:  # Don't override standard fields
+                    metadata[key] = value
+
+        # Remove None values for cleaner response
+        metadata = {k: v for k, v in metadata.items() if v is not None}
 
         return jsonify({
             'success': True,
@@ -86,8 +115,15 @@ def get_document_metadata(document_uuid):
 @text_input_bp.route('/document/<uuid:document_uuid>/metadata', methods=['PUT'])
 @write_login_required
 def update_document_metadata(document_uuid):
-    """Update document metadata - requires authentication"""
+    """Update document metadata - requires authentication
+
+    Updates normalized bibliographic fields in database columns.
+    Any non-standard fields are stored in source_metadata JSONB.
+    """
     try:
+        from datetime import datetime
+        from dateutil import parser as date_parser
+
         document = Document.query.filter_by(uuid=document_uuid).first_or_404()
 
         # Check permission - only owner or admin can update
@@ -100,26 +136,94 @@ def update_document_metadata(document_uuid):
         if not metadata:
             return jsonify({'success': False, 'error': 'No metadata provided'}), 400
 
-        # Initialize source_metadata if it doesn't exist
-        if not document.source_metadata:
-            document.source_metadata = {}
+        # Standard fields that map to database columns
+        standard_fields = {
+            'title', 'authors', 'publication_date', 'journal', 'publisher',
+            'doi', 'isbn', 'type', 'abstract', 'url', 'citation'
+        }
 
-        # Update source_metadata with provided fields
-        for field in ['title', 'authors', 'publication_date', 'journal', 'publisher',
-                      'type', 'doi', 'isbn', 'url', 'abstract', 'citation']:
-            if field in metadata and metadata[field]:
-                document.source_metadata[field] = metadata[field]
+        # Update normalized column fields
+        if 'title' in metadata and metadata['title']:
+            document.title = str(metadata['title'])[:200]
 
-        # Mark the change for SQLAlchemy
-        from sqlalchemy.orm.attributes import flag_modified
-        flag_modified(document, 'source_metadata')
+        if 'authors' in metadata and metadata['authors']:
+            document.authors = str(metadata['authors'])
+
+        if 'publication_date' in metadata and metadata['publication_date']:
+            try:
+                # Parse date string to date object
+                parsed_date = date_parser.parse(metadata['publication_date'])
+                document.publication_date = parsed_date.date()
+            except:
+                pass  # Skip invalid dates
+
+        if 'journal' in metadata and metadata['journal']:
+            document.journal = str(metadata['journal'])[:200]
+
+        if 'publisher' in metadata and metadata['publisher']:
+            document.publisher = str(metadata['publisher'])[:200]
+
+        if 'doi' in metadata and metadata['doi']:
+            document.doi = str(metadata['doi'])[:100]
+
+        if 'isbn' in metadata and metadata['isbn']:
+            document.isbn = str(metadata['isbn'])[:20]
+
+        if 'type' in metadata and metadata['type']:
+            document.document_subtype = str(metadata['type'])[:50]
+
+        if 'abstract' in metadata and metadata['abstract']:
+            document.abstract = str(metadata['abstract'])
+
+        if 'url' in metadata and metadata['url']:
+            document.url = str(metadata['url'])[:500]
+
+        if 'citation' in metadata and metadata['citation']:
+            document.citation = str(metadata['citation'])
+
+        # Handle custom (non-standard) fields in source_metadata JSONB
+        custom_fields = {k: v for k, v in metadata.items() if k not in standard_fields}
+
+        if custom_fields:
+            # Initialize source_metadata if needed
+            if not document.source_metadata:
+                document.source_metadata = {}
+
+            # Add custom fields
+            document.source_metadata.update(custom_fields)
+
+            # Mark JSONB field as modified
+            from sqlalchemy.orm.attributes import flag_modified
+            flag_modified(document, 'source_metadata')
 
         db.session.commit()
+
+        # Return complete metadata (columns + JSONB)
+        response_metadata = {
+            'title': document.title,
+            'authors': document.authors,
+            'publication_date': document.publication_date.isoformat() if document.publication_date else None,
+            'journal': document.journal,
+            'publisher': document.publisher,
+            'doi': document.doi,
+            'isbn': document.isbn,
+            'type': document.document_subtype,
+            'abstract': document.abstract,
+            'url': document.url,
+            'citation': document.citation
+        }
+
+        # Add custom fields
+        if document.source_metadata:
+            response_metadata.update(document.source_metadata)
+
+        # Remove None values
+        response_metadata = {k: v for k, v in response_metadata.items() if v is not None}
 
         return jsonify({
             'success': True,
             'message': 'Metadata updated successfully',
-            'metadata': document.source_metadata
+            'metadata': response_metadata
         })
 
     except Exception as e:
