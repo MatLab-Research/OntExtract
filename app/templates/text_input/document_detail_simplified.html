@@ -106,7 +106,7 @@
                     <h5 class="mb-0">
                         <button class="btn btn-link text-decoration-none p-0 text-start w-100" type="button"
                             data-bs-toggle="collapse" data-bs-target="#metadataCollapse"
-                            aria-expanded="{% if document.source_metadata %}true{% else %}false{% endif %}">
+                            aria-expanded="{% if document.source_metadata or temporal_metadata %}true{% else %}false{% endif %}">
                             <i class="fas fa-info-circle me-2"></i>Document Metadata
                             {% if document.source_metadata and document.source_metadata.get('zotero_key') %}
                             <span class="badge bg-success ms-2">Zotero Enhanced</span>
@@ -114,6 +114,8 @@
                             <span class="badge bg-success ms-2">CrossRef Enhanced</span>
                             {% elif document.source_metadata %}
                             <span class="badge bg-primary ms-2">Manual Entry</span>
+                            {% elif temporal_metadata %}
+                            <span class="badge bg-info ms-2">Temporal Metadata</span>
                             {% else %}
                             <span class="badge bg-secondary ms-2">Empty</span>
                             {% endif %}
@@ -121,9 +123,29 @@
                         </button>
                     </h5>
                 </div>
-                <div class="collapse {% if document.source_metadata and (document.source_metadata.get('zotero_key') or document.source_metadata.get('title') or document.source_metadata.get('authors')) %}show{% endif %}"
+                <div class="collapse {% if document.source_metadata and (document.source_metadata.get('zotero_key') or document.source_metadata.get('title') or document.source_metadata.get('authors')) %}show{% elif temporal_metadata %}show{% endif %}"
                     id="metadataCollapse">
                     <div class="card-body">
+                        {% if temporal_metadata %}
+                        <!-- Temporal Metadata Section -->
+                        <div class="row g-2 mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label text-muted small mb-1">Publication Year</label>
+                                <div class="form-control-plaintext py-1">{{ temporal_metadata.publication_year or '—' }}</div>
+                            </div>
+
+                            <div class="col-md-6">
+                                <label class="form-label text-muted small mb-1">Discipline</label>
+                                <div class="form-control-plaintext py-1">{{ temporal_metadata.discipline|title if temporal_metadata.discipline else '—' }}</div>
+                            </div>
+
+                            <div class="col-md-12">
+                                <label class="form-label text-muted small mb-1">Key Definition</label>
+                                <div class="form-control-plaintext py-1 small">{{ temporal_metadata.key_definition or '—' }}</div>
+                            </div>
+                        </div>
+                        {% endif %}
+
                         {% if document.source_metadata %}
                         <!-- Zotero Metadata (if available) -->
                         {% if document.source_metadata.get('zotero_key') %}
@@ -234,7 +256,7 @@
                             </button>
                         </div>
 
-                        {% else %}
+                        {% elif not temporal_metadata %}
                         <!-- No metadata available -->
                         <div class="text-center py-4">
                             <i class="fas fa-info-circle fa-2x text-muted mb-3"></i>
@@ -244,6 +266,15 @@
                                     <i class="fas fa-plus me-1"></i>Add Metadata
                                 </button>
                             </div>
+                        </div>
+                        {% endif %}
+
+                        {% if not document.source_metadata and temporal_metadata %}
+                        <!-- Option to add more detailed metadata -->
+                        <div class="d-flex gap-2 mt-3">
+                            <button class="btn btn-outline-primary btn-sm" onclick="addMetadata('{{ document.uuid }}')">
+                                <i class="fas fa-plus me-1"></i>Add Detailed Metadata
+                            </button>
                         </div>
                         {% endif %}
                     </div>
@@ -285,7 +316,7 @@
                                 </h6>
                                 <p class="text-muted small mb-2">
                                     <i class="fas fa-tag me-1"></i>Term:
-                                    <strong>{{ exp_doc.experiment.term.name if exp_doc.experiment.term else 'No term' }}</strong>
+                                    <strong>{{ exp_doc.experiment.term.term_text if exp_doc.experiment.term else 'No term' }}</strong>
                                 </p>
                                 {% if exp_doc.processing_results %}
                                 <div class="processing-badges">
@@ -339,7 +370,7 @@
                                 </h6>
                                 <p class="text-muted small mb-2">
                                     <i class="fas fa-tag me-1"></i>Term:
-                                    <strong>{{ exp_doc.experiment.term.name if exp_doc.experiment.term else 'No term' }}</strong>
+                                    <strong>{{ exp_doc.experiment.term.term_text if exp_doc.experiment.term else 'No term' }}</strong>
                                 </p>
                                 {% if exp_doc.processing_results %}
                                 <div class="processing-badges">

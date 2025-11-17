@@ -441,3 +441,37 @@ Option 2: Leave existing, apply going forward
 
 **Ready for Testing:** ✅
 
+
+### Phase 4: Title Cleanup ✅ COMPLETED
+
+**Issue:** Cleaned documents had " (Cleaned)" suffix appended to titles, redundant with version selector showing "v2 - Processed"
+
+**✅ Completed Tasks:**
+1. **Database Cleanup**: Removed " (Cleaned)" suffix from 6 existing processed documents
+   ```sql
+   UPDATE documents
+   SET title = REPLACE(title, ' (Cleaned)', '')
+   WHERE title LIKE '% (Cleaned)'
+     AND version_type = 'processed'
+     AND parent_document_id IS NOT NULL;
+   ```
+   - Result: 6 documents updated
+
+2. **Script Update**: Modified [clean_agent_documents.py:78](clean_agent_documents.py#L78) to keep original title
+   ```python
+   # Changed from:
+   title=f"{document.title} (Cleaned)",
+   # To:
+   title=document.title,
+   ```
+
+**Verification:** All 6 processed documents now have clean titles:
+- Black's Law Dictionary 1910 - Agent
+- Anscombe - Intention (1957)
+- Wooldridge & Jennings - Intelligent Agents (1995)
+- Russell & Norvig - AI: A Modern Approach (2020) - Agents Chapter
+- Black's Law Dictionary 2024 - Agent
+- Oxford English Dictionary 2024 - Agent
+
+**Impact:** Future cleaned documents will maintain original title, version info shown only in version selector dropdown
+
