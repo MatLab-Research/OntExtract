@@ -22,6 +22,65 @@
                     </div>
                 </div>
                 <div class="card-body">
+                    {# Orchestration Status Indicator #}
+                    {% if recent_orchestration %}
+                    <div class="alert {% if recent_orchestration.status == 'completed' %}alert-success{% elif recent_orchestration.status == 'executing' %}alert-info{% elif recent_orchestration.status == 'failed' %}alert-danger{% else %}alert-warning{% endif %} d-flex align-items-center mb-4" role="alert">
+                        <div class="flex-grow-1">
+                            {% if recent_orchestration.status == 'completed' %}
+                                <h5 class="alert-heading mb-2">
+                                    <i class="fas fa-check-circle me-2"></i>LLM Orchestration Completed
+                                </h5>
+                                <p class="mb-2">
+                                    The 5-stage LLM orchestration workflow has successfully analyzed this experiment
+                                    {% if recent_orchestration.confidence %}
+                                    with <strong>{{ (recent_orchestration.confidence * 100) | round(0) }}% confidence</strong>
+                                    {% endif %}.
+                                </p>
+                                <small class="text-muted">
+                                    Completed {{ recent_orchestration.completed_at.strftime('%Y-%m-%d %H:%M') }}
+                                    ({{ ((recent_orchestration.completed_at - recent_orchestration.started_at).total_seconds()) | round(0) }}s duration)
+                                </small>
+                            {% elif recent_orchestration.status == 'executing' %}
+                                <h5 class="alert-heading mb-2">
+                                    <i class="fas fa-spinner fa-spin me-2"></i>Orchestration Running
+                                </h5>
+                                <p class="mb-0">
+                                    The LLM orchestration workflow is currently analyzing this experiment...
+                                </p>
+                            {% elif recent_orchestration.status == 'failed' %}
+                                <h5 class="alert-heading mb-2">
+                                    <i class="fas fa-exclamation-triangle me-2"></i>Orchestration Failed
+                                </h5>
+                                <p class="mb-0">
+                                    {{ recent_orchestration.error_message }}
+                                </p>
+                            {% else %}
+                                <h5 class="alert-heading mb-2">
+                                    <i class="fas fa-info-circle me-2"></i>Orchestration Status: {{ recent_orchestration.status }}
+                                </h5>
+                                <p class="mb-0">
+                                    Current stage: {{ recent_orchestration.current_stage or 'Unknown' }}
+                                </p>
+                            {% endif %}
+                        </div>
+                        {% if recent_orchestration.status == 'completed' %}
+                        <div class="ms-3">
+                            <a href="{{ url_for('orchestration.view_results', run_id=recent_orchestration.id) }}"
+                               class="btn btn-success btn-lg">
+                                <i class="fas fa-chart-line me-2"></i>View Results
+                            </a>
+                        </div>
+                        {% elif recent_orchestration.status == 'executing' %}
+                        <div class="ms-3">
+                            <a href="{{ url_for('orchestration.view_results', run_id=recent_orchestration.id) }}"
+                               class="btn btn-info">
+                                <i class="fas fa-sync-alt me-2"></i>Check Status
+                            </a>
+                        </div>
+                        {% endif %}
+                    </div>
+                    {% endif %}
+
                     <div class="row mb-4">
                         <div class="col-md-6">
                             <h5>Experiment Details</h5>

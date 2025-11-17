@@ -52,7 +52,21 @@
                         </span>
                     {% endfor %}
                 {% else %}
-                    <small class="text-muted">No processing applied</small>
+                    <small class="text-muted">No manual processing applied</small>
+                {% endif %}
+
+                {# LLM Orchestration Operations #}
+                {% if llm_operations %}
+                    <div class="mt-2">
+                        <small class="text-muted d-block mb-1">LLM Orchestration:</small>
+                        {% for op_name, op_data in llm_operations.items() %}
+                            {% if op_data.get('status') == 'executed' %}
+                                <span class="badge bg-info me-1 mb-1" title="LLM Orchestration">
+                                    <i class="fas fa-robot me-1"></i>{{ op_name }}
+                                </span>
+                            {% endif %}
+                        {% endfor %}
+                    </div>
                 {% endif %}
             </div>
         </div>
@@ -433,7 +447,7 @@ function startProcessing() {
                 modal.hide();
             }
             setTimeout(() => {
-                loadProcessingStatus();
+                // loadProcessingStatus(); // DISABLED - processing routes not available
                 // Refresh the page to show updated processing operations
                 window.location.reload();
             }, 1000);
@@ -477,10 +491,11 @@ function showAlert(message, type) {
 }
 
 // Load processing status when page loads
+// TEMPORARILY DISABLED - Processing routes disabled due to circular import
 document.addEventListener('DOMContentLoaded', function() {
-    loadProcessingStatus();
+    // loadProcessingStatus();
 
     // Refresh status every 30 seconds
-    setInterval(loadProcessingStatus, 30000);
+    // setInterval(loadProcessingStatus, 30000);
 });
 </script>

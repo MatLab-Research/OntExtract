@@ -195,7 +195,18 @@ def create_sample():
 def view(experiment_id):
     """View experiment details"""
     experiment = Experiment.query.filter_by(id=experiment_id).first_or_404()
-    return render_template('experiments/view.html', experiment=experiment)
+
+    # Get most recent orchestration run for this experiment
+    from app.models import ExperimentOrchestrationRun
+    recent_orchestration = ExperimentOrchestrationRun.query.filter_by(
+        experiment_id=experiment_id
+    ).order_by(ExperimentOrchestrationRun.started_at.desc()).first()
+
+    return render_template(
+        'experiments/view.html',
+        experiment=experiment,
+        recent_orchestration=recent_orchestration
+    )
 
 
 @experiments_bp.route('/<int:experiment_id>/edit')
