@@ -1,7 +1,7 @@
 """Add email verification and account status fields to users
 
 Revision ID: 20251117_auth_system_enhancement
-Revises: 20250920_adding_processing_artifact_group
+Revises: 20250104_orchestration
 Create Date: 2025-11-17
 
 """
@@ -12,7 +12,7 @@ from datetime import datetime
 
 # revision identifiers, used by Alembic.
 revision = '20251117_auth_system_enhancement'
-down_revision = '20250920_adding_processing_artifact_group'
+down_revision = '20250104_orchestration'
 branch_labels = None
 depends_on = None
 
