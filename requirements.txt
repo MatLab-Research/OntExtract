@@ -22,7 +22,7 @@ email-validator==2.1.0
 
 # LLM Providers
 openai==1.3.7
-anthropic==0.7.8
+anthropic==0.72.0
 google-generativeai==0.3.2
 
 # Document Extraction & AI
@@ -45,7 +45,7 @@ rdflib==7.0.0
 owlrl==6.0.2
 
 # Web & HTTP
-requests==2.32.3
+requests==2.32.5
 urllib3==2.1.0
 httpx==0.27.2
 Jinja2==3.1.4
