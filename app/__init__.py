@@ -5,6 +5,7 @@ from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 from flask_login import LoginManager
 from flask_cors import CORS
+from flask_mail import Mail
 import os
 
 # Initialize extensions
@@ -12,6 +13,7 @@ db = SQLAlchemy()
 migrate = Migrate()
 login_manager: LoginManager = LoginManager()
 cors = CORS()
+mail = Mail()
 
 def create_app(config_name=None):
     """Application factory pattern"""
@@ -29,6 +31,7 @@ def create_app(config_name=None):
     db.init_app(app)
     migrate.init_app(app, db)
     cors.init_app(app)
+    mail.init_app(app)
     
     # Configure login manager
     login_manager.init_app(app)
