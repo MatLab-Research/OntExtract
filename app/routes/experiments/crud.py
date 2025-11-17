@@ -21,7 +21,7 @@ Routes:
 
 from flask import render_template, request, jsonify, flash, redirect, url_for
 from flask_login import current_user
-from app.utils.auth_decorators import api_require_login_for_write
+from app.utils.auth_decorators import api_require_login_for_write, write_login_required
 from app import db
 from app.models import Document, Experiment
 from app.services.text_processing import TextProcessingService
@@ -55,8 +55,9 @@ def index():
 
 
 @experiments_bp.route('/new')
+@write_login_required
 def new():
-    """Show new experiment form - public view, but submit requires login"""
+    """Show new experiment form - requires login"""
     from app.models import Term
 
     # Get documents and references separately for all users
@@ -70,8 +71,9 @@ def new():
 
 
 @experiments_bp.route('/wizard')
+@write_login_required
 def wizard():
-    """Guided wizard to create an experiment - public view, but submit requires login"""
+    """Guided wizard to create an experiment - requires login"""
     documents = Document.query.filter_by(document_type='document').order_by(Document.created_at.desc()).all()
     references = Document.query.filter_by(document_type='reference').order_by(Document.created_at.desc()).all()
     return render_template('experiments/wizard.html', documents=documents, references=references)
@@ -135,7 +137,7 @@ def create():
 
 
 @experiments_bp.route('/sample', methods=['POST', 'GET'])
-@api_require_login_for_write
+@write_login_required
 def create_sample():
     """
     Create a sample domain comparison experiment
@@ -210,7 +212,7 @@ def view(experiment_id):
 
 
 @experiments_bp.route('/<int:experiment_id>/edit')
-@api_require_login_for_write
+@write_login_required
 def edit(experiment_id):
     """Edit experiment"""
     experiment = Experiment.query.filter_by(id=experiment_id).first_or_404()

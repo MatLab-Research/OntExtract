@@ -1,9 +1,22 @@
 from flask_sqlalchemy import SQLAlchemy
-from flask_login import UserMixin
+from flask_login import UserMixin, AnonymousUserMixin
 from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime
 from flask import current_app
 from app import db
+
+
+class AnonymousUser(AnonymousUserMixin):
+    """Custom anonymous user with safe defaults for permission methods"""
+
+    def can_edit_resource(self, resource):
+        """Anonymous users cannot edit any resources"""
+        return False
+
+    def can_delete_resource(self, resource):
+        """Anonymous users cannot delete any resources"""
+        return False
+
 
 class User(UserMixin, db.Model):
     """User model for authentication and session management"""

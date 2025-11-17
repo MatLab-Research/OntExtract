@@ -38,7 +38,11 @@ def create_app(config_name=None):
     login_manager.login_view = 'auth.login'
     login_manager.login_message = 'Please log in to access this page.'
     login_manager.login_message_category = 'info'
-    
+
+    # Use custom AnonymousUser with permission methods
+    from app.models.user import AnonymousUser
+    login_manager.anonymous_user = AnonymousUser
+
     @login_manager.user_loader
     def load_user(user_id):
         from app.models.user import User
