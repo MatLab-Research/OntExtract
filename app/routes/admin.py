@@ -138,6 +138,40 @@ def edit_user(user_id):
     return render_template('admin/edit_user.html', user=user)
 
 
+@admin_bp.route('/admin/users/<int:user_id>/set-password', methods=['POST'])
+@admin_required
+def set_user_password(user_id):
+    """Set password for a user (admin only - for demo purposes)"""
+    user = db.session.get(User, user_id)
+    if not user:
+        flash('User not found', 'error')
+        return redirect(url_for('admin.list_users'))
+
+    # Prevent setting your own password (use normal password change)
+    if user.id == current_user.id:
+        flash('You cannot set your own password from this interface. Use the password change feature.', 'warning')
+        return redirect(url_for('admin.view_user', user_id=user_id))
+
+    new_password = request.form.get('new_password')
+    confirm_password = request.form.get('confirm_password')
+
+    # Validate passwords
+    if not new_password or len(new_password) < 6:
+        flash('Password must be at least 6 characters long', 'error')
+        return redirect(url_for('admin.view_user', user_id=user_id))
+
+    if new_password != confirm_password:
+        flash('Passwords do not match', 'error')
+        return redirect(url_for('admin.view_user', user_id=user_id))
+
+    # Set the new password
+    user.set_password(new_password)
+    db.session.commit()
+
+    flash(f'Password set successfully for user {user.username}', 'success')
+    return redirect(url_for('admin.view_user', user_id=user_id))
+
+
 @admin_bp.route('/admin/users/<int:user_id>/toggle-admin', methods=['POST'])
 @admin_required
 def toggle_admin(user_id):

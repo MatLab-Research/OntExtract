@@ -116,6 +116,29 @@
                             <i class="fas fa-edit"></i> Edit User
                         </a>
 
+                        <!-- Set Password Form -->
+                        <button class="btn btn-info w-100 mb-2" type="button" data-bs-toggle="collapse" data-bs-target="#setPasswordForm">
+                            <i class="fas fa-key"></i> Set Password
+                        </button>
+                        <div class="collapse mb-2" id="setPasswordForm">
+                            <div class="card card-body">
+                                <form method="post" action="{{ url_for('admin.set_user_password', user_id=user.id) }}">
+                                    <div class="mb-2">
+                                        <label for="new_password" class="form-label small">New Password:</label>
+                                        <input type="password" class="form-control form-control-sm" id="new_password" name="new_password" required minlength="6">
+                                    </div>
+                                    <div class="mb-2">
+                                        <label for="confirm_password" class="form-label small">Confirm Password:</label>
+                                        <input type="password" class="form-control form-control-sm" id="confirm_password" name="confirm_password" required minlength="6">
+                                    </div>
+                                    <button type="submit" class="btn btn-info btn-sm w-100">
+                                        <i class="fas fa-check"></i> Set Password
+                                    </button>
+                                    <small class="text-muted d-block mt-1">Min. 6 characters</small>
+                                </form>
+                            </div>
+                        </div>
+
                         {% if user.account_status == 'active' %}
                         <form method="post" action="{{ url_for('admin.suspend_user', user_id=user.id) }}" onsubmit="return confirm('Suspend {{ user.username }}?');">
                             <button type="submit" class="btn btn-warning w-100 mb-2">
