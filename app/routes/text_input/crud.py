@@ -11,6 +11,7 @@ Routes:
 """
 
 from flask import render_template, request, flash, redirect, url_for, jsonify, current_app
+from flask_login import current_user
 from sqlalchemy import text
 
 from app import db
@@ -195,6 +196,13 @@ def document_detail(document_uuid):
 def delete_document(document_id):
     """Delete a document"""
     document = Document.query.filter_by(id=document_id).first_or_404()
+
+    # Check permissions - only owner or admin can delete
+    if not current_user.can_delete_resource(document):
+        if request.is_json:
+            return jsonify({'error': 'Permission denied'}), 403
+        flash('You do not have permission to delete this document', 'error')
+        return redirect(url_for('text_input.document_detail', document_id=document_id))
 
     try:
         # Delete associated file

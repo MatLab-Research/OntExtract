@@ -14,7 +14,7 @@ Routes:
 
 from flask import render_template, request, redirect, url_for, flash, current_app
 from flask_login import current_user
-from app.utils.auth_decorators import api_require_login_for_write
+from app.utils.auth_decorators import write_login_required
 from app import db
 from app.models import Term, TermVersion, ContextAnchor
 from app.forms import AddTermForm, EditTermForm, AddVersionForm
@@ -70,7 +70,7 @@ def term_index():
 
 
 @terms_bp.route('/add', methods=['GET', 'POST'])
-@api_require_login_for_write
+@write_login_required
 def add_term():
     """Add new term with WTForms validation"""
     form = AddTermForm()
@@ -167,7 +167,6 @@ def add_term():
 
 
 @terms_bp.route('/<uuid:term_id>')
-@api_require_login_for_write
 def view_term(term_id):
     """View term details and all versions"""
     term = Term.query.get_or_404(term_id)
@@ -185,7 +184,7 @@ def view_term(term_id):
 
 
 @terms_bp.route('/<uuid:term_id>/edit', methods=['GET', 'POST'])
-@api_require_login_for_write
+@write_login_required
 def edit_term(term_id):
     """Edit term basic information"""
     term = Term.query.get_or_404(term_id)
@@ -256,7 +255,7 @@ def edit_term(term_id):
 
 
 @terms_bp.route('/<uuid:term_id>/delete', methods=['POST'])
-@api_require_login_for_write
+@write_login_required
 def delete_term(term_id):
     """Delete a term (admin only)"""
     # Check if user is admin
@@ -317,7 +316,7 @@ def delete_term(term_id):
 
 
 @terms_bp.route('/<uuid:term_id>/add-version', methods=['GET', 'POST'])
-@api_require_login_for_write
+@write_login_required
 def add_version(term_id):
     """Add new temporal version to existing term"""
     term = Term.query.get_or_404(term_id)
