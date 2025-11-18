@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+
+{% block title %}Linked Data - OntExtract{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-md-8 text-center">
+            <div class="mb-5">
+                <i class="fas fa-project-diagram" style="font-size: 5rem; color: var(--accent-color);"></i>
+            </div>
+
+            <h1 class="display-4 mb-4">Linked Data & Ontology Integration</h1>
+
+            <div class="card">
+                <div class="card-body p-5">
+                    <p class="lead mb-4">
+                        OntExtract integrates with formal ontologies to provide semantic context and structured knowledge representation for extracted entities and temporal analysis.
+                    </p>
+
+                    <div class="alert alert-info mb-4">
+                        <i class="fas fa-info-circle me-2"></i>
+                        <strong>Enhanced Features Coming in Phase 2</strong>
+                    </div>
+
+                    <h5 class="mb-3">Current Integration</h5>
+                    <p class="mb-4">
+                        OntExtract currently connects to <strong>OntServe</strong>, our ontology management and serving platform, which provides formal ontological grounding for extracted concepts.
+                    </p>
+
+                    <a href="https://ontserve.ontorealm.net" target="_blank" class="btn btn-primary mb-4">
+                        <i class="fas fa-external-link-alt me-2"></i>Visit OntServe
+                    </a>
+
+                    <h5 class="mb-3">Planned Phase 2 Features</h5>
+                    <ul class="text-start mx-auto" style="max-width: 500px;">
+                        <li>Full RDF export of processed documents and entities</li>
+                        <li>SPARQL query endpoints for semantic search</li>
+                        <li>Linked Open Data integration</li>
+                        <li>Ontology-guided entity disambiguation</li>
+                        <li>Cross-document semantic linking</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="mt-4">
+                <a href="{{ url_for('index') }}" class="btn btn-outline-secondary">
+                    <i class="fas fa-arrow-left me-2"></i>Back to Home
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
