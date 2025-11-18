@@ -272,7 +272,7 @@
                         {% if not document.source_metadata and temporal_metadata %}
                         <!-- Option to add more detailed metadata -->
                         <div class="d-flex gap-2 mt-3">
-                            <button class="btn btn-outline-primary btn-sm" onclick="addMetadata('{{ document.uuid }}')">
+                            <button class="btn btn-outline-primary btn-sm" onclick="editMetadata('{{ document.uuid }}')">
                                 <i class="fas fa-plus me-1"></i>Add Detailed Metadata
                             </button>
                         </div>
@@ -679,7 +679,17 @@
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
-                    populateMetadataModal(data.metadata);
+                    // Check if metadata exists
+                    const hasMetadata = data.metadata && Object.keys(data.metadata).length > 0;
+
+                    if (hasMetadata) {
+                        populateMetadataModal(data.metadata);
+                    } else {
+                        // Clear form for adding new metadata
+                        document.getElementById('metadataForm').reset();
+                        document.getElementById('metadataModalTitle').textContent = 'Add Metadata';
+                    }
+
                     document.getElementById('metadataModalDocumentUuid').value = documentUuid;
                     new bootstrap.Modal(document.getElementById('metadataModal')).show();
                 } else {
