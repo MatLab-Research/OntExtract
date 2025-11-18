@@ -154,7 +154,9 @@ return render_template('processing/embeddings_results.html',
 
 1. **Upload Document** - Any document with text content
 2. **Optional: Segment Document** - Run paragraph or sentence segmentation
-3. **Generate Embeddings** - Run "Local Embeddings" (or other method)
+3. **Generate Embeddings** - Choose method:
+   - **Local Embeddings**: sentence-transformers/all-MiniLM-L6-v2 (384 dims, free, offline)
+   - **OpenAI Embeddings**: text-embedding-3-large (3072 dims, API cost, higher quality)
 4. **View Results** - Navigate to embeddings results page
 
 ### Results Page Display
@@ -172,13 +174,23 @@ return render_template('processing/embeddings_results.html',
 
 ### Example Output
 
-**Document-Level:**
+**Document-Level (Local):**
 ```
 Model: sentence-transformers/all-MiniLM-L6-v2
 Dimensions: 384
 Text Length: 2000 chars (from 5432 total)
 Text: This is the beginning of the document...
 Vector (first 10 dimensions): [0.1234, -0.5678, 0.9012, ...]
+```
+
+**Document-Level (OpenAI):**
+```
+Model: text-embedding-3-large
+Dimensions: 3072
+Text Length: 2000 chars (from 5432 total)
+Tokens Used: 512
+Text: This is the beginning of the document...
+Vector (first 10 dimensions): [0.0234, -0.0156, 0.0389, ...]
 ```
 
 **Segment-Level:**
