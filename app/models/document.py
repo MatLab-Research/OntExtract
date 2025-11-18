@@ -572,6 +572,7 @@ class Document(db.Model):
         """Convert document to dictionary for API responses"""
         result = {
             'id': self.id,
+            'uuid': str(self.uuid),
             'title': self.title,
             'content_type': self.content_type,
             'document_type': self.document_type,
@@ -589,7 +590,11 @@ class Document(db.Model):
             'processed_at': self.processed_at.isoformat() if self.processed_at else None,
             'content_preview': self.content_preview,
             'display_name': self.get_display_name(),
-            'content_summary': self.get_content_summary()
+            'content_summary': self.get_content_summary(),
+            'version_number': self.version_number,
+            'version_type': self.version_type,
+            'source_document_id': self.source_document_id,
+            'experiment_id': self.experiment_id
         }
         
         # Add reference-specific fields

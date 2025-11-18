@@ -94,8 +94,9 @@ def generate_embeddings(document_uuid):
                 processing_notes += f' (preference: {model_preference})'
             if auto_detect_period:
                 processing_notes += ' (auto-detect period)'
-        
-        # Create a new version using inheritance (includes all previous processing)
+
+        # Create or get experiment version (one version per experiment)
+        # If no experiment_id, fall back to old behavior for backward compatibility
         processing_metadata = {
             'embedding_method': embedding_method,
             'experiment_id': experiment_id,
@@ -107,14 +108,27 @@ def generate_embeddings(document_uuid):
                 'model_preference': model_preference,
                 'auto_detect_period': auto_detect_period
             })
-        
-        processing_version = InheritanceVersioningService.create_new_version(
-            original_document=original_document,
-            processing_type='embeddings',
-            processing_metadata=processing_metadata
-        )
-        
-        # Note: PROV-O tracking will be done after embeddings complete
+
+        if experiment_id:
+            # EXPERIMENT VERSIONING: Get or create ONE version for this experiment
+            processing_version, version_created = InheritanceVersioningService.get_or_create_experiment_version(
+                original_document=original_document,
+                experiment_id=experiment_id,
+                user=current_user
+            )
+            # PROV-O: Version creation already tracked if new version was created
+            app.logger.info(f"Using experiment version {processing_version.id} for experiment {experiment_id} "
+                          f"({'newly created' if version_created else 'existing'})")
+        else:
+            # BACKWARD COMPATIBILITY: Manual processing outside experiment uses old method
+            processing_version = InheritanceVersioningService.create_new_version(
+                original_document=original_document,
+                processing_type='embeddings',
+                processing_metadata=processing_metadata
+            )
+            app.logger.info(f"Created processed version {processing_version.id} for manual embeddings")
+
+        # Note: PROV-O tracking for embeddings will be done after embeddings complete
         
         # Create processing job linked to the new version
         job = ProcessingJob(
@@ -243,11 +257,12 @@ def segment_document(document_uuid):
         
         if not original_document.content:
             return jsonify({
-                'success': False, 
+                'success': False,
                 'error': 'Document has no content to segment'
             }), 400
-        
-        # Create a new version using inheritance (includes all previous processing)
+
+        # Create or get experiment version (one version per experiment)
+        # If no experiment_id, fall back to old behavior for backward compatibility
         processing_metadata = {
             'segmentation_method': method,
             'chunk_size': chunk_size,
@@ -255,14 +270,27 @@ def segment_document(document_uuid):
             'experiment_id': experiment_id,
             'processing_notes': f'Document segmentation using {method} method'
         }
-        
-        processing_version = InheritanceVersioningService.create_new_version(
-            original_document=original_document,
-            processing_type='segmentation',
-            processing_metadata=processing_metadata
-        )
-        
-        # Note: PROV-O tracking will be done after segmentation completes
+
+        if experiment_id:
+            # EXPERIMENT VERSIONING: Get or create ONE version for this experiment
+            processing_version, version_created = InheritanceVersioningService.get_or_create_experiment_version(
+                original_document=original_document,
+                experiment_id=experiment_id,
+                user=current_user
+            )
+            # PROV-O: Version creation already tracked if new version was created
+            app.logger.info(f"Using experiment version {processing_version.id} for experiment {experiment_id} "
+                          f"({'newly created' if version_created else 'existing'})")
+        else:
+            # BACKWARD COMPATIBILITY: Manual processing outside experiment uses old method
+            processing_version = InheritanceVersioningService.create_new_version(
+                original_document=original_document,
+                processing_type='segmentation',
+                processing_metadata=processing_metadata
+            )
+            app.logger.info(f"Created processed version {processing_version.id} for manual segmentation")
+
+        # Note: PROV-O tracking for segmentation will be done after segmentation completes
         
         # Handle LangExtract segmentation method
         if method == 'langextract':
@@ -577,13 +605,14 @@ def segment_document(document_uuid):
             'base_document_id': base_document_id,
             'latest_version_id': processing_version.id,
             'processing_version_id': processing_version.id,  # For frontend compatibility
+            'processing_version_uuid': processing_version.uuid,  # UUID for version-specific queries
             'version_number': processing_version.version_number,
             'message': f'Document segmented into {segment_count} chunks (version {processing_version.version_number} with inherited processing)',
-            'redirect_url': f'/input/document/{processing_version.id}'
+            'redirect_url': f'/input/document/{processing_version.uuid}'  # Use UUID for proper redirect
         }
-        
+
         print(f"DEBUG: Segmentation response data: {response_data}")
-        app.logger.error(f"SEGMENTATION RESPONSE: latest_version_id={processing_version.id}, redirect_url={response_data['redirect_url']}")
+        app.logger.error(f"SEGMENTATION RESPONSE: latest_version_id={processing_version.id}, processing_version_uuid={processing_version.uuid}, redirect_url={response_data['redirect_url']}")
         return jsonify(response_data)
         
     except Exception as e:
@@ -640,31 +669,48 @@ def delete_document_segments(document_id):
 def extract_entities(document_uuid):
     """Extract entities from a document"""
     try:
-        document = Document.query.filter_by(uuid=document_uuid).first_or_404()
-        
+        original_document = Document.query.filter_by(uuid=document_uuid).first_or_404()
+
         data = request.get_json() or {}
         entity_types = data.get('entity_types', ['PERSON', 'ORG', 'GPE', 'DATE'])
-        
-        if not document.content:
+        experiment_id = data.get('experiment_id')  # Optional experiment association
+
+        # EXPERIMENT VERSIONING: Use experiment version if provided
+        if experiment_id:
+            processing_document, version_created = InheritanceVersioningService.get_or_create_experiment_version(
+                original_document=original_document,
+                experiment_id=experiment_id,
+                user=current_user
+            )
+            app.logger.info(f"Extracting entities from experiment version {processing_document.id} for experiment {experiment_id}")
+        else:
+            processing_document = original_document
+            app.logger.info(f"Extracting entities from original document {processing_document.id}")
+
+        if not processing_document.content:
             return jsonify({
-                'success': False, 
+                'success': False,
                 'error': 'Document has no content to extract entities from'
             }), 400
-            
-        # Create processing job
+
+        # Create processing job linked to the processing document
         job = ProcessingJob(
-            document_id=document.id,
+            document_id=processing_document.id,
             job_type='extract_entities',
             status='pending',
             user_id=current_user.id
         )
-        job.set_parameters({'entity_types': entity_types})
+        job.set_parameters({
+            'entity_types': entity_types,
+            'experiment_id': experiment_id,
+            'original_document_id': original_document.id
+        })
         db.session.add(job)
         db.session.commit()
-        
+
         # TODO: Replace with actual entity extraction (spaCy, etc.)
         # For now, simulate entity extraction
-        words = document.content.split()
+        words = processing_document.content.split()
         entity_count = len(words) // 20  # Simulate ~5% of words as entities
         
         job.status = 'completed'
@@ -1488,27 +1534,41 @@ def view_segments_results(document_uuid):
     try:
         document = Document.query.filter_by(uuid=document_uuid).first_or_404()
 
-        # Get segmentation jobs
-        jobs = ProcessingJob.query.filter_by(
-            document_id=document.id,
-            job_type='segment_document'
+        # Get segmentation jobs for this document AND all its versions
+        from app.services.inheritance_versioning_service import InheritanceVersioningService
+        base_doc_id = InheritanceVersioningService._get_base_document_id(document)
+
+        # Query all versions that derive from the base document (using source_document_id)
+        all_versions = Document.query.filter_by(source_document_id=base_doc_id).all()
+        all_version_ids = [v.id for v in all_versions]
+
+        # Always include the base document itself
+        if base_doc_id not in all_version_ids:
+            all_version_ids.append(base_doc_id)
+
+        # Get segmentation jobs from all versions
+        jobs = ProcessingJob.query.filter(
+            ProcessingJob.document_id.in_(all_version_ids),
+            ProcessingJob.job_type == 'segment_document'
         ).order_by(ProcessingJob.created_at.desc()).all()
 
-        # Also check processing versions
+        # Also check for jobs that reference this document as original_document_id
         all_potential_jobs = ProcessingJob.query.filter(
-            ProcessingJob.document_id != document.id,
+            ProcessingJob.document_id.notin_(all_version_ids),
             ProcessingJob.job_type == 'segment_document'
         ).all()
 
         for job in all_potential_jobs:
             params = job.get_parameters()
-            if params.get('original_document_id') == document.id:
+            if params.get('original_document_id') in all_version_ids:
                 jobs.append(job)
 
         jobs.sort(key=lambda j: (j.created_at is None, j.created_at), reverse=True)
 
-        # Get segments from database
-        segments = TextSegment.query.filter_by(document_id=document.id).order_by(TextSegment.segment_number).all()
+        # Get segments from all versions (prioritize latest version by document_id DESC)
+        segments = TextSegment.query.filter(
+            TextSegment.document_id.in_(all_version_ids)
+        ).order_by(TextSegment.document_id.desc(), TextSegment.segment_number).all()
 
         # Calculate statistics
         if segments:

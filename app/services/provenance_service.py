@@ -1025,6 +1025,90 @@ class ProvenanceService:
 
         return activity, entity
 
+    @classmethod
+    def track_experiment_version_creation(
+        cls,
+        experiment_version_document,
+        source_document,
+        experiment,
+        user
+    ) -> tuple[ProvActivity, ProvEntity]:
+        """
+        Track creation of an experiment-specific document version.
+
+        This implements PROV-O tracking for the one-version-per-experiment pattern.
+        Creates provenance records showing:
+        - Activity: create_experiment_version
+        - Entity: experiment version document
+        - Relationships: wasDerivedFrom (source), wasGeneratedBy (activity), wasAttributedTo (user)
+
+        Args:
+            experiment_version_document: The newly created experimental version
+            source_document: The original document this derives from
+            experiment: The experiment this version belongs to
+            user: The user who triggered version creation
+
+        Returns:
+            tuple: (activity, entity) provenance records
+        """
+        agent = cls.get_or_create_user_agent(user.id, user.username)
+        creation_time = datetime.utcnow()
+
+        # Create activity for experiment version creation
+        activity = ProvActivity(
+            activity_type='create_experiment_version',
+            startedattime=creation_time,
+            endedattime=creation_time,
+            wasassociatedwith=agent.agent_id,
+            document_id=experiment_version_document.id,
+            experiment_id=experiment.id,
+            activity_parameters=_serialize_value({
+                'source_document_id': source_document.id,
+                'source_document_uuid': str(source_document.uuid),
+                'experiment_id': experiment.id,
+                'experiment_name': experiment.name,
+                'version_number': experiment_version_document.version_number,
+                'version_type': 'experimental'
+            }),
+            activity_status='completed'
+        )
+        db.session.add(activity)
+        db.session.flush()
+
+        # Create entity for the experiment version document
+        # This entity shows derivation from source document
+        entity = ProvEntity(
+            entity_type='document',
+            document_id=experiment_version_document.id,
+            generatedattime=creation_time,
+            wasgeneratedby=activity.activity_id,
+            wasattributedto=agent.agent_id,
+            entity_value=_serialize_value({
+                'document_id': experiment_version_document.id,
+                'document_uuid': str(experiment_version_document.uuid),
+                'title': experiment_version_document.title,
+                'version_number': experiment_version_document.version_number,
+                'version_type': 'experimental',
+                'experiment_id': experiment.id,
+                'experiment_name': experiment.name,
+                'source_document_id': source_document.id,
+                'source_document_uuid': str(source_document.uuid),
+                'derivation': 'wasDerivedFrom'
+            })
+        )
+        db.session.add(entity)
+
+        # Link: experiment version wasDerivedFrom source document
+        # This is recorded in entity_value as 'derivation' relationship
+        # The PROV-O standard relationship is captured via source_document_id
+
+        db.session.commit()
+
+        logger.info(f"Tracked experiment version creation: document {experiment_version_document.id} "
+                   f"v{experiment_version_document.version_number} for experiment {experiment.id}")
+
+        return activity, entity
+
     # ========================================================================
     # TOOL EXECUTION TRACKING
     # ========================================================================
