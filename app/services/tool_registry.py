@@ -49,43 +49,43 @@ TOOL_REGISTRY: Dict[str, ToolDefinition] = {
     ),
     "extract_entities_spacy": ToolDefinition(
         name="extract_entities_spacy",
-        description="Extract named entities (PERSON, ORG, DATE, GPE, etc.)",
-        status=ToolStatus.STUB,
+        description="Extract named entities (PERSON, ORG, DATE, GPE, etc.) and concepts",
+        status=ToolStatus.IMPLEMENTED,  # ✅ IMPLEMENTED
         category="extraction",
         dependencies=["spacy", "en_core_web_sm"],
-        notes="Requires spaCy model installation"
+        notes="Extracts standard NER entities plus noun phrases as concepts"
     ),
     "extract_temporal": ToolDefinition(
         name="extract_temporal",
-        description="Extract temporal expressions and timelines",
-        status=ToolStatus.STUB,
+        description="Extract temporal expressions, periods, and timelines",
+        status=ToolStatus.IMPLEMENTED,  # ✅ IMPLEMENTED
         category="extraction",
-        dependencies=["sutime", "jpype"],
-        notes="Requires SUTime or similar temporal parser"
+        dependencies=["spacy", "python-dateutil"],
+        notes="Uses spaCy DATE entities + regex patterns for periods/decades"
     ),
     "extract_causal": ToolDefinition(
         name="extract_causal",
         description="Extract causal relationships between events",
-        status=ToolStatus.STUB,
+        status=ToolStatus.IMPLEMENTED,  # ✅ IMPLEMENTED
         category="extraction",
-        dependencies=[],
-        notes="Complex NLP task - may require custom LLM prompts"
+        dependencies=["spacy"],
+        notes="Pattern matching + dependency parsing for causation"
     ),
     "extract_definitions": ToolDefinition(
         name="extract_definitions",
         description="Extract term definitions and explanations",
-        status=ToolStatus.STUB,
+        status=ToolStatus.IMPLEMENTED,  # ✅ IMPLEMENTED
         category="extraction",
-        dependencies=[],
-        notes="Pattern matching + LLM validation"
+        dependencies=["spacy"],
+        notes="Multiple definition patterns + appositive constructions"
     ),
     "period_aware_embedding": ToolDefinition(
         name="period_aware_embedding",
-        description="Generate historical/contemporary embeddings",
-        status=ToolStatus.PLANNED,
+        description="Generate period-aware embeddings for semantic drift analysis",
+        status=ToolStatus.IMPLEMENTED,  # ✅ IMPLEMENTED
         category="embedding",
-        dependencies=["sentence_transformers", "historical_models"],
-        notes="Requires period-specific embedding models"
+        dependencies=["sentence_transformers"],
+        notes="Automatic period detection from temporal markers"
     ),
 }
 
