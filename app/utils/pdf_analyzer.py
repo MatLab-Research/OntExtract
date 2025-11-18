@@ -28,6 +28,9 @@ class PDFAnalyzer:
     # DOI regex pattern - matches standard DOI format
     DOI_PATTERN = r'10\.\d{4,9}/[-._;()/:a-zA-Z0-9]+'
 
+    # arXiv ID pattern - matches formats like 2501.04227, 2501.04227v2, 1234.5678v1
+    ARXIV_PATTERN = r'\d{4}\.\d{4,5}(?:v\d+)?'
+
     def __init__(self):
         """Initialize PDF analyzer with optional dependencies."""
         self.has_pypdf2 = False
@@ -64,18 +67,31 @@ class PDFAnalyzer:
         Returns:
             Dictionary with extracted metadata:
             - doi: Extracted DOI if found
+            - arxiv_id: Extracted arXiv ID if found
             - title: Extracted title if found
+            - authors: List of author names if found
+            - abstract: Extracted abstract if found
             - metadata: PDF embedded metadata
-            - extraction_method: How metadata was extracted
+            - extraction_methods: List of methods used
         """
         result = {
             'doi': None,
+            'arxiv_id': None,
             'title': None,
+            'authors': None,
+            'abstract': None,
             'metadata': {},
             'extraction_methods': []
         }
 
-        # Try DOI extraction first (most reliable for CrossRef lookup)
+        # Try arXiv ID extraction (check filename first, then content)
+        arxiv_id = self.extract_arxiv_id(pdf_path)
+        if arxiv_id:
+            result['arxiv_id'] = arxiv_id
+            result['extraction_methods'].append('arxiv_id_from_filename_or_text')
+            logger.info(f"Extracted arXiv ID from PDF: {arxiv_id}")
+
+        # Try DOI extraction (most reliable for CrossRef lookup)
         doi = self.extract_doi(pdf_path)
         if doi:
             result['doi'] = doi
@@ -89,16 +105,39 @@ class PDFAnalyzer:
             result['extraction_methods'].append('title_from_text')
             logger.info(f"Extracted title from PDF: {title[:50]}...")
 
+        # Try author extraction
+        authors = self.extract_authors(pdf_path)
+        if authors:
+            result['authors'] = authors
+            result['extraction_methods'].append('authors_from_text')
+            logger.info(f"Extracted {len(authors)} authors from PDF")
+
+        # Try abstract extraction
+        abstract = self.extract_abstract(pdf_path)
+        if abstract:
+            result['abstract'] = abstract
+            result['extraction_methods'].append('abstract_from_text')
+            logger.info(f"Extracted abstract from PDF ({len(abstract)} chars)")
+
         # Try embedded metadata
         metadata = self.extract_metadata(pdf_path)
         if metadata:
             result['metadata'] = metadata
             result['extraction_methods'].append('pdf_metadata')
 
-            # Use embedded title if we don't have one yet
+            # Use embedded data if we don't have it yet
             if not result['title'] and metadata.get('title'):
                 result['title'] = metadata['title']
                 logger.info(f"Using title from PDF metadata: {metadata['title'][:50]}...")
+
+            if not result['authors'] and metadata.get('author'):
+                # Parse author string (may be comma-separated)
+                author_str = metadata['author']
+                if ',' in author_str or ';' in author_str:
+                    result['authors'] = [a.strip() for a in re.split('[,;]', author_str)]
+                else:
+                    result['authors'] = [author_str]
+                logger.info(f"Using authors from PDF metadata: {result['authors']}")
 
         return result
 
@@ -140,6 +179,140 @@ class PDFAnalyzer:
 
         except Exception as e:
             logger.error(f"Error reading PDF for DOI extraction: {e}")
+
+        return None
+
+    def extract_arxiv_id(self, pdf_path: str) -> Optional[str]:
+        """
+        Extract arXiv ID from filename or PDF content.
+
+        Args:
+            pdf_path: Path to PDF file
+
+        Returns:
+            arXiv ID if found (e.g., "2501.04227v2")
+        """
+        # First try filename
+        filename = Path(pdf_path).stem
+        match = re.search(self.ARXIV_PATTERN, filename)
+        if match:
+            return match.group(0)
+
+        # Then try first page content
+        if not self.has_pypdf2:
+            return None
+
+        try:
+            with open(pdf_path, 'rb') as f:
+                reader = self.PyPDF2.PdfReader(f)
+                if len(reader.pages) > 0:
+                    first_page = reader.pages[0]
+                    text = first_page.extract_text()
+
+                    if text:
+                        # Look for arXiv ID in text (often appears as "arXiv:2501.04227")
+                        match = re.search(r'arXiv[:\s]*(' + self.ARXIV_PATTERN + ')', text, re.IGNORECASE)
+                        if match:
+                            return match.group(1)
+
+        except Exception as e:
+            logger.debug(f"Error extracting arXiv ID: {e}")
+
+        return None
+
+    def extract_authors(self, pdf_path: str) -> Optional[list]:
+        """
+        Extract author names from first page of PDF.
+
+        Args:
+            pdf_path: Path to PDF file
+
+        Returns:
+            List of author names if found
+        """
+        if not self.has_pypdf2:
+            return None
+
+        try:
+            with open(pdf_path, 'rb') as f:
+                reader = self.PyPDF2.PdfReader(f)
+                if len(reader.pages) > 0:
+                    first_page = reader.pages[0]
+                    text = first_page.extract_text()
+
+                    if text:
+                        # Look for author patterns after title, before abstract
+                        # This is a heuristic - authors are usually listed after title
+                        lines = [line.strip() for line in text.split('\n') if line.strip()]
+
+                        # Find "Abstract" or "ABSTRACT" keyword
+                        abstract_idx = None
+                        for i, line in enumerate(lines):
+                            if line.lower() == 'abstract':
+                                abstract_idx = i
+                                break
+
+                        # Authors are usually in lines 2-10, before abstract
+                        if abstract_idx:
+                            # Look for lines that look like author names
+                            # (capitalized, no numbers, reasonable length)
+                            potential_authors = []
+                            for line in lines[1:min(abstract_idx, 15)]:
+                                # Skip very short or long lines
+                                if 5 < len(line) < 100:
+                                    # Check if it looks like names (has capital letters, no excessive special chars)
+                                    if re.match(r'^[A-Za-z\s,\.]+$', line):
+                                        # Split by comma or "and"
+                                        names = re.split(r',\s*|\s+and\s+', line)
+                                        for name in names:
+                                            name = name.strip()
+                                            # Filter out institutional affiliations
+                                            if name and not any(word in name.lower() for word in ['university', 'institute', 'department', 'college']):
+                                                potential_authors.append(name)
+
+                            if potential_authors and len(potential_authors) <= 20:  # Sanity check
+                                return potential_authors[:10]  # Limit to first 10
+
+        except Exception as e:
+            logger.debug(f"Error extracting authors: {e}")
+
+        return None
+
+    def extract_abstract(self, pdf_path: str, max_length: int = 1000) -> Optional[str]:
+        """
+        Extract abstract from first page of PDF.
+
+        Args:
+            pdf_path: Path to PDF file
+            max_length: Maximum abstract length
+
+        Returns:
+            Abstract text if found
+        """
+        if not self.has_pypdf2:
+            return None
+
+        try:
+            with open(pdf_path, 'rb') as f:
+                reader = self.PyPDF2.PdfReader(f)
+                if len(reader.pages) > 0:
+                    first_page = reader.pages[0]
+                    text = first_page.extract_text()
+
+                    if text:
+                        # Look for "Abstract" keyword
+                        match = re.search(r'abstract\s*[:\-]?\s*(.*?)(?:\n\n|keywords|introduction|1\s+introduction)', text, re.IGNORECASE | re.DOTALL)
+                        if match:
+                            abstract = match.group(1).strip()
+                            # Clean up line breaks and excessive whitespace
+                            abstract = ' '.join(abstract.split())
+                            # Limit length
+                            if len(abstract) > max_length:
+                                abstract = abstract[:max_length] + '...'
+                            return abstract if abstract else None
+
+        except Exception as e:
+            logger.debug(f"Error extracting abstract: {e}")
 
         return None
 

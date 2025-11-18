@@ -267,19 +267,41 @@ class UploadService:
                     result.metadata['extraction_method'] = 'doi_from_pdf'
                     return result
 
-            # Try title search
+            # Try title search (with authors if available for better matching)
             if pdf_info.get('title'):
-                result = self.extract_metadata_from_title(pdf_info['title'])
-                if result.success:
+                authors = pdf_info.get('authors')
+                result = self.crossref.extract_from_metadata(pdf_info['title'], authors=authors)
+                if result:
                     # Add PDF analysis info
-                    result.metadata['extracted_title'] = pdf_info['title']
-                    result.metadata['extraction_method'] = 'title_from_pdf'
-                    return result
+                    result['extracted_title'] = pdf_info['title']
+                    if authors:
+                        result['extracted_authors'] = authors
+                    result['extraction_method'] = 'title_from_pdf_with_authors' if authors else 'title_from_pdf'
 
-            # Fallback: return what we found from PDF
+                    return MetadataExtractionResult(
+                        success=True,
+                        metadata=self._normalize_metadata(result),
+                        source='crossref'
+                    )
+
+            # Fallback: return what we found from PDF (even if CrossRef failed)
+            fallback_metadata = pdf_info.get('metadata', {})
+
+            # Include extracted metadata even if CrossRef lookup failed
+            if pdf_info.get('title') and 'title' not in fallback_metadata:
+                fallback_metadata['title'] = pdf_info['title']
+            if pdf_info.get('doi') and 'doi' not in fallback_metadata:
+                fallback_metadata['doi'] = pdf_info['doi']
+            if pdf_info.get('arxiv_id'):
+                fallback_metadata['arxiv_id'] = pdf_info['arxiv_id']
+            if pdf_info.get('authors') and 'authors' not in fallback_metadata:
+                fallback_metadata['authors'] = pdf_info['authors']
+            if pdf_info.get('abstract') and 'abstract' not in fallback_metadata:
+                fallback_metadata['abstract'] = pdf_info['abstract']
+
             return MetadataExtractionResult(
                 success=False,
-                metadata=pdf_info.get('metadata', {}),
+                metadata=fallback_metadata,
                 source='pdf_analysis',
                 error="Could not find metadata in CrossRef using extracted DOI/title"
             )

@@ -106,6 +106,35 @@
     padding: 15px;
     margin-bottom: 20px;
 }
+
+.drop-zone {
+    border: 3px dashed #375a7f;
+    border-radius: 12px;
+    padding: 60px 40px;
+    text-align: center;
+    background: #1a1a1a;
+    transition: all 0.3s ease;
+    cursor: pointer;
+}
+
+.drop-zone:hover {
+    border-color: #4a8fc7;
+    background: #252525;
+}
+
+.drop-zone.drag-over {
+    border-color: #5bc0de;
+    background: #1a3a52;
+    transform: scale(1.02);
+}
+
+.drop-zone i {
+    color: #375a7f;
+}
+
+.drop-zone.drag-over i {
+    color: #5bc0de;
+}
 </style>
 {% endblock %}
 
@@ -122,92 +151,59 @@
                 </p>
             </div>
 
-            <!-- Upload Method Selection -->
-            <div class="upload-section">
-                <div class="section-header">Step 1: Choose Upload Method</div>
-
-                <div class="upload-option active" id="file-option" onclick="selectUploadMethod('file')">
-                    <div class="d-flex align-items-center">
-                        <div class="me-3">
-                            <i class="fas fa-file-upload fa-2x text-primary"></i>
-                        </div>
-                        <div>
-                            <h5 class="mb-1">Upload PDF File</h5>
-                            <p class="mb-0 text-muted small">
-                                Upload a PDF document. We'll extract bibliographic metadata automatically.
-                            </p>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="upload-option" id="doi-option" onclick="selectUploadMethod('doi')">
-                    <div class="d-flex align-items-center">
-                        <div class="me-3">
-                            <i class="fas fa-link fa-2x text-primary"></i>
-                        </div>
-                        <div>
-                            <h5 class="mb-1">Enter DOI</h5>
-                            <p class="mb-0 text-muted small">
-                                Enter a DOI to retrieve bibliographic metadata from CrossRef. You'll still need to upload the file.
-                            </p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
             <!-- File Upload Form -->
             <form id="file-form" class="upload-section" style="display: block;">
-                <div class="section-header">Step 2: Upload Document</div>
+                <div class="section-header">Upload Document</div>
 
                 <div class="mb-3">
-                    <label for="file-input" class="form-label">Select Document (PDF)</label>
-                    <input type="file" class="form-control" id="file-input" accept=".pdf" required>
-                    <div class="form-text">Upload a PDF file for analysis</div>
+                    <label class="form-label">Select Document (PDF)</label>
+                    <div id="drop-zone" class="drop-zone">
+                        <i class="fas fa-cloud-upload-alt fa-3x mb-3"></i>
+                        <p class="mb-2"><strong>Drag and drop your PDF here</strong></p>
+                        <p class="mb-3 text-muted">or</p>
+                        <label for="file-input" class="btn btn-outline-primary btn-lg">
+                            <i class="fas fa-folder-open me-2"></i>Browse Files
+                        </label>
+                        <input type="file" id="file-input" accept=".pdf" required style="display: none;">
+                        <p id="file-name" class="mt-3 text-info" style="display: none;"></p>
+                    </div>
                 </div>
 
-                <div class="alert alert-warning mb-3">
+                <div class="form-check mb-3">
+                    <input class="form-check-input" type="checkbox" id="enable-crossref" checked onchange="updateFieldRequirements()">
+                    <label class="form-check-label" for="enable-crossref">
+                        <strong>Try to find metadata using CrossRef</strong> (recommended for published papers)
+                    </label>
+                    <div class="form-text">
+                        If enabled, OntExtract will extract DOI/title from the PDF, then search CrossRef.
+                        Your provided title is used as a fallback. Disable this for unpublished documents or personal papers.
+                    </div>
+                </div>
+
+                <div class="alert alert-info mb-3" id="metadata-tip">
                     <i class="fas fa-info-circle"></i>
-                    <strong>Manual Metadata Entry Required:</strong>
-                    Please provide title and publication year. Automatic PDF extraction is temporarily disabled and will be improved in a future update.
+                    Leave the fields below blank to automatically extract metadata from the PDF.
+                    You can fill them in if automatic extraction fails.
                 </div>
 
                 <div class="row">
                     <div class="col-md-6 mb-3">
-                        <label for="file-title" class="form-label">Title <span class="text-danger">*</span></label>
-                        <input type="text" class="form-control" id="file-title" placeholder="Enter document title" required>
-                        <div class="form-text">Full title of the document</div>
+                        <label for="file-title" class="form-label">Title (optional)</label>
+                        <input type="text" class="form-control" id="file-title" placeholder="Leave blank for automatic extraction">
                     </div>
                     <div class="col-md-6 mb-3">
-                        <label for="file-year" class="form-label">Publication Year <span class="text-danger">*</span></label>
-                        <input type="number" class="form-control" id="file-year" placeholder="e.g., 1957" min="1800" max="2026" required>
-                        <div class="form-text">Original publication year</div>
+                        <label for="file-year" class="form-label">Publication Year (optional)</label>
+                        <input type="number" class="form-control" id="file-year" placeholder="e.g., 1957" min="1800" max="2026">
                     </div>
                 </div>
 
                 <div class="mb-3">
                     <label for="file-authors" class="form-label">Authors (optional)</label>
                     <input type="text" class="form-control" id="file-authors" placeholder="Comma-separated author names">
-                    <div class="form-text">Author names separated by commas</div>
                 </div>
 
                 <button type="submit" class="btn btn-primary btn-lg">
                     <i class="fas fa-upload"></i> Upload and Extract Metadata
-                </button>
-            </form>
-
-            <!-- DOI Form -->
-            <form id="doi-form" class="upload-section" style="display: none;">
-                <div class="section-header">Step 2: Enter DOI</div>
-
-                <div class="mb-3">
-                    <label for="doi-input" class="form-label">DOI</label>
-                    <input type="text" class="form-control" id="doi-input"
-                           placeholder="e.g., 10.1145/1234567.1234568 or https://doi.org/10.1145/1234567.1234568" required>
-                    <div class="form-text">Enter the Digital Object Identifier</div>
-                </div>
-
-                <button type="submit" class="btn btn-primary btn-lg">
-                    <i class="fas fa-search"></i> Retrieve Metadata from CrossRef
                 </button>
             </form>
 
@@ -222,7 +218,13 @@
 
             <!-- Metadata Review Section -->
             <div id="metadata-review" class="metadata-section">
-                <div class="section-header">Step 3: Review and Confirm Metadata</div>
+                <div class="section-header">Review and Confirm Metadata</div>
+
+                <!-- Show uploaded file -->
+                <div class="alert alert-secondary mb-3">
+                    <i class="fas fa-file-pdf text-danger me-2"></i>
+                    <strong>Uploaded file:</strong> <span id="uploaded-filename"></span>
+                </div>
 
                 <div class="metadata-confirmation">
                     <i class="fas fa-info-circle"></i>
@@ -324,7 +326,6 @@ console.log('=== Upload Enhanced Script Loading ===');
 
 // Upload state management
 let uploadState = {
-    currentMethod: 'file',
     extractedMetadata: null,
     tempPath: null,
     currentFileName: null,
@@ -333,27 +334,100 @@ let uploadState = {
 
 console.log('Upload state initialized:', uploadState);
 
-function selectUploadMethod(method) {
-    const fileOption = document.getElementById('file-option');
-    const doiOption = document.getElementById('doi-option');
-    const fileForm = document.getElementById('file-form');
-    const doiForm = document.getElementById('doi-form');
+// Drag and drop functionality
+const dropZone = document.getElementById('drop-zone');
+const fileInput = document.getElementById('file-input');
+const fileNameDisplay = document.getElementById('file-name');
 
-    fileOption.classList.remove('active');
-    doiOption.classList.remove('active');
+// Prevent default drag behaviors
+['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+    dropZone.addEventListener(eventName, preventDefaults, false);
+    document.body.addEventListener(eventName, preventDefaults, false);
+});
 
-    if (method === 'file') {
-        fileOption.classList.add('active');
-        fileForm.style.display = 'block';
-        doiForm.style.display = 'none';
-    } else if (method === 'doi') {
-        doiOption.classList.add('active');
-        fileForm.style.display = 'none';
-        doiForm.style.display = 'block';
-    }
-
-    uploadState.currentMethod = method;
+function preventDefaults(e) {
+    e.preventDefault();
+    e.stopPropagation();
 }
+
+// Highlight drop zone when dragging over it
+['dragenter', 'dragover'].forEach(eventName => {
+    dropZone.addEventListener(eventName, () => {
+        dropZone.classList.add('drag-over');
+    }, false);
+});
+
+['dragleave', 'drop'].forEach(eventName => {
+    dropZone.addEventListener(eventName, () => {
+        dropZone.classList.remove('drag-over');
+    }, false);
+});
+
+// Handle dropped files
+dropZone.addEventListener('drop', (e) => {
+    const dt = e.dataTransfer;
+    const files = dt.files;
+
+    if (files.length > 0) {
+        fileInput.files = files;
+        updateFileName(files[0]);
+    }
+}, false);
+
+// Handle click to browse
+dropZone.addEventListener('click', (e) => {
+    // Don't trigger if clicking the label or file input itself
+    // The label already triggers the file input via for="file-input"
+    const isLabel = e.target.tagName === 'LABEL' || e.target.closest('label[for="file-input"]');
+    if (e.target !== fileInput && !isLabel) {
+        fileInput.click();
+    }
+});
+
+// Handle file selection via browse
+fileInput.addEventListener('change', (e) => {
+    if (e.target.files.length > 0) {
+        updateFileName(e.target.files[0]);
+    }
+});
+
+function updateFileName(file) {
+    fileNameDisplay.textContent = `Selected: ${file.name}`;
+    fileNameDisplay.style.display = 'block';
+}
+
+// Update field requirements based on CrossRef checkbox
+function updateFieldRequirements() {
+    const enableCrossref = document.getElementById('enable-crossref').checked;
+    const titleInput = document.getElementById('file-title');
+    const yearInput = document.getElementById('file-year');
+    const titleLabel = titleInput.previousElementSibling;
+    const yearLabel = yearInput.previousElementSibling;
+    const tip = document.getElementById('metadata-tip');
+
+    if (enableCrossref) {
+        // CrossRef enabled: fields are optional
+        titleInput.required = false;
+        yearInput.required = false;
+        titleLabel.innerHTML = 'Title (optional)';
+        yearLabel.innerHTML = 'Publication Year (optional)';
+        titleInput.placeholder = 'Leave blank for automatic extraction';
+        tip.style.display = 'block';
+    } else {
+        // CrossRef disabled: require at least title
+        titleInput.required = true;
+        yearInput.required = true;
+        titleLabel.innerHTML = 'Title <span class="text-danger">*</span>';
+        yearLabel.innerHTML = 'Publication Year <span class="text-danger">*</span>';
+        titleInput.placeholder = 'Enter document title';
+        tip.style.display = 'none';
+    }
+}
+
+// Initialize on page load
+document.addEventListener('DOMContentLoaded', () => {
+    updateFieldRequirements();
+});
 
 function showLoading(message = 'Analyzing document and extracting metadata...', details = '') {
     document.getElementById('loading').classList.add('active');
@@ -371,11 +445,25 @@ function hideLoading() {
 function showMetadataReview() {
     console.log('showMetadataReview() called');
     hideLoading();
+
+    // Hide the upload form
+    const fileForm = document.getElementById('file-form');
+    if (fileForm) {
+        fileForm.style.display = 'none';
+    }
+
+    // Show the metadata review section
     const reviewSection = document.getElementById('metadata-review');
     console.log('Metadata review element:', reviewSection);
     if (reviewSection) {
         reviewSection.classList.add('show');
         console.log('Added show class. Element classes:', reviewSection.className);
+
+        // Update the uploaded filename display
+        const filenameDisplay = document.getElementById('uploaded-filename');
+        if (filenameDisplay && uploadState.currentFileName) {
+            filenameDisplay.textContent = uploadState.currentFileName;
+        }
     } else {
         console.error('metadata-review element not found!');
     }
@@ -444,16 +532,24 @@ document.getElementById('file-form').addEventListener('submit', async function(e
     formData.append('title', document.getElementById('file-title').value);
     formData.append('publication_year', document.getElementById('file-year').value);
     formData.append('authors', document.getElementById('file-authors').value);
+    formData.append('enable_crossref', document.getElementById('enable-crossref').checked ? 'true' : 'false');
 
     const title = document.getElementById('file-title').value;
-    if (title) {
-        showLoading('Uploading document and searching CrossRef...', `Searching for: ${title}`);
-    } else {
-        // No title provided - system will auto-extract from PDF
-        if (file.name.toLowerCase().endsWith('.pdf')) {
-            showLoading('Analyzing PDF...', 'Extracting DOI and title from document, then querying CrossRef');
+    const enableCrossref = document.getElementById('enable-crossref').checked;
+
+    if (enableCrossref) {
+        if (title) {
+            showLoading('Analyzing PDF and searching CrossRef...',
+                'Step 1: Extracting DOI/title from PDF\nStep 2: Searching CrossRef\nStep 3: Using your title as fallback');
         } else {
-            showLoading('Uploading document...', 'No automatic extraction available for this file type');
+            showLoading('Analyzing PDF and searching CrossRef...',
+                'Step 1: Extracting DOI from PDF\nStep 2: Extracting title from PDF\nStep 3: Searching CrossRef');
+        }
+    } else {
+        if (title) {
+            showLoading('Uploading document...', 'Using provided metadata only');
+        } else {
+            showLoading('Uploading document...', 'No metadata extraction enabled');
         }
     }
 
@@ -480,6 +576,16 @@ document.getElementById('file-form').addEventListener('submit', async function(e
             console.log('Calling showMetadataReview...');
             showMetadataReview();
             console.log('Metadata review should now be visible');
+
+            // Show message about CrossRef search result
+            if (result.message) {
+                const alertClass = result.crossref_found ? 'alert-success' : (result.crossref_enabled ? 'alert-warning' : 'alert-info');
+                const alertHTML = `<div class="alert ${alertClass} alert-dismissible fade show mt-3" role="alert">
+                    <i class="fas fa-info-circle"></i> ${result.message}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>`;
+                document.getElementById('metadata-review').insertAdjacentHTML('afterbegin', alertHTML);
+            }
         } else {
             console.error('Server error:', result.error);
             alert('Error: ' + result.error);
@@ -488,58 +594,6 @@ document.getElementById('file-form').addEventListener('submit', async function(e
     } catch (error) {
         console.error('Upload error:', error);
         alert('Error uploading document: ' + error.message);
-        hideLoading();
-    }
-});
-
-// DOI upload handler
-console.log('Attaching doi-form submit handler');
-document.getElementById('doi-form').addEventListener('submit', async function(e) {
-    e.preventDefault();
-    console.log('DOI form submitted - JavaScript handler active');
-
-    const doi = document.getElementById('doi-input').value;
-    console.log('DOI entered:', doi);
-
-    const formData = new FormData();
-    formData.append('source_type', 'doi');
-    formData.append('doi', doi);
-
-    showLoading('Retrieving metadata from CrossRef...', `Looking up DOI: ${doi}`);
-
-    try {
-        console.log('Looking up DOI:', doi);
-        const response = await fetch('/upload/extract_metadata', {
-            method: 'POST',
-            body: formData
-        });
-
-        console.log('Response status:', response.status);
-        const result = await response.json();
-        console.log('Response data:', result);
-
-        if (result.success) {
-            if (result.needs_file) {
-                alert(result.message);
-                hideLoading();
-                // Switch to file upload mode
-                selectUploadMethod('file');
-            } else {
-                uploadState.extractedMetadata = result.metadata;
-                uploadState.tempPath = result.temp_path;
-                uploadState.provenance = result.provenance || {};
-
-                populateMetadataForm(result.metadata, uploadState.provenance);
-                showMetadataReview();
-            }
-        } else {
-            console.error('Server error:', result.error);
-            alert('Error: ' + result.error);
-            hideLoading();
-        }
-    } catch (error) {
-        console.error('DOI lookup error:', error);
-        alert('Error retrieving DOI metadata: ' + error.message);
         hideLoading();
     }
 });
@@ -609,7 +663,6 @@ document.getElementById('metadata-form').addEventListener('submit', async functi
 
 function resetUpload() {
     uploadState = {
-        currentMethod: 'file',
         extractedMetadata: null,
         tempPath: null,
         currentFileName: null,
@@ -617,9 +670,12 @@ function resetUpload() {
     };
 
     document.getElementById('file-form').reset();
-    document.getElementById('doi-form').reset();
     document.getElementById('metadata-form').reset();
     document.getElementById('metadata-review').classList.remove('show');
+
+    // Remove any alerts
+    document.querySelectorAll('#metadata-review .alert').forEach(alert => alert.remove());
+
     document.querySelectorAll('.upload-section').forEach(section => {
         section.style.display = 'none';
     });
