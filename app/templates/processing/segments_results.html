@@ -39,19 +39,19 @@
                                 <div class="row text-center mb-4">
                                     <div class="col-md-3">
                                         <div class="border rounded p-3">
-                                            <h4 class="text-warning mb-1">{{ total_segments }}</h4>
+                                            <h4 class="text-warning mb-1" id="stat-total-segments">{{ total_segments }}</h4>
                                             <small class="text-muted">Total Segments</small>
                                         </div>
                                     </div>
                                     <div class="col-md-3">
                                         <div class="border rounded p-3">
-                                            <h4 class="text-info mb-1">{{ avg_length|int }}</h4>
+                                            <h4 class="text-info mb-1" id="stat-avg-chars">{{ avg_length|int }}</h4>
                                             <small class="text-muted">Avg Characters</small>
                                         </div>
                                     </div>
                                     <div class="col-md-3">
                                         <div class="border rounded p-3">
-                                            <h4 class="text-primary mb-1">{{ avg_words|int }}</h4>
+                                            <h4 class="text-primary mb-1" id="stat-avg-words">{{ avg_words|int }}</h4>
                                             <small class="text-muted">Avg Words</small>
                                         </div>
                                     </div>
@@ -59,9 +59,9 @@
                                         <div class="border rounded p-3">
                                             {% if jobs %}
                                                 {% set params = jobs[0].get_parameters() %}
-                                                <h4 class="text-success mb-1">{{ params.get('method', 'N/A')|title }}</h4>
+                                                <h4 class="text-success mb-1" id="stat-method">{{ params.get('method', 'N/A')|title }}</h4>
                                             {% else %}
-                                                <h4 class="text-success mb-1">N/A</h4>
+                                                <h4 class="text-success mb-1" id="stat-method">N/A</h4>
                                             {% endif %}
                                             <small class="text-muted">Method</small>
                                         </div>
@@ -112,13 +112,17 @@
                         <div class="card-header">
                             <h6 class="mb-0">
                                 <i class="fas fa-list me-2"></i>Document Segments
-                                <span class="badge bg-secondary ms-2">{{ segments|length }}</span>
+                                <span class="badge bg-secondary ms-2" id="segment-count">{{ segments|length }}</span>
+                                <span id="filter-indicator" class="badge bg-info ms-2" style="display: none;"></span>
                             </h6>
                         </div>
                         <div class="card-body">
                             <div id="segments-container">
-                                {% for segment in segments[:20] %}
-                                <div class="card mb-3">
+                                {% for segment in segments[:100] %}
+                                <div class="card mb-3 segment-item"
+                                     data-method="{{ segment.segmentation_method if segment.segmentation_method else 'unknown' }}"
+                                     data-word-count="{{ segment.word_count if segment.word_count else 0 }}"
+                                     data-char-count="{{ segment.character_count if segment.character_count else 0 }}">
                                     <div class="card-header bg-light">
                                         <div class="d-flex justify-content-between align-items-center">
                                             <span class="badge bg-warning">Segment {{ segment.segment_number }}</span>
@@ -141,8 +145,8 @@
                                     </div>
                                 </div>
                                 {% endfor %}
-                                {% if segments|length > 20 %}
-                                <p class="text-muted text-center">Showing first 20 of {{ segments|length }} segments</p>
+                                {% if segments|length > 100 %}
+                                <p class="text-muted text-center">Showing first 100 of {{ segments|length }} segments</p>
                                 {% endif %}
                             </div>
                         </div>
@@ -157,34 +161,45 @@
                             <h6 class="mb-0"><i class="fas fa-history me-2"></i>Processing History</h6>
                         </div>
                         <div class="card-body">
-                            {% if jobs|length > 1 %}
+                            {% if jobs|length >= 1 %}
                                 <p class="small text-muted mb-3">
-                                    Document segmented {{ jobs|length }} times
+                                    {% if jobs|length > 1 %}
+                                    Document segmented {{ jobs|length }} times - Click to filter
+                                    {% else %}
+                                    Click "Show All" to reset filter
+                                    {% endif %}
                                 </p>
                                 <div class="list-group">
-                                    {% for job in jobs %}
-                                    <div class="list-group-item {{ 'active' if loop.first else '' }}">
+                                    <button type="button" class="list-group-item list-group-item-action filter-btn active" data-method="all" onclick="filterSegments('all', this)">
                                         <div class="d-flex w-100 justify-content-between">
                                             <h6 class="mb-1">
-                                                Run {{ loop.index }}
+                                                Show All
+                                                <span class="badge bg-primary ms-2">{{ segments|length }} segments</span>
+                                            </h6>
+                                        </div>
+                                    </button>
+                                    {% for job in jobs %}
+                                    {% set params = job.get_parameters() %}
+                                    {% set method = params.get('method', 'paragraph') %}
+                                    <button type="button" class="list-group-item list-group-item-action filter-btn" data-method="{{ method }}" onclick="filterSegments('{{ method }}', this)">
+                                        <div class="d-flex w-100 justify-content-between">
+                                            <h6 class="mb-1">
+                                                {{ method|title }} Method
                                                 {% if loop.first %}
-                                                <span class="badge bg-primary ms-2">Latest</span>
+                                                <span class="badge bg-info ms-2">Latest</span>
                                                 {% endif %}
                                             </h6>
                                             <small>{{ job.created_at.strftime('%m/%d %H:%M') if job.created_at else 'N/A' }}</small>
                                         </div>
                                         <p class="mb-1 small">
-                                            {% set params = job.get_parameters() %}
-                                            <span class="badge bg-secondary">{{ params.get('method', 'paragraph') }}</span>
+                                            <span class="badge bg-secondary">{{ method }}</span>
                                             <span class="badge {{ 'bg-success' if job.status == 'completed' else 'bg-warning' }} ms-1">
                                                 {{ job.status }}
                                             </span>
                                         </p>
-                                    </div>
+                                    </button>
                                     {% endfor %}
                                 </div>
-                            {% elif jobs %}
-                                <p class="text-muted">Single segmentation run</p>
                             {% else %}
                                 <p class="text-muted">No processing history</p>
                             {% endif %}
@@ -225,6 +240,76 @@ function toggleSegment(index) {
     } else {
         fullText.style.display = 'none';
         event.target.textContent = 'Show more';
+    }
+}
+
+function filterSegments(method, button) {
+    // Get all segment items
+    const segments = document.querySelectorAll('.segment-item');
+    const segmentCount = document.getElementById('segment-count');
+    const filterIndicator = document.getElementById('filter-indicator');
+
+    // Remove active class from all filter buttons
+    document.querySelectorAll('.filter-btn').forEach(btn => {
+        btn.classList.remove('active');
+    });
+
+    // Add active class to clicked button
+    button.classList.add('active');
+
+    let visibleCount = 0;
+    let totalWords = 0;
+    let totalChars = 0;
+
+    if (method === 'all') {
+        // Show all segments
+        segments.forEach(segment => {
+            segment.style.display = 'block';
+            visibleCount++;
+            totalWords += parseInt(segment.getAttribute('data-word-count') || 0);
+            totalChars += parseInt(segment.getAttribute('data-char-count') || 0);
+        });
+        filterIndicator.style.display = 'none';
+    } else {
+        // Filter by method
+        segments.forEach(segment => {
+            const segmentMethod = segment.getAttribute('data-method');
+            if (segmentMethod === method) {
+                segment.style.display = 'block';
+                visibleCount++;
+                totalWords += parseInt(segment.getAttribute('data-word-count') || 0);
+                totalChars += parseInt(segment.getAttribute('data-char-count') || 0);
+            } else {
+                segment.style.display = 'none';
+            }
+        });
+
+        // Update filter indicator
+        filterIndicator.textContent = `Filtered: ${method}`;
+        filterIndicator.style.display = 'inline-block';
+    }
+
+    // Update segment count
+    segmentCount.textContent = visibleCount;
+
+    // Update statistics
+    document.getElementById('stat-total-segments').textContent = visibleCount;
+
+    if (visibleCount > 0) {
+        const avgWords = Math.round(totalWords / visibleCount);
+        const avgChars = Math.round(totalChars / visibleCount);
+        document.getElementById('stat-avg-words').textContent = avgWords;
+        document.getElementById('stat-avg-chars').textContent = avgChars;
+    } else {
+        document.getElementById('stat-avg-words').textContent = '0';
+        document.getElementById('stat-avg-chars').textContent = '0';
+    }
+
+    // Update method display
+    if (method === 'all') {
+        document.getElementById('stat-method').textContent = 'All';
+    } else {
+        document.getElementById('stat-method').textContent = method.charAt(0).toUpperCase() + method.slice(1);
     }
 }
 </script>
