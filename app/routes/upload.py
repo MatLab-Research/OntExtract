@@ -324,24 +324,42 @@ def extract_metadata():
                 # Track any metadata extracted directly from PDF (even if CrossRef fails)
                 pdf_extracted_title = None
                 pdf_extracted_metadata = {}
+                progress_messages = []
 
                 # If CrossRef is enabled, try multi-step extraction
                 if enable_crossref:
                     current_app.logger.info(f"CrossRef enabled - attempting automatic extraction from PDF")
 
-                    # Step 1: Try extracting from PDF (DOI or title)
+                    # Step 1: Try extracting from PDF (arXiv ID, DOI, or title)
                     pdf_result = upload_service.extract_metadata_from_pdf(upload_result.temp_path)
+
+                    # Capture progress messages
+                    current_app.logger.info(f"PDF result type: {type(pdf_result)}")
+                    current_app.logger.info(f"Has progress attr: {hasattr(pdf_result, 'progress')}")
+                    current_app.logger.info(f"Progress value: {getattr(pdf_result, 'progress', None)}")
+                    if hasattr(pdf_result, 'progress') and pdf_result.progress:
+                        progress_messages = pdf_result.progress
+                        current_app.logger.info(f"Captured {len(progress_messages)} progress messages")
                     if pdf_result.success:
                         crossref_metadata = pdf_result.metadata
                         extraction_method = pdf_result.metadata.get('extraction_method', 'pdf_analysis')
-                        current_app.logger.info(f"PDF extraction successful via {extraction_method}")
+                        source_name = pdf_result.source  # 'semanticscholar', 'crossref', or 'pdf_analysis'
+                        current_app.logger.info(f"PDF extraction successful via {source_name} using {extraction_method}")
 
-                        # Track CrossRef provenance
+                        # Track provenance (Semantic Scholar or CrossRef)
                         for key, value in crossref_metadata.items():
                             if value is not None:
+                                # Set confidence based on extraction method
+                                if 'arxiv' in extraction_method:
+                                    confidence = 0.95  # arXiv ID matching is very reliable
+                                elif 'doi' in extraction_method:
+                                    confidence = 0.9  # DOI matching is very reliable
+                                else:
+                                    confidence = 0.85  # Title matching is less reliable
+
                                 crossref_provenance[key] = {
-                                    'source': 'crossref',
-                                    'confidence': 0.9 if 'doi' in extraction_method else 0.85,
+                                    'source': source_name,
+                                    'confidence': confidence,
                                     'timestamp': datetime.utcnow().isoformat(),
                                     'raw_value': value,
                                     'extraction_method': extraction_method
@@ -482,6 +500,9 @@ def extract_metadata():
                 else:
                     message = 'Document uploaded. Please review metadata before saving.'
 
+                current_app.logger.info(f"About to return JSON with {len(progress_messages)} progress messages")
+                current_app.logger.info(f"Progress messages: {progress_messages}")
+
                 return jsonify({
                     'success': True,
                     'metadata': merged_metadata,
@@ -491,7 +512,10 @@ def extract_metadata():
                     'message': message,
                     'crossref_enabled': enable_crossref,
                     'crossref_found': bool(crossref_metadata),
-                    'extraction_method': extraction_method
+                    'extraction_method': extraction_method,
+                    'confidence_level': confidence_level if crossref_metadata else None,
+                    'match_score': match_score if crossref_metadata else None,
+                    'progress': progress_messages
                 })
 
             except Exception as e:

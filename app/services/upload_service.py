@@ -6,8 +6,8 @@ experiment-specific uploads. Handles file processing, metadata extraction,
 and document creation.
 """
 
-from typing import Dict, Any, Optional, Tuple
-from dataclasses import dataclass
+from typing import Dict, Any, Optional, Tuple, List
+from dataclasses import dataclass, field
 import os
 import tempfile
 from pathlib import Path
@@ -16,6 +16,7 @@ from werkzeug.datastructures import FileStorage
 
 from app.utils.file_handler import FileHandler
 from app.services.crossref_metadata import CrossRefMetadataExtractor
+from app.services.semanticscholar_metadata import SemanticScholarMetadataExtractor
 from app.utils.pdf_analyzer import pdf_analyzer
 
 
@@ -35,8 +36,9 @@ class MetadataExtractionResult:
     """Result of metadata extraction"""
     success: bool
     metadata: Dict[str, Any]
-    source: str  # 'crossref', 'file_analysis', 'user_provided'
+    source: str  # 'crossref', 'semanticscholar', 'file_analysis', 'user_provided'
     error: Optional[str] = None
+    progress: List[str] = field(default_factory=list)  # Progress messages for UI feedback
 
 
 class UploadService:
@@ -56,6 +58,7 @@ class UploadService:
     def __init__(self):
         self.file_handler = FileHandler()
         self.crossref = CrossRefMetadataExtractor()
+        self.semanticscholar = SemanticScholarMetadataExtractor()
 
     def validate_file(self, file: FileStorage) -> Tuple[bool, Optional[str]]:
         """
@@ -243,35 +246,83 @@ class UploadService:
         """
         Extract metadata from PDF file automatically (Zotero-style).
 
-        Tries multiple methods:
-        1. Extract DOI from PDF and query CrossRef
-        2. Extract title from PDF and query CrossRef
-        3. Use embedded PDF metadata
+        Tries multiple methods in cascade:
+        1. Extract arXiv ID from PDF and query Semantic Scholar (best for arXiv papers)
+        2. Extract DOI from PDF and query Semantic Scholar (good for all papers)
+        3. Extract title from PDF and query CrossRef (with authors for better matching)
+        4. Use embedded PDF metadata as fallback
 
         Args:
             pdf_path: Path to PDF file
 
         Returns:
-            MetadataExtractionResult with extracted metadata
+            MetadataExtractionResult with extracted metadata and progress messages
         """
+        progress = []
         try:
-            # Analyze PDF to extract DOI/title
+            # Analyze PDF to extract arXiv ID, DOI, title, authors
+            progress.append("Analyzing PDF...")
             pdf_info = pdf_analyzer.analyze(pdf_path)
 
-            # Try DOI first (most reliable)
+            # Report what we extracted
+            if pdf_info.get('arxiv_id'):
+                progress.append(f"Found arXiv ID: {pdf_info['arxiv_id']}")
             if pdf_info.get('doi'):
-                result = self.extract_metadata_from_doi(pdf_info['doi'])
-                if result.success:
-                    # Add PDF analysis info to metadata
-                    result.metadata['extracted_doi'] = pdf_info['doi']
-                    result.metadata['extraction_method'] = 'doi_from_pdf'
-                    return result
+                progress.append(f"Found DOI: {pdf_info['doi']}")
+            if pdf_info.get('title'):
+                title_preview = pdf_info['title'][:60] + '...' if len(pdf_info['title']) > 60 else pdf_info['title']
+                progress.append(f"Extracted title: {title_preview}")
+            if pdf_info.get('authors'):
+                author_count = len(pdf_info['authors'])
+                progress.append(f"Extracted {author_count} author(s)")
 
-            # Try title search (with authors if available for better matching)
+            # Try arXiv ID first (most reliable for arXiv papers)
+            if pdf_info.get('arxiv_id'):
+                progress.append("Checking Semantic Scholar with arXiv ID...")
+                result = self.semanticscholar.extract_from_arxiv_id(pdf_info['arxiv_id'])
+                if result:
+                    progress.append("Found paper in Semantic Scholar!")
+                    return MetadataExtractionResult(
+                        success=True,
+                        metadata=self._normalize_metadata(result),
+                        source='semanticscholar',
+                        progress=progress
+                    )
+                else:
+                    progress.append("Not found in Semantic Scholar (paper may be too recent)")
+
+            # Try DOI with Semantic Scholar (comprehensive coverage)
+            if pdf_info.get('doi'):
+                progress.append("Checking Semantic Scholar with DOI...")
+                result = self.semanticscholar.extract_from_doi(pdf_info['doi'])
+                if result:
+                    result['extracted_doi'] = pdf_info['doi']
+                    progress.append("Found paper in Semantic Scholar!")
+                    return MetadataExtractionResult(
+                        success=True,
+                        metadata=self._normalize_metadata(result),
+                        source='semanticscholar',
+                        progress=progress
+                    )
+                else:
+                    progress.append("Not found in Semantic Scholar")
+
+            # Try title search with CrossRef (with authors if available for better matching)
             if pdf_info.get('title'):
                 authors = pdf_info.get('authors')
+                if authors:
+                    progress.append("Checking CrossRef with title and authors...")
+                else:
+                    progress.append("Checking CrossRef with title...")
                 result = self.crossref.extract_from_metadata(pdf_info['title'], authors=authors)
                 if result:
+                    # Check confidence
+                    confidence_level = result.get('confidence_level', 'high')
+                    if confidence_level == 'low':
+                        progress.append(f"Found possible match in CrossRef (low confidence)")
+                    else:
+                        progress.append("Found paper in CrossRef!")
+
                     # Add PDF analysis info
                     result['extracted_title'] = pdf_info['title']
                     if authors:
@@ -281,13 +332,17 @@ class UploadService:
                     return MetadataExtractionResult(
                         success=True,
                         metadata=self._normalize_metadata(result),
-                        source='crossref'
+                        source='crossref',
+                        progress=progress
                     )
+                else:
+                    progress.append("Not found in CrossRef")
 
-            # Fallback: return what we found from PDF (even if CrossRef failed)
+            # Fallback: return what we found from PDF (even if lookups failed)
+            progress.append("Using extracted PDF metadata as fallback")
             fallback_metadata = pdf_info.get('metadata', {})
 
-            # Include extracted metadata even if CrossRef lookup failed
+            # Include extracted metadata even if API lookups failed
             if pdf_info.get('title') and 'title' not in fallback_metadata:
                 fallback_metadata['title'] = pdf_info['title']
             if pdf_info.get('doi') and 'doi' not in fallback_metadata:
@@ -303,15 +358,18 @@ class UploadService:
                 success=False,
                 metadata=fallback_metadata,
                 source='pdf_analysis',
-                error="Could not find metadata in CrossRef using extracted DOI/title"
+                error="Could not find metadata using Semantic Scholar or CrossRef",
+                progress=progress
             )
 
         except Exception as e:
+            progress.append(f"Error: {str(e)}")
             return MetadataExtractionResult(
                 success=False,
                 metadata={},
                 source='pdf_analysis',
-                error=f"Error analyzing PDF: {str(e)}"
+                error=f"Error analyzing PDF: {str(e)}",
+                progress=progress
             )
 
     def extract_text_content(self, file_path: str, filename: str) -> Tuple[Optional[str], Optional[str], Optional[str]]:
@@ -339,7 +397,7 @@ class UploadService:
         Normalize metadata from different sources to consistent format.
 
         Args:
-            metadata: Raw metadata from CrossRef or other source
+            metadata: Raw metadata from CrossRef, Semantic Scholar, or other source
 
         Returns:
             Normalized metadata dictionary
@@ -355,7 +413,14 @@ class UploadService:
             'abstract': metadata.get('abstract'),
             'type': metadata.get('type'),  # journal-article, book, etc.
             'raw_date': metadata.get('raw_date'),
-            'match_score': metadata.get('match_score')  # For title searches
+            'match_score': metadata.get('match_score'),  # For title searches
+            'arxiv_id': metadata.get('arxiv_id'),  # arXiv identifier
+            's2_paper_id': metadata.get('s2_paper_id'),  # Semantic Scholar ID
+            'pdf_url': metadata.get('pdf_url'),  # Open access PDF URL
+            'citation_count': metadata.get('citation_count'),  # Citation count from Semantic Scholar
+            'extraction_method': metadata.get('extraction_method'),  # Method used (arxiv_id, doi, title_search)
+            'confidence_level': metadata.get('confidence_level'),  # high, low
+            'confidence_value': metadata.get('confidence_value')  # 0.0-1.0
         }
 
     def merge_metadata(self, *metadata_dicts: Dict[str, Any]) -> Dict[str, Any]:
