@@ -706,17 +706,26 @@ class DocumentProcessor:
             import re
             import spacy
 
-            # Try to load transformer model for sentence classification
+            # Get confidence threshold from settings
+            from app.models.app_settings import AppSetting
+            confidence_threshold = AppSetting.get_setting(
+                'definition_extraction_confidence_threshold',
+                user_id=self.user_id,
+                default=0.70  # Default: 70% confidence
+            )
+
+            # Try to load transformer model for definition extraction
             transformer_available = False
-            classifier = None
+            definition_extractor = None
 
             try:
                 from transformers import pipeline
-                # Zero-shot classification to identify definition sentences
-                # Uses BART fine-tuned on NLI (effective for this task)
-                classifier = pipeline(
-                    "zero-shot-classification",
-                    model="facebook/bart-large-mnli",
+                # Use DeftEval model trained specifically on definition extraction
+                # Replaces zero-shot with task-specific model (SemEval-2020 Task 6)
+                definition_extractor = pipeline(
+                    "token-classification",
+                    model="DFKI-SLT/bert-defmod-deft",
+                    aggregation_strategy="simple",
                     device=-1  # CPU (-1), use 0 for GPU
                 )
                 transformer_available = True
@@ -769,42 +778,83 @@ class DocumentProcessor:
                 # Fallback: simple sentence splitting
                 sentences = re.split(r'[.!?]+\s+', text)
 
-            # Filter sentences using transformer (if available)
-            candidate_sentences = sentences
-            sentence_scores = {}
+            # Extract definitions using transformer (if available)
+            transformer_definitions = []
 
-            if transformer_available and classifier and len(sentences) > 0:
+            if transformer_available and definition_extractor:
                 try:
-                    # Classify sentences as "contains definition" vs "general text"
-                    # Process in batches to avoid memory issues
-                    batch_size = 10
-                    for i in range(0, len(sentences), batch_size):
-                        batch = sentences[i:i+batch_size]
-                        # Filter out very short sentences to avoid errors
-                        valid_batch = [s for s in batch if len(s) > 20]
+                    # DeftEval model extracts term/definition pairs directly
+                    # Process text in chunks (model has token limit)
+                    max_length = 512  # BERT token limit
+                    chunks = []
+                    chunk_size = 2000  # Characters per chunk (rough approximation)
 
-                        if valid_batch:
-                            results = classifier(
-                                valid_batch,
-                                candidate_labels=["definition", "explanation", "general text"],
-                                multi_label=False
-                            )
+                    for i in range(0, len(text), chunk_size):
+                        chunk = text[i:i+chunk_size]
+                        if len(chunk) > 20:  # Skip very short chunks
+                            chunks.append((i, chunk))
 
-                            # Store scores for sentences that likely contain definitions
-                            for sent, result in zip(valid_batch, results if isinstance(results, list) else [results]):
-                                if result['labels'][0] in ['definition', 'explanation']:
-                                    score = result['scores'][0]
-                                    if score > 0.5:  # Only consider high-confidence sentences
-                                        sentence_scores[sent] = score
+                    # Extract from each chunk
+                    for offset, chunk in chunks:
+                        results = definition_extractor(chunk)
 
-                    # Use only high-scoring sentences for pattern extraction
-                    if sentence_scores:
-                        candidate_sentences = list(sentence_scores.keys())
+                        # Group consecutive entities into term-definition pairs
+                        current_term = None
+                        current_def = None
+
+                        for entity in results:
+                            label = entity.get('entity_group', entity.get('entity', ''))
+                            word = entity.get('word', '')
+                            score = entity.get('score', 0)
+
+                            # Skip low-confidence extractions
+                            if score < confidence_threshold:
+                                continue
+
+                            if 'TERM' in label.upper():
+                                # Save previous pair if exists
+                                if current_term and current_def:
+                                    transformer_definitions.append({
+                                        'term': current_term.strip(),
+                                        'definition': current_def.strip(),
+                                        'pattern': 'transformer_direct',
+                                        'confidence': min(score, 0.95),
+                                        'start': offset + entity.get('start', 0),
+                                        'end': offset + entity.get('end', 0)
+                                    })
+                                # Start new term
+                                current_term = word
+                                current_def = None
+                            elif 'DEFINITION' in label.upper() or 'GLOSS' in label.upper():
+                                if current_def:
+                                    current_def += ' ' + word
+                                else:
+                                    current_def = word
+
+                        # Save final pair
+                        if current_term and current_def:
+                            transformer_definitions.append({
+                                'term': current_term.strip(),
+                                'definition': current_def.strip(),
+                                'pattern': 'transformer_direct',
+                                'confidence': 0.90
+                            })
+
                 except Exception as e:
-                    # If transformer fails, fall back to all sentences
-                    candidate_sentences = sentences
+                    # If transformer fails, continue with pattern-only
+                    pass
 
             seen_terms = set()
+
+            # Add transformer-extracted definitions first (highest quality)
+            for defn in transformer_definitions:
+                term_key = defn['term'].lower()
+                if term_key not in seen_terms and len(defn['term']) > 1 and len(defn['definition']) > 10:
+                    seen_terms.add(term_key)
+                    definitions.append(defn)
+
+            # Also apply pattern-based extraction to catch anything transformer missed
+            candidate_sentences = sentences
 
             # Apply patterns to candidate sentences
             for sent in candidate_sentences:
@@ -877,22 +927,15 @@ class DocumentProcessor:
                             if len(words) < 3:
                                 continue
 
-                        # Boost confidence if transformer also identified this sentence
-                        final_confidence = confidence
-                        if sent in sentence_scores:
-                            # Combine pattern confidence with transformer score
-                            transformer_score = sentence_scores[sent]
-                            final_confidence = min(0.95, confidence * 0.6 + transformer_score * 0.4)
-
+                        # Pattern-based confidence (transformer extractions already added above)
                         definitions.append({
                             'term': term,
                             'definition': definition_text,
                             'pattern': pattern_type,
-                            'confidence': final_confidence,
+                            'confidence': confidence,
                             'start': start_pos,
                             'end': start_pos + len(match.group(0)),
-                            'sentence': sent,
-                            'transformer_score': sentence_scores.get(sent, 0.0)
+                            'sentence': sent
                         })
 
             # If spaCy is available, try to extract appositive definitions
@@ -935,20 +978,26 @@ class DocumentProcessor:
             # Build method string based on what was used
             method_parts = []
             if transformer_available:
-                method_parts.append("transformer_enhanced")
+                method_parts.append("defteval_direct_extraction")
             method_parts.append("pattern_matching")
             if nlp:
                 method_parts.append("dependency_parsing")
 
+            # Count transformer vs pattern extractions
+            transformer_count = sum(1 for d in definitions if d.get('pattern') == 'transformer_direct')
+            pattern_count = len(definitions) - transformer_count
+
             metadata = {
                 "total_definitions": len(definitions),
+                "transformer_extracted": transformer_count,
+                "pattern_extracted": pattern_count,
                 "pattern_types": pattern_counts,
                 "unique_patterns": len(pattern_counts),
                 "unique_terms": len(seen_terms),
                 "method": "+".join(method_parts),
+                "transformer_model": "DFKI-SLT/bert-defmod-deft" if transformer_available else None,
                 "transformer_used": transformer_available,
-                "sentences_analyzed": len(sentences),
-                "candidate_sentences": len(candidate_sentences),
+                "confidence_threshold": confidence_threshold,
                 "text_length": len(text)
             }
 

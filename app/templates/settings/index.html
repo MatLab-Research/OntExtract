@@ -261,6 +261,28 @@
                                     </div>
                                 </div>
 
+                                <hr class="my-4">
+
+                                <h6 class="mb-3">Definition Extraction (Transformer)</h6>
+
+                                <div class="mb-3">
+                                    <label for="definition_extraction_confidence_threshold" class="form-label">
+                                        Confidence Threshold
+                                        <span class="text-muted">(0.0 - 1.0)</span>
+                                    </label>
+                                    <div class="input-group">
+                                        <input type="range" class="form-range" id="definition_extraction_confidence_threshold"
+                                               min="0.5" max="0.95" step="0.05"
+                                               value="{{ settings.nlp.definition_extraction_confidence_threshold or 0.70 }}"
+                                               oninput="updateConfidenceDisplay(this.value)">
+                                        <span class="input-group-text" id="confidence-display">{{ (settings.nlp.definition_extraction_confidence_threshold or 0.70)|round(2) }}</span>
+                                    </div>
+                                    <small class="form-text text-muted">
+                                        Higher values = fewer but higher-quality definitions. Lower values = more definitions with potential false positives.
+                                        <br><strong>Recommended: 0.70</strong> (70% confidence)
+                                    </small>
+                                </div>
+
                                 <button type="submit" class="btn btn-primary">
                                     <i class="fas fa-save me-2"></i>Save Changes
                                 </button>
@@ -455,6 +477,11 @@
 </div>
 
 <script>
+// Update confidence threshold display
+function updateConfidenceDisplay(value) {
+    document.getElementById('confidence-display').textContent = parseFloat(value).toFixed(2);
+}
+
 // Save settings forms
 ['llm', 'processing', 'nlp', 'ui'].forEach(category => {
     const form = document.getElementById(`${category}-settings-form`);
@@ -467,12 +494,20 @@
             // Collect all form inputs
             form.querySelectorAll('input, select').forEach(input => {
                 let value = input.type === 'checkbox' ? input.checked : input.value;
+                let dataType = 'string';
+
+                if (input.type === 'checkbox') {
+                    dataType = 'boolean';
+                } else if (input.type === 'number' || input.type === 'range') {
+                    dataType = 'integer';
+                    value = parseFloat(value);  // Convert to number
+                }
+
                 settings[input.id] = {
                     setting_key: input.id,
                     setting_value: value,
                     category: category,
-                    data_type: input.type === 'checkbox' ? 'boolean' :
-                              input.type === 'number' ? 'integer' : 'string',
+                    data_type: dataType,
                     user_specific: true
                 };
             });
