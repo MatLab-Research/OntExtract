@@ -4,7 +4,7 @@
 **Based On:** `development` (commit `d7a74fd`)
 **Started:** 2025-11-16
 **Last Session:** 2025-11-18
-**Status:** IN PROGRESS - JCDL Paper Alignment
+**Status:** IN PROGRESS - Bug Fixes and Refactoring
 
 ---
 
@@ -27,15 +27,190 @@ This document tracks two major improvements to OntExtract:
 - **Testing**: Comprehensive validation of all functionality
 - **Merge**: All changes integrated into development branch (commit `d7a74fd`)
 
-**Phase 2: JCDL Paper Alignment (IN PROGRESS)**
+**Phase 2: JCDL Paper Alignment (COMPLETE)**
 - **Experiment Types**: Consolidated from 5 types to 3 well-defined types
 - **UI Improvements**: Registration form, Linked Data menu, metadata editing
 - **Paper Alignment**: Removed undefined types, aligned with actual implementation
-- **Status**: Changes ready for commit and merge
+- **Status**: All changes applied to codebase
+
+**Phase 3: Metadata Extraction UX (COMPLETE)**
+- **Progress Feedback**: Animated progress card with step-by-step tracking
+- **Provenance Display**: Specific extraction details instead of generic text
+- **Timeline Enhancement**: Color-coded, icon-enhanced processing timeline
+- **Status**: All improvements implemented and functional
+
+**Phase 4: Metadata Database Alignment (COMPLETE)**
+- **Data Flow Fix**: Aligned upload, view, and edit to use normalized database columns
+- **Key Definition**: Fixed to only display for semantic change experiments
+- **Schema Consistency**: Ensured all metadata flows through standard columns (authors, publication_date, journal, publisher, doi, isbn, document_subtype, abstract, url, citation)
+- **Status**: All metadata operations now use correct database schema
+
+**Phase 5: Document Deletion CASCADE Fix (COMPLETE)**
+- **Issue Fix**: Resolved IntegrityError when deleting documents
+- **Root Cause**: SQLAlchemy relationships missing `passive_deletes=True` flag
+- **Solution**: Added `passive_deletes=True` to relationships with CASCADE constraints
+- **Impact**: Document deletion now works correctly in both API and web UI
 
 ---
 
 ## Session Timeline
+
+### 2025-11-18 (Late Night) - Document Deletion CASCADE Fix
+
+#### Completed Tasks
+
+1. **Fixed Foreign Key CASCADE Constraint Handling**
+   - **Time:** Late night session
+   - **Issue:** Document deletion failing with IntegrityError on document_temporal_metadata table
+   - **Root Cause:** SQLAlchemy relationships missing `passive_deletes=True`, causing ORM to try setting foreign keys to NULL instead of letting database handle CASCADE
+   - **Database Analysis:**
+     - Identified multiple tables with `ON DELETE CASCADE` but missing passive_deletes
+     - document_temporal_metadata.document_id → ON DELETE CASCADE
+     - provenance_entities.document_id → ON DELETE CASCADE
+   - **Fix Applied:**
+     - Added `passive_deletes=True` to DocumentTemporalMetadata.document relationship (app/models/temporal_experiment.py:59-60)
+     - Added `passive_deletes=True` to ProvenanceEntity.document relationship (app/models/provenance.py:46-47)
+     - Removed backref declarations to avoid conflicts
+     - Removed explicit foreign_keys parameters to avoid import ordering issues
+   - **Files Modified:**
+     - app/models/temporal_experiment.py - Relationships now use passive_deletes
+     - app/models/provenance.py - Relationships now use passive_deletes
+     - app/models/document.py - Cleaned up relationship declarations
+   - **Testing:** Document deletion now works correctly via both Python API and web UI
+   - **Impact:** Users can now delete documents without foreign key constraint errors
+
+2. **Enhanced Deletion Error Handling for Experiment References**
+   - **Time:** Late night session
+   - **Issue:** Documents in experiments showed confusing IntegrityError when deletion attempted
+   - **Root Cause:** experiment_documents_v2 has ON DELETE NO ACTION (correct for referential integrity)
+   - **Design Decision:** Prevent deletion with clear user guidance rather than CASCADE
+   - **Implementation:**
+     - Added pre-deletion check for experiment references (app/routes/text_input/crud.py:246-274)
+     - Returns HTTP 409 (Conflict) with experiment list when document is in use
+     - Frontend JavaScript shows helpful alert with experiment names and IDs
+     - Guides user to either remove document from experiment or delete experiment first
+   - **Files Modified:**
+     - app/routes/text_input/crud.py - Added experiment reference check before deletion
+     - app/templates/text_input/document_detail_simplified.html - Enhanced JavaScript error handling
+     - app/models/experiment_document.py - Added passive_deletes=True to relationships
+   - **User Experience:** Clear error message: "Cannot delete this document because it is part of Experiment #33. Please remove the document from experiments first, or delete the experiment(s)."
+   - **Impact:** Users understand why deletion failed and know exactly how to proceed
+
+#### Technical Details
+
+**Problem:** SQLAlchemy default behavior tries to nullify foreign keys before deletion. When foreign key has NOT NULL constraint but CASCADE is set at database level, this causes IntegrityError.
+
+**Solution:** `passive_deletes=True` tells SQLAlchemy to skip the nullification step and let the database CASCADE handle child record deletion.
+
+**Pattern Applied:**
+```python
+# Child model with foreign key to documents
+document_id = db.Column(db.Integer, db.ForeignKey('documents.id', ondelete='CASCADE'), nullable=False)
+
+# Relationship must include passive_deletes=True
+document = db.relationship('Document', foreign_keys=[document_id], passive_deletes=True)
+```
+
+### 2025-11-18 (Night) - Metadata Database Alignment
+
+#### Completed Tasks
+
+1. **Key Definition Display Fix**
+   - **Time:** Night session start
+   - **Issue:** "Key Definition" field was duplicating abstract text for all documents
+   - **Root Cause:** Field was being set to abstract during upload, should only show for semantic change experiments
+   - **Fix:** Added conditional `{% if temporal_metadata.experiment_id and temporal_metadata.key_definition %}`
+   - **File:** `app/templates/text_input/document_detail_simplified.html:119-125`
+   - **Impact:** Key Definition now only appears for documents in semantic change experiments
+
+2. **Edit Form Population Fix**
+   - **Time:** Night session
+   - **Issue:** Authors field not properly handling array vs. string formats
+   - **Fix:** Added JavaScript array detection and join logic in `populateMetadataModal()`
+   - **File:** `app/templates/text_input/document_detail_simplified.html:717-726`
+   - **Impact:** Edit metadata form correctly populates authors regardless of storage format
+
+3. **Database Schema Alignment - View Display**
+   - **Time:** Night session
+   - **Issue:** View template reading from `source_metadata` JSONB instead of normalized columns
+   - **Critical Finding:** Document model has normalized columns for standard bibliographic fields
+   - **Fix:** Updated all field references to use normalized columns (`document.authors` instead of `document.source_metadata.get('authors')`)
+   - **Files:** `app/templates/text_input/document_detail_simplified.html:148-227`
+   - **Normalized Columns:** authors, publication_date, journal, publisher, document_subtype, doi, isbn, url, abstract, citation
+   - **Impact:** View now displays data from correct database columns
+
+4. **Database Schema Alignment - Save Operation**
+   - **Time:** Night session
+   - **Issue:** All data disappeared after view fix - save was writing to JSONB but not normalized columns
+   - **Root Cause:** `save_document()` route was putting everything in `source_metadata` JSONB, not populating normalized columns
+   - **Fix:** Updated document creation to write directly to normalized columns
+   - **Changes:**
+     - Parse `publication_year` to `publication_date` (datetime object)
+     - Set all normalized columns on Document object
+     - Keep `source_metadata` minimal (only `extraction_source` marker)
+   - **File:** `app/routes/upload.py:548-582`
+   - **Impact:** Complete data flow now uses normalized columns consistently
+
+#### Architecture Decision Documented
+
+**Dual Storage Pattern Clarified:**
+- **Normalized Columns**: Standard bibliographic fields (title, authors, abstract, etc.) → Primary storage
+- **source_metadata JSONB**: Custom/non-standard fields only (zotero_key, extraction notes, etc.)
+- **metadata_provenance JSONB**: PROV-O tracking data
+
+**Data Flow Established:**
+```
+Upload → Normalized Columns → View Display → Edit Form → Save → Normalized Columns
+```
+
+**API Verification:**
+- Confirmed GET /document/<uuid>/metadata reads from normalized columns (app/routes/text_input/api.py:82-95)
+- Edit form POST updates normalized columns correctly
+
+### 2025-11-18 (Late Evening) - Metadata Extraction UX Improvements
+
+#### Completed Tasks
+
+1. **Progress Feedback UI Overhaul**
+   - **Time:** Late evening session
+   - **Objective:** Replace generic loading spinner with detailed progress tracking during PDF upload
+   - **Implementation:**
+     - Created dedicated progress card widget with Bootstrap progress bar
+     - Real-time progress updates showing extraction steps (Analyzing PDF, Found arXiv ID, Checking Semantic Scholar, etc.)
+     - Animated progress bar fills 0% → 100% as steps complete
+     - Each completed step shows with green checkmark
+     - Current step displays with spinning icon
+     - Progress card remains visible during metadata review
+   - **Files Modified:**
+     - `app/templates/text_input/upload_enhanced.html` - Added progress card HTML and JavaScript
+     - `app/services/upload_service.py` - Progress messages in MetadataExtractionResult
+     - `app/routes/upload.py` - Progress capture and JSON response
+   - **Impact:** Users now see detailed extraction progress instead of generic "Analyzing..." message
+
+2. **Metadata Provenance Display Improvements**
+   - **Time:** Late evening session
+   - **Objective:** Make provenance display more specific and less verbose
+   - **Changes:**
+     - Removed generic repeated text ("Metadata automatically retrieved from...")
+     - Added extraction-specific details:
+       - Semantic Scholar: "Matched via arXiv ID: 2501.04227v2"
+       - CrossRef: "Matched via DOI: ..." or "Matched via title search (Score: 75.5)"
+     - Simplified field counts ("12 fields" instead of "12 fields extracted")
+     - Removed redundant intro text ("Metadata extraction and updates tracked with PROV-O standard")
+   - **File:** `app/templates/text_input/document_detail_simplified.html`
+   - **Impact:** Provenance section now shows actual extraction session details
+
+3. **Processing Timeline Enhancement**
+   - **Time:** Late evening session
+   - **Objective:** Make activity timeline more concise and visually clear
+   - **Changes:**
+     - Renamed "Recent Activity" → "Processing Timeline"
+     - Added color-coded borders (green=metadata, blue=segmentation, yellow=embeddings)
+     - More concise labels with icons ("Semantic Scholar metadata", "42 segments", "Embeddings")
+     - Shows 4 recent activities instead of 3
+     - Removed verbose activity type names
+   - **File:** `app/templates/text_input/document_detail_simplified.html`
+   - **Impact:** Timeline is more scannable and informative
 
 ### 2025-11-18 (Evening) - Experiment Type Consolidation
 
@@ -193,18 +368,27 @@ This document tracks two major improvements to OntExtract:
 |------|--------|--------|--------|
 | `requirements.txt` | sentence-transformers 2.3.1→5.1.2 | Merged | 8c5df75 |
 | `app/services/experiment_embedding_service.py` | Added offline mode config | Merged | 1f7aba8 |
-| `app/templates/experiments/new.html` | Consolidated to 3 experiment types | Pending | TBD |
-| `app/templates/experiments/view.html` | Updated type display badges | Pending | TBD |
-| `app/templates/experiments/index.html` | Updated type display badges | Pending | TBD |
-| `app/models/experiment.py` | Updated valid types comment | Pending | TBD |
-| `app/dto/experiment_dto.py` | Updated validation pattern to 3 types | Pending | TBD |
-| `app/templates/auth/register.html` | Added password reset help text | Pending | TBD |
-| `app/routes/linked_data.py` | Created Linked Data blueprint | Pending | TBD |
-| `app/templates/linked_data/index.html` | Created placeholder page | Pending | TBD |
-| `app/templates/base.html` | Added Linked Data menu item | Pending | TBD |
-| `app/templates/text_input/document_detail_simplified.html` | Consolidated metadata editing | Pending | TBD |
-| `app/routes/__init__.py` | Added linked_data_bp import | Pending | TBD |
-| `PROGRESS.md` | Updated with all session changes | Pending | TBD |
+| `app/templates/experiments/new.html` | Consolidated to 3 experiment types | Applied | TBD |
+| `app/templates/experiments/view.html` | Updated type display badges | Applied | TBD |
+| `app/templates/experiments/index.html` | Updated type display badges | Applied | TBD |
+| `app/models/experiment.py` | Updated valid types comment | Applied | TBD |
+| `app/dto/experiment_dto.py` | Updated validation pattern to 3 types | Applied | TBD |
+| `app/templates/auth/register.html` | Added password reset help text | Applied | TBD |
+| `app/routes/linked_data.py` | Created Linked Data blueprint | Applied | TBD |
+| `app/templates/linked_data/index.html` | Created placeholder page | Applied | TBD |
+| `app/templates/base.html` | Added Linked Data menu item | Applied | TBD |
+| `app/templates/text_input/upload_enhanced.html` | Progress card UI with progress bar | Applied | TBD |
+| `app/templates/text_input/document_detail_simplified.html` | Provenance & timeline improvements + metadata schema alignment | Applied | TBD |
+| `app/services/upload_service.py` | Progress messages in dataclass | Applied | TBD |
+| `app/routes/upload.py` | Progress capture + normalized columns save | Applied | TBD |
+| `app/routes/__init__.py` | Added linked_data_bp import | Applied | TBD |
+| `app/models/temporal_experiment.py` | Added passive_deletes=True to relationships | Applied | TBD |
+| `app/models/provenance.py` | Added passive_deletes=True to relationships | Applied | TBD |
+| `app/models/document.py` | Cleaned up relationship declarations | Applied | TBD |
+| `app/models/experiment_document.py` | Added passive_deletes=True to relationships | Applied | TBD |
+| `app/routes/text_input/crud.py` | Added experiment reference check before deletion | Applied | TBD |
+| `app/templates/text_input/document_detail_simplified.html` | Enhanced delete error handling in JavaScript | Applied | TBD |
+| `PROGRESS.md` | Updated with all session changes | Applied | TBD |
 
 ### Files to Watch (Potentially Affected by Update)
 
@@ -338,18 +522,39 @@ Documented in `DEPLOYMENT_UPDATE_GUIDE.md` - Emergency rollback procedures avail
 4. Verified compatibility through comprehensive testing
 5. Merged all changes into development branch (commit `d7a74fd`)
 
-### In Progress (Evening Session 2025-11-18)
+### Completed Work (Session 2025-11-18)
 
+**Experiment Type Consolidation (Evening):**
 1. Consolidated experiment types from 5 to 3 (aligned with JCDL paper)
 2. Updated frontend dropdown, backend validation, and display templates
 3. Added UI improvements for conference demo
 4. Created Linked Data placeholder page with OntServe integration info
 
+**Metadata Extraction UX (Late Evening):**
+1. Implemented progress card with animated progress bar
+2. Real-time extraction step tracking (Analyzing PDF, Found arXiv ID, etc.)
+3. Specific provenance display instead of generic text
+4. Enhanced Processing Timeline with color-coding and icons
+
+**Metadata Database Alignment (Night):**
+1. Fixed Key Definition display (only for semantic change experiments)
+2. Fixed edit form population (authors array/string handling)
+3. Aligned view display to read from normalized database columns
+4. Fixed save operation to write to normalized columns
+5. Documented dual storage pattern (normalized columns vs. JSONB)
+
 ### Next Steps
 
-1. Commit and merge JCDL alignment changes to development branch
-2. Test experiment creation with new 3-type system
-3. When ready for production deployment, follow checklist in `DEPLOYMENT_UPDATE_GUIDE.md`
+1. Test complete metadata workflow:
+   - Upload new PDF with metadata extraction
+   - Verify all fields display correctly in document detail view
+   - Test "Edit Metadata" - ensure form populates with current values
+   - Edit and save - verify changes persist to normalized columns
+2. Test with various PDF types (arXiv, DOI, title-only)
+3. Verify existing documents still display correctly
+4. Commit all improvements to development branch
+5. Continue JCDL preparation work (evaluation, documentation)
+6. When ready for production deployment, follow checklist in `DEPLOYMENT_UPDATE_GUIDE.md`
 
 ---
 
@@ -376,6 +581,6 @@ Documented in `DEPLOYMENT_UPDATE_GUIDE.md` - Emergency rollback procedures avail
 
 ---
 
-**Last Updated:** 2025-11-18 (Evening)
-**Current Status:** IN PROGRESS - JCDL Paper Alignment
-**Next Steps:** Commit and merge experiment type consolidation changes
+**Last Updated:** 2025-11-18 (Night)
+**Current Status:** ACTIVE DEVELOPMENT - Metadata Database Alignment Complete
+**Next Steps:** Test complete metadata workflow, continue JCDL preparation

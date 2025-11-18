@@ -56,9 +56,9 @@ class DocumentTemporalMetadata(db.Model):
     updated_at = db.Column(db.DateTime(timezone=True), default=datetime.utcnow, onupdate=datetime.utcnow)
 
     # Relationships
-    document = db.relationship('Document', backref='temporal_metadata')
-    experiment = db.relationship('Experiment', backref='document_temporal_metadata')
-    reviewer = db.relationship('User', backref='reviewed_temporal_metadata')
+    document = db.relationship('Document', foreign_keys=[document_id], passive_deletes=True)
+    experiment = db.relationship('Experiment', foreign_keys=[experiment_id], passive_deletes=True)
+    reviewer = db.relationship('User', foreign_keys=[reviewed_by])
 
     __table_args__ = (
         db.UniqueConstraint('document_id', 'experiment_id', name='uq_doc_experiment_temporal'),

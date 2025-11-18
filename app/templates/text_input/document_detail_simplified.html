@@ -117,20 +117,27 @@
                         {% if temporal_metadata %}
                         <!-- Temporal Metadata Section -->
                         <div class="row g-2 mb-3">
+                            {% if temporal_metadata.publication_year %}
                             <div class="col-md-6">
                                 <label class="form-label text-muted small mb-1">Publication Year</label>
-                                <div class="form-control-plaintext py-1">{{ temporal_metadata.publication_year or '—' }}</div>
+                                <div class="form-control-plaintext py-1">{{ temporal_metadata.publication_year }}</div>
                             </div>
+                            {% endif %}
 
+                            {% if temporal_metadata.discipline %}
                             <div class="col-md-6">
                                 <label class="form-label text-muted small mb-1">Discipline</label>
-                                <div class="form-control-plaintext py-1">{{ temporal_metadata.discipline|title if temporal_metadata.discipline else '—' }}</div>
+                                <div class="form-control-plaintext py-1">{{ temporal_metadata.discipline|title }}</div>
                             </div>
+                            {% endif %}
 
+                            {% if temporal_metadata.experiment_id and temporal_metadata.key_definition %}
+                            <!-- Only show key definition when part of a semantic change experiment and has value -->
                             <div class="col-md-12">
                                 <label class="form-label text-muted small mb-1">Key Definition</label>
-                                <div class="form-control-plaintext py-1 small">{{ temporal_metadata.key_definition or '—' }}</div>
+                                <div class="form-control-plaintext py-1 small">{{ temporal_metadata.key_definition }}</div>
                             </div>
+                            {% endif %}
                         </div>
                         {% endif %}
 
@@ -153,88 +160,92 @@
 
                         <!-- Metadata Fields -->
                         <div class="row g-2">
+                            {% if document.title %}
                             <div class="col-md-6">
                                 <label class="form-label text-muted small mb-1">Title</label>
-                                <div class="form-control-plaintext py-1">{{ document.title or '—' }}</div>
+                                <div class="form-control-plaintext py-1">{{ document.title }}</div>
                             </div>
+                            {% endif %}
 
+                            {% if document.authors %}
                             <div class="col-md-6">
                                 <label class="form-label text-muted small mb-1">Authors</label>
-                                <div class="form-control-plaintext py-1">
-                                    {% if document.source_metadata.get('authors') %}
-                                        {% if document.source_metadata.authors is string %}
-                                        {{ document.source_metadata.authors }}
-                                        {% elif document.source_metadata.authors is sequence %}
-                                        {{ document.source_metadata.authors|join(', ') }}
-                                        {% endif %}
-                                    {% else %}
-                                    —
-                                    {% endif %}
-                                </div>
+                                <div class="form-control-plaintext py-1">{{ document.authors }}</div>
                             </div>
+                            {% endif %}
 
+                            {% if document.publication_date %}
                             <div class="col-md-6">
                                 <label class="form-label text-muted small mb-1">Publication Date</label>
-                                <div class="form-control-plaintext py-1">{{ document.source_metadata.get('publication_date', document.source_metadata.get('publication_year', '—')) }}</div>
+                                <div class="form-control-plaintext py-1">{{ document.publication_date.strftime('%Y-%m-%d') if document.publication_date else '' }}</div>
                             </div>
+                            {% endif %}
 
+                            {% if document.journal %}
                             <div class="col-md-6">
                                 <label class="form-label text-muted small mb-1">Journal/Publisher</label>
-                                <div class="form-control-plaintext py-1">{{ document.source_metadata.get('journal', '—') }}</div>
+                                <div class="form-control-plaintext py-1">{{ document.journal }}</div>
                             </div>
+                            {% endif %}
 
+                            {% if document.publisher %}
                             <div class="col-md-6">
                                 <label class="form-label text-muted small mb-1">Publisher</label>
-                                <div class="form-control-plaintext py-1">{{ document.source_metadata.get('publisher', '—') }}</div>
+                                <div class="form-control-plaintext py-1">{{ document.publisher }}</div>
                             </div>
+                            {% endif %}
 
+                            {% if document.document_subtype %}
                             <div class="col-md-6">
                                 <label class="form-label text-muted small mb-1">Type</label>
-                                <div class="form-control-plaintext py-1">{{ document.source_metadata.get('type', '—') }}</div>
+                                <div class="form-control-plaintext py-1">{{ document.document_subtype }}</div>
                             </div>
+                            {% endif %}
 
+                            {% if document.doi %}
                             <div class="col-md-6">
                                 <label class="form-label text-muted small mb-1">DOI</label>
                                 <div class="form-control-plaintext py-1">
-                                    {% if document.source_metadata.get('doi') %}
-                                    <a href="https://doi.org/{{ document.source_metadata.doi }}" target="_blank"
+                                    <a href="https://doi.org/{{ document.doi }}" target="_blank"
                                         class="text-decoration-none">
-                                        {{ document.source_metadata.doi }} <i class="fas fa-external-link-alt ms-1 small"></i>
+                                        {{ document.doi }} <i class="fas fa-external-link-alt ms-1 small"></i>
                                     </a>
-                                    {% else %}
-                                    —
-                                    {% endif %}
                                 </div>
                             </div>
+                            {% endif %}
 
+                            {% if document.isbn %}
                             <div class="col-md-6">
                                 <label class="form-label text-muted small mb-1">ISBN</label>
-                                <div class="form-control-plaintext py-1">{{ document.source_metadata.get('isbn', '—') }}</div>
+                                <div class="form-control-plaintext py-1">{{ document.isbn }}</div>
                             </div>
+                            {% endif %}
 
+                            {% if document.url %}
                             <div class="col-md-12">
                                 <label class="form-label text-muted small mb-1">URL</label>
                                 <div class="form-control-plaintext py-1">
-                                    {% if document.source_metadata.get('url') %}
-                                    <a href="{{ document.source_metadata.url }}" target="_blank"
+                                    <a href="{{ document.url }}" target="_blank"
                                         class="text-decoration-none">
-                                        {{ document.source_metadata.url }} <i class="fas fa-external-link-alt ms-1 small"></i>
+                                        {{ document.url }} <i class="fas fa-external-link-alt ms-1 small"></i>
                                     </a>
-                                    {% else %}
-                                    —
-                                    {% endif %}
                                 </div>
                             </div>
+                            {% endif %}
 
+                            {% if document.abstract %}
                             <div class="col-md-12">
                                 <label class="form-label text-muted small mb-1">Abstract</label>
-                                <div class="form-control-plaintext py-1 small">{{ document.source_metadata.get('abstract', '—') }}</div>
+                                <div class="form-control-plaintext py-1 small">{{ document.abstract }}</div>
                             </div>
+                            {% endif %}
 
+                            {% if document.citation %}
                             <div class="col-md-12">
                                 <label class="form-label text-muted small mb-1">Citation</label>
-                                <div class="form-control-plaintext py-1 small">{{ document.source_metadata.get('citation', '—') }}</div>
+                                <div class="form-control-plaintext py-1 small">{{ document.citation }}</div>
                             </div>
+                            {% endif %}
                         </div>
 
                         <!-- Action buttons -->
@@ -704,12 +715,26 @@
                     'Content-Type': 'application/json',
                 }
             })
-            .then(response => response.json())
+            .then(response => {
+                if (response.status === 409) {
+                    // Conflict - document is in experiments
+                    return response.json().then(data => {
+                        let message = 'Cannot delete this document because it is part of:\n\n';
+                        data.experiments.forEach(exp => {
+                            message += `- ${exp.name} (ID: ${exp.id})\n`;
+                        });
+                        message += '\nPlease remove the document from these experiments first, or delete the experiment(s).';
+                        alert(message);
+                        return { success: false };
+                    });
+                }
+                return response.json();
+            })
             .then(data => {
                 if (data.success) {
                     window.location.href = "{{ url_for('text_input.document_list') }}";
-                } else {
-                    alert('Error deleting document: ' + (data.error || 'Unknown error'));
+                } else if (data.error && !data.experiments) {
+                    alert('Error deleting document: ' + data.error);
                 }
             })
             .catch(error => {
@@ -762,7 +787,18 @@
     function populateMetadataModal(metadata) {
         document.getElementById('metadataModalTitle').textContent = 'Edit Metadata';
         document.getElementById('metadataTitle').value = metadata.title || '';
-        document.getElementById('metadataAuthors').value = metadata.authors || '';
+
+        // Handle authors - convert array to comma-separated string if needed
+        let authorsValue = '';
+        if (metadata.authors) {
+            if (Array.isArray(metadata.authors)) {
+                authorsValue = metadata.authors.join(', ');
+            } else {
+                authorsValue = metadata.authors;
+            }
+        }
+        document.getElementById('metadataAuthors').value = authorsValue;
+
         document.getElementById('metadataPublicationDate').value = metadata.publication_date || metadata.publication_year || '';
         document.getElementById('metadataJournal').value = metadata.journal || '';
         document.getElementById('metadataPublisher').value = metadata.publisher || '';

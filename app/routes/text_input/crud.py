@@ -4,9 +4,11 @@ Text Input CRUD Operations Routes
 This module handles document CRUD operations.
 
 Routes:
-- GET  /input/documents                    - List all documents
-- GET  /input/document/<id>                - View document details
-- POST /input/document/<id>/delete         - Delete document
+- GET  /input/documents                         - List all documents
+- GET  /input/document/<id>                     - View document details (by ID)
+- GET  /input/document/<uuid>                   - View document details (by UUID)
+- POST /input/document/<id>/delete              - Delete document (by ID)
+- POST /input/document/<uuid>/delete            - Delete document (by UUID)
 - POST /input/document/<id>/delete-all-versions - Delete all versions
 """
 
@@ -226,6 +228,73 @@ def delete_document(document_id):
 
         flash('An error occurred while deleting the document', 'error')
         return redirect(url_for('text_input.document_detail', document_id=document_id))
+
+
+@text_input_bp.route('/document/<uuid:document_uuid>/delete', methods=['POST'])
+@write_login_required
+def delete_document_by_uuid(document_uuid):
+    """Delete a document by UUID"""
+    document = Document.query.filter_by(uuid=document_uuid).first_or_404()
+
+    # Check permissions - only owner or admin can delete
+    if not current_user.can_delete_resource(document):
+        if request.is_json:
+            return jsonify({'error': 'Permission denied'}), 403
+        flash('You do not have permission to delete this document', 'error')
+        return redirect(url_for('text_input.document_detail_by_uuid', document_uuid=document_uuid))
+
+    # Check if document is part of any experiments
+    experiments = db.session.execute(
+        text('''
+            SELECT DISTINCT e.id, e.name
+            FROM experiments e
+            LEFT JOIN experiment_documents_v2 ed ON ed.experiment_id = e.id
+            LEFT JOIN experiment_documents ed_old ON ed_old.experiment_id = e.id
+            WHERE ed.document_id = :doc_id OR ed_old.document_id = :doc_id
+        '''),
+        {'doc_id': document.id}
+    ).fetchall()
+
+    if experiments:
+        # Document is referenced in experiments - cannot delete
+        experiment_list = [{'id': exp.id, 'name': exp.name} for exp in experiments]
+
+        if request.is_json:
+            return jsonify({
+                'error': 'Cannot delete document: still referenced in experiments',
+                'experiments': experiment_list
+            }), 409
+
+        # Build helpful error message
+        exp_names = ', '.join([f'"{exp.name}"' for exp in experiments[:3]])
+        if len(experiments) > 3:
+            exp_names += f' and {len(experiments) - 3} more'
+
+        flash(f'Cannot delete this document because it is part of {len(experiments)} experiment(s): {exp_names}. Please remove the document from experiments first, or delete the experiment(s).', 'error')
+        return redirect(url_for('text_input.document_detail_by_uuid', document_uuid=document_uuid))
+
+    try:
+        # Delete associated file
+        document.delete_file()
+
+        # Delete database record (cascades to related records)
+        db.session.delete(document)
+        db.session.commit()
+
+        if request.is_json:
+            return jsonify({'success': True, 'message': 'Document deleted successfully'})
+
+        flash('Document deleted successfully', 'success')
+        return redirect(url_for('text_input.document_list'))
+
+    except Exception as e:
+        current_app.logger.error(f"Error deleting document by UUID: {str(e)}")
+
+        if request.is_json:
+            return jsonify({'error': 'An error occurred while deleting the document'}), 500
+
+        flash('An error occurred while deleting the document', 'error')
+        return redirect(url_for('text_input.document_detail_by_uuid', document_uuid=document_uuid))
 
 
 @text_input_bp.route('/document/<int:base_document_id>/delete-all-versions', methods=['POST'])
