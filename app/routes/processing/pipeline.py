@@ -1546,8 +1546,31 @@ def view_entities_results(document_uuid):
 
         jobs.sort(key=lambda j: (j.created_at is None, j.created_at), reverse=True)
 
-        # Get entities from database
-        entities = ExtractedEntity.query.filter_by(document_id=document.id).all()
+        # Get entities from database (old ExtractedEntity table)
+        old_entities = ExtractedEntity.query.filter_by(document_id=document.id).all()
+
+        # Also get entities from ProcessingArtifact (new experiment processing)
+        from app.models.experiment_processing import ProcessingArtifact
+        new_artifacts = ProcessingArtifact.query.filter(
+            ProcessingArtifact.document_id == document.id,
+            ProcessingArtifact.artifact_type == 'extracted_entity'
+        ).order_by(ProcessingArtifact.artifact_index).all()
+
+        # Create wrapper class to make ProcessingArtifact look like ExtractedEntity
+        class EntityWrapper:
+            def __init__(self, artifact):
+                content_data = artifact.get_content()
+                self.entity_text = content_data.get('entity', '')
+                self.entity_type = content_data.get('entity_type', 'UNKNOWN')
+                self.start_position = content_data.get('start_char')
+                self.end_position = content_data.get('end_char')
+                self.confidence = content_data.get('confidence', 0)
+                self.context = content_data.get('context', '')
+
+        # Combine old and new entities
+        entities = list(old_entities)
+        for artifact in new_artifacts:
+            entities.append(EntityWrapper(artifact))
 
         # Group entities by type
         entities_by_type = {}
@@ -1656,9 +1679,47 @@ def view_segments_results(document_uuid):
         jobs.sort(key=lambda j: (j.created_at is None, j.created_at), reverse=True)
 
         # Get segments from all versions (prioritize latest version by document_id DESC)
-        segments = TextSegment.query.filter(
+        # Check both old TextSegment table and new ProcessingArtifact table
+        old_segments = TextSegment.query.filter(
             TextSegment.document_id.in_(all_version_ids)
         ).order_by(TextSegment.document_id.desc(), TextSegment.segment_number).all()
+
+        # Also get segments from ProcessingArtifact (new experiment processing)
+        from app.models.experiment_processing import ProcessingArtifact
+        new_artifacts = ProcessingArtifact.query.filter(
+            ProcessingArtifact.document_id.in_(all_version_ids),
+            ProcessingArtifact.artifact_type == 'text_segment'
+        ).order_by(ProcessingArtifact.artifact_index).all()
+
+        # Create a wrapper class to make ProcessingArtifact look like TextSegment
+        class SegmentWrapper:
+            def __init__(self, artifact):
+                content_data = artifact.get_content()
+                metadata = artifact.get_metadata()
+                self.segment_number = artifact.artifact_index + 1
+                self.content = content_data.get('text', '')
+                self.word_count = metadata.get('word_count', len(self.content.split()))
+                self.character_count = len(self.content)
+                # Get segmentation method from content or metadata
+                self.segmentation_method = content_data.get('segment_type', metadata.get('method', 'unknown'))
+
+        # Combine old and new segments, adding segmentation_method to old segments
+        segments = []
+        for seg in old_segments:
+            # Add segmentation_method attribute to old TextSegment objects
+            # Try to infer from segmentation_type field if it exists, otherwise 'paragraph'
+            if hasattr(seg, 'segmentation_type'):
+                seg.segmentation_method = seg.segmentation_type
+            else:
+                # Default to paragraph for old segments without type info
+                seg.segmentation_method = 'paragraph'
+            segments.append(seg)
+
+        for artifact in new_artifacts:
+            segments.append(SegmentWrapper(artifact))
+
+        # Sort by segment number
+        segments.sort(key=lambda s: s.segment_number)
 
         # Calculate statistics
         if segments:

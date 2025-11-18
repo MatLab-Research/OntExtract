@@ -442,10 +442,10 @@ class PipelineService(BaseService):
                     self._process_entities(processing_op, index_entry, exp_doc, processing_method)
                 elif processing_type == 'temporal':
                     self._process_temporal(processing_op, index_entry, exp_doc, processing_method)
-                elif processing_type == 'causal':
-                    self._process_causal(processing_op, index_entry, exp_doc, processing_method)
                 elif processing_type == 'definitions':
                     self._process_definitions(processing_op, index_entry, exp_doc, processing_method)
+                elif processing_type == 'enhanced_processing':
+                    self._process_enhanced(processing_op, index_entry, exp_doc, processing_method)
                 else:
                     raise ValidationError(f'Unsupported processing type: {processing_type}')
 
@@ -1064,64 +1064,6 @@ class PipelineService(BaseService):
         else:
             raise RuntimeError(f"Temporal extraction failed: {result.metadata.get('error', 'Unknown error')}")
 
-    def _process_causal(
-        self,
-        processing_op: ExperimentDocumentProcessing,
-        index_entry: DocumentProcessingIndex,
-        exp_doc: ExperimentDocument,
-        processing_method: str
-    ):
-        """Process causal relationship extraction for a document"""
-        from app.services.processing_tools import DocumentProcessor
-
-        processor = DocumentProcessor(
-            user_id=processing_op.configuration.get('created_by'),
-            experiment_id=exp_doc.experiment_id
-        )
-
-        content = exp_doc.document.content
-        if not content:
-            processing_op.mark_completed({'causal_relations': 0})
-            index_entry.status = 'completed'
-            return
-
-        # Run causal extraction
-        result = processor.extract_causal(content)
-
-        if result.status == 'success':
-            # Create artifacts for each causal relation
-            for i, relation in enumerate(result.data):
-                artifact = ProcessingArtifact(
-                    processing_id=processing_op.id,
-                    document_id=exp_doc.document_id,
-                    artifact_type='causal_relation',
-                    artifact_index=i
-                )
-                artifact.set_content({
-                    'cause': relation['cause'],
-                    'effect': relation['effect'],
-                    'marker': relation['marker'],
-                    'type': relation['type'],
-                    'confidence': relation['confidence'],
-                    'sentence': relation.get('sentence', '')
-                })
-                artifact.set_metadata({
-                    'method': processing_method,
-                    'start_char': relation['start'],
-                    'end_char': relation['end']
-                })
-                db.session.add(artifact)
-
-            processing_op.mark_completed({
-                'causal_method': processing_method,
-                'relations_found': result.metadata.get('total_relations', 0),
-                'relation_types': result.metadata.get('relation_types', {}),
-                'service_used': result.metadata.get('method', 'pattern_matching_plus_dependency_parsing')
-            })
-            index_entry.status = 'completed'
-        else:
-            raise RuntimeError(f"Causal extraction failed: {result.metadata.get('error', 'Unknown error')}")
-
     def _process_definitions(
         self,
         processing_op: ExperimentDocumentProcessing,
@@ -1178,6 +1120,68 @@ class PipelineService(BaseService):
             index_entry.status = 'completed'
         else:
             raise RuntimeError(f"Definition extraction failed: {result.metadata.get('error', 'Unknown error')}")
+
+    def _process_enhanced(
+        self,
+        processing_op: ExperimentDocumentProcessing,
+        index_entry: DocumentProcessingIndex,
+        exp_doc: ExperimentDocument,
+        processing_method: str
+    ):
+        """
+        Process enhanced extraction (term extraction + OED enrichment)
+
+        This is a placeholder implementation that will be expanded to include:
+        - Term extraction from document
+        - OED API integration for historical definitions
+        - Period-aware analysis
+        """
+        content = exp_doc.document.content
+        if not content:
+            processing_op.mark_completed({'terms_extracted': 0})
+            index_entry.status = 'completed'
+            return
+
+        try:
+            # For now, create a simple stub that marks processing as completed
+            # TODO: Implement actual term extraction and OED enrichment
+            # This should call term_extraction_service and oed_period_service
+
+            # Placeholder: Extract basic terms (simple implementation)
+            import re
+            words = re.findall(r'\b[A-Za-z]{4,}\b', content)
+            unique_terms = list(set(words[:50]))  # Limit to 50 unique terms
+
+            # Create artifacts for extracted terms
+            for i, term in enumerate(unique_terms):
+                artifact = ProcessingArtifact(
+                    processing_id=processing_op.id,
+                    document_id=exp_doc.document_id,
+                    artifact_type='extracted_term',
+                    artifact_index=i
+                )
+                artifact.set_content({
+                    'term': term,
+                    'oed_enriched': False,  # Not yet implemented
+                    'note': 'Basic term extraction - OED enrichment pending implementation'
+                })
+                artifact.set_metadata({
+                    'method': processing_method,
+                    'extraction_type': 'basic'
+                })
+                db.session.add(artifact)
+
+            processing_op.mark_completed({
+                'enhanced_method': processing_method,
+                'terms_extracted': len(unique_terms),
+                'oed_enriched': 0,  # Not yet implemented
+                'service_used': 'Basic regex term extraction (placeholder)',
+                'note': 'Full implementation pending - includes OED integration'
+            })
+            index_entry.status = 'completed'
+
+        except Exception as e:
+            raise RuntimeError(f"Enhanced processing failed: {str(e)}")
 
 
 # Singleton instance
