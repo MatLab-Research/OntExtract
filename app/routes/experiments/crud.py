@@ -67,7 +67,32 @@ def new():
     # Get all terms for the focus term dropdown
     terms = Term.query.order_by(Term.term_text).all()
 
-    return render_template('experiments/new.html', documents=documents, references=references, terms=terms)
+    # Handle single document mode
+    mode = request.args.get('mode')
+    selected_document = None
+    document_title = None
+    document_uuid = None
+    generated_description = None
+
+    if mode == 'single_document':
+        document_uuid = request.args.get('document_uuid')
+        document_title = request.args.get('document_title')
+
+        if document_uuid:
+            selected_document = Document.query.filter_by(uuid=document_uuid).first()
+            if selected_document:
+                # Generate a description based on the document
+                generated_description = f"Document analysis of '{selected_document.get_display_name()}'"
+
+    return render_template('experiments/new.html',
+                         documents=documents,
+                         references=references,
+                         terms=terms,
+                         mode=mode,
+                         selected_document=selected_document,
+                         document_title=document_title,
+                         document_uuid=document_uuid,
+                         generated_description=generated_description)
 
 
 @experiments_bp.route('/wizard')

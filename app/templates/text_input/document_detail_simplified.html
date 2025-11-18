@@ -53,14 +53,12 @@
                         {% endif %}
                     </div>
                 </div>
+                {% if current_user.is_authenticated %}
                 <div class="dropdown">
                     <button class="btn btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
                         <i class="fas fa-ellipsis-v"></i>
                     </button>
                     <ul class="dropdown-menu">
-                        <li><a class="dropdown-item" href="#" onclick="editTitle('{{ document.uuid }}')">
-                                <i class="fas fa-edit me-2"></i>Edit Title
-                            </a></li>
                         <li><a class="dropdown-item" href="#" onclick="exportDocument('{{ document.uuid }}')">
                                 <i class="fas fa-download me-2"></i>Export
                             </a></li>
@@ -72,32 +70,7 @@
                             </a></li>
                     </ul>
                 </div>
-            </div>
-
-            <!-- Text Content -->
-            <div class="card mb-4">
-                <div class="card-header">
-                    <h5 class="mb-0">
-                        <i class="fas fa-align-left me-2"></i>Content
-                        <span class="badge bg-secondary ms-2">
-                            {{ document.content|length|int|filesizeformat if document.content else '0 bytes' }}
-                        </span>
-                    </h5>
-                </div>
-                <div class="card-body">
-                    {% if document.content %}
-                    <div class="content-preview" style="max-height: 400px; overflow-y: auto;">
-                        <pre class="text-wrap">{{ document.content }}</pre>
-                    </div>
-                    <div class="text-center mt-3">
-                        <button class="btn btn-outline-secondary btn-sm" onclick="toggleFullContent()">
-                            <i class="fas fa-expand me-2"></i>Show Full Content
-                        </button>
-                    </div>
-                    {% else %}
-                    <p class="text-muted">No content available</p>
-                    {% endif %}
-                </div>
+                {% endif %}
             </div>
 
             <!-- Document Metadata -->
@@ -250,33 +223,94 @@
                         </div>
 
                         <!-- Action buttons -->
+                        {% if current_user.is_authenticated %}
                         <div class="d-flex gap-2 mt-3">
                             <button class="btn btn-outline-primary btn-sm" onclick="editMetadata('{{ document.uuid }}')">
                                 <i class="fas fa-edit me-1"></i>Edit Metadata
                             </button>
                         </div>
+                        {% endif %}
 
                         {% elif not temporal_metadata %}
                         <!-- No metadata available -->
                         <div class="text-center py-4">
                             <i class="fas fa-info-circle fa-2x text-muted mb-3"></i>
                             <p class="text-muted">No metadata available for this document</p>
+                            {% if current_user.is_authenticated %}
                             <div class="d-flex gap-2 justify-content-center">
                                 <button class="btn btn-primary btn-sm" onclick="addMetadata('{{ document.uuid }}')">
                                     <i class="fas fa-plus me-1"></i>Add Metadata
                                 </button>
                             </div>
+                            {% endif %}
                         </div>
                         {% endif %}
 
                         {% if not document.source_metadata and temporal_metadata %}
                         <!-- Option to add more detailed metadata -->
+                        {% if current_user.is_authenticated %}
                         <div class="d-flex gap-2 mt-3">
                             <button class="btn btn-outline-primary btn-sm" onclick="editMetadata('{{ document.uuid }}')">
-                                <i class="fas fa-plus me-1"></i>Add Detailed Metadata
+                                <i class="fas fa-edit me-1"></i>Add/Edit Metadata
                             </button>
                         </div>
                         {% endif %}
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Text Content -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-align-left me-2"></i>Content
+                        <span class="badge bg-secondary ms-2">
+                            {{ document.content|length|int|filesizeformat if document.content else '0 bytes' }}
+                        </span>
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% if document.content %}
+                    <div class="content-preview" style="max-height: 400px; overflow-y: auto;">
+                        <pre class="text-wrap">{{ document.content }}</pre>
+                    </div>
+                    <div class="text-center mt-3">
+                        <button class="btn btn-outline-secondary btn-sm" onclick="toggleFullContent()">
+                            <i class="fas fa-expand me-2"></i>Show Full Content
+                        </button>
+                    </div>
+                    {% else %}
+                    <p class="text-muted">No content available</p>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Create Experiment Action -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h6 class="mb-0">
+                        <i class="fas fa-plus-circle me-2"></i>Analysis
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted mb-3">
+                        Create an experiment to analyze this document with processing tools like embeddings, segmentation, and entity extraction.
+                    </p>
+                    <div class="d-grid gap-2">
+                        <!-- Primary: Create Experiment -->
+                        <a href="{{ url_for('experiments.new') }}" class="btn btn-primary">
+                            <i class="fas fa-flask me-2"></i>Create Experiment
+                        </a>
+
+                        <!-- Secondary: Analyze this Document -->
+                        <a href="{{ url_for('experiments.new',
+                                            mode='single_document',
+                                            document_uuid=document.uuid,
+                                            document_title=document.title) }}"
+                           class="btn btn-outline-primary">
+                            <i class="fas fa-microscope me-2"></i>Analyze this Document
+                        </a>
                     </div>
                 </div>
             </div>
@@ -580,35 +614,6 @@
                 </div>
             </div>
             {% endif %}
-
-            <!-- Create Experiment Action -->
-            <div class="card mb-4">
-                <div class="card-header">
-                    <h6 class="mb-0">
-                        <i class="fas fa-plus-circle me-2"></i>Analysis
-                    </h6>
-                </div>
-                <div class="card-body">
-                    <p class="text-muted mb-3">
-                        Create an experiment to analyze this document with processing tools like embeddings, segmentation, and entity extraction.
-                    </p>
-                    <div class="d-grid gap-2">
-                        <!-- Primary: Create Experiment -->
-                        <a href="{{ url_for('experiments.new') }}" class="btn btn-primary">
-                            <i class="fas fa-flask me-2"></i>Create Experiment
-                        </a>
-
-                        <!-- Secondary: Analyze this Document -->
-                        <a href="{{ url_for('experiments.new',
-                                            mode='single_document',
-                                            document_uuid=document.uuid,
-                                            document_title=document.title) }}"
-                           class="btn btn-outline-primary">
-                            <i class="fas fa-microscope me-2"></i>Analyze this Document
-                        </a>
-                    </div>
-                </div>
-            </div>
         </div>
     </div>
 </div>
@@ -663,10 +668,6 @@
                 alert('Error deleting document');
             });
         }
-    }
-
-    function editTitle(documentId) {
-        alert('Title editing interface coming soon!');
     }
 
     function exportDocument(documentId) {

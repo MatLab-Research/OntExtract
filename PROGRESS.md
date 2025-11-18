@@ -1,10 +1,10 @@
 # OntExtract Refactoring Progress Tracker
 
-**Branch:** `claude/ontextract-refactoring-01CKdfmiV2WVqf9aRu2zNATY` (MERGED)
-**Based On:** `development` (commit `90123dd`)
+**Branch:** `development`
+**Based On:** `development` (commit `d7a74fd`)
 **Started:** 2025-11-16
-**Completed:** 2025-11-18
-**Status:** COMPLETE - Merged to Development
+**Last Session:** 2025-11-18
+**Status:** IN PROGRESS - JCDL Paper Alignment
 
 ---
 
@@ -18,21 +18,81 @@
 
 ## Summary
 
-This refactoring successfully upgraded sentence-transformers from 2.3.1 to 5.1.2 and resolved all compatibility issues. Key accomplishments:
+This document tracks two major improvements to OntExtract:
 
+**Phase 1: sentence-transformers Upgrade (COMPLETE - Merged)**
 - **Dependency Update**: sentence-transformers 2.3.1 → 5.1.2
 - **Offline Mode Fix**: Added offline configuration to ExperimentEmbeddingService
 - **Validation Fix**: Aligned frontend experiment types with backend DTOs
 - **Testing**: Comprehensive validation of all functionality
 - **Merge**: All changes integrated into development branch (commit `d7a74fd`)
 
-All embedding services now use consistent offline mode, experiment creation works correctly, and the system is ready for production deployment.
+**Phase 2: JCDL Paper Alignment (IN PROGRESS)**
+- **Experiment Types**: Consolidated from 5 types to 3 well-defined types
+- **UI Improvements**: Registration form, Linked Data menu, metadata editing
+- **Paper Alignment**: Removed undefined types, aligned with actual implementation
+- **Status**: Changes ready for commit and merge
 
 ---
 
 ## Session Timeline
 
-### 2025-11-18 - Fine-Tuning for sentence-transformers 5.1.2
+### 2025-11-18 (Evening) - Experiment Type Consolidation
+
+#### Completed Tasks
+
+1. **JCDL Paper Alignment**
+   - **Time:** Evening session
+   - **Objective:** Consolidate experiment types to match JCDL paper implementation
+   - **Analysis:** Reviewed paper and codebase to identify misalignment
+   - **Decision:** Reduce 5 experiment types to 3 well-defined types
+   - **Rationale:**
+     - `temporal_analysis` was undefined/redundant with `temporal_evolution`
+     - `semantic_drift` is a Term feature, not an experiment type
+     - Paper focuses on entity extraction, temporal evolution, and domain comparison
+     - Cleaner alignment with actual implemented functionality
+
+2. **Frontend Updates**
+   - **File:** `app/templates/experiments/new.html`
+   - **Changes:**
+     - Removed `temporal_analysis` and `semantic_drift` from experiment type dropdown
+     - Removed JavaScript handlers for removed types
+     - Kept 3 types: `entity_extraction`, `temporal_evolution`, `domain_comparison`
+   - **Impact:** Users now see only implemented, paper-aligned experiment types
+
+3. **Backend Validation Updates**
+   - **File:** `app/dto/experiment_dto.py`
+   - **Change:** Updated validation pattern from 5 types to 3
+   - **Pattern:** `^(entity_extraction|temporal_evolution|domain_comparison)$`
+   - **Impact:** Backend validation now matches frontend options
+
+4. **Model Documentation Updates**
+   - **File:** `app/models/experiment.py`
+   - **Change:** Updated comment to reflect 3 valid types
+   - **Impact:** Developer documentation now accurate
+
+5. **Template Display Updates**
+   - **Files:**
+     - `app/templates/experiments/view.html` - Updated type badges
+     - `app/templates/experiments/index.html` - Updated type badges
+   - **Changes:** Removed conditional rendering for `temporal_analysis` and `semantic_drift`
+   - **Impact:** Experiment list and detail pages show correct badges
+
+6. **Additional UI Improvements**
+   - **Registration Form:** Added "For password reset" help text to email field (for conference demo)
+   - **Linked Data Menu:** Created placeholder page with OntServe integration info
+   - **Metadata Editing:** Consolidated to single "Add/Edit Metadata" button, removed redundant "Edit Title"
+   - **Document Detail:** Reorganized cards (Metadata → Content → Analysis → Related Experiments)
+
+#### Final Experiment Types
+
+| Type | Description | Features |
+|------|-------------|----------|
+| Entity Extraction | Foundational document processing | Embeddings, segmentation, NLP pipelines |
+| Temporal Evolution | Semantic change detection | Term evolution across time and disciplines |
+| Domain Comparison | Cross-disciplinary analysis | Terminology comparison across domains |
+
+### 2025-11-18 (Morning) - Fine-Tuning for sentence-transformers 5.1.2
 
 #### ✅ Completed Tasks
 
@@ -133,11 +193,18 @@ All embedding services now use consistent offline mode, experiment creation work
 |------|--------|--------|--------|
 | `requirements.txt` | sentence-transformers 2.3.1→5.1.2 | Merged | 8c5df75 |
 | `app/services/experiment_embedding_service.py` | Added offline mode config | Merged | 1f7aba8 |
-| `app/templates/experiments/new.html` | Fixed experiment type values | Merged | 58e3c77 |
-| `app/templates/experiments/view.html` | Updated type display badges | Merged | 58e3c77 |
-| `app/templates/experiments/index.html` | Updated type display badges | Merged | 58e3c77 |
-| `app/models/experiment.py` | Updated valid types comment | Merged | 58e3c77 |
-| `PROGRESS.md` | Updated with all session changes | Merged | 1f7aba8, 58e3c77 |
+| `app/templates/experiments/new.html` | Consolidated to 3 experiment types | Pending | TBD |
+| `app/templates/experiments/view.html` | Updated type display badges | Pending | TBD |
+| `app/templates/experiments/index.html` | Updated type display badges | Pending | TBD |
+| `app/models/experiment.py` | Updated valid types comment | Pending | TBD |
+| `app/dto/experiment_dto.py` | Updated validation pattern to 3 types | Pending | TBD |
+| `app/templates/auth/register.html` | Added password reset help text | Pending | TBD |
+| `app/routes/linked_data.py` | Created Linked Data blueprint | Pending | TBD |
+| `app/templates/linked_data/index.html` | Created placeholder page | Pending | TBD |
+| `app/templates/base.html` | Added Linked Data menu item | Pending | TBD |
+| `app/templates/text_input/document_detail_simplified.html` | Consolidated metadata editing | Pending | TBD |
+| `app/routes/__init__.py` | Added linked_data_bp import | Pending | TBD |
+| `PROGRESS.md` | Updated with all session changes | Pending | TBD |
 
 ### Files to Watch (Potentially Affected by Update)
 
@@ -261,21 +328,28 @@ Documented in `DEPLOYMENT_UPDATE_GUIDE.md` - Emergency rollback procedures avail
 
 ---
 
-## Refactoring Complete
+## Progress Summary
 
-All sentence-transformers 5.1.2 refactoring tasks have been completed and merged into the development branch. The system is ready for production deployment when needed.
-
-### Summary of Achievements
+### Completed Work (MERGED)
 
 1. Successfully upgraded sentence-transformers from 2.3.1 to 5.1.2
 2. Fixed offline mode configuration for all embedding services
 3. Resolved experiment type validation issues
 4. Verified compatibility through comprehensive testing
-5. Merged all changes into development branch
+5. Merged all changes into development branch (commit `d7a74fd`)
 
-### Next Steps (Production Deployment)
+### In Progress (Evening Session 2025-11-18)
 
-When ready for production deployment, follow the checklist in `DEPLOYMENT_UPDATE_GUIDE.md`.
+1. Consolidated experiment types from 5 to 3 (aligned with JCDL paper)
+2. Updated frontend dropdown, backend validation, and display templates
+3. Added UI improvements for conference demo
+4. Created Linked Data placeholder page with OntServe integration info
+
+### Next Steps
+
+1. Commit and merge JCDL alignment changes to development branch
+2. Test experiment creation with new 3-type system
+3. When ready for production deployment, follow checklist in `DEPLOYMENT_UPDATE_GUIDE.md`
 
 ---
 
@@ -302,6 +376,6 @@ When ready for production deployment, follow the checklist in `DEPLOYMENT_UPDATE
 
 ---
 
-**Last Updated:** 2025-11-18
-**Final Status:** COMPLETE - All changes merged to development
-**Branch Status:** Ready for deletion (merged)
+**Last Updated:** 2025-11-18 (Evening)
+**Current Status:** IN PROGRESS - JCDL Paper Alignment
+**Next Steps:** Commit and merge experiment type consolidation changes
