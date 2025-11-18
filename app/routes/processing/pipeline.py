@@ -1562,12 +1562,34 @@ def view_entities_results(document_uuid):
         jobs.sort(key=lambda j: (j.created_at is None, j.created_at), reverse=True)
 
         # Get entities from database (old ExtractedEntity table)
-        old_entities = ExtractedEntity.query.filter_by(document_id=document.id).all()
+        # ExtractedEntity doesn't have document_id, must query through ProcessingJob
+        from app.services.inheritance_versioning_service import InheritanceVersioningService
+        base_doc_id = InheritanceVersioningService._get_base_document_id(document)
+
+        # Query all versions that derive from the base document
+        all_versions = Document.query.filter_by(source_document_id=base_doc_id).all()
+        all_version_ids = [v.id for v in all_versions]
+
+        # Always include the base document itself
+        if base_doc_id not in all_version_ids:
+            all_version_ids.append(base_doc_id)
+
+        # Get entity extraction jobs from all versions
+        entity_jobs = ProcessingJob.query.filter(
+            ProcessingJob.document_id.in_(all_version_ids),
+            ProcessingJob.job_type == 'entity_extraction'
+        ).all()
+
+        # Get all entities from those jobs
+        old_entities = []
+        for job in entity_jobs:
+            job_entities = ExtractedEntity.query.filter_by(processing_job_id=job.id).all()
+            old_entities.extend(job_entities)
 
         # Also get entities from ProcessingArtifact (new experiment processing)
         from app.models.experiment_processing import ProcessingArtifact
         new_artifacts = ProcessingArtifact.query.filter(
-            ProcessingArtifact.document_id == document.id,
+            ProcessingArtifact.document_id.in_(all_version_ids),
             ProcessingArtifact.artifact_type == 'extracted_entity'
         ).order_by(ProcessingArtifact.artifact_index).all()
 
@@ -1575,12 +1597,16 @@ def view_entities_results(document_uuid):
         class EntityWrapper:
             def __init__(self, artifact):
                 content_data = artifact.get_content()
+                metadata = artifact.get_metadata()
                 self.entity_text = content_data.get('entity', '')
+                self.text = self.entity_text  # Alias for template compatibility
                 self.entity_type = content_data.get('entity_type', 'UNKNOWN')
                 self.start_position = content_data.get('start_char')
                 self.end_position = content_data.get('end_char')
-                self.confidence = content_data.get('confidence', 0)
+                self.confidence_score = content_data.get('confidence', 0)
+                self.confidence = self.confidence_score  # Alias for template compatibility
                 self.context = content_data.get('context', '')
+                self.artifact = artifact
 
         # Combine old and new entities
         entities = list(old_entities)
