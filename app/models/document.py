@@ -99,7 +99,7 @@ class Document(db.Model):
                               lazy='dynamic', 
                               cascade='all')
     text_segments = db.relationship('TextSegment', backref='document', lazy='dynamic', cascade='all, delete-orphan')
-    
+
     # Embedding storage for RAG
     embedding = db.Column(db.String)  # JSON serialized embedding vector
     

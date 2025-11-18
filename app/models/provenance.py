@@ -43,8 +43,8 @@ class ProvenanceEntity(db.Model):
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
     # Relationships
-    document = db.relationship('Document', backref='provenance_entities')
-    experiment = db.relationship('Experiment', backref='provenance_entities')
+    document = db.relationship('Document', foreign_keys=[document_id], passive_deletes=True)
+    experiment = db.relationship('Experiment', foreign_keys=[experiment_id], passive_deletes=True)
     
     def __init__(self, **kwargs):
         for key, value in kwargs.items():

@@ -569,20 +569,16 @@ def save_document():
         if error:
             return jsonify({'error': error}), 400
 
-        # Prepare source_metadata (bibliographic info)
-        source_metadata = {
-            'authors': metadata.get('authors', []),
-            'publication_year': metadata.get('publication_year'),
-            'journal': metadata.get('journal'),
-            'publisher': metadata.get('publisher'),
-            'doi': metadata.get('doi'),
-            'url': metadata.get('url'),
-            'abstract': metadata.get('abstract'),
-            'type': metadata.get('type'),
-            'extraction_source': 'enhanced_upload'
-        }
+        # Parse publication date if provided
+        publication_date = None
+        if metadata.get('publication_year'):
+            try:
+                year = int(metadata.get('publication_year'))
+                publication_date = datetime(year, 1, 1).date()
+            except (ValueError, TypeError):
+                pass
 
-        # Create document record
+        # Create document record with normalized columns
         document = Document(
             title=metadata.get('title', filename),
             content_type='file',
@@ -591,7 +587,19 @@ def save_document():
             file_path=final_path,
             file_size=os.path.getsize(final_path),
             content=content,
-            source_metadata=source_metadata,
+            # Normalized bibliographic columns
+            authors=metadata.get('authors'),  # Store as comma-separated string
+            publication_date=publication_date,
+            journal=metadata.get('journal'),
+            publisher=metadata.get('publisher'),
+            doi=metadata.get('doi'),
+            isbn=metadata.get('isbn'),
+            document_subtype=metadata.get('type'),
+            abstract=metadata.get('abstract'),
+            url=metadata.get('url'),
+            citation=metadata.get('citation'),
+            # Legacy source_metadata for custom fields only
+            source_metadata={'extraction_source': 'enhanced_upload'},
             metadata_provenance=provenance,
             status='uploaded',
             user_id=current_user.id

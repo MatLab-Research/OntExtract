@@ -44,8 +44,8 @@ class ExperimentDocument(db.Model):
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
     # Relationships
-    experiment = db.relationship('Experiment', backref='experiment_documents_v2')
-    document = db.relationship('Document', backref='experiment_versions')
+    experiment = db.relationship('Experiment', foreign_keys=[experiment_id], passive_deletes=True)
+    document = db.relationship('Document', foreign_keys=[document_id], passive_deletes=True)
     
     # Unique constraint to prevent duplicates
     __table_args__ = (
