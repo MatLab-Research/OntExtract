@@ -137,7 +137,22 @@ class ProcessingArtifact(db.Model):
 
     def set_content(self, content_dict):
         """Set content from dict"""
-        self.content_json = json.dumps(content_dict)
+        try:
+            self.content_json = json.dumps(content_dict)
+        except TypeError as e:
+            # If JSON serialization fails, try to identify the problem
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"Failed to serialize content_dict: {e}")
+            logger.error(f"Content dict keys: {content_dict.keys() if hasattr(content_dict, 'keys') else 'N/A'}")
+            # Try to serialize individual items to find the culprit
+            if hasattr(content_dict, 'items'):
+                for key, value in content_dict.items():
+                    try:
+                        json.dumps({key: value})
+                    except TypeError:
+                        logger.error(f"Non-serializable value for key '{key}': {type(value)} - {value}")
+            raise
 
     def get_metadata(self):
         """Get metadata as dict"""
@@ -150,7 +165,22 @@ class ProcessingArtifact(db.Model):
 
     def set_metadata(self, metadata_dict):
         """Set metadata from dict"""
-        self.metadata_json = json.dumps(metadata_dict)
+        try:
+            self.metadata_json = json.dumps(metadata_dict)
+        except TypeError as e:
+            # If JSON serialization fails, try to identify the problem
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"Failed to serialize metadata_dict: {e}")
+            logger.error(f"Metadata dict keys: {metadata_dict.keys() if hasattr(metadata_dict, 'keys') else 'N/A'}")
+            # Try to serialize individual items to find the culprit
+            if hasattr(metadata_dict, 'items'):
+                for key, value in metadata_dict.items():
+                    try:
+                        json.dumps({key: value})
+                    except TypeError:
+                        logger.error(f"Non-serializable value for key '{key}': {type(value)} - {value}")
+            raise
 
     def to_dict(self):
         """Convert to dictionary for API responses"""
