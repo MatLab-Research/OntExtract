@@ -15,6 +15,33 @@
 
 ## Session Timeline
 
+### 2025-11-18 - Fine-Tuning for sentence-transformers 5.1.2
+
+#### ✅ Completed Tasks
+
+1. **Offline Mode Configuration Fix**
+   - **Time:** Session start
+   - **Issue:** `ExperimentEmbeddingService` was not setting offline environment variables before initializing SentenceTransformer
+   - **Change:** Added `HF_HUB_OFFLINE=1` and `TRANSFORMERS_OFFLINE=1` to `app/services/experiment_embedding_service.py:39-41`
+   - **Impact:** Ensures consistent offline behavior across all embedding services
+   - **Rationale:**
+     - Prevents runtime HuggingFace Hub checks in production
+     - Faster initialization (no network calls)
+     - Controlled model versions (uses pre-cached models only)
+     - Independent of HuggingFace Hub uptime
+
+2. **Embedding Services Consistency Verification**
+   - **Files Checked:**
+     - ✅ `shared_services/embedding/embedding_service.py` - Has offline mode
+     - ✅ `app/services/experiment_embedding_service.py` - Now has offline mode (fixed)
+     - ✅ `test_sentence_transformers.py` - Sets offline vars at module level
+     - ✅ `app/services/period_aware_embedding_service.py` - Uses base service (inherits offline mode)
+   - **Result:** All services now consistently use offline mode for local embeddings
+
+3. **Documentation Update**
+   - Updated `PROGRESS.md` with fine-tuning session details
+   - Clarified offline mode applies only to embeddings, not LLM API calls
+
 ### 2025-11-16 - Dependency Updates & Testing Preparation
 
 #### ✅ Completed Tasks
@@ -76,16 +103,16 @@
 | File | Change | Status | Commit |
 |------|--------|--------|--------|
 | `requirements.txt` | sentence-transformers 2.3.1→5.1.2 | ✅ Committed | 8c5df75 |
-| `CLAUDE.md` | Created session guide | ✅ Done | Pending |
-| `PROGRESS.md` | Created progress tracker | ✅ Done | Pending |
+| `app/services/experiment_embedding_service.py` | Added offline mode config | ✅ Fixed | Pending |
+| `PROGRESS.md` | Updated with fine-tuning session | ✅ Updated | Pending |
 
 ### Files to Watch (Potentially Affected by Update)
 
 | File | Reason | Risk Level |
 |------|--------|------------|
-| `shared_services/embedding/embedding_service.py` | Direct SentenceTransformer usage, offline mode | 🟡 Medium |
-| `app/services/experiment_embedding_service.py` | Model initialization and encoding | 🟡 Medium |
-| `app/services/period_aware_embedding_service.py` | References embedding models | 🟢 Low |
+| `shared_services/embedding/embedding_service.py` | Direct SentenceTransformer usage, offline mode | ✅ Verified |
+| `app/services/experiment_embedding_service.py` | Model initialization and encoding | ✅ Fixed |
+| `app/services/period_aware_embedding_service.py` | References embedding models | ✅ Verified |
 
 ---
 
@@ -110,7 +137,10 @@
 
 ### Resolved Issues
 
-None yet - first testing session.
+1. **Offline Mode Inconsistency (2025-11-18)**
+   - **Issue:** `ExperimentEmbeddingService` was missing offline mode configuration
+   - **Resolution:** Added `HF_HUB_OFFLINE=1` and `TRANSFORMERS_OFFLINE=1` environment variables before SentenceTransformer initialization
+   - **Impact:** All embedding services now consistently use offline mode
 
 ---
 
