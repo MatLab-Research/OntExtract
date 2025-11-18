@@ -36,8 +36,9 @@ langsmith==0.4.43
 # Document Extraction & AI
 
 # Text Processing & Analysis
-nltk==3.8.1
-spacy==3.7.5
+nltk==3.9.2
+spacy==3.8.11
+python-dateutil==2.9.0
 langdetect==1.0.9
 beautifulsoup4==4.13.4
 python-docx==1.2.0
