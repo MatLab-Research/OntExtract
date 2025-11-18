@@ -107,18 +107,26 @@
                                 </h6>
                                 <div class="form-check mb-2">
                                     <input class="form-check-input tool-checkbox" type="checkbox"
-                                           value="segment_paragraph" id="tool-segment-paragraph">
+                                           value="segment_paragraph" id="tool-segment-paragraph"
+                                           {% if processing_operations|selectattr('processing_type', 'equalto', 'segmentation')|selectattr('processing_method', 'in', ['paragraph', 'semantic'])|selectattr('status', 'equalto', 'completed')|list %}disabled{% endif %}>
                                     <label class="form-check-label" for="tool-segment-paragraph">
                                         <strong>Paragraph Segmentation</strong>
                                         <br><small class="text-muted">Split into paragraphs (NLTK-enhanced)</small>
+                                        {% if processing_operations|selectattr('processing_type', 'equalto', 'segmentation')|selectattr('processing_method', 'in', ['paragraph', 'semantic'])|selectattr('status', 'equalto', 'completed')|list %}
+                                        <br><small class="text-success"><i class="fas fa-check-circle me-1"></i>Already applied</small>
+                                        {% endif %}
                                     </label>
                                 </div>
                                 <div class="form-check">
                                     <input class="form-check-input tool-checkbox" type="checkbox"
-                                           value="segment_sentence" id="tool-segment-sentence">
+                                           value="segment_sentence" id="tool-segment-sentence"
+                                           {% if processing_operations|selectattr('processing_type', 'equalto', 'segmentation')|selectattr('processing_method', 'equalto', 'sentence')|selectattr('status', 'equalto', 'completed')|list %}disabled{% endif %}>
                                     <label class="form-check-label" for="tool-segment-sentence">
                                         <strong>Sentence Segmentation</strong>
                                         <br><small class="text-muted">Split into sentences (NLTK Punkt)</small>
+                                        {% if processing_operations|selectattr('processing_type', 'equalto', 'segmentation')|selectattr('processing_method', 'equalto', 'sentence')|selectattr('status', 'equalto', 'completed')|list %}
+                                        <br><small class="text-success"><i class="fas fa-check-circle me-1"></i>Already applied</small>
+                                        {% endif %}
                                     </label>
                                 </div>
                             </div>
@@ -130,18 +138,26 @@
                                 </h6>
                                 <div class="form-check mb-2">
                                     <input class="form-check-input tool-checkbox" type="checkbox"
-                                           value="embeddings_local" id="tool-embeddings-local">
+                                           value="embeddings_local" id="tool-embeddings-local"
+                                           {% if processing_operations|selectattr('processing_type', 'equalto', 'embeddings')|selectattr('processing_method', 'equalto', 'local')|selectattr('status', 'equalto', 'completed')|list %}disabled{% endif %}>
                                     <label class="form-check-label" for="tool-embeddings-local">
                                         <strong>Local Embeddings</strong>
                                         <br><small class="text-muted">sentence-transformers (384 dims)</small>
+                                        {% if processing_operations|selectattr('processing_type', 'equalto', 'embeddings')|selectattr('processing_method', 'equalto', 'local')|selectattr('status', 'equalto', 'completed')|list %}
+                                        <br><small class="text-success"><i class="fas fa-check-circle me-1"></i>Already applied</small>
+                                        {% endif %}
                                     </label>
                                 </div>
                                 <div class="form-check">
                                     <input class="form-check-input tool-checkbox" type="checkbox"
-                                           value="embeddings_openai" id="tool-embeddings-openai">
+                                           value="embeddings_openai" id="tool-embeddings-openai"
+                                           {% if processing_operations|selectattr('processing_type', 'equalto', 'embeddings')|selectattr('processing_method', 'equalto', 'openai')|selectattr('status', 'equalto', 'completed')|list %}disabled{% endif %}>
                                     <label class="form-check-label" for="tool-embeddings-openai">
                                         <strong>OpenAI Embeddings</strong>
                                         <br><small class="text-muted">text-embedding-3-large (1536 dims)</small>
+                                        {% if processing_operations|selectattr('processing_type', 'equalto', 'embeddings')|selectattr('processing_method', 'equalto', 'openai')|selectattr('status', 'equalto', 'completed')|list %}
+                                        <br><small class="text-success"><i class="fas fa-check-circle me-1"></i>Already applied</small>
+                                        {% endif %}
                                     </label>
                                 </div>
                             </div>
@@ -155,10 +171,14 @@
                                 </h6>
                                 <div class="form-check">
                                     <input class="form-check-input tool-checkbox" type="checkbox"
-                                           value="entities_spacy" id="tool-entities-spacy">
+                                           value="entities_spacy" id="tool-entities-spacy"
+                                           {% if processing_operations|selectattr('processing_type', 'equalto', 'entities')|selectattr('status', 'equalto', 'completed')|list %}disabled{% endif %}>
                                     <label class="form-check-label" for="tool-entities-spacy">
                                         <strong>spaCy NER</strong>
                                         <br><small class="text-muted">Named entity recognition</small>
+                                        {% if processing_operations|selectattr('processing_type', 'equalto', 'entities')|selectattr('status', 'equalto', 'completed')|list %}
+                                        <br><small class="text-success"><i class="fas fa-check-circle me-1"></i>Already applied</small>
+                                        {% endif %}
                                     </label>
                                 </div>
                             </div>
@@ -415,60 +435,47 @@ document.addEventListener('DOMContentLoaded', function() {
         // Display results
         displayToolResults(results);
 
-        // Reset UI (no auto-reload)
+        // Reload page after 2 seconds to show persistent status
         setTimeout(() => {
-            toolProgress.style.display = 'none';
-            toolProgressBar.style.width = '0%';
-            runToolsBtn.disabled = false;
-            runAllToolsBtn.disabled = false;
-
-            // Uncheck all boxes and update selection summary
-            toolCheckboxes.forEach(cb => cb.checked = false);
-            updateRunButton();
-
-            // Refresh processing status badges
-            if (typeof loadProcessingStatus === 'function') {
-                loadProcessingStatus();
-            }
-        }, 1000);
+            window.location.reload();
+        }, 2000);
     }
 
     // Execute a single tool
     async function runSingleTool(tool) {
-        let endpoint = '';
-        let method = '';
-        let requestBody = {};
+        let processing_type = '';
+        let processing_method = '';
 
-        // Map tool values to API endpoints (using UUID)
-        const documentId = '{{ document.uuid }}';
-
+        // Map tool values to processing types and methods
         if (tool === 'segment_paragraph') {
-            endpoint = `/process/document/${documentId}/segment`;
-            method = 'paragraph';
-            requestBody = { method: 'paragraph' };
+            processing_type = 'segmentation';
+            processing_method = 'paragraph';
         } else if (tool === 'segment_sentence') {
-            endpoint = `/process/document/${documentId}/segment`;
-            method = 'sentence';
-            requestBody = { method: 'sentence' };
+            processing_type = 'segmentation';
+            processing_method = 'sentence';
         } else if (tool === 'embeddings_local') {
-            endpoint = `/process/document/${documentId}/embeddings`;
-            method = 'local';
-            requestBody = { method: 'local' };
+            processing_type = 'embeddings';
+            processing_method = 'local';
         } else if (tool === 'embeddings_openai') {
-            endpoint = `/process/document/${documentId}/embeddings`;
-            method = 'openai';
-            requestBody = { method: 'openai' };
+            processing_type = 'embeddings';
+            processing_method = 'openai';
         } else if (tool === 'entities_spacy') {
-            endpoint = `/process/document/${documentId}/entities`;
-            method = 'spacy';
-            requestBody = { entity_types: ['PERSON', 'ORG', 'GPE', 'DATE'] };
+            processing_type = 'entities';
+            processing_method = 'spacy';
         } else if (tool === 'enhanced') {
-            endpoint = `/process/document/${documentId}/enhanced`;
-            method = 'enhanced';
-            requestBody = { extract_terms: true, enrich_with_oed: false };
+            processing_type = 'enhanced_processing';
+            processing_method = 'enhanced';
         } else {
             throw new Error(`Unknown tool: ${tool}`);
         }
+
+        // Use experiment processing API endpoint
+        const endpoint = '/experiments/api/experiment-processing/start';
+        const requestBody = {
+            experiment_document_id: {{ experiment_document.id }},
+            processing_type: processing_type,
+            processing_method: processing_method
+        };
 
         const response = await fetch(endpoint, {
             method: 'POST',
@@ -888,10 +895,9 @@ function toggleFullContent() {
 }
 
 function switchVersion(documentUuid) {
-    // Reload the page with the selected version
-    const currentUrl = window.location.href;
-    const baseUrl = currentUrl.split('/process_document/')[0];
-    window.location.href = `${baseUrl}/process_document/${documentUuid}`;
+    // Stay within experiment context when switching versions
+    const experimentId = {{ experiment.id }};
+    window.location.href = `/experiments/${experimentId}/process_document/${documentUuid}`;
 }
 </script>
 

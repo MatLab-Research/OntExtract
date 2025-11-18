@@ -14,8 +14,8 @@
                 </div>
                 <div class="card-body">
                     <p class="mb-3">We encountered an error while loading the processing results:</p>
-                    <div class="alert alert-danger">
-                        <code>{{ error }}</code>
+                    <div class="alert alert-light border border-danger">
+                        <pre class="mb-0 text-danger"><code>{{ error }}</code></pre>
                     </div>
                     <div class="d-grid gap-2">
                         <a href="{{ url_for('text_input.document_list') }}" class="btn btn-primary">

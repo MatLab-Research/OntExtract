@@ -179,6 +179,20 @@ class PipelineService(BaseService):
 
             document = exp_doc.document
 
+            # CRITICAL: If this is the original document, check if an experiment version exists
+            # We want to show the experiment version (with processing) instead of the original
+            if not document.experiment_id:  # Original documents don't have experiment_id
+                experiment_version = Document.query.filter_by(
+                    source_document_id=document.id,
+                    experiment_id=experiment_id,
+                    version_type='experimental'
+                ).first()
+
+                if experiment_version:
+                    logger.info(f"Switching from original document {document.id} to experiment version {experiment_version.id} for experiment {experiment_id}")
+                    document = experiment_version
+                    # Note: exp_doc still points to the original document's association, which is correct
+
             # Get processing operations (manual/user processing)
             processing_operations = ExperimentDocumentProcessing.query.filter_by(
                 experiment_document_id=exp_doc.id
@@ -221,6 +235,11 @@ class PipelineService(BaseService):
 
             logger.info(f"Document {document_id} progress: {processing_progress}% ({len(completed_types)}/{total_processing_types} types)")
 
+            # In experiment context, we only show the experiment version (no version switcher)
+            # The general document route (/input/document/{uuid}) shows all versions
+            all_versions = []
+            is_latest_version = True
+
             return {
                 'experiment': experiment,
                 'document': document,
@@ -233,7 +252,9 @@ class PipelineService(BaseService):
                 'has_previous': has_previous,
                 'has_next': has_next,
                 'previous_doc_id': previous_doc_id,
-                'next_doc_id': next_doc_id
+                'next_doc_id': next_doc_id,
+                'all_versions': all_versions,
+                'is_latest_version': is_latest_version
             }
 
         except (NotFoundError, ValidationError):

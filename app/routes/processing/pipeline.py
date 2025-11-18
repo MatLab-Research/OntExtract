@@ -1437,7 +1437,7 @@ def get_document_processing_jobs(document_uuid):
 
 @processing_bp.route('/document/<string:document_uuid>/results/embeddings', methods=['GET'])
 def view_embeddings_results(document_uuid):
-    """View embeddings results for a document"""
+    """View embeddings results for a document (supports both manual and experiment processing)"""
     try:
         document = Document.query.filter_by(uuid=document_uuid).first_or_404()
 
@@ -1454,6 +1454,34 @@ def view_embeddings_results(document_uuid):
             params = job.get_parameters()
             if params.get('original_document_id') == document.id:
                 jobs.append(job)
+
+        # ALSO check for experiment processing records
+        from app.models.experiment_processing import ExperimentDocumentProcessing
+        from app.models.experiment_document import ExperimentDocument
+
+        # Wrapper for template compatibility
+        class JobWrapper:
+            def __init__(self, exp_processing):
+                self._exp = exp_processing
+                self.status = exp_processing.status
+                self.created_at = exp_processing.created_at
+                self.completed_at = exp_processing.completed_at
+                self.job_type = exp_processing.processing_type
+
+            def get_parameters(self):
+                return {
+                    'method': self._exp.processing_method,
+                    'processing_type': self._exp.processing_type
+                }
+
+        exp_docs = ExperimentDocument.query.filter_by(document_id=document.id).all()
+        for exp_doc in exp_docs:
+            exp_processing = ExperimentDocumentProcessing.query.filter_by(
+                experiment_document_id=exp_doc.id,
+                processing_type='embeddings'
+            ).all()
+            for exp_job in exp_processing:
+                jobs.append(JobWrapper(exp_job))
 
         # Sort by created_at desc
         jobs.sort(key=lambda j: (j.created_at is None, j.created_at), reverse=True)
@@ -1478,7 +1506,7 @@ def view_embeddings_results(document_uuid):
 
 @processing_bp.route('/document/<string:document_uuid>/results/entities', methods=['GET'])
 def view_entities_results(document_uuid):
-    """View entity extraction results for a document"""
+    """View entity extraction results for a document (supports both manual and experiment processing)"""
     try:
         document = Document.query.filter_by(uuid=document_uuid).first_or_404()
 
@@ -1487,6 +1515,36 @@ def view_entities_results(document_uuid):
             document_id=document.id,
             job_type='extract_entities'
         ).order_by(ProcessingJob.created_at.desc()).all()
+
+        # ALSO check for experiment processing records
+        from app.models.experiment_processing import ExperimentDocumentProcessing
+        from app.models.experiment_document import ExperimentDocument
+
+        # Wrapper for template compatibility
+        class JobWrapper:
+            def __init__(self, exp_processing):
+                self._exp = exp_processing
+                self.status = exp_processing.status
+                self.created_at = exp_processing.created_at
+                self.completed_at = exp_processing.completed_at
+                self.job_type = exp_processing.processing_type
+
+            def get_parameters(self):
+                return {
+                    'method': self._exp.processing_method,
+                    'processing_type': self._exp.processing_type
+                }
+
+        exp_docs = ExperimentDocument.query.filter_by(document_id=document.id).all()
+        for exp_doc in exp_docs:
+            exp_processing = ExperimentDocumentProcessing.query.filter_by(
+                experiment_document_id=exp_doc.id,
+                processing_type='entities'
+            ).all()
+            for exp_job in exp_processing:
+                jobs.append(JobWrapper(exp_job))
+
+        jobs.sort(key=lambda j: (j.created_at is None, j.created_at), reverse=True)
 
         # Get entities from database
         entities = ExtractedEntity.query.filter_by(document_id=document.id).all()
@@ -1530,7 +1588,7 @@ def view_entities_results(document_uuid):
 
 @processing_bp.route('/document/<string:document_uuid>/results/segments', methods=['GET'])
 def view_segments_results(document_uuid):
-    """View segmentation results for a document"""
+    """View segmentation results for a document (supports both manual and experiment processing)"""
     try:
         document = Document.query.filter_by(uuid=document_uuid).first_or_404()
 
@@ -1546,7 +1604,7 @@ def view_segments_results(document_uuid):
         if base_doc_id not in all_version_ids:
             all_version_ids.append(base_doc_id)
 
-        # Get segmentation jobs from all versions
+        # Get segmentation jobs from all versions (manual processing)
         jobs = ProcessingJob.query.filter(
             ProcessingJob.document_id.in_(all_version_ids),
             ProcessingJob.job_type == 'segment_document'
@@ -1562,6 +1620,38 @@ def view_segments_results(document_uuid):
             params = job.get_parameters()
             if params.get('original_document_id') in all_version_ids:
                 jobs.append(job)
+
+        # ALSO check for experiment processing records
+        from app.models.experiment_processing import ExperimentDocumentProcessing
+        from app.models.experiment_document import ExperimentDocument
+
+        # Create a wrapper class to make ExperimentDocumentProcessing look like ProcessingJob
+        class JobWrapper:
+            def __init__(self, exp_processing):
+                self._exp = exp_processing
+                self.status = exp_processing.status
+                self.created_at = exp_processing.created_at
+                self.completed_at = exp_processing.completed_at
+                self.job_type = exp_processing.processing_type
+
+            def get_parameters(self):
+                return {
+                    'method': self._exp.processing_method,
+                    'processing_type': self._exp.processing_type
+                }
+
+        # Find experiment-document associations for all versions
+        for doc_id in all_version_ids:
+            exp_docs = ExperimentDocument.query.filter_by(document_id=doc_id).all()
+            for exp_doc in exp_docs:
+                # Get segmentation processing for this experiment-document
+                exp_processing = ExperimentDocumentProcessing.query.filter_by(
+                    experiment_document_id=exp_doc.id,
+                    processing_type='segmentation'
+                ).all()
+                # Wrap each experiment processing record
+                for exp_job in exp_processing:
+                    jobs.append(JobWrapper(exp_job))
 
         jobs.sort(key=lambda j: (j.created_at is None, j.created_at), reverse=True)
 
@@ -1618,7 +1708,7 @@ def view_clean_text_results(document_uuid):
 
 @processing_bp.route('/document/<string:document_uuid>/results/enhanced', methods=['GET'])
 def view_enhanced_results(document_uuid):
-    """View enhanced processing results for a document"""
+    """View enhanced processing results for a document (supports both manual and experiment processing)"""
     try:
         document = Document.query.filter_by(uuid=document_uuid).first_or_404()
 
@@ -1627,6 +1717,36 @@ def view_enhanced_results(document_uuid):
             document_id=document.id,
             job_type='enhanced_processing'
         ).order_by(ProcessingJob.created_at.desc()).all()
+
+        # ALSO check for experiment processing records
+        from app.models.experiment_processing import ExperimentDocumentProcessing
+        from app.models.experiment_document import ExperimentDocument
+
+        # Wrapper for template compatibility
+        class JobWrapper:
+            def __init__(self, exp_processing):
+                self._exp = exp_processing
+                self.status = exp_processing.status
+                self.created_at = exp_processing.created_at
+                self.completed_at = exp_processing.completed_at
+                self.job_type = exp_processing.processing_type
+
+            def get_parameters(self):
+                return {
+                    'method': self._exp.processing_method,
+                    'processing_type': self._exp.processing_type
+                }
+
+        exp_docs = ExperimentDocument.query.filter_by(document_id=document.id).all()
+        for exp_doc in exp_docs:
+            exp_processing = ExperimentDocumentProcessing.query.filter_by(
+                experiment_document_id=exp_doc.id,
+                processing_type='enhanced_processing'
+            ).all()
+            for exp_job in exp_processing:
+                jobs.append(JobWrapper(exp_job))
+
+        jobs.sort(key=lambda j: (j.created_at is None, j.created_at), reverse=True)
 
         # Get terms extracted for this document
         from app.models.term import Term
