@@ -3,8 +3,8 @@
 **Branch:** `development`
 **Based On:** `development` (commit `d7a74fd`)
 **Started:** 2025-11-16
-**Last Session:** 2025-11-18
-**Status:** IN PROGRESS - Bug Fixes and Refactoring
+**Last Session:** 2025-11-18 (Session 3 - Critical Bug Fixes Complete)
+**Status:** STABLE - All critical versioning and deletion bugs fixed
 
 ---
 
@@ -201,6 +201,58 @@ Benefit: Single entity with all activities clearly visible
 - Simpler provenance: one entity, multiple activities
 - No more version explosion
 - Easy comparison between experiments
+
+### 2025-11-18 (Session 3) - Critical Bug Fixes
+
+#### Completed Tasks
+
+1. **Fixed Experiment Version Creation (app/services/experiment_service.py)**
+   - **Problem:** `_add_documents_to_experiment()` was adding original documents directly
+   - **Impact:** No experimental versions were being created
+   - **Fix:** Added call to `get_or_create_experiment_version()` before adding to experiment
+   - **Result:** Experimental versions (v2) now created correctly, original documents (v1) stay pristine
+
+2. **Fixed PROV-O Schema Compliance (app/services/provenance_service.py)**
+   - **Problem:** Invalid parameters passed to `ProvActivity` and `ProvEntity` constructors
+   - **Errors:** `'document_id' is an invalid keyword argument` for both Activity and Entity
+   - **Fix:** Removed document_id and experiment_id from constructor parameters, moved to JSON fields
+   - **Additional:** Added missing logger import
+   - **Result:** Experiment creation with PROV-O tracking now works correctly
+
+3. **Fixed Results Display Import Errors (app/routes/processing/pipeline.py)**
+   - **Problem:** `ExperimentDocument` imported from wrong module
+   - **Error:** `cannot import name 'ExperimentDocument' from 'app.models.experiment_processing'`
+   - **Fix:** Split import statement to import from correct module:
+     - `from app.models.experiment_processing import ExperimentDocumentProcessing`
+     - `from app.models.experiment_document import ExperimentDocument`
+   - **Scope:** Applied to all 4 results routes (segments, embeddings, entities, enhanced)
+   - **Result:** Results pages can now load without import errors
+
+4. **Fixed Experiment Deletion (app/services/experiment_service.py)**
+   - **Problem:** Deleting experiments caused constraint violation
+   - **Error:** `new row for relation "documents" violates check constraint "check_experimental_version_has_experiment"`
+   - **Root Cause:** SQLAlchemy tried to set experiment_id=NULL on experimental versions before deleting them
+   - **Fix:**
+     - Remove experimental versions from relationship first (prevents UPDATE)
+     - Delete experimental version documents
+     - Then clear remaining relationships
+   - **Result:** Experiments can be deleted without database errors
+
+#### Testing Performed
+
+- Created experiment 43 with document bd9ac31e-9ce3-417d-8666-832d1c88475a
+- Verified experimental version (v2) was created correctly
+- Verified original document (v1) stayed pristine with experiment_id=NULL
+- Server auto-reload working correctly after fixes
+- All fixes applied and functional
+
+#### Impact
+
+- Experimental versioning system now working as designed
+- Documents in experiments properly versioned
+- Results pages accessible for experiment processing
+- Experiments can be created and deleted without errors
+- PROV-O provenance tracking functional for experiment versions
 
 ### 2025-11-18 (Late Night) - Document Deletion CASCADE Fix
 

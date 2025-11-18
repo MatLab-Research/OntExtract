@@ -14,9 +14,12 @@ Builds on the existing PROV-O database models (prov_agents, prov_activities, pro
 from datetime import datetime
 from typing import Optional, Dict, Any, List
 import uuid
+import logging
 
 from app import db
 from app.models.prov_o_models import ProvAgent, ProvActivity, ProvEntity, ProvRelationship
+
+logger = logging.getLogger(__name__)
 
 
 def _serialize_value(value: Any) -> Any:
@@ -1060,9 +1063,8 @@ class ProvenanceService:
             startedattime=creation_time,
             endedattime=creation_time,
             wasassociatedwith=agent.agent_id,
-            document_id=experiment_version_document.id,
-            experiment_id=experiment.id,
             activity_parameters=_serialize_value({
+                'document_id': experiment_version_document.id,
                 'source_document_id': source_document.id,
                 'source_document_uuid': str(source_document.uuid),
                 'experiment_id': experiment.id,
@@ -1079,7 +1081,6 @@ class ProvenanceService:
         # This entity shows derivation from source document
         entity = ProvEntity(
             entity_type='document',
-            document_id=experiment_version_document.id,
             generatedattime=creation_time,
             wasgeneratedby=activity.activity_id,
             wasattributedto=agent.agent_id,

@@ -91,29 +91,44 @@
     <div class="card-body">
         <p class="small text-muted mb-3">Direct links to detailed results pages</p>
         <div class="d-grid gap-2">
+            {% set has_embeddings = processing_operations|selectattr('processing_type', 'equalto', 'embeddings')|selectattr('status', 'equalto', 'completed')|list %}
             <a href="/process/document/{{ document.uuid }}/results/embeddings"
                id="result-link-embeddings"
-               class="btn btn-sm btn-outline-info disabled" target="_blank"
-               style="pointer-events: none; opacity: 0.5;">
+               class="btn btn-sm btn-outline-info {% if not has_embeddings %}disabled{% endif %}"
+               target="_blank"
+               {% if not has_embeddings %}style="pointer-events: none; opacity: 0.5;"{% endif %}>
                 <i class="fas fa-vector-square me-1"></i>Embeddings
+                {% if has_embeddings %}<span class="badge bg-info ms-2">Available</span>{% endif %}
             </a>
+
+            {% set has_entities = processing_operations|selectattr('processing_type', 'equalto', 'entities')|selectattr('status', 'equalto', 'completed')|list %}
             <a href="/process/document/{{ document.uuid }}/results/entities"
                id="result-link-entities"
-               class="btn btn-sm btn-outline-success disabled" target="_blank"
-               style="pointer-events: none; opacity: 0.5;">
+               class="btn btn-sm btn-outline-success {% if not has_entities %}disabled{% endif %}"
+               target="_blank"
+               {% if not has_entities %}style="pointer-events: none; opacity: 0.5;"{% endif %}>
                 <i class="fas fa-tags me-1"></i>Entities
+                {% if has_entities %}<span class="badge bg-success ms-2">Available</span>{% endif %}
             </a>
+
+            {% set has_segments = processing_operations|selectattr('processing_type', 'equalto', 'segmentation')|selectattr('status', 'equalto', 'completed')|list %}
             <a href="/process/document/{{ document.uuid }}/results/segments"
                id="result-link-segments"
-               class="btn btn-sm btn-outline-warning disabled" target="_blank"
-               style="pointer-events: none; opacity: 0.5;">
+               class="btn btn-sm btn-outline-warning {% if not has_segments %}disabled{% endif %}"
+               target="_blank"
+               {% if not has_segments %}style="pointer-events: none; opacity: 0.5;"{% endif %}>
                 <i class="fas fa-cut me-1"></i>Segments
+                {% if has_segments %}<span class="badge bg-warning ms-2">Available</span>{% endif %}
             </a>
+
+            {% set has_enhanced = processing_operations|selectattr('processing_type', 'equalto', 'enhanced_processing')|selectattr('status', 'equalto', 'completed')|list %}
             <a href="/process/document/{{ document.uuid }}/results/enhanced"
                id="result-link-enhanced"
-               class="btn btn-sm btn-outline-danger disabled" target="_blank"
-               style="pointer-events: none; opacity: 0.5;">
+               class="btn btn-sm btn-outline-danger {% if not has_enhanced %}disabled{% endif %}"
+               target="_blank"
+               {% if not has_enhanced %}style="pointer-events: none; opacity: 0.5;"{% endif %}>
                 <i class="fas fa-sparkles me-1"></i>Enhanced
+                {% if has_enhanced %}<span class="badge bg-danger ms-2">Available</span>{% endif %}
             </a>
         </div>
     </div>

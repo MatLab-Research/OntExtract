@@ -261,8 +261,27 @@ class ExperimentService(BaseService):
                 experiment_id=experiment_id
             ).delete()
 
-            # Clear the many-to-many relationships
-            # These use association tables, so clear them manually
+            # Delete experimental version documents (they are specific to this experiment)
+            # Must do this BEFORE clearing relationships to avoid constraint violation
+            from app.models.document import Document
+            experimental_versions = Document.query.filter_by(
+                experiment_id=experiment_id,
+                version_type='experimental'
+            ).all()
+
+            experimental_versions_count = len(experimental_versions)
+
+            # First, remove them from the experiment relationship
+            # This prevents SQLAlchemy from trying to set experiment_id=NULL
+            for exp_version in experimental_versions:
+                if exp_version in experiment.documents:
+                    experiment.documents.remove(exp_version)
+
+            # Now delete the documents themselves
+            for exp_version in experimental_versions:
+                db.session.delete(exp_version)
+
+            # Clear any remaining references (should just be original documents now)
             experiment.documents = []
             experiment.references = []
             self.flush()
@@ -276,7 +295,8 @@ class ExperimentService(BaseService):
             logger.info(
                 f"Deleted experiment {experiment_id} with cascading deletes: "
                 f"{processing_count} processing ops, {artifact_count} artifacts, "
-                f"{index_count} indices, {exp_docs_deleted} experiment documents"
+                f"{index_count} indices, {exp_docs_deleted} experiment documents, "
+                f"{experimental_versions_count} experimental version documents"
             )
 
             return True
@@ -441,15 +461,34 @@ class ExperimentService(BaseService):
         """
         Internal method to add documents to experiment
 
+        Creates experimental version (v2) for each document BEFORE adding to experiment.
+        Original documents (v1) stay pristine.
+
         Args:
             experiment: Experiment instance
             document_ids: List of document IDs
         """
+        from app.services.inheritance_versioning_service import InheritanceVersioningService
+        from flask_login import current_user
+
         for doc_id in document_ids:
             document = Document.query.filter_by(id=doc_id, document_type='document').first()
             if document:
-                experiment.add_document(document)
-                logger.debug(f"Added document {doc_id} to experiment {experiment.id}")
+                # Create experimental version (v2) BEFORE adding to experiment
+                exp_version, created = InheritanceVersioningService.get_or_create_experiment_version(
+                    original_document=document,
+                    experiment_id=experiment.id,
+                    user=current_user
+                )
+
+                # Add experimental version (v2) to experiment, NOT original (v1)
+                experiment.add_document(exp_version)
+
+                if created:
+                    logger.info(f"Created experimental version {exp_version.id} (v{exp_version.version_number}) "
+                               f"from document {document.id} for experiment {experiment.id}")
+                else:
+                    logger.debug(f"Using existing experimental version {exp_version.id} for experiment {experiment.id}")
             else:
                 logger.warning(f"Document {doc_id} not found, skipping")
 
