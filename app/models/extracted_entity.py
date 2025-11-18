@@ -48,7 +48,18 @@ class ExtractedEntity(db.Model):
     
     # Relationships
     ontology_mappings = db.relationship('OntologyMapping', backref='extracted_entity', lazy='dynamic', cascade='all, delete-orphan')
-    
+
+    # Template compatibility properties
+    @property
+    def text(self):
+        """Alias for entity_text for template compatibility"""
+        return self.entity_text
+
+    @property
+    def confidence(self):
+        """Alias for confidence_score for template compatibility"""
+        return self.confidence_score
+
     def __init__(self, **kwargs):
         for key, value in kwargs.items():
             if hasattr(self, key):
