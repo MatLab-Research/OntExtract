@@ -6,6 +6,7 @@ from flask import Blueprint, render_template, request, redirect, url_for, flash,
 from flask_login import current_user
 from app.utils.auth_decorators import require_login_for_write, api_require_login_for_write
 from werkzeug.utils import secure_filename
+from datetime import datetime
 import os
 import uuid
 from app import db
@@ -263,7 +264,6 @@ def redirect_old_routes():
 def extract_metadata():
     """Extract metadata from uploaded document or DOI"""
     from app.services.upload_service import upload_service
-    from datetime import datetime
     import json
 
     try:
