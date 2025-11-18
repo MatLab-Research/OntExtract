@@ -35,8 +35,13 @@ class ExperimentEmbeddingService:
         # Initialize local model
         try:
             from sentence_transformers import SentenceTransformer
+
+            # Configure offline mode to avoid HuggingFace Hub requests
+            os.environ["HF_HUB_OFFLINE"] = "1"
+            os.environ["TRANSFORMERS_OFFLINE"] = "1"
+
             self.local_model = SentenceTransformer('all-MiniLM-L6-v2')
-            logger.info("Local sentence transformer model loaded")
+            logger.info("Local sentence transformer model loaded (offline mode)")
         except ImportError:
             logger.warning("sentence-transformers package not available")
 

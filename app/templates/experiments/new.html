@@ -27,13 +27,14 @@
                                     <label for="experiment-type" class="form-label">Experiment Type *</label>
                                     <select class="form-select" id="experiment-type" required>
                                         <option value="">Select type...</option>
-                                        <option value="document_analysis">Document Analysis</option>
+                                        <option value="entity_extraction" {% if mode == 'single_document' %}selected{% endif %}>Entity Extraction</option>
+                                        <option value="temporal_analysis">Temporal Analysis</option>
                                         <option value="temporal_evolution">Temporal Evolution</option>
+                                        <option value="semantic_drift">Semantic Drift</option>
                                         <option value="domain_comparison">Domain Comparison</option>
                                     </select>
                                     {% if mode == 'single_document' %}
-                                    <input type="hidden" name="experiment_type" value="single_document_analysis">
-                                    <small class="text-muted">To create a different experiment type, <a href="{{ url_for('experiments.new') }}">start a new experiment</a>.</small>
+                                    <small class="text-muted">Single document mode - defaults to Entity Extraction. To create a different experiment type, <a href="{{ url_for('experiments.new') }}">start a new experiment</a>.</small>
                                     {% endif %}
                                 </div>
                             </div>
@@ -170,14 +171,16 @@ document.addEventListener('DOMContentLoaded', function() {
         if (domainConfig) domainConfig.style.display = 'none';
 
         // Update description and show relevant config
-        if (type === 'single_document_analysis') {
-            typeDescription.textContent = 'Process one document through embeddings, segmentation, and entity extraction pipelines.';
-        } else if (type === 'document_analysis') {
-            typeDescription.textContent = 'Select one or more documents to process through embeddings, segmentation, and entity extraction pipelines.';
+        if (type === 'entity_extraction') {
+            typeDescription.textContent = 'Extract and analyze entities from documents using embeddings, segmentation, and NLP pipelines.';
+        } else if (type === 'temporal_analysis') {
+            typeDescription.textContent = 'Analyze how terms and concepts change over time periods.';
         } else if (type === 'temporal_evolution') {
             typeDescription.textContent = 'Track how a term evolves across time and disciplines.';
             if (configOptions) configOptions.style.display = 'block';
             if (temporalConfig) temporalConfig.style.display = 'block';
+        } else if (type === 'semantic_drift') {
+            typeDescription.textContent = 'Measure semantic drift of terms across different periods or contexts.';
         } else if (type === 'domain_comparison') {
             typeDescription.textContent = 'Compare terminology and concepts across different domains.';
             if (configOptions) configOptions.style.display = 'block';

@@ -87,14 +87,18 @@
                             <dl class="row">
                                 <dt class="col-sm-4">Type:</dt>
                                 <dd class="col-sm-8">
-                                    {% if experiment.experiment_type == 'document_analysis' %}
-                                        <span class="badge bg-primary">Document Analysis</span>
+                                    {% if experiment.experiment_type == 'entity_extraction' %}
+                                        <span class="badge bg-primary">Entity Extraction</span>
+                                    {% elif experiment.experiment_type == 'temporal_analysis' %}
+                                        <span class="badge bg-info">Temporal Analysis</span>
                                     {% elif experiment.experiment_type == 'temporal_evolution' %}
                                         <span class="badge bg-info">Temporal Evolution</span>
+                                    {% elif experiment.experiment_type == 'semantic_drift' %}
+                                        <span class="badge bg-warning">Semantic Drift</span>
                                     {% elif experiment.experiment_type == 'domain_comparison' %}
                                         <span class="badge bg-success">Domain Comparison</span>
                                     {% else %}
-                                        {{ experiment.experiment_type }}
+                                        <span class="badge bg-secondary">{{ experiment.experiment_type }}</span>
                                     {% endif %}
                                 </dd>
                                 
