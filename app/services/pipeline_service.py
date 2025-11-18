@@ -1080,8 +1080,9 @@ class PipelineService(BaseService):
         """Process temporal extraction for a document"""
         from app.services.processing_tools import DocumentProcessor
 
+        config = processing_op.get_configuration()
         processor = DocumentProcessor(
-            user_id=processing_op.configuration.get('created_by'),
+            user_id=config.get('created_by'),
             experiment_id=exp_doc.experiment_id
         )
 
@@ -1136,8 +1137,9 @@ class PipelineService(BaseService):
         """Process definition extraction for a document"""
         from app.services.processing_tools import DocumentProcessor
 
+        config = processing_op.get_configuration()
         processor = DocumentProcessor(
-            user_id=processing_op.configuration.get('created_by'),
+            user_id=config.get('created_by'),
             experiment_id=exp_doc.experiment_id
         )
 

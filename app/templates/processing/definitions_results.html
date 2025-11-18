@@ -1,0 +1,275 @@
+{% extends "base.html" %}
+
+{% block title %}Definition Extraction Results - {{ document.title }}{% endblock %}
+
+{% block extra_css %}
+<style>
+.definition-card {
+    border-left: 4px solid #3b82f6;
+    margin-bottom: 1rem;
+}
+.definition-term {
+    font-weight: 600;
+    color: #1e40af;
+    font-size: 1.1rem;
+}
+.definition-text {
+    color: #374151;
+    line-height: 1.6;
+}
+.pattern-badge {
+    font-size: 0.75rem;
+    padding: 0.25rem 0.5rem;
+}
+.confidence-bar {
+    height: 4px;
+    background: #e5e7eb;
+    border-radius: 2px;
+    overflow: hidden;
+}
+.confidence-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #ef4444, #f59e0b, #10b981);
+    transition: width 0.3s;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="row">
+        <div class="col-12">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="{{ url_for('text_input.document_list') }}">Documents</a></li>
+                    <li class="breadcrumb-item">{{ document.title }}</li>
+                    <li class="breadcrumb-item active">Definition Extraction Results</li>
+                </ol>
+            </nav>
+
+            <div class="d-flex justify-content-between align-items-start mb-4">
+                <div>
+                    <h2><i class="fas fa-book me-2 text-primary"></i>Definition Extraction Results</h2>
+                    <p class="text-muted">{{ document.title }}</p>
+                </div>
+                <div>
+                    <a href="{{ url_for('provenance.timeline', document_uuid=document.uuid) }}"
+                       class="btn btn-outline-secondary" target="_blank">
+                        <i class="fas fa-history me-1"></i>View Provenance
+                    </a>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-lg-8">
+                    <!-- Statistics Card -->
+                    <div class="card mb-4">
+                        <div class="card-header bg-primary text-white">
+                            <h5 class="mb-0"><i class="fas fa-chart-bar me-2"></i>Definition Statistics</h5>
+                        </div>
+                        <div class="card-body">
+                            {% if definitions %}
+                                <div class="row text-center mb-4">
+                                    <div class="col-md-4">
+                                        <div class="border rounded p-3">
+                                            <h4 class="text-primary mb-1" id="total-definitions">{{ total_definitions }}</h4>
+                                            <small class="text-muted">Total Definitions</small>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="border rounded p-3">
+                                            <h4 class="text-info mb-1" id="pattern-types">{{ definitions_by_pattern|length }}</h4>
+                                            <small class="text-muted">Pattern Types</small>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="border rounded p-3">
+                                            <h4 class="text-warning mb-1">{{ jobs|length }}</h4>
+                                            <small class="text-muted">Extraction Runs</small>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Pattern Type Breakdown -->
+                                <h6 class="mb-3">Definitions by Pattern Type</h6>
+                                <div class="row">
+                                    {% for pattern, pattern_defs in definitions_by_pattern.items() %}
+                                    <div class="col-md-6 mb-3">
+                                        <div class="card">
+                                            <div class="card-body">
+                                                <div class="d-flex justify-content-between align-items-center">
+                                                    <div>
+                                                        <h6 class="mb-0">{{ pattern|replace('_', ' ')|title }}</h6>
+                                                        <small class="text-muted">{{ pattern_defs|length }} definitions</small>
+                                                    </div>
+                                                    <span class="badge bg-secondary">{{ pattern_defs|length }}</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                            {% else %}
+                                <div class="alert alert-info">
+                                    <i class="fas fa-info-circle me-2"></i>No definitions extracted yet. Run the definition extraction tool to identify term definitions in this document.
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <!-- Definitions List -->
+                    {% if definitions %}
+                    <div class="card">
+                        <div class="card-header">
+                            <h6 class="mb-0"><i class="fas fa-list me-2"></i>Extracted Definitions ({{ total_definitions }})</h6>
+                        </div>
+                        <div class="card-body">
+                            {% for defn in definitions %}
+                            <div class="card definition-card mb-3">
+                                <div class="card-body">
+                                    <div class="d-flex justify-content-between align-items-start mb-2">
+                                        <div class="definition-term">{{ defn.term }}</div>
+                                        <div>
+                                            <span class="badge pattern-badge bg-info">{{ defn.pattern|replace('_', ' ')|title }}</span>
+                                        </div>
+                                    </div>
+
+                                    <p class="definition-text mb-2">{{ defn.definition }}</p>
+
+                                    {% if defn.sentence %}
+                                    <div class="bg-light p-2 rounded mb-2">
+                                        <small class="text-muted">
+                                            <strong>Context:</strong> {{ defn.sentence }}
+                                        </small>
+                                    </div>
+                                    {% endif %}
+
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <div class="confidence-bar flex-grow-1 me-3" style="max-width: 200px;">
+                                            <div class="confidence-fill" style="width: {{ (defn.confidence * 100)|int }}%"></div>
+                                        </div>
+                                        <small class="text-muted">
+                                            Confidence: {{ (defn.confidence * 100)|int }}%
+                                        </small>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+
+                <div class="col-lg-4">
+                    <!-- Processing History -->
+                    <div class="card mb-4">
+                        <div class="card-header">
+                            <h6 class="mb-0"><i class="fas fa-history me-2"></i>Processing History</h6>
+                        </div>
+                        <div class="card-body">
+                            {% if jobs %}
+                                <div class="list-group">
+                                    <button class="list-group-item list-group-item-action active" onclick="showAllDefinitions(this)">
+                                        <div class="d-flex w-100 justify-content-between">
+                                            <h6 class="mb-1">Show All</h6>
+                                            <small>{{ total_definitions }} total</small>
+                                        </div>
+                                        <p class="mb-1 small">
+                                            <span class="badge bg-light text-dark">All Methods</span>
+                                            <span class="badge bg-success ms-1">Active</span>
+                                        </p>
+                                    </button>
+                                    {% for job in jobs %}
+                                    <button class="list-group-item list-group-item-action"
+                                            onclick="filterByMethod('{{ job.get_parameters().get('method', 'unknown') }}', this)">
+                                        <div class="d-flex w-100 justify-content-between">
+                                            <h6 class="mb-1">
+                                                {{ job.get_parameters().get('method', 'Unknown')|title }}
+                                            </h6>
+                                            <small>{{ job.created_at.strftime('%m/%d %H:%M') if job.created_at else 'N/A' }}</small>
+                                        </div>
+                                        <p class="mb-1 small">
+                                            <span class="badge bg-secondary">{{ job.get_parameters().get('method', 'unknown') }}</span>
+                                            <span class="badge {{ 'bg-success' if job.status == 'completed' else 'bg-warning' }} ms-1">
+                                                {{ job.status }}
+                                            </span>
+                                        </p>
+                                    </button>
+                                    {% endfor %}
+                                </div>
+                            {% else %}
+                                <p class="text-muted">No processing history available</p>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <!-- Actions -->
+                    <div class="card">
+                        <div class="card-header">
+                            <h6 class="mb-0"><i class="fas fa-cog me-2"></i>Actions</h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="d-grid gap-2">
+                                <a href="{{ url_for('provenance.timeline', document_uuid=document.uuid) }}"
+                                   class="btn btn-outline-primary" target="_blank">
+                                    <i class="fas fa-stream me-1"></i>View Full Timeline
+                                </a>
+                                <button class="btn btn-outline-secondary" onclick="exportDefinitions()">
+                                    <i class="fas fa-download me-1"></i>Export Definitions (CSV)
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function showAllDefinitions(button) {
+    // Show all definitions
+    document.querySelectorAll('.definition-card').forEach(card => {
+        card.style.display = 'block';
+    });
+
+    // Update statistics to show all
+    document.getElementById('total-definitions').textContent = {{ total_definitions }};
+
+    // Update active button
+    document.querySelectorAll('.list-group-item-action').forEach(btn => {
+        btn.classList.remove('active');
+    });
+    button.classList.add('active');
+}
+
+function filterByMethod(method, button) {
+    // Filter definitions by method
+    let visibleCount = 0;
+    document.querySelectorAll('.definition-card').forEach((card, index) => {
+        const defnMethod = {{ definitions|tojson }};
+        if (defnMethod[index].method === method) {
+            card.style.display = 'block';
+            visibleCount++;
+        } else {
+            card.style.display = 'none';
+        }
+    });
+
+    // Update count
+    document.getElementById('total-definitions').textContent = visibleCount;
+
+    // Update active button
+    document.querySelectorAll('.list-group-item-action').forEach(btn => {
+        btn.classList.remove('active');
+    });
+    button.classList.add('active');
+}
+
+function exportDefinitions() {
+    alert('Export feature coming soon!');
+}
+</script>
+{% endblock %}

@@ -677,7 +677,12 @@ class DocumentProcessor:
 
     def extract_definitions(self, text: str) -> ProcessingResult:
         """
-        Extract term definitions and explanations.
+        Extract term definitions using transformer-enhanced pattern matching.
+
+        Hybrid approach:
+        1. Uses zero-shot classification (transformer) to identify candidate definition sentences
+        2. Applies enhanced pattern extraction to candidates
+        3. Falls back to pure pattern-based if transformers unavailable
 
         Identifies definitional patterns including:
         - Explicit definitions (X is defined as Y, X refers to Y)
@@ -693,7 +698,7 @@ class DocumentProcessor:
             - term: the term being defined
             - definition: the definition text
             - pattern: the definition pattern type
-            - confidence: extraction confidence score
+            - confidence: extraction confidence score (boosted by transformer)
             - start: character start position
             - end: character end position
         """
@@ -701,11 +706,28 @@ class DocumentProcessor:
             import re
             import spacy
 
-            # Load spaCy model for better sentence segmentation
+            # Try to load transformer model for sentence classification
+            transformer_available = False
+            classifier = None
+
+            try:
+                from transformers import pipeline
+                # Zero-shot classification to identify definition sentences
+                # Uses BART fine-tuned on NLI (effective for this task)
+                classifier = pipeline(
+                    "zero-shot-classification",
+                    model="facebook/bart-large-mnli",
+                    device=-1  # CPU (-1), use 0 for GPU
+                )
+                transformer_available = True
+            except (ImportError, Exception):
+                # Fall back to pattern-only approach
+                transformer_available = False
+
+            # Load spaCy model for sentence segmentation and dependency parsing
             try:
                 nlp = spacy.load('en_core_web_sm')
             except OSError:
-                # Fallback to basic regex if spaCy not available
                 nlp = None
 
             definitions = []
@@ -739,7 +761,7 @@ class DocumentProcessor:
                 (r'([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*),\s+i\.e\.,\s+(.+?),', 'ie_explanation', 0.75),
             ]
 
-            # Process text
+            # Process text - get sentences
             if nlp:
                 doc = nlp(text)
                 sentences = [sent.text for sent in doc.sents]
@@ -747,10 +769,45 @@ class DocumentProcessor:
                 # Fallback: simple sentence splitting
                 sentences = re.split(r'[.!?]+\s+', text)
 
+            # Filter sentences using transformer (if available)
+            candidate_sentences = sentences
+            sentence_scores = {}
+
+            if transformer_available and classifier and len(sentences) > 0:
+                try:
+                    # Classify sentences as "contains definition" vs "general text"
+                    # Process in batches to avoid memory issues
+                    batch_size = 10
+                    for i in range(0, len(sentences), batch_size):
+                        batch = sentences[i:i+batch_size]
+                        # Filter out very short sentences to avoid errors
+                        valid_batch = [s for s in batch if len(s) > 20]
+
+                        if valid_batch:
+                            results = classifier(
+                                valid_batch,
+                                candidate_labels=["definition", "explanation", "general text"],
+                                multi_label=False
+                            )
+
+                            # Store scores for sentences that likely contain definitions
+                            for sent, result in zip(valid_batch, results if isinstance(results, list) else [results]):
+                                if result['labels'][0] in ['definition', 'explanation']:
+                                    score = result['scores'][0]
+                                    if score > 0.5:  # Only consider high-confidence sentences
+                                        sentence_scores[sent] = score
+
+                    # Use only high-scoring sentences for pattern extraction
+                    if sentence_scores:
+                        candidate_sentences = list(sentence_scores.keys())
+                except Exception as e:
+                    # If transformer fails, fall back to all sentences
+                    candidate_sentences = sentences
+
             seen_terms = set()
 
-            # Apply patterns to each sentence
-            for sent in sentences:
+            # Apply patterns to candidate sentences
+            for sent in candidate_sentences:
                 for pattern, pattern_type, confidence in definition_patterns:
                     matches = re.finditer(pattern, sent, re.IGNORECASE)
 
@@ -758,9 +815,35 @@ class DocumentProcessor:
                         term = match.group(1).strip()
                         definition_text = match.group(2).strip()
 
-                        # Quality filters
+                        # Quality filters - basic length checks
                         if (len(term) < 2 or len(definition_text) < 10 or
                             len(definition_text) > 200):  # Too short or too long
+                            continue
+
+                        # REJECT: Academic citations (e.g., "Dubossarsky et al., 2015")
+                        if re.search(r'\bet\s+al\.\s*,?\s*\d{4}', definition_text):
+                            continue
+
+                        # REJECT: Multiple citations in parentheses
+                        if definition_text.count('(') > 2 or definition_text.count(';') > 2:
+                            continue
+
+                        # REJECT: Year ranges or multiple years (reference lists)
+                        if re.search(r'\d{4}\s*[-–]\s*\d{4}|\d{4}\s*,\s*\d{4}', definition_text):
+                            continue
+
+                        # REJECT: Sentences that are mostly technical symbols
+                        symbol_ratio = len(re.findall(r'[(){}\[\];,—–]', definition_text)) / max(len(definition_text), 1)
+                        if symbol_ratio > 0.15:  # More than 15% special characters
+                            continue
+
+                        # REJECT: Too many uppercase words (likely acronyms list)
+                        uppercase_words = re.findall(r'\b[A-Z]{2,}\b', definition_text)
+                        if len(uppercase_words) > 3:
+                            continue
+
+                        # REJECT: Starts with common non-definitional words
+                        if re.match(r'^(e\.g\.|for example|such as|including|like)', definition_text, re.IGNORECASE):
                             continue
 
                         # Avoid duplicate terms (keep first occurrence)
@@ -782,14 +865,34 @@ class DocumentProcessor:
                             if len(content_words) < 2:
                                 continue
 
+                        # Additional validation for acronym patterns
+                        if pattern_type in ['acronym', 'acronym_reverse']:
+                            # Ensure it's actually an expansion, not a citation
+                            # Good: "OED (Oxford English Dictionary)"
+                            # Bad: "example (Smith, 2015)"
+                            if re.search(r'\d{4}', definition_text):  # Contains a year
+                                continue
+                            # Must have at least 3 words in expansion
+                            words = definition_text.split()
+                            if len(words) < 3:
+                                continue
+
+                        # Boost confidence if transformer also identified this sentence
+                        final_confidence = confidence
+                        if sent in sentence_scores:
+                            # Combine pattern confidence with transformer score
+                            transformer_score = sentence_scores[sent]
+                            final_confidence = min(0.95, confidence * 0.6 + transformer_score * 0.4)
+
                         definitions.append({
                             'term': term,
                             'definition': definition_text,
                             'pattern': pattern_type,
-                            'confidence': confidence,
+                            'confidence': final_confidence,
                             'start': start_pos,
                             'end': start_pos + len(match.group(0)),
-                            'sentence': sent
+                            'sentence': sent,
+                            'transformer_score': sentence_scores.get(sent, 0.0)
                         })
 
             # If spaCy is available, try to extract appositive definitions
@@ -829,12 +932,23 @@ class DocumentProcessor:
             for defn in definitions:
                 pattern_counts[defn['pattern']] = pattern_counts.get(defn['pattern'], 0) + 1
 
+            # Build method string based on what was used
+            method_parts = []
+            if transformer_available:
+                method_parts.append("transformer_enhanced")
+            method_parts.append("pattern_matching")
+            if nlp:
+                method_parts.append("dependency_parsing")
+
             metadata = {
                 "total_definitions": len(definitions),
                 "pattern_types": pattern_counts,
                 "unique_patterns": len(pattern_counts),
                 "unique_terms": len(seen_terms),
-                "method": "pattern_matching" + ("_plus_dependency" if nlp else ""),
+                "method": "+".join(method_parts),
+                "transformer_used": transformer_available,
+                "sentences_analyzed": len(sentences),
+                "candidate_sentences": len(candidate_sentences),
                 "text_length": len(text)
             }
 
