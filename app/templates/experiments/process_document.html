@@ -167,22 +167,64 @@
                             <!-- Entity Extraction Group -->
                             <div class="border rounded p-3 mb-3 bg-secondary bg-opacity-10">
                                 <h6 class="mb-3">
-                                    <i class="fas fa-tags text-success me-2"></i>Entity Extraction
+                                    <i class="fas fa-tags text-success me-2"></i>Entity & Concept Extraction
                                 </h6>
-                                <div class="form-check">
+                                <div class="form-check mb-2">
                                     <input class="form-check-input tool-checkbox" type="checkbox"
                                            value="entities_spacy" id="tool-entities-spacy"
                                            {% if processing_operations|selectattr('processing_type', 'equalto', 'entities')|selectattr('status', 'equalto', 'completed')|list %}disabled{% endif %}>
                                     <label class="form-check-label" for="tool-entities-spacy">
-                                        <strong>spaCy NER</strong>
-                                        <br><small class="text-muted">Named entity recognition</small>
+                                        <strong>Named Entities + Concepts</strong>
+                                        <br><small class="text-muted">spaCy NER + noun phrase extraction</small>
                                         {% if processing_operations|selectattr('processing_type', 'equalto', 'entities')|selectattr('status', 'equalto', 'completed')|list %}
+                                        <br><small class="text-success"><i class="fas fa-check-circle me-1"></i>Already applied</small>
+                                        {% endif %}
+                                    </label>
+                                </div>
+                                <div class="form-check mb-2">
+                                    <input class="form-check-input tool-checkbox" type="checkbox"
+                                           value="definitions_spacy" id="tool-definitions"
+                                           {% if processing_operations|selectattr('processing_type', 'equalto', 'definitions')|selectattr('status', 'equalto', 'completed')|list %}disabled{% endif %}>
+                                    <label class="form-check-label" for="tool-definitions">
+                                        <strong>Definition Extraction</strong>
+                                        <br><small class="text-muted">Extract term definitions & explanations</small>
+                                        {% if processing_operations|selectattr('processing_type', 'equalto', 'definitions')|selectattr('status', 'equalto', 'completed')|list %}
                                         <br><small class="text-success"><i class="fas fa-check-circle me-1"></i>Already applied</small>
                                         {% endif %}
                                     </label>
                                 </div>
                             </div>
 
+                            <!-- Temporal & Causal Analysis Group -->
+                            <div class="border rounded p-3 mb-3 bg-secondary bg-opacity-10">
+                                <h6 class="mb-3">
+                                    <i class="fas fa-project-diagram text-primary me-2"></i>Temporal & Causal Analysis
+                                </h6>
+                                <div class="form-check mb-2">
+                                    <input class="form-check-input tool-checkbox" type="checkbox"
+                                           value="temporal_spacy" id="tool-temporal"
+                                           {% if processing_operations|selectattr('processing_type', 'equalto', 'temporal')|selectattr('status', 'equalto', 'completed')|list %}disabled{% endif %}>
+                                    <label class="form-check-label" for="tool-temporal">
+                                        <strong>Temporal Extraction</strong>
+                                        <br><small class="text-muted">Dates, periods, historical markers</small>
+                                        {% if processing_operations|selectattr('processing_type', 'equalto', 'temporal')|selectattr('status', 'equalto', 'completed')|list %}
+                                        <br><small class="text-success"><i class="fas fa-check-circle me-1"></i>Already applied</small>
+                                        {% endif %}
+                                    </label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input tool-checkbox" type="checkbox"
+                                           value="causal_spacy" id="tool-causal"
+                                           {% if processing_operations|selectattr('processing_type', 'equalto', 'causal')|selectattr('status', 'equalto', 'completed')|list %}disabled{% endif %}>
+                                    <label class="form-check-label" for="tool-causal">
+                                        <strong>Causal Relationship Extraction</strong>
+                                        <br><small class="text-muted">Identify cause-effect relationships</small>
+                                        {% if processing_operations|selectattr('processing_type', 'equalto', 'causal')|selectattr('status', 'equalto', 'completed')|list %}
+                                        <br><small class="text-success"><i class="fas fa-check-circle me-1"></i>Already applied</small>
+                                        {% endif %}
+                                    </label>
+                                </div>
+                            </div>
 
                             <!-- Enhanced Processing Group -->
                             <div class="border rounded p-3 mb-3 bg-secondary bg-opacity-10">
@@ -388,11 +430,15 @@ document.addEventListener('DOMContentLoaded', function() {
     const runAllToolsBtn = document.getElementById('run-all-tools-btn');
     if (runAllToolsBtn) {
         runAllToolsBtn.addEventListener('click', async function() {
-            // Optimal pipeline order: segment → embeddings → entities → enhanced
+            // Optimal pipeline order: segment → embeddings → extract entities/temporal/definitions/causal → enhanced
             const allTools = [
                 'segment_paragraph',
+                'segment_sentence',
                 'embeddings_local',
                 'entities_spacy',
+                'temporal_spacy',
+                'definitions_spacy',
+                'causal_spacy',
                 'enhanced'
             ];
 
@@ -461,6 +507,15 @@ document.addEventListener('DOMContentLoaded', function() {
             processing_method = 'openai';
         } else if (tool === 'entities_spacy') {
             processing_type = 'entities';
+            processing_method = 'spacy';
+        } else if (tool === 'definitions_spacy') {
+            processing_type = 'definitions';
+            processing_method = 'spacy';
+        } else if (tool === 'temporal_spacy') {
+            processing_type = 'temporal';
+            processing_method = 'spacy';
+        } else if (tool === 'causal_spacy') {
+            processing_type = 'causal';
             processing_method = 'spacy';
         } else if (tool === 'enhanced') {
             processing_type = 'enhanced_processing';
