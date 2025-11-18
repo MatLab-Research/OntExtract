@@ -27,7 +27,15 @@ class StartProcessingDTO(BaseDTO):
     @classmethod
     def validate_processing_type(cls, v):
         """Ensure processing type is valid"""
-        valid_types = ['embeddings', 'segmentation', 'entities', 'temporal', 'etymology']
+        valid_types = [
+            'embeddings',
+            'segmentation',
+            'entities',
+            'temporal',
+            'definitions',
+            'enhanced_processing',
+            'etymology'  # Legacy
+        ]
         if v not in valid_types:
             raise ValueError(f'Invalid processing type. Must be one of: {", ".join(valid_types)}')
         return v
@@ -39,11 +47,13 @@ class StartProcessingDTO(BaseDTO):
         # Common methods across processing types
         valid_methods = [
             # Embeddings
-            'openai', 'sentence_transformers', 'gemini',
+            'local', 'openai', 'sentence_transformers', 'gemini',
             # Segmentation
             'paragraph', 'sentence', 'semantic',
-            # Entities
-            'spacy', 'nltk', 'llm'
+            # Entities, Temporal, Definitions
+            'spacy', 'nltk', 'llm',
+            # Enhanced Processing
+            'enhanced'
         ]
         if v not in valid_methods:
             raise ValueError(f'Invalid processing method: {v}')

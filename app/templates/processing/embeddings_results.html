@@ -103,20 +103,68 @@
                         </div>
                     </div>
 
-                    <!-- Sample Embeddings -->
-                    {% if embedding_count > 0 %}
+                    <!-- Document-Level Embeddings -->
+                    {% if document_embeddings %}
                     <div class="card mb-4">
-                        <div class="card-header">
-                            <h6 class="mb-0"><i class="fas fa-list me-2"></i>Sample Embedding Vectors</h6>
+                        <div class="card-header bg-primary text-white">
+                            <h6 class="mb-0"><i class="fas fa-file-alt me-2"></i>Document-Level Embeddings</h6>
                         </div>
                         <div class="card-body">
-                            <p class="text-muted">Embedding vectors are high-dimensional representations of text. Below shows a simplified view.</p>
-                            <div class="bg-light p-3 rounded" style="max-height: 300px; overflow-y: auto;">
-                                <small class="text-muted font-monospace">
-                                    Vector visualization available in future version.
-                                    <br>Total vectors: {{ embedding_count }}
-                                    <br>Dimensions per vector: {{ params.get('dimension', 384) if jobs else 'N/A' }}
-                                </small>
+                            <p class="text-muted">Full document embedding for similarity comparison and clustering.</p>
+                            {% for emb in document_embeddings %}
+                                {% set content = emb.get_content() %}
+                                {% set metadata = emb.get_metadata() %}
+                                <div class="border rounded p-3 mb-2 bg-light">
+                                    <div class="d-flex justify-content-between align-items-start mb-2">
+                                        <div>
+                                            <strong>Model:</strong> <code>{{ content.get('model', 'N/A') }}</code><br>
+                                            <strong>Dimensions:</strong> {{ metadata.get('dimensions', 'N/A') }}<br>
+                                            <strong>Text Length:</strong> {{ metadata.get('chunk_size', 'N/A') }} chars (from {{ metadata.get('original_length', 'N/A') }} total)
+                                        </div>
+                                        <span class="badge bg-primary">Document</span>
+                                    </div>
+                                    <small class="text-muted"><strong>Text:</strong> {{ content.get('text', '')[:200] }}{% if content.get('text', '')|length > 200 %}...{% endif %}</small>
+                                    <hr>
+                                    <small class="text-muted font-monospace">
+                                        <strong>Vector (first 10 dimensions):</strong><br>
+                                        [{% for val in content.get('vector', [])[:10] %}{{ "%.4f"|format(val) }}{% if not loop.last %}, {% endif %}{% endfor %}{% if content.get('vector', [])|length > 10 %}, ...{% endif %}]
+                                    </small>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    <!-- Segment-Level Embeddings -->
+                    {% if segment_embeddings %}
+                    <div class="card mb-4">
+                        <div class="card-header bg-info text-white">
+                            <h6 class="mb-0"><i class="fas fa-grip-horizontal me-2"></i>Segment-Level Embeddings <span class="badge bg-light text-dark">{{ segment_embeddings|length }}</span></h6>
+                        </div>
+                        <div class="card-body">
+                            <p class="text-muted">Individual segment embeddings for fine-grained semantic search.</p>
+                            <div style="max-height: 400px; overflow-y: auto;">
+                                {% for emb in segment_embeddings[:10] %}
+                                    {% set content = emb.get_content() %}
+                                    {% set metadata = emb.get_metadata() %}
+                                    <div class="border rounded p-3 mb-2 bg-light">
+                                        <div class="d-flex justify-content-between align-items-start mb-2">
+                                            <div>
+                                                <strong>Segment {{ emb.artifact_index + 1 }}</strong><br>
+                                                <small class="text-muted">{{ metadata.get('chunk_size', 'N/A') }} chars</small>
+                                            </div>
+                                            <span class="badge bg-info">Segment</span>
+                                        </div>
+                                        <small class="text-muted"><strong>Text:</strong> {{ content.get('text', '')[:150] }}{% if content.get('text', '')|length > 150 %}...{% endif %}</small>
+                                        <hr>
+                                        <small class="text-muted font-monospace">
+                                            <strong>Vector:</strong> [{% for val in content.get('vector', [])[:10] %}{{ "%.4f"|format(val) }}{% if not loop.last %}, {% endif %}{% endfor %}{% if content.get('vector', [])|length > 10 %}, ...{% endif %}]
+                                        </small>
+                                    </div>
+                                {% endfor %}
+                                {% if segment_embeddings|length > 10 %}
+                                <p class="text-muted text-center mt-3">Showing first 10 of {{ segment_embeddings|length }} segment embeddings</p>
+                                {% endif %}
                             </div>
                         </div>
                     </div>
@@ -130,16 +178,18 @@
                             <h6 class="mb-0"><i class="fas fa-history me-2"></i>Processing History</h6>
                         </div>
                         <div class="card-body">
-                            {% if jobs|length > 1 %}
+                            {% if jobs|length >= 1 %}
+                                {% if jobs|length > 1 %}
                                 <p class="small text-muted mb-3">
                                     This document has been processed {{ jobs|length }} times
                                 </p>
+                                {% endif %}
                                 <div class="list-group">
                                     {% for job in jobs %}
                                     <div class="list-group-item {{ 'active' if loop.first else '' }}">
                                         <div class="d-flex w-100 justify-content-between">
                                             <h6 class="mb-1">
-                                                Run {{ loop.index }}
+                                                {% if jobs|length > 1 %}Run {{ loop.index }}{% else %}Embedding Run{% endif %}
                                                 {% if loop.first %}
                                                 <span class="badge bg-primary ms-2">Latest</span>
                                                 {% endif %}
@@ -156,7 +206,7 @@
                                     {% endfor %}
                                 </div>
                             {% else %}
-                                <p class="text-muted">Single processing run</p>
+                                <p class="text-muted">No processing history</p>
                             {% endif %}
                         </div>
                     </div>

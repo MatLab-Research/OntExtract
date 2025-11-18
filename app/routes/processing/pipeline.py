@@ -1486,17 +1486,32 @@ def view_embeddings_results(document_uuid):
         # Sort by created_at desc
         jobs.sort(key=lambda j: (j.created_at is None, j.created_at), reverse=True)
 
-        # Get embedding statistics
-        embeddings = db.session.query(
-            func.count().label('count'),
-            func.avg(func.length(text('embedding::text'))).label('avg_size')
-        ).filter_by(document_id=document.id).first()
+        # Get embedding statistics from ProcessingArtifact (new system)
+        from app.models.experiment_processing import ProcessingArtifact
+
+        # Get document-level embeddings (artifact_index = -1)
+        document_embeddings = ProcessingArtifact.query.filter(
+            ProcessingArtifact.document_id == document.id,
+            ProcessingArtifact.artifact_type == 'embedding_vector',
+            ProcessingArtifact.artifact_index == -1
+        ).all()
+
+        # Get segment-level embeddings (artifact_index >= 0)
+        segment_embeddings = ProcessingArtifact.query.filter(
+            ProcessingArtifact.document_id == document.id,
+            ProcessingArtifact.artifact_type == 'embedding_vector',
+            ProcessingArtifact.artifact_index >= 0
+        ).order_by(ProcessingArtifact.artifact_index).all()
+
+        total_embeddings = len(document_embeddings) + len(segment_embeddings)
 
         from flask import render_template
         return render_template('processing/embeddings_results.html',
                              document=document,
                              jobs=jobs,
-                             embedding_count=embeddings.count if embeddings else 0)
+                             embedding_count=total_embeddings,
+                             document_embeddings=document_embeddings,
+                             segment_embeddings=segment_embeddings)
 
     except Exception as e:
         from flask import render_template
