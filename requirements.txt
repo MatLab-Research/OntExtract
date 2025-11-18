@@ -47,6 +47,8 @@ lxml==6.0.0
 
 # ML & Embeddings
 sentence-transformers==5.1.2
+transformers==4.36.0
+torch==2.1.2
 numpy==1.26.4
 
 # Graph & Visualization
