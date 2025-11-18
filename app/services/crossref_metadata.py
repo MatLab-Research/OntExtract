@@ -82,17 +82,125 @@ class CrossRefMetadataExtractor:
             logger.error(f"Error parsing CrossRef response for DOI {doi}: {e}")
             return None
 
-    def extract_from_title(self, title: str, limit: int = 5) -> Optional[Dict[str, Any]]:
+    def extract_from_metadata(self, title: str, authors: Optional[list] = None, limit: int = 5) -> Optional[Dict[str, Any]]:
         """
-        Search CrossRef by title and return best match.
+        Search CrossRef using multiple metadata fields for better matching.
 
         Args:
             title: Paper title to search for
+            authors: Optional list of author names
             limit: Number of results to fetch (default 5)
 
         Returns:
             Best matching metadata or None if not found
         """
+        try:
+            params = {
+                'query.title': title,
+                'rows': limit
+            }
+
+            # Add author filter if provided
+            if authors and len(authors) > 0:
+                # Use first author for filtering (most reliable)
+                first_author = authors[0]
+                params['query.author'] = first_author
+                logger.info(f"Searching CrossRef with title and first author: {first_author}")
+
+            response = self.session.get(self.BASE_URL, params=params, timeout=10)
+
+            if response.status_code != 200:
+                logger.warning(f"CrossRef API returned status {response.status_code} for metadata search: {title}")
+                return None
+
+            data = response.json()
+            items = data.get('message', {}).get('items', [])
+
+            if not items:
+                return None
+
+            # Get best match and verify
+            best_match = items[0]
+            match_score = best_match.get('score', 0)
+
+            # Score thresholds
+            HIGH_CONFIDENCE_THRESHOLD = 60.0
+            LOW_CONFIDENCE_THRESHOLD = 30.0
+
+            # If we used author matching, be more lenient with scores
+            # Author matching significantly reduces false positives
+            if authors:
+                LOW_CONFIDENCE_THRESHOLD = 20.0
+                logger.info(f"Using lower threshold (20.0) for author-enhanced search")
+
+            if match_score < LOW_CONFIDENCE_THRESHOLD:
+                logger.warning(
+                    f"CrossRef match score too low ({match_score:.2f}) for '{title}'. "
+                    f"Returned title: '{self._extract_title(best_match)}'. "
+                    f"Rejecting match to avoid false positive."
+                )
+                return None
+
+            # Determine confidence level
+            confidence_level = "high" if match_score >= HIGH_CONFIDENCE_THRESHOLD else "low"
+            confidence_value = 0.9 if match_score >= HIGH_CONFIDENCE_THRESHOLD else 0.6
+
+            metadata = {
+                'title': self._extract_title(best_match),
+                'authors': self._extract_authors(best_match),
+                'publication_year': self._extract_year(best_match),
+                'journal': self._extract_journal(best_match),
+                'doi': best_match.get('DOI'),
+                'abstract': best_match.get('abstract'),
+                'publisher': best_match.get('publisher'),
+                'type': best_match.get('type'),
+                'url': best_match.get('URL'),
+                'raw_date': self._extract_raw_date(best_match),
+                'match_score': match_score,
+                'confidence_level': confidence_level,
+                'confidence_value': confidence_value,
+                'search_used_authors': bool(authors)  # Track if we used author matching
+            }
+
+            if confidence_level == "high":
+                logger.info(
+                    f"Accepted CrossRef match (high confidence, score: {match_score:.2f}) for '{title}': "
+                    f"'{metadata['title']}' ({metadata.get('publication_year')})"
+                )
+            else:
+                logger.warning(
+                    f"Accepted CrossRef match (LOW CONFIDENCE, score: {match_score:.2f}) for '{title}': "
+                    f"'{metadata['title']}' ({metadata.get('publication_year')}). "
+                    f"Please verify this is the correct document."
+                )
+
+            return metadata
+
+        except requests.RequestException as e:
+            logger.error(f"Error searching CrossRef for metadata '{title}': {e}")
+            return None
+        except Exception as e:
+            logger.error(f"Error parsing CrossRef search results for '{title}': {e}")
+            return None
+
+    def extract_from_title(self, title: str, authors: Optional[list] = None, limit: int = 5) -> Optional[Dict[str, Any]]:
+        """
+        Search CrossRef by title and return best match.
+
+        Now delegates to extract_from_metadata() for enhanced searching with authors.
+
+        Args:
+            title: Paper title to search for
+            authors: Optional list of author names for better matching
+            limit: Number of results to fetch (default 5)
+
+        Returns:
+            Best matching metadata or None if not found
+        """
+        return self.extract_from_metadata(title, authors=authors, limit=limit)
+
+    def extract_from_title_old(self, title: str, limit: int = 5) -> Optional[Dict[str, Any]]:
+        """Old implementation - kept for reference."""
         try:
             params = {
                 'query.title': title,
@@ -116,19 +224,24 @@ class CrossRefMetadataExtractor:
             match_score = best_match.get('score', 0)
 
             # CrossRef scores typically range from 0-100+
-            # Only accept matches with score > 60 to avoid false positives
-            # (especially important for historical documents with non-standard titles)
-            # Historical documents often have header text extracted as "title" which produces
-            # low-quality matches (e.g., "Bedford Square London" with score 35)
-            MIN_MATCH_SCORE = 60.0
+            # Score thresholds:
+            # - Above 60: High confidence, auto-accept
+            # - 30-60: Possible match, show with low confidence warning
+            # - Below 30: Likely false positive, reject
+            HIGH_CONFIDENCE_THRESHOLD = 60.0
+            LOW_CONFIDENCE_THRESHOLD = 30.0
 
-            if match_score < MIN_MATCH_SCORE:
+            if match_score < LOW_CONFIDENCE_THRESHOLD:
                 logger.warning(
                     f"CrossRef match score too low ({match_score:.2f}) for title '{title}'. "
                     f"Returned title: '{self._extract_title(best_match)}'. "
                     f"Rejecting match to avoid false positive."
                 )
                 return None
+
+            # Determine confidence level
+            confidence_level = "high" if match_score >= HIGH_CONFIDENCE_THRESHOLD else "low"
+            confidence_value = 0.9 if match_score >= HIGH_CONFIDENCE_THRESHOLD else 0.6
 
             metadata = {
                 'title': self._extract_title(best_match),
@@ -141,13 +254,22 @@ class CrossRefMetadataExtractor:
                 'type': best_match.get('type'),
                 'url': best_match.get('URL'),
                 'raw_date': self._extract_raw_date(best_match),
-                'match_score': match_score  # CrossRef relevance score
+                'match_score': match_score,  # CrossRef relevance score (0-100+)
+                'confidence_level': confidence_level,  # "high" or "low"
+                'confidence_value': confidence_value  # 0.9 or 0.6
             }
 
-            logger.info(
-                f"Accepted CrossRef match (score: {match_score:.2f}) for '{title}': "
-                f"'{metadata['title']}' ({metadata.get('publication_year')})"
-            )
+            if confidence_level == "high":
+                logger.info(
+                    f"Accepted CrossRef match (high confidence, score: {match_score:.2f}) for '{title}': "
+                    f"'{metadata['title']}' ({metadata.get('publication_year')})"
+                )
+            else:
+                logger.warning(
+                    f"Accepted CrossRef match (LOW CONFIDENCE, score: {match_score:.2f}) for '{title}': "
+                    f"'{metadata['title']}' ({metadata.get('publication_year')}). "
+                    f"Please verify this is the correct document."
+                )
 
             return metadata
 

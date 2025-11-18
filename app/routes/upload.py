@@ -314,35 +314,68 @@ def extract_metadata():
                 return jsonify({'error': upload_result.error}), 400
 
             try:
-                # Try to get CrossRef metadata from title (if provided) OR from PDF analysis
+                # Get user inputs
                 title = request.form.get('title', '').strip()
+                enable_crossref = request.form.get('enable_crossref', 'true').lower() == 'true'
                 crossref_metadata = {}
                 crossref_provenance = {}
+                extraction_method = None
 
-                # DISABLED: Automatic PDF extraction (unreliable for historical documents)
-                # Will revisit later to improve title extraction accuracy
-                # if not title and file.filename.lower().endswith('.pdf'):
-                #     current_app.logger.info(f"No title provided, attempting PDF analysis for {file.filename}")
-                #     pdf_result = upload_service.extract_metadata_from_pdf(upload_result.temp_path)
-                #     ...
-                # For now, users should manually provide title and year
-                if not title and file.filename.lower().endswith('.pdf'):
-                    current_app.logger.info(f"Automatic PDF extraction disabled - please provide title and year manually")
+                # Track any metadata extracted directly from PDF (even if CrossRef fails)
+                pdf_extracted_title = None
+                pdf_extracted_metadata = {}
 
-                # If title was provided by user, use that
-                if title:
-                    metadata_result = upload_service.extract_metadata_from_title(title)
-                    if metadata_result.success:
-                        crossref_metadata = metadata_result.metadata
+                # If CrossRef is enabled, try multi-step extraction
+                if enable_crossref:
+                    current_app.logger.info(f"CrossRef enabled - attempting automatic extraction from PDF")
+
+                    # Step 1: Try extracting from PDF (DOI or title)
+                    pdf_result = upload_service.extract_metadata_from_pdf(upload_result.temp_path)
+                    if pdf_result.success:
+                        crossref_metadata = pdf_result.metadata
+                        extraction_method = pdf_result.metadata.get('extraction_method', 'pdf_analysis')
+                        current_app.logger.info(f"PDF extraction successful via {extraction_method}")
+
                         # Track CrossRef provenance
                         for key, value in crossref_metadata.items():
                             if value is not None:
                                 crossref_provenance[key] = {
                                     'source': 'crossref',
-                                    'confidence': metadata_result.metadata.get('match_score', 0.85),
+                                    'confidence': 0.9 if 'doi' in extraction_method else 0.85,
                                     'timestamp': datetime.utcnow().isoformat(),
-                                    'raw_value': value
+                                    'raw_value': value,
+                                    'extraction_method': extraction_method
                                 }
+                    else:
+                        # CrossRef lookup failed, but check if we extracted anything from PDF
+                        pdf_extracted_metadata = pdf_result.metadata or {}
+                        if pdf_extracted_metadata.get('title'):
+                            pdf_extracted_title = pdf_extracted_metadata['title']
+                            current_app.logger.info(f"Extracted title from PDF: {pdf_extracted_title}")
+
+                        # Step 2: Try user-provided title
+                        current_app.logger.info(f"PDF extraction failed, trying user-provided title: {title}")
+                        if title:
+                            metadata_result = upload_service.extract_metadata_from_title(title)
+                            if metadata_result.success:
+                                crossref_metadata = metadata_result.metadata
+                                extraction_method = 'title_from_user'
+                                current_app.logger.info(f"CrossRef match found for user-provided title")
+
+                                # Track CrossRef provenance
+                                for key, value in crossref_metadata.items():
+                                    if value is not None:
+                                        crossref_provenance[key] = {
+                                            'source': 'crossref',
+                                            'confidence': metadata_result.metadata.get('match_score', 0.85),
+                                            'timestamp': datetime.utcnow().isoformat(),
+                                            'raw_value': value,
+                                            'extraction_method': extraction_method
+                                        }
+                            else:
+                                current_app.logger.info(f"No CrossRef match found for: {title}")
+                elif title:
+                    current_app.logger.info(f"CrossRef disabled - using provided metadata only")
 
                 # Parse user-provided metadata
                 user_metadata = {}
@@ -378,15 +411,27 @@ def extract_metadata():
                         'raw_value': authors
                     }
 
-                # Merge metadata (user takes precedence over CrossRef)
+                # If we have PDF-extracted metadata but no CrossRef, use it with lower confidence
+                pdf_provenance = {}
+                if pdf_extracted_title and not crossref_metadata:
+                    pdf_provenance['title'] = {
+                        'source': 'file',
+                        'confidence': 0.7,
+                        'timestamp': datetime.utcnow().isoformat(),
+                        'raw_value': pdf_extracted_title,
+                        'extraction_method': 'pdf_embedded_metadata'
+                    }
+
+                # Merge metadata (precedence: user > crossref > pdf > filename)
                 merged_metadata = upload_service.merge_metadata(
+                    {'title': pdf_extracted_title} if pdf_extracted_title else {},
                     crossref_metadata,
                     user_metadata,
                     {'filename': file.filename}
                 )
 
-                # Merge provenance (user takes precedence)
-                merged_provenance = {**crossref_provenance, **user_provenance}
+                # Merge provenance (user takes precedence over crossref, crossref over pdf)
+                merged_provenance = {**pdf_provenance, **crossref_provenance, **user_provenance}
 
                 # Add filename provenance
                 merged_provenance['filename'] = {
@@ -396,13 +441,57 @@ def extract_metadata():
                     'raw_value': file.filename
                 }
 
+                # Check if we have any metadata at all
+                has_metadata = bool(crossref_metadata or user_metadata)
+
+                # Build user message based on CrossRef results and extraction method
+                if enable_crossref and crossref_metadata:
+                    confidence_level = crossref_metadata.get('confidence_level', 'high')
+                    match_score = crossref_metadata.get('match_score', 0)
+
+                    # Base message based on extraction method
+                    if extraction_method == 'doi_from_pdf':
+                        base_message = 'CrossRef match found using DOI from PDF!'
+                    elif extraction_method == 'title_from_pdf':
+                        base_message = 'CrossRef match found using title from PDF!'
+                    elif extraction_method == 'title_from_user':
+                        base_message = 'CrossRef match found using your provided title!'
+                    else:
+                        base_message = 'CrossRef match found!'
+
+                    # Add confidence warning if needed
+                    if confidence_level == 'low':
+                        message = f'{base_message} LOW CONFIDENCE (score: {match_score:.1f}/100). Please verify this is the correct document before saving.'
+                    else:
+                        message = f'{base_message} Please review the auto-filled metadata.'
+                elif enable_crossref and not crossref_metadata and pdf_extracted_title:
+                    # We found a title in PDF but no CrossRef match
+                    message = f'Extracted title from PDF: "{pdf_extracted_title}". No CrossRef match found. You can use this title or enter a different one below.'
+                elif enable_crossref and not crossref_metadata and not title and not pdf_extracted_title:
+                    # PDF extraction failed and no title provided - show empty form
+                    message = 'Could not extract metadata from PDF. Please fill in the required fields below.'
+                elif enable_crossref and not crossref_metadata and title:
+                    message = 'No CrossRef match found for your title. Please enter metadata manually.'
+                elif not enable_crossref and not title:
+                    # CrossRef disabled but no title - validation error
+                    upload_service.cleanup_temp(upload_result.temp_path)
+                    return jsonify({
+                        'success': False,
+                        'error': 'Title is required when CrossRef lookup is disabled.'
+                    }), 400
+                else:
+                    message = 'Document uploaded. Please review metadata before saving.'
+
                 return jsonify({
                     'success': True,
                     'metadata': merged_metadata,
                     'provenance': merged_provenance,
                     'temp_path': upload_result.temp_path,
                     'needs_file': False,
-                    'message': 'Document analyzed. Please review metadata before saving.'
+                    'message': message,
+                    'crossref_enabled': enable_crossref,
+                    'crossref_found': bool(crossref_metadata),
+                    'extraction_method': extraction_method
                 })
 
             except Exception as e:
@@ -436,6 +525,10 @@ def save_document():
 
         if not temp_path:
             return jsonify({'error': 'No document file to save'}), 400
+
+        # Validate required fields
+        if not metadata.get('title'):
+            return jsonify({'error': 'Title is required'}), 400
 
         # Create upload directory
         upload_dir = current_app.config.get('UPLOAD_FOLDER', 'uploads')
