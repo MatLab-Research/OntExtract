@@ -40,13 +40,9 @@
                                     </td>
                                     <td>
                                         {% if experiment.experiment_type == 'entity_extraction' %}
-                                            <span class="badge bg-primary">Entity Extraction</span>
-                                        {% elif experiment.experiment_type == 'temporal_analysis' %}
-                                            <span class="badge bg-info">Temporal Analysis</span>
+                                            <span class="badge bg-primary">Document Analysis</span>
                                         {% elif experiment.experiment_type == 'temporal_evolution' %}
                                             <span class="badge bg-info">Temporal Evolution</span>
-                                        {% elif experiment.experiment_type == 'semantic_drift' %}
-                                            <span class="badge bg-warning">Semantic Drift</span>
                                         {% elif experiment.experiment_type == 'domain_comparison' %}
                                             <span class="badge bg-success">Domain Comparison</span>
                                         {% else %}

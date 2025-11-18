@@ -23,7 +23,7 @@ class CreateExperimentDTO(BaseDTO):
     description: Optional[str] = Field(None, max_length=2000, description="Experiment description")
     experiment_type: str = Field(
         ...,
-        pattern="^(temporal_analysis|temporal_evolution|semantic_drift|domain_comparison|entity_extraction)$",
+        pattern="^(entity_extraction|temporal_evolution|domain_comparison)$",
         description="Type of experiment to run"
     )
     document_ids: List[int] = Field(default_factory=list, description="List of document IDs")
