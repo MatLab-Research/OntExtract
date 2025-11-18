@@ -1967,3 +1967,72 @@ def view_definitions_results(document_uuid):
         return render_template('processing/error.html',
                              document=document,
                              error=str(e)), 500
+
+@processing_bp.route('/document/<string:document_uuid>/clear/definitions', methods=['DELETE'])
+def clear_definitions(document_uuid):
+    """Clear all definition extraction results for a document."""
+    try:
+        document = Document.query.filter_by(uuid=document_uuid).first_or_404()
+
+        # Get all versions of this document
+        from app.services.inheritance_versioning_service import InheritanceVersioningService
+        base_doc_id = InheritanceVersioningService._get_base_document_id(document)
+        all_versions = Document.query.filter_by(source_document_id=base_doc_id).all()
+        all_version_ids = [v.id for v in all_versions]
+        if base_doc_id not in all_version_ids:
+            all_version_ids.append(base_doc_id)
+
+        deleted_artifacts = 0
+        deleted_jobs = 0
+
+        # Delete ProcessingArtifact entries (new experiment processing)
+        from app.models.experiment_processing import ProcessingArtifact
+        artifacts = ProcessingArtifact.query.filter(
+            ProcessingArtifact.document_id.in_(all_version_ids),
+            ProcessingArtifact.artifact_type == 'term_definition'
+        ).all()
+
+        for artifact in artifacts:
+            db.session.delete(artifact)
+            deleted_artifacts += 1
+
+        # Delete ProcessingJob entries (old manual processing)
+        jobs = ProcessingJob.query.filter(
+            ProcessingJob.document_id.in_(all_version_ids),
+            ProcessingJob.job_type == 'definition_extraction'
+        ).all()
+
+        for job in jobs:
+            db.session.delete(job)
+            deleted_jobs += 1
+
+        # Also delete ExperimentDocumentProcessing records for definitions
+        from app.models.experiment_processing import ExperimentDocumentProcessing
+        from app.models.experiment_document import ExperimentDocument
+
+        for doc_id in all_version_ids:
+            exp_docs = ExperimentDocument.query.filter_by(document_id=doc_id).all()
+            for exp_doc in exp_docs:
+                exp_processing = ExperimentDocumentProcessing.query.filter_by(
+                    experiment_document_id=exp_doc.id,
+                    processing_type='definitions'
+                ).all()
+                for exp_proc in exp_processing:
+                    db.session.delete(exp_proc)
+                    deleted_jobs += 1
+
+        db.session.commit()
+
+        from flask import jsonify
+        return jsonify({
+            'success': True,
+            'deleted_count': deleted_artifacts,
+            'jobs_deleted': deleted_jobs,
+            'message': f'Deleted {deleted_artifacts} definitions and {deleted_jobs} processing jobs'
+        })
+
+    except Exception as e:
+        db.session.rollback()
+        from flask import jsonify
+        return jsonify({'error': str(e)}), 500
+
