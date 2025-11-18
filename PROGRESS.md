@@ -42,6 +42,17 @@
    - Updated `PROGRESS.md` with fine-tuning session details
    - Clarified offline mode applies only to embeddings, not LLM API calls
 
+4. **Experiment Type Validation Fix**
+   - **Issue:** Frontend form was sending invalid experiment types (`document_analysis`, `single_document_analysis`)
+   - **Root Cause:** Mismatch between frontend dropdown values and backend DTO validation pattern
+   - **Files Fixed:**
+     - `app/templates/experiments/new.html` - Updated dropdown to send valid types
+     - `app/templates/experiments/view.html` - Updated type display badges
+     - `app/templates/experiments/index.html` - Updated type display badges
+     - `app/models/experiment.py` - Updated comment to reflect valid types
+   - **Valid Types:** `entity_extraction`, `temporal_analysis`, `temporal_evolution`, `semantic_drift`, `domain_comparison`
+   - **Impact:** Experiment creation now works correctly; validation errors resolved
+
 ### 2025-11-16 - Dependency Updates & Testing Preparation
 
 #### ✅ Completed Tasks
@@ -103,8 +114,12 @@
 | File | Change | Status | Commit |
 |------|--------|--------|--------|
 | `requirements.txt` | sentence-transformers 2.3.1→5.1.2 | ✅ Committed | 8c5df75 |
-| `app/services/experiment_embedding_service.py` | Added offline mode config | ✅ Fixed | Pending |
-| `PROGRESS.md` | Updated with fine-tuning session | ✅ Updated | Pending |
+| `app/services/experiment_embedding_service.py` | Added offline mode config | ✅ Committed | 1f7aba8 |
+| `app/templates/experiments/new.html` | Fixed experiment type values | ✅ Fixed | Pending |
+| `app/templates/experiments/view.html` | Updated type display badges | ✅ Fixed | Pending |
+| `app/templates/experiments/index.html` | Updated type display badges | ✅ Fixed | Pending |
+| `app/models/experiment.py` | Updated valid types comment | ✅ Fixed | Pending |
+| `PROGRESS.md` | Updated with all session changes | ✅ Updated | Pending |
 
 ### Files to Watch (Potentially Affected by Update)
 
@@ -141,6 +156,12 @@
    - **Issue:** `ExperimentEmbeddingService` was missing offline mode configuration
    - **Resolution:** Added `HF_HUB_OFFLINE=1` and `TRANSFORMERS_OFFLINE=1` environment variables before SentenceTransformer initialization
    - **Impact:** All embedding services now consistently use offline mode
+
+2. **Experiment Creation Validation Error (2025-11-18)**
+   - **Issue:** "Validation failed" error when creating new experiments
+   - **Root Cause:** Frontend sending invalid experiment types (`document_analysis`, `single_document_analysis`) not matching backend DTO validation
+   - **Resolution:** Updated frontend templates to use valid experiment types: `entity_extraction`, `temporal_analysis`, `temporal_evolution`, `semantic_drift`, `domain_comparison`
+   - **Impact:** Experiment creation form now works correctly
 
 ---
 
