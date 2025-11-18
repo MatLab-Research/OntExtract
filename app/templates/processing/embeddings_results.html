@@ -32,7 +32,10 @@
                     <!-- Statistics Card -->
                     <div class="card mb-4">
                         <div class="card-header bg-info text-white">
-                            <h5 class="mb-0"><i class="fas fa-chart-bar me-2"></i>Embedding Statistics</h5>
+                            <h5 class="mb-0">
+                                <i class="fas fa-chart-bar me-2"></i>Embedding Statistics
+                                <span id="filter-indicator" class="badge bg-light text-dark ms-2" style="display: none;"></span>
+                            </h5>
                         </div>
                         <div class="card-body">
                             {% if jobs %}
@@ -42,26 +45,26 @@
                                 <div class="row text-center mb-4">
                                     <div class="col-md-3">
                                         <div class="border rounded p-3">
-                                            <h4 class="text-info mb-1">{{ embedding_count }}</h4>
+                                            <h4 class="text-info mb-1" id="stat-total-embeddings">{{ embedding_count }}</h4>
                                             <small class="text-muted">Total Embeddings</small>
                                         </div>
                                     </div>
                                     <div class="col-md-3">
                                         <div class="border rounded p-3">
-                                            <h4 class="text-success mb-1">{{ params.get('method', 'local')|title }}</h4>
+                                            <h4 class="text-success mb-1" id="stat-document-embeddings">{{ document_embeddings|length }}</h4>
+                                            <small class="text-muted">Document-Level</small>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <div class="border rounded p-3">
+                                            <h4 class="text-primary mb-1" id="stat-segment-embeddings">{{ segment_embeddings|length }}</h4>
+                                            <small class="text-muted">Segment-Level</small>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <div class="border rounded p-3">
+                                            <h4 class="text-warning mb-1" id="stat-method">All</h4>
                                             <small class="text-muted">Method</small>
-                                        </div>
-                                    </div>
-                                    <div class="col-md-3">
-                                        <div class="border rounded p-3">
-                                            <h4 class="text-primary mb-1">{{ params.get('model_name', 'N/A') }}</h4>
-                                            <small class="text-muted">Model</small>
-                                        </div>
-                                    </div>
-                                    <div class="col-md-3">
-                                        <div class="border rounded p-3">
-                                            <h4 class="text-warning mb-1">{{ params.get('dimension', 384) }}</h4>
-                                            <small class="text-muted">Dimensions</small>
                                         </div>
                                     </div>
                                 </div>
@@ -114,12 +117,25 @@
                             {% for emb in document_embeddings %}
                                 {% set content = emb.get_content() %}
                                 {% set metadata = emb.get_metadata() %}
-                                <div class="border rounded p-3 mb-2 bg-light">
+                                <div class="border rounded p-3 mb-2 bg-light embedding-item"
+                                     data-method="{{ metadata.get('method', 'unknown') }}"
+                                     data-level="document"
+                                     data-dimensions="{{ metadata.get('dimensions', 0) }}">
                                     <div class="d-flex justify-content-between align-items-start mb-2">
                                         <div>
+                                            <div class="mb-2">
+                                                {% if metadata.get('method') == 'local' %}
+                                                <span class="badge bg-success me-2">Local</span>
+                                                {% elif metadata.get('method') == 'openai' %}
+                                                <span class="badge bg-info me-2">OpenAI</span>
+                                                {% endif %}
+                                                <span class="badge bg-secondary">{{ metadata.get('dimensions', 'N/A') }} dims</span>
+                                            </div>
                                             <strong>Model:</strong> <code>{{ content.get('model', 'N/A') }}</code><br>
-                                            <strong>Dimensions:</strong> {{ metadata.get('dimensions', 'N/A') }}<br>
                                             <strong>Text Length:</strong> {{ metadata.get('chunk_size', 'N/A') }} chars (from {{ metadata.get('original_length', 'N/A') }} total)
+                                            {% if metadata.get('tokens_used') and metadata.get('tokens_used') != 'N/A' %}
+                                            <br><strong>Tokens Used:</strong> {{ metadata.get('tokens_used') }}
+                                            {% endif %}
                                         </div>
                                         <span class="badge bg-primary">Document</span>
                                     </div>
@@ -147,11 +163,21 @@
                                 {% for emb in segment_embeddings[:10] %}
                                     {% set content = emb.get_content() %}
                                     {% set metadata = emb.get_metadata() %}
-                                    <div class="border rounded p-3 mb-2 bg-light">
+                                    <div class="border rounded p-3 mb-2 bg-light embedding-item"
+                                         data-method="{{ metadata.get('method', 'unknown') }}"
+                                         data-level="segment"
+                                         data-dimensions="{{ metadata.get('dimensions', 0) }}">
                                         <div class="d-flex justify-content-between align-items-start mb-2">
                                             <div>
-                                                <strong>Segment {{ emb.artifact_index + 1 }}</strong><br>
-                                                <small class="text-muted">{{ metadata.get('chunk_size', 'N/A') }} chars</small>
+                                                <div class="mb-1">
+                                                    <strong>Segment {{ emb.artifact_index + 1 }}</strong>
+                                                    {% if metadata.get('method') == 'local' %}
+                                                    <span class="badge bg-success ms-2">Local</span>
+                                                    {% elif metadata.get('method') == 'openai' %}
+                                                    <span class="badge bg-info ms-2">OpenAI</span>
+                                                    {% endif %}
+                                                </div>
+                                                <small class="text-muted">{{ metadata.get('chunk_size', 'N/A') }} chars | {{ metadata.get('dimensions', 'N/A') }} dims</small>
                                             </div>
                                             <span class="badge bg-info">Segment</span>
                                         </div>
@@ -179,30 +205,42 @@
                         </div>
                         <div class="card-body">
                             {% if jobs|length >= 1 %}
-                                {% if jobs|length > 1 %}
                                 <p class="small text-muted mb-3">
-                                    This document has been processed {{ jobs|length }} times
+                                    {% if jobs|length > 1 %}
+                                    Document embedded {{ jobs|length }} times - Click to filter
+                                    {% else %}
+                                    Click "Show All" to reset filter
+                                    {% endif %}
                                 </p>
-                                {% endif %}
                                 <div class="list-group">
-                                    {% for job in jobs %}
-                                    <div class="list-group-item {{ 'active' if loop.first else '' }}">
+                                    <button type="button" class="list-group-item list-group-item-action filter-btn active" data-method="all" onclick="filterEmbeddings('all', this)">
                                         <div class="d-flex w-100 justify-content-between">
                                             <h6 class="mb-1">
-                                                {% if jobs|length > 1 %}Run {{ loop.index }}{% else %}Embedding Run{% endif %}
+                                                Show All
+                                                <span class="badge bg-primary ms-2">{{ embedding_count }} embeddings</span>
+                                            </h6>
+                                        </div>
+                                    </button>
+                                    {% for job in jobs %}
+                                    {% set params = job.get_parameters() %}
+                                    {% set method = params.get('method', 'local') %}
+                                    <button type="button" class="list-group-item list-group-item-action filter-btn" data-method="{{ method }}" onclick="filterEmbeddings('{{ method }}', this)">
+                                        <div class="d-flex w-100 justify-content-between">
+                                            <h6 class="mb-1">
+                                                {{ method|title }} Method
                                                 {% if loop.first %}
-                                                <span class="badge bg-primary ms-2">Latest</span>
+                                                <span class="badge bg-info ms-2">Latest</span>
                                                 {% endif %}
                                             </h6>
                                             <small>{{ job.created_at.strftime('%m/%d %H:%M') if job.created_at else 'N/A' }}</small>
                                         </div>
                                         <p class="mb-1 small">
-                                            <span class="badge bg-secondary">{{ job.get_parameters().get('method', 'local') }}</span>
+                                            <span class="badge bg-secondary">{{ method }}</span>
                                             <span class="badge {{ 'bg-success' if job.status == 'completed' else 'bg-warning' }} ms-1">
                                                 {{ job.status }}
                                             </span>
                                         </p>
-                                    </div>
+                                    </button>
                                     {% endfor %}
                                 </div>
                             {% else %}
@@ -233,4 +271,72 @@
         </div>
     </div>
 </div>
+
+<script>
+function filterEmbeddings(method, button) {
+    // Get all embedding items
+    const embeddings = document.querySelectorAll('.embedding-item');
+    const filterIndicator = document.getElementById('filter-indicator');
+
+    // Remove active class from all filter buttons
+    document.querySelectorAll('.filter-btn').forEach(btn => {
+        btn.classList.remove('active');
+    });
+
+    // Add active class to clicked button
+    button.classList.add('active');
+
+    let totalCount = 0;
+    let documentCount = 0;
+    let segmentCount = 0;
+
+    if (method === 'all') {
+        // Show all embeddings
+        embeddings.forEach(embedding => {
+            embedding.style.display = 'block';
+            totalCount++;
+            const level = embedding.getAttribute('data-level');
+            if (level === 'document') {
+                documentCount++;
+            } else if (level === 'segment') {
+                segmentCount++;
+            }
+        });
+        filterIndicator.style.display = 'none';
+    } else {
+        // Filter by method
+        embeddings.forEach(embedding => {
+            const embeddingMethod = embedding.getAttribute('data-method');
+            const level = embedding.getAttribute('data-level');
+            if (embeddingMethod === method) {
+                embedding.style.display = 'block';
+                totalCount++;
+                if (level === 'document') {
+                    documentCount++;
+                } else if (level === 'segment') {
+                    segmentCount++;
+                }
+            } else {
+                embedding.style.display = 'none';
+            }
+        });
+
+        // Update filter indicator
+        filterIndicator.textContent = `Filtered: ${method}`;
+        filterIndicator.style.display = 'inline-block';
+    }
+
+    // Update statistics
+    document.getElementById('stat-total-embeddings').textContent = totalCount;
+    document.getElementById('stat-document-embeddings').textContent = documentCount;
+    document.getElementById('stat-segment-embeddings').textContent = segmentCount;
+
+    // Update method display
+    if (method === 'all') {
+        document.getElementById('stat-method').textContent = 'All';
+    } else {
+        document.getElementById('stat-method').textContent = method.charAt(0).toUpperCase() + method.slice(1);
+    }
+}
+</script>
 {% endblock %}

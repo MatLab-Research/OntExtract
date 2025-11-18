@@ -154,7 +154,7 @@
                                            {% if processing_operations|selectattr('processing_type', 'equalto', 'embeddings')|selectattr('processing_method', 'equalto', 'openai')|selectattr('status', 'equalto', 'completed')|list %}disabled{% endif %}>
                                     <label class="form-check-label" for="tool-embeddings-openai">
                                         <strong>OpenAI Embeddings</strong>
-                                        <br><small class="text-muted">text-embedding-3-large (1536 dims)</small>
+                                        <br><small class="text-muted">text-embedding-3-large (3072 dims)</small>
                                         {% if processing_operations|selectattr('processing_type', 'equalto', 'embeddings')|selectattr('processing_method', 'equalto', 'openai')|selectattr('status', 'equalto', 'completed')|list %}
                                         <br><small class="text-success"><i class="fas fa-check-circle me-1"></i>Already applied</small>
                                         {% endif %}
