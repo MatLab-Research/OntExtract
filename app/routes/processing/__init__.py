@@ -17,7 +17,8 @@ from flask import Blueprint
 # Create the processing blueprint
 processing_bp = Blueprint('processing', __name__)
 
-# TEMPORARILY COMMENTED OUT TO FIX CIRCULAR IMPORT
 # Import route modules to register their routes
 # This happens when the package is imported
-# from . import pipeline, status, batch, validation  # noqa: F401
+# Note: Only importing pipeline to avoid duplicate endpoint conflicts with status.py
+# TODO: Resolve duplicate endpoint names (job_list exists in both pipeline.py and status.py)
+from . import pipeline  # noqa: F401

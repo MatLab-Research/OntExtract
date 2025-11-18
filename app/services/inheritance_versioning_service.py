@@ -217,3 +217,119 @@ class InheritanceVersioningService:
             return f'/input/document/{latest_doc.id}'
         else:
             return f'/input/document/{base_document_id}'
+
+    @staticmethod
+    def get_or_create_experiment_version(original_document, experiment_id, user):
+        """
+        Get or create an experimental version of a document for a specific experiment.
+
+        This implements the one-version-per-experiment pattern: each experiment gets
+        ONE version of each document, and all processing for that experiment is stored
+        on that single version.
+
+        Args:
+            original_document: The source document (typically the original, unprocessed version)
+            experiment_id: The experiment this version belongs to
+            user: The user creating the version (for PROV-O tracking)
+
+        Returns:
+            tuple: (document, created_flag) where created_flag indicates if new version was created
+        """
+        try:
+            # 1. Get the root document (in case we're passed a processed version)
+            root_document = original_document.get_root_document()
+
+            # 2. Check if experiment version already exists
+            existing_version = Document.query.filter_by(
+                source_document_id=root_document.id,
+                experiment_id=experiment_id,
+                version_type='experimental'
+            ).first()
+
+            if existing_version:
+                logger.info(f"Found existing experiment version {existing_version.id} "
+                           f"for document {root_document.id}, experiment {experiment_id}")
+                return existing_version, False
+
+            # 3. Create new experimental version
+            latest_version = InheritanceVersioningService._get_latest_version(root_document.id)
+            new_version_number = (latest_version.version_number if latest_version else 0) + 1
+
+            # Get experiment name for title
+            from app.models import Experiment
+            experiment = Experiment.query.get(experiment_id)
+            experiment_name = experiment.name if experiment else f"Experiment {experiment_id}"
+
+            new_version = Document(
+                title=root_document.title,  # Keep original title clean
+                content_type=root_document.content_type,
+                document_type=root_document.document_type,
+                reference_subtype=root_document.reference_subtype,
+                file_type=root_document.file_type,
+                content=root_document.content,  # Start with original content
+                content_preview=root_document.content_preview,
+                detected_language=root_document.detected_language,
+                language_confidence=root_document.language_confidence,
+                status='active',
+                word_count=root_document.word_count,
+                character_count=root_document.character_count,
+                user_id=root_document.user_id,
+                version_number=new_version_number,
+                version_type='experimental',
+                source_document_id=root_document.id,
+                experiment_id=experiment_id,
+                processing_notes=f"Experimental version for {experiment_name}",
+                processing_metadata={'experiment_name': experiment_name, 'created_for': 'experiment'}
+            )
+
+            db.session.add(new_version)
+            db.session.flush()  # Get the ID
+
+            # 4. Copy metadata from root document
+            if root_document.source_metadata:
+                new_version.source_metadata = root_document.source_metadata
+
+            # Copy temporal metadata
+            from app.models import DocumentTemporalMetadata
+            source_temporal = DocumentTemporalMetadata.query.filter_by(
+                document_id=root_document.id
+            ).first()
+
+            if source_temporal:
+                new_temporal = DocumentTemporalMetadata(
+                    document_id=new_version.id,
+                    publication_year=source_temporal.publication_year,
+                    discipline=source_temporal.discipline,
+                    key_definition=source_temporal.key_definition,
+                    created_at=datetime.utcnow()
+                )
+                db.session.add(new_temporal)
+
+            # 5. PROV-O: Track experiment version creation
+            from app.services.provenance_service import ProvenanceService
+            ProvenanceService.track_experiment_version_creation(
+                new_version, root_document, experiment, user
+            )
+
+            # 6. Record version change in changelog
+            InheritanceVersioningService._record_version_change(
+                new_version.id,
+                new_version_number,
+                'experimental_version',
+                f"Created experimental version for {experiment_name}",
+                root_document.version_number,
+                root_document.user_id,
+                {'experiment_id': experiment_id, 'experiment_name': experiment_name}
+            )
+
+            db.session.commit()
+
+            logger.info(f"Created new experiment version {new_version_number} (ID: {new_version.id}) "
+                       f"from document {root_document.id} for experiment {experiment_id}")
+
+            return new_version, True
+
+        except Exception as e:
+            db.session.rollback()
+            logger.error(f"Failed to get/create experiment version: {str(e)}")
+            raise

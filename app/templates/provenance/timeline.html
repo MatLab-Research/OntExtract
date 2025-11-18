@@ -156,8 +156,14 @@
                                 {% if item.used %}
                                 <div class="mb-2">
                                     <strong>Used:</strong>
+                                    {% set used_counts = {} %}
                                     {% for entity in item.used %}
-                                    <span class="badge bg-info me-1">{{ entity.type }}</span>
+                                        {% set _ = used_counts.update({entity.type: used_counts.get(entity.type, 0) + 1}) %}
+                                    {% endfor %}
+                                    {% for entity_type, count in used_counts.items() %}
+                                    <span class="badge bg-info me-1">
+                                        {{ entity_type }}{% if count > 1 %} x{{ count }}{% endif %}
+                                    </span>
                                     {% endfor %}
                                 </div>
                                 {% endif %}
@@ -166,8 +172,14 @@
                                 {% if item.generated %}
                                 <div>
                                     <strong>Generated:</strong>
+                                    {% set generated_counts = {} %}
                                     {% for entity in item.generated %}
-                                    <span class="badge bg-success me-1">{{ entity.type }}</span>
+                                        {% set _ = generated_counts.update({entity.type: generated_counts.get(entity.type, 0) + 1}) %}
+                                    {% endfor %}
+                                    {% for entity_type, count in generated_counts.items() %}
+                                    <span class="badge bg-success me-1">
+                                        {{ entity_type }}{% if count > 1 %} x{{ count }}{% endif %}
+                                    </span>
                                     {% endfor %}
                                 </div>
                                 {% endif %}

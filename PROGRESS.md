@@ -51,9 +51,156 @@ This document tracks two major improvements to OntExtract:
 - **Solution**: Added `passive_deletes=True` to relationships with CASCADE constraints
 - **Impact**: Document deletion now works correctly in both API and web UI
 
+**Phase 6: Experiment Versioning Refactor (COMPLETE)**
+- **Architecture Change**: One version per experiment instead of version-per-operation
+- **Problem Solved**: Version explosion (Doc 217 → 218 → 219 → 220 for each operation)
+- **New Pattern**: Original document pristine, ONE experimental version per experiment
+- **PROV-O Integration**: Simplified provenance chains (one entity, multiple activities)
+- **Backward Compatibility**: Manual processing outside experiments still works
+- **Impact**: Centralized results, clearer tracking, no more confusing version chains
+
 ---
 
 ## Session Timeline
+
+### 2025-11-18 (Session 2) - Experiment Versioning Refactor
+
+#### Completed Tasks
+
+1. **Phase 1: Database Migration**
+   - **Migration File:** `migrations/versions/20251118_add_experiment_id_to_documents.py`
+   - **Discovery:** Column `experiment_id` already existed in database from earlier work
+   - **Actions:** Stamped migration as applied, manually added missing check constraint
+   - **Database State:**
+     - `experiment_id` INTEGER (nullable)
+     - INDEX `idx_documents_experiment_id`
+     - FOREIGN KEY `fk_documents_experiment` → experiments(id) ON DELETE SET NULL
+     - CHECK constraint: experimental versions must have experiment_id
+   - **Status:** Complete, no data affected
+
+2. **Phase 2: Document Model Update**
+   - **File:** `app/models/document.py`
+   - **Discovery:** All required fields already existed (experiment_id, version_type, relationships)
+   - **Action:** Added versioning fields to `to_dict()` method for API responses
+   - **Fields Added:** uuid, version_number, version_type, source_document_id, experiment_id
+   - **Status:** Complete, model aligned with database
+
+3. **Phase 3: New Versioning Service Method + PROV-O**
+   - **Files:**
+     - `app/services/inheritance_versioning_service.py` (lines 221-335)
+     - `app/services/provenance_service.py` (lines 1028-1110)
+   - **New Method:** `get_or_create_experiment_version(original_document, experiment_id, user)`
+   - **Logic:**
+     - Queries for existing experimental version by (source_document_id, experiment_id, version_type)
+     - Returns existing if found (no duplicate versions)
+     - Creates new with PROV-O tracking if not found
+   - **PROV-O Method:** `track_experiment_version_creation()`
+     - Creates ProvenanceActivity: create_experiment_version
+     - Creates ProvenanceEntity for experimental version
+     - Records derivation: wasDerivedFrom original document
+     - Associates with user agent
+   - **Status:** Complete, ready for route integration
+
+4. **Phase 4-6: Processing Routes Refactor**
+   - **File:** `app/routes/processing/pipeline.py`
+   - **Routes Updated:**
+     - `segment_document()` (lines 260-278): Conditional version creation
+     - `generate_embeddings()` (lines 112-129): Same pattern
+     - `extract_entities()` (lines 678-688): Uses experiment version when provided
+   - **Pattern Applied:**
+     ```python
+     if experiment_id:
+         processing_version, version_created = InheritanceVersioningService.get_or_create_experiment_version(
+             original_document=original_document,
+             experiment_id=experiment_id,
+             user=current_user
+         )
+     else:
+         # Backward compatibility for manual processing
+         processing_version = InheritanceVersioningService.create_new_version(...)
+     ```
+   - **Impact:** Multiple operations now use SAME experimental version
+   - **Status:** Complete, backward compatible
+
+5. **Phase 7: Results Routes Verification**
+   - **Finding:** Results route already queries all versions correctly (earlier fix)
+   - **Impact:** With experiment versioning, results cleaner (fewer versions per document)
+   - **Status:** No changes needed, existing code works perfectly
+
+#### Architecture Changes
+
+**Old Pattern (Version Explosion)**:
+```
+Doc 217 (v1, original)
+  → Doc 218 (v2, paragraph seg)
+  → Doc 219 (v3, sentence seg)
+  → Doc 220 (v4, embeddings)
+```
+
+**New Pattern (One Version Per Experiment)**:
+```
+Doc 217 (v1, original) - pristine, never modified
+  → Doc 218 (v2, Experiment 34) - ALL processing for Exp 34
+  → Doc 219 (v3, Experiment 35) - ALL processing for Exp 35
+```
+
+**PROV-O Provenance (Before)**:
+```
+ProvEntity: document_217 (original)
+  ↓ wasGeneratedBy ProvActivity: segmentation
+  ↓ generated ProvEntity: document_218 (v2)
+  ↓ wasDerivedFrom: document_217
+  ↓ wasGeneratedBy ProvActivity: embedding
+  ↓ generated ProvEntity: document_219 (v3)
+```
+Problem: Entity chains grow, hard to track
+
+**PROV-O Provenance (After)**:
+```
+ProvEntity: document_217 (original)
+  ↓ wasGeneratedBy ProvActivity: create_experiment_version
+  ↓ generated ProvEntity: document_218 (Experiment 34 version)
+  ↓ used_by ProvActivity: segmentation ───┐
+  ↓ used_by ProvActivity: embedding    ───┤ All reference same entity
+  ↓ used_by ProvActivity: entity_extraction ─┘
+```
+Benefit: Single entity with all activities clearly visible
+
+#### Technical Details
+
+**Key Design Decision**: Backward Compatibility
+- Manual processing (no experiment_id) continues to use old pattern
+- Experiment processing uses new one-version-per-experiment pattern
+- No breaking changes to existing workflows
+
+**PROV-O Integration**:
+- Version creation tracked once per experiment+document pair
+- All subsequent processing activities link to same document entity
+- Complete provenance chain maintained
+
+**Testing Requirements** (Ready for Manual Testing):
+1. Create experiment, add document, run segmentation → creates v2
+2. Run additional operations (embedding, entities) → uses same v2
+3. Create second experiment with same document → creates v3 for that experiment
+4. Verify provenance: All activities link to correct experimental version
+
+#### Files Modified
+
+- `migrations/versions/20251118_add_experiment_id_to_documents.py` (new)
+- `app/models/document.py` (to_dict method)
+- `app/services/inheritance_versioning_service.py` (get_or_create_experiment_version)
+- `app/services/provenance_service.py` (track_experiment_version_creation)
+- `app/routes/processing/pipeline.py` (segment_document, generate_embeddings, extract_entities)
+- `docs/planning/EXPERIMENT_VERSIONING_REFACTOR.md` (tracking document)
+
+#### Impact
+
+- Original documents remain pristine
+- Clear ownership: one version per experiment
+- Centralized results: all processing in one place
+- Simpler provenance: one entity, multiple activities
+- No more version explosion
+- Easy comparison between experiments
 
 ### 2025-11-18 (Late Night) - Document Deletion CASCADE Fix
 
