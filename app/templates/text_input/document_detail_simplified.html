@@ -83,8 +83,23 @@
                             <i class="fas fa-info-circle me-2"></i>Document Metadata
                             {% if document.source_metadata and document.source_metadata.get('zotero_key') %}
                             <span class="badge bg-success ms-2">Zotero Enhanced</span>
-                            {% elif document.metadata_provenance and document.metadata_provenance.items() | selectattr('1.source', 'equalto', 'crossref_auto') | list | length > 0 %}
-                            <span class="badge bg-success ms-2">CrossRef Enhanced</span>
+                            {% elif document.metadata_provenance %}
+                                {% set semanticscholar_fields = document.metadata_provenance.items() | selectattr('1.source', 'equalto', 'semanticscholar') | list %}
+                                {% set crossref_fields = document.metadata_provenance.items() | selectattr('1.source', 'in', ['crossref', 'crossref_auto']) | list %}
+                                {% set user_fields = document.metadata_provenance.items() | selectattr('1.source', 'equalto', 'user') | list %}
+                                {% if semanticscholar_fields | length > 0 and user_fields | length > 0 %}
+                                <span class="badge bg-success ms-2">Semantic Scholar + Manual</span>
+                                {% elif semanticscholar_fields | length > 0 %}
+                                <span class="badge bg-success ms-2">Semantic Scholar</span>
+                                {% elif crossref_fields | length > 0 and user_fields | length > 0 %}
+                                <span class="badge bg-success ms-2">CrossRef + Manual</span>
+                                {% elif crossref_fields | length > 0 %}
+                                <span class="badge bg-success ms-2">CrossRef</span>
+                                {% elif user_fields | length > 0 %}
+                                <span class="badge bg-primary ms-2">Manual Entry</span>
+                                {% elif document.source_metadata %}
+                                <span class="badge bg-primary ms-2">Manual Entry</span>
+                                {% endif %}
                             {% elif document.source_metadata %}
                             <span class="badge bg-primary ms-2">Manual Entry</span>
                             {% elif temporal_metadata %}
@@ -508,18 +523,46 @@
                     </h6>
                 </div>
                 <div class="card-body">
-                    <p class="small text-muted mb-3">
-                        <i class="fas fa-info-circle me-1"></i>
-                        Metadata extraction and updates tracked with PROV-O standard.
-                    </p>
-
                     {% set crossref_count = namespace(value=0) %}
+                    {% set semanticscholar_count = namespace(value=0) %}
                     {% if document.metadata_provenance %}
                     {% for field_name, prov_data in document.metadata_provenance.items() %}
                         {% if prov_data.get('source') == 'crossref_auto' %}
                             {% set crossref_count.value = crossref_count.value + 1 %}
                         {% endif %}
+                        {% if prov_data.get('source') == 'semanticscholar' %}
+                            {% set semanticscholar_count.value = semanticscholar_count.value + 1 %}
+                        {% endif %}
                     {% endfor %}
+                    {% endif %}
+
+                    {% if semanticscholar_count.value > 0 %}
+                    <div class="mb-3">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <span class="badge bg-success">
+                                <i class="fas fa-graduation-cap me-1"></i>Semantic Scholar API
+                            </span>
+                            <span class="text-muted small">{{ semanticscholar_count.value }} fields</span>
+                        </div>
+                        <div class="p-2 bg-light border rounded">
+                            <small class="text-muted">
+                                {% if document.metadata_provenance.get('extraction_method') %}
+                                    {% set method = document.metadata_provenance.extraction_method.raw_value %}
+                                    {% if method == 'arxiv_id' and document.metadata_provenance.get('arxiv_id') %}
+                                        <strong>Matched via arXiv ID:</strong> {{ document.metadata_provenance.arxiv_id.raw_value }}
+                                    {% elif method == 'doi' and document.metadata_provenance.get('doi') %}
+                                        <strong>Matched via DOI:</strong> {{ document.metadata_provenance.doi.raw_value[:40] }}{{ '...' if document.metadata_provenance.doi.raw_value|length > 40 }}
+                                    {% elif method == 'title_search' %}
+                                        <strong>Matched via title search</strong>
+                                    {% else %}
+                                        Retrieved from Semantic Scholar
+                                    {% endif %}
+                                {% else %}
+                                    Retrieved from Semantic Scholar
+                                {% endif %}
+                            </small>
+                        </div>
+                    </div>
                     {% endif %}
 
                     {% if crossref_count.value > 0 %}
@@ -528,20 +571,30 @@
                             <span class="badge bg-success">
                                 <i class="fas fa-book-medical me-1"></i>CrossRef API
                             </span>
-                            <span class="text-muted small">{{ crossref_count.value }} fields extracted</span>
+                            <span class="text-muted small">{{ crossref_count.value }} fields</span>
                         </div>
                         <div class="p-2 bg-light border rounded">
                             <small class="text-muted">
-                                Metadata automatically retrieved from CrossRef using DOI or title search.
-                                {% if document.metadata_provenance.get('match_score') and document.metadata_provenance.match_score.get('raw_value') %}
-                                <br>
-                                <strong>Match Score: {{ "%.2f"|format(document.metadata_provenance.match_score.raw_value) }}</strong>
-                                <a href="https://www.crossref.org/documentation/retrieve-metadata/rest-api/tips-for-using-the-crossref-rest-api/"
-                                   target="_blank"
-                                   class="text-muted text-decoration-none ms-1"
-                                   title="CrossRef relevance score documentation">
-                                    <i class="fas fa-question-circle"></i>
-                                </a>
+                                {% if document.metadata_provenance.get('extraction_method') %}
+                                    {% set method = document.metadata_provenance.extraction_method.raw_value %}
+                                    {% if method == 'doi' and document.metadata_provenance.get('doi') %}
+                                        <strong>Matched via DOI:</strong> {{ document.metadata_provenance.doi.raw_value[:40] }}{{ '...' if document.metadata_provenance.doi.raw_value|length > 40 }}
+                                    {% elif method == 'title_search' or method == 'title' %}
+                                        <strong>Matched via title search</strong>
+                                        {% if document.metadata_provenance.get('match_score') and document.metadata_provenance.match_score.get('raw_value') %}
+                                        <br><strong>Score: {{ "%.1f"|format(document.metadata_provenance.match_score.raw_value) }}</strong>
+                                        <a href="https://www.crossref.org/documentation/retrieve-metadata/rest-api/tips-for-using-the-crossref-rest-api/"
+                                           target="_blank"
+                                           class="text-muted text-decoration-none ms-1"
+                                           title="CrossRef relevance score (0-100+)">
+                                            <i class="fas fa-question-circle"></i>
+                                        </a>
+                                        {% endif %}
+                                    {% else %}
+                                        Retrieved from CrossRef
+                                    {% endif %}
+                                {% else %}
+                                    Retrieved from CrossRef
                                 {% endif %}
                             </small>
                         </div>
@@ -560,33 +613,29 @@
                     {% if document_provenance_activities %}
                     <div class="mb-3">
                         <strong class="small d-block mb-2">
-                            <i class="fas fa-edit me-1"></i>Recent Activity
+                            <i class="fas fa-clock me-1"></i>Processing Timeline
                         </strong>
-                        {% for item in document_provenance_activities[:3] %}
+                        {% for item in document_provenance_activities[:4] %}
                         {% set activity_type = item.activity.type %}
                         {% set params = item.activity.parameters %}
-                        <div class="p-2 mb-2 bg-light border-start border-3 {% if activity_type == 'metadata_field_update' %}border-primary{% else %}border-secondary{% endif %} rounded-end">
+                        <div class="p-2 mb-1 bg-light border-start border-2 {% if activity_type == 'metadata_extraction' %}border-success{% elif activity_type == 'document_segmentation' %}border-info{% elif activity_type == 'embedding_generation' %}border-warning{% else %}border-secondary{% endif %} rounded-end">
                             <div class="d-flex justify-content-between align-items-start">
                                 <div class="flex-grow-1">
-                                    <small class="d-block fw-bold">
-                                        {% if activity_type == 'metadata_field_update' %}
-                                            Field Update: {{ params.field_name|title }}
-                                        {% elif activity_type == 'metadata_update' %}
-                                            Metadata Updated
-                                        {% elif activity_type == 'metadata_extraction' %}
-                                            {{ params.extraction_source|title }} Extraction
+                                    <small>
+                                        {% if activity_type == 'metadata_extraction' %}
+                                            <i class="fas fa-download me-1 text-success"></i>{{ params.extraction_source|title }} metadata
                                         {% elif activity_type == 'metadata_extraction_pdf' %}
-                                            PDF Identifier Extraction
+                                            <i class="fas fa-file-pdf me-1 text-danger"></i>PDF analysis
                                         {% elif activity_type == 'text_extraction' %}
-                                            Text Extraction ({{ params.extraction_method }})
+                                            <i class="fas fa-file-alt me-1"></i>Text extracted
                                         {% elif activity_type == 'document_save' %}
-                                            Document Saved
+                                            <i class="fas fa-save me-1"></i>Saved
                                         {% elif activity_type == 'document_upload' %}
-                                            Document Uploaded
+                                            <i class="fas fa-upload me-1"></i>Uploaded
                                         {% elif activity_type == 'document_segmentation' %}
-                                            Segmentation ({{ params.method }}: {{ params.segment_count }} segments)
+                                            <i class="fas fa-cut me-1 text-info"></i>{{ params.segment_count }} segments
                                         {% elif activity_type == 'embedding_generation' %}
-                                            Embeddings ({{ params.model_name }})
+                                            <i class="fas fa-project-diagram me-1 text-warning"></i>Embeddings
                                         {% else %}
                                             {{ activity_type|replace('_', ' ')|title }}
                                         {% endif %}

@@ -135,6 +135,53 @@
 .drop-zone.drag-over i {
     color: #5bc0de;
 }
+
+.progress-message {
+    margin-bottom: 8px;
+    color: #aaa;
+    font-size: 0.9rem;
+    line-height: 1.4;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.fade-in {
+    animation: fadeIn 0.3s ease-in;
+}
+
+/* Progress Card */
+.progress-card {
+    display: none;
+    background: #2b3e50;
+    border: 1px solid #375a7f;
+    border-radius: 8px;
+    padding: 20px;
+    margin-bottom: 20px;
+}
+
+.progress-card.active {
+    display: block;
+}
+
+.progress-step {
+    font-size: 0.9rem;
+    color: #aaa;
+    margin-bottom: 10px;
+}
+
+.progress-step.current {
+    color: #5bc0de;
+    font-weight: 500;
+}
 </style>
 {% endblock %}
 
@@ -172,11 +219,12 @@
                 <div class="form-check mb-3">
                     <input class="form-check-input" type="checkbox" id="enable-crossref" checked onchange="updateFieldRequirements()">
                     <label class="form-check-label" for="enable-crossref">
-                        <strong>Try to find metadata using CrossRef</strong> (recommended for published papers)
+                        <strong>Automatic metadata extraction</strong> (recommended for published papers)
                     </label>
                     <div class="form-text">
-                        If enabled, OntExtract will extract DOI/title from the PDF, then search CrossRef.
-                        Your provided title is used as a fallback. Disable this for unpublished documents or personal papers.
+                        If enabled, OntExtract will extract arXiv ID, DOI, or title from the PDF, then search Semantic Scholar and CrossRef databases.
+                        Works best for published papers and arXiv preprints. Very recent (unpublished) or very old (pre-digital) documents may not be found in these databases.
+                        Your provided title is used as a fallback. Disable this for personal papers or documents not in academic databases.
                     </div>
                 </div>
 
@@ -206,6 +254,19 @@
                     <i class="fas fa-upload"></i> Upload and Extract Metadata
                 </button>
             </form>
+
+            <!-- Progress Card -->
+            <div id="progress-card" class="progress-card">
+                <h5 class="mb-3"><i class="fas fa-cog fa-spin me-2"></i>Processing Document</h5>
+                <div class="progress mb-3" style="height: 25px;">
+                    <div id="progress-bar" class="progress-bar progress-bar-striped progress-bar-animated"
+                         role="progressbar" style="width: 0%;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">
+                        0%
+                    </div>
+                </div>
+                <div id="progress-steps"></div>
+                <div id="current-step" class="progress-step current mt-2"></div>
+            </div>
 
             <!-- Loading Spinner -->
             <div class="loading-spinner" id="loading">
@@ -429,10 +490,9 @@ document.addEventListener('DOMContentLoaded', () => {
     updateFieldRequirements();
 });
 
-function showLoading(message = 'Analyzing document and extracting metadata...', details = '') {
+function showLoading(message = 'Uploading document...') {
     document.getElementById('loading').classList.add('active');
     document.getElementById('loading-message').textContent = message;
-    document.getElementById('loading-details').textContent = details;
     document.querySelectorAll('.upload-section').forEach(section => {
         if (section.id !== 'loading') section.style.display = 'none';
     });
@@ -444,7 +504,6 @@ function hideLoading() {
 
 function showMetadataReview() {
     console.log('showMetadataReview() called');
-    hideLoading();
 
     // Hide the upload form
     const fileForm = document.getElementById('file-form');
@@ -452,7 +511,7 @@ function showMetadataReview() {
         fileForm.style.display = 'none';
     }
 
-    // Show the metadata review section
+    // Show the metadata review section (progress card will remain visible above it)
     const reviewSection = document.getElementById('metadata-review');
     console.log('Metadata review element:', reviewSection);
     if (reviewSection) {
@@ -534,24 +593,8 @@ document.getElementById('file-form').addEventListener('submit', async function(e
     formData.append('authors', document.getElementById('file-authors').value);
     formData.append('enable_crossref', document.getElementById('enable-crossref').checked ? 'true' : 'false');
 
-    const title = document.getElementById('file-title').value;
-    const enableCrossref = document.getElementById('enable-crossref').checked;
-
-    if (enableCrossref) {
-        if (title) {
-            showLoading('Analyzing PDF and searching CrossRef...',
-                'Step 1: Extracting DOI/title from PDF\nStep 2: Searching CrossRef\nStep 3: Using your title as fallback');
-        } else {
-            showLoading('Analyzing PDF and searching CrossRef...',
-                'Step 1: Extracting DOI from PDF\nStep 2: Extracting title from PDF\nStep 3: Searching CrossRef');
-        }
-    } else {
-        if (title) {
-            showLoading('Uploading document...', 'Using provided metadata only');
-        } else {
-            showLoading('Uploading document...', 'No metadata extraction enabled');
-        }
-    }
+    // Show simple loading spinner while uploading
+    showLoading('Uploading document...');
 
     try {
         console.log('Uploading to: /upload/extract_metadata');
@@ -563,6 +606,7 @@ document.getElementById('file-form').addEventListener('submit', async function(e
         console.log('Response status:', response.status);
         const result = await response.json();
         console.log('Response data:', result);
+        console.log('Progress array:', result.progress);
 
         if (result.success) {
             console.log('Upload successful, processing metadata...');
@@ -571,19 +615,102 @@ document.getElementById('file-form').addEventListener('submit', async function(e
             uploadState.provenance = result.provenance || {};
             console.log('Updated uploadState:', uploadState);
 
-            console.log('Calling populateMetadataForm...');
-            populateMetadataForm(result.metadata, uploadState.provenance);
-            console.log('Calling showMetadataReview...');
-            showMetadataReview();
-            console.log('Metadata review should now be visible');
+            // Hide loading overlay and show progress card
+            hideLoading();
+            const progressCard = document.getElementById('progress-card');
+            progressCard.classList.add('active');
+
+            // Display progress messages with animation
+            console.log('Checking progress:', result.progress, result.progress ? result.progress.length : 'no progress');
+            if (result.progress && result.progress.length > 0) {
+                console.log('INSIDE progress display block - will display', result.progress.length, 'messages');
+                const progressSteps = document.getElementById('progress-steps');
+                const currentStepDiv = document.getElementById('current-step');
+                const progressBar = document.getElementById('progress-bar');
+
+                progressSteps.innerHTML = '';  // Clear previous messages
+                const totalSteps = result.progress.length;
+
+                // Display messages one by one with delay and update progress bar
+                for (let i = 0; i < result.progress.length; i++) {
+                    console.log('Setting timeout for message', i, ':', result.progress[i]);
+                    setTimeout(() => {
+                        // Add completed step
+                        if (i > 0) {
+                            const prevStep = document.createElement('div');
+                            prevStep.className = 'progress-step';
+                            prevStep.innerHTML = `<i class="fas fa-check-circle text-success me-2"></i>${result.progress[i-1]}`;
+                            progressSteps.appendChild(prevStep);
+                        }
+
+                        // Show current step
+                        currentStepDiv.innerHTML = `<i class="fas fa-spinner fa-spin me-2"></i>${result.progress[i]}`;
+
+                        // Update progress bar
+                        const percentage = ((i + 1) / totalSteps) * 100;
+                        progressBar.style.width = percentage + '%';
+                        progressBar.setAttribute('aria-valuenow', percentage);
+                        progressBar.textContent = Math.round(percentage) + '%';
+                    }, i * 300);  // 300ms delay between messages
+                }
+
+                // Show final step and complete progress
+                setTimeout(() => {
+                    const lastStep = document.createElement('div');
+                    lastStep.className = 'progress-step';
+                    lastStep.innerHTML = `<i class="fas fa-check-circle text-success me-2"></i>${result.progress[result.progress.length - 1]}`;
+                    progressSteps.appendChild(lastStep);
+                    currentStepDiv.innerHTML = '<i class="fas fa-check-circle text-success me-2"></i>Metadata extraction complete!';
+
+                    // Show metadata review
+                    setTimeout(() => {
+                        console.log('Calling populateMetadataForm...');
+                        populateMetadataForm(result.metadata, uploadState.provenance);
+                        console.log('Calling showMetadataReview...');
+                        showMetadataReview();
+                        console.log('Metadata review should now be visible');
+                    }, 500);
+                }, totalSteps * 300 + 300);
+            } else {
+                // No progress messages, show review immediately
+                console.log('Calling populateMetadataForm...');
+                populateMetadataForm(result.metadata, uploadState.provenance);
+                console.log('Calling showMetadataReview...');
+                showMetadataReview();
+                console.log('Metadata review should now be visible');
+            }
 
             // Show message about CrossRef search result
             if (result.message) {
-                const alertClass = result.crossref_found ? 'alert-success' : (result.crossref_enabled ? 'alert-warning' : 'alert-info');
-                const alertHTML = `<div class="alert ${alertClass} alert-dismissible fade show mt-3" role="alert">
-                    <i class="fas fa-info-circle"></i> ${result.message}
-                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                </div>`;
+                let alertHTML;
+
+                // Check if this is a low-confidence CrossRef match
+                if (result.crossref_found && result.confidence_level === 'low') {
+                    // Show warning with Accept/Clear buttons (non-dismissible)
+                    alertHTML = `<div class="alert alert-warning mt-3" role="alert">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div>
+                                <i class="fas fa-exclamation-triangle"></i> ${result.message}
+                            </div>
+                            <div class="btn-group ms-3">
+                                <button type="button" class="btn btn-sm btn-success" onclick="acceptLowConfidenceMatch()">
+                                    <i class="fas fa-check"></i> Accept
+                                </button>
+                                <button type="button" class="btn btn-sm btn-danger" onclick="clearAllMetadata()">
+                                    <i class="fas fa-times"></i> Clear All
+                                </button>
+                            </div>
+                        </div>
+                    </div>`;
+                } else {
+                    // Normal dismissible alert
+                    const alertClass = result.crossref_found ? 'alert-success' : (result.crossref_enabled ? 'alert-warning' : 'alert-info');
+                    alertHTML = `<div class="alert ${alertClass} alert-dismissible fade show mt-3" role="alert">
+                        <i class="fas fa-info-circle"></i> ${result.message}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    </div>`;
+                }
+
                 document.getElementById('metadata-review').insertAdjacentHTML('afterbegin', alertHTML);
             }
         } else {
@@ -673,6 +800,9 @@ function resetUpload() {
     document.getElementById('metadata-form').reset();
     document.getElementById('metadata-review').classList.remove('show');
 
+    // Hide progress card
+    document.getElementById('progress-card').classList.remove('active');
+
     // Remove any alerts
     document.querySelectorAll('#metadata-review .alert').forEach(alert => alert.remove());
 
@@ -680,6 +810,48 @@ function resetUpload() {
         section.style.display = 'none';
     });
     document.getElementById('file-form').style.display = 'block';
+}
+
+function acceptLowConfidenceMatch() {
+    // Remove the warning alert - user accepted the low-confidence match
+    document.querySelectorAll('#metadata-review .alert-warning').forEach(alert => alert.remove());
+
+    // Add a green confirmation message
+    const confirmHTML = `<div class="alert alert-success alert-dismissible fade show mt-3" role="alert">
+        <i class="fas fa-check-circle"></i> Low-confidence match accepted. Please review and edit the metadata as needed.
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>`;
+    document.getElementById('metadata-review').insertAdjacentHTML('afterbegin', confirmHTML);
+}
+
+function clearAllMetadata() {
+    // Clear all metadata fields
+    document.getElementById('review-title').value = '';
+    document.getElementById('review-authors').value = '';
+    document.getElementById('review-year').value = '';
+    document.getElementById('review-journal').value = '';
+    document.getElementById('review-doi').value = '';
+    document.getElementById('review-abstract').value = '';
+    document.getElementById('review-url').value = '';
+
+    // Clear all source badges
+    document.querySelectorAll('.metadata-source-badge').forEach(badge => {
+        badge.textContent = '';
+        badge.className = 'metadata-source-badge';
+    });
+
+    // Remove the warning alert
+    document.querySelectorAll('#metadata-review .alert-warning').forEach(alert => alert.remove());
+
+    // Add info message
+    const infoHTML = `<div class="alert alert-info alert-dismissible fade show mt-3" role="alert">
+        <i class="fas fa-info-circle"></i> Metadata cleared. Please enter the correct information manually.
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>`;
+    document.getElementById('metadata-review').insertAdjacentHTML('afterbegin', infoHTML);
+
+    // Clear provenance data
+    uploadState.provenance = {};
 }
 </script>
 {% endblock %}
