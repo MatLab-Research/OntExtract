@@ -282,6 +282,68 @@ function getStatusColor(status) {
     };
     return colors[status] || 'secondary';
 }
+
+async function deleteActivity(activityId) {
+    if (!confirm('Are you sure you want to delete this provenance activity?\n\nThis will remove the activity and all associated entities and relationships.\n\nThis action cannot be undone.')) {
+        return;
+    }
+
+    try {
+        const response = await fetch(`/provenance/activity/${activityId}`, {
+            method: 'DELETE',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        });
+
+        const data = await response.json();
+
+        if (response.ok) {
+            alert(`Successfully deleted activity and ${data.deleted_count || 0} related records.`);
+            location.reload();
+        } else {
+            alert('Error deleting activity: ' + (data.error || 'Unknown error'));
+        }
+    } catch (error) {
+        alert('Error deleting activity: ' + error.message);
+    }
+}
+
+async function deleteAllProvenance() {
+    if (!confirm('ARE YOU SURE you want to delete ALL provenance records?\n\nThis will remove:\n- ALL activities\n- ALL entities\n- ALL agents\n- ALL relationships\n\nTHIS ACTION CANNOT BE UNDONE AND WILL DELETE THE ENTIRE AUDIT TRAIL!')) {
+        return;
+    }
+
+    if (!confirm('FINAL WARNING: This will permanently delete the entire provenance database.\n\nType DELETE ALL in the next prompt to confirm.')) {
+        return;
+    }
+
+    const confirmation = prompt('Type DELETE ALL to confirm:');
+    if (confirmation !== 'DELETE ALL') {
+        alert('Deletion cancelled.');
+        return;
+    }
+
+    try {
+        const response = await fetch('/provenance/delete-all', {
+            method: 'DELETE',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        });
+
+        const data = await response.json();
+
+        if (response.ok) {
+            alert(`Successfully deleted all provenance records:\n- ${data.activities_deleted || 0} activities\n- ${data.entities_deleted || 0} entities\n- ${data.agents_deleted || 0} agents\n- ${data.relationships_deleted || 0} relationships`);
+            location.reload();
+        } else {
+            alert('Error deleting provenance: ' + (data.error || 'Unknown error'));
+        }
+    } catch (error) {
+        alert('Error deleting provenance: ' + error.message);
+    }
+}
 </script>
 
 {% endblock %}
