@@ -223,7 +223,10 @@ docs/**/*.pdf
 docs/*.pdf
 app/docs/**/*.pdf
 app/docs/*.pdf
-uploads/**/*.pdf
+
+# User uploads directory (contains user-generated content)
+uploads/
+uploads/**/*
 
 # Deployment env files (local, not for version control)
 deploy.env

@@ -226,9 +226,9 @@ def sample_term(db_session):
     Create a sample term for temporal experiments.
     """
     term = Term(
-        term='algorithm',
-        definition='A step-by-step procedure for solving a problem',
-        domain='Computer Science',
+        term_text='algorithm',
+        description='A step-by-step procedure for solving a problem',
+        research_domain='Computer Science',
         status='active'
     )
     db_session.add(term)

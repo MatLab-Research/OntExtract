@@ -20,6 +20,7 @@ from app.models import Document, Experiment, ExperimentDocument
 from app.models.experiment_processing import ExperimentDocumentProcessing, ProcessingArtifact
 from app.models.text_segment import TextSegment
 from app.models.extracted_entity import ExtractedEntity
+from app.models.processing_job import ProcessingJob
 
 
 @pytest.mark.integration
@@ -273,7 +274,10 @@ class TestTemporalExperimentWorkflow:
         if successful_entities:
             for result in successful_entities[:1]:  # Check at least one
                 doc = result['document']
-                entities = ExtractedEntity.query.filter_by(document_id=doc.id).all()
+                # Query entities through the processing_job relationship
+                entities = ExtractedEntity.query.join(ProcessingJob).filter(
+                    ProcessingJob.document_id == doc.id
+                ).all()
                 if entities:
                     assert len(entities) > 0, f"No entities found for {doc.title}"
                     print(f"  - Document '{doc.title}' has {len(entities)} entities")
@@ -343,7 +347,7 @@ class TestTemporalExperimentWorkflow:
 
         # Check for provenance entities (documents)
         entities = ProvenanceEntity.query.filter(
-            ProvenanceEntity.entity_type == 'document'
+            ProvenanceEntity.prov_type.like('%Document%')
         ).all()
 
         print(f"✓ Found {len(entities)} provenance entities")
@@ -448,19 +452,19 @@ class TestExperimentDocumentProcessing:
 
         # Allow different success codes
         if response.status_code == 200:
-            # Check entities were created
-            entities = ExtractedEntity.query.filter_by(
-                document_id=sample_document.id
+            # Check entities were created (query through processing_job relationship)
+            entities = ExtractedEntity.query.join(ProcessingJob).filter(
+                ProcessingJob.document_id == sample_document.id
             ).all()
 
             # May or may not find entities depending on content
             if entities:
                 # Verify entity properties
                 for entity in entities:
-                    assert entity.text is not None
-                    assert entity.label is not None
-                    assert entity.start_char is not None
-                    assert entity.end_char is not None
+                    assert entity.entity_text is not None
+                    assert entity.entity_type is not None
+                    assert entity.start_position is not None
+                    assert entity.end_position is not None
 
     def test_processing_with_multiple_methods(self, auth_client, db_session,
                                              sample_document, temporal_experiment):
