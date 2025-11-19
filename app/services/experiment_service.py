@@ -256,6 +256,12 @@ class ExperimentService(BaseService):
                 # Delete the processing operation itself
                 db.session.delete(processing_op)
 
+            # Get all documents associated with this experiment BEFORE deleting associations
+            from app.models.document import Document
+            experiment_doc_ids = [ed.document_id for ed in ExperimentDocument.query.filter_by(
+                experiment_id=experiment_id
+            ).all()]
+
             # Delete all ExperimentDocument associations
             exp_docs_deleted = ExperimentDocument.query.filter_by(
                 experiment_id=experiment_id
@@ -263,22 +269,42 @@ class ExperimentService(BaseService):
 
             # Delete experimental version documents (they are specific to this experiment)
             # Must do this BEFORE clearing relationships to avoid constraint violation
-            from app.models.document import Document
+
+            versions_to_delete = []
+
+            # 1. Experimental versions (created specifically for this experiment)
             experimental_versions = Document.query.filter_by(
                 experiment_id=experiment_id,
                 version_type='experimental'
             ).all()
+            versions_to_delete.extend(experimental_versions)
 
-            experimental_versions_count = len(experimental_versions)
+            # 2. Processed versions (e.g., cleaned with LLM) that are ONLY in this experiment
+            # These should be deleted because they were created as part of this experiment's workflow
+            for doc_id in experiment_doc_ids:
+                doc = Document.query.get(doc_id)
+                if doc and doc.version_type == 'processed' and doc.source_document_id:
+                    # Check if this processed version is ONLY in this experiment
+                    other_experiments = ExperimentDocument.query.filter(
+                        ExperimentDocument.document_id == doc_id,
+                        ExperimentDocument.experiment_id != experiment_id
+                    ).count()
+
+                    if other_experiments == 0:
+                        # Only in this experiment, safe to delete
+                        versions_to_delete.append(doc)
+                        logger.info(f"Will delete processed version {doc_id} (only in experiment {experiment_id})")
+
+            experimental_versions_count = len(versions_to_delete)
 
             # First, remove them from the experiment relationship
             # This prevents SQLAlchemy from trying to set experiment_id=NULL
-            for exp_version in experimental_versions:
+            for exp_version in versions_to_delete:
                 if exp_version in experiment.documents:
                     experiment.documents.remove(exp_version)
 
             # Now delete the documents themselves
-            for exp_version in experimental_versions:
+            for exp_version in versions_to_delete:
                 db.session.delete(exp_version)
 
             # Clear any remaining references (should just be original documents now)

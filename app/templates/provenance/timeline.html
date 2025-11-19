@@ -12,6 +12,13 @@
             </h1>
             <p class="text-muted">Complete audit trail of all actions in OntExtract using PROV-O standard</p>
         </div>
+        {% if current_user.is_admin %}
+        <div class="col-auto">
+            <button class="btn btn-danger" onclick="deleteAllProvenance()">
+                <i class="fas fa-trash me-1"></i>Delete All Provenance
+            </button>
+        </div>
+        {% endif %}
     </div>
 
     <!-- Filters -->
@@ -122,11 +129,20 @@
                                         {{ item.activity.status }}
                                     </span>
                                 </div>
-                                <small class="text-muted">
-                                    {% if item.activity.started_at %}
-                                    {{ item.activity.started_at | format_datetime }}
+                                <div class="d-flex align-items-center gap-3">
+                                    <small class="text-muted">
+                                        {% if item.activity.started_at %}
+                                        {{ item.activity.started_at | format_datetime }}
+                                        {% endif %}
+                                    </small>
+                                    {% if current_user.is_admin %}
+                                    <button class="btn btn-sm btn-outline-danger"
+                                            onclick="deleteActivity('{{ item.activity.id }}')"
+                                            title="Delete this activity">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
                                     {% endif %}
-                                </small>
+                                </div>
                             </div>
                             <div class="card-body">
                                 <!-- Agent -->

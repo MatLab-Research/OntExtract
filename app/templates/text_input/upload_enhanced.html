@@ -585,6 +585,19 @@ document.getElementById('file-form').addEventListener('submit', async function(e
 
     uploadState.currentFileName = file.name;
 
+    // Hide form and show progress card immediately
+    document.getElementById('file-form').style.display = 'none';
+    const progressCard = document.getElementById('progress-card');
+    progressCard.classList.add('active');
+
+    // Show initial progress
+    const progressBar = document.getElementById('progress-bar');
+    const currentStepDiv = document.getElementById('current-step');
+    progressBar.style.width = '10%';
+    progressBar.setAttribute('aria-valuenow', 10);
+    progressBar.textContent = '10%';
+    currentStepDiv.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Uploading document...';
+
     const formData = new FormData();
     formData.append('document_file', file);
     formData.append('source_type', 'file');
@@ -592,9 +605,6 @@ document.getElementById('file-form').addEventListener('submit', async function(e
     formData.append('publication_year', document.getElementById('file-year').value);
     formData.append('authors', document.getElementById('file-authors').value);
     formData.append('enable_crossref', document.getElementById('enable-crossref').checked ? 'true' : 'false');
-
-    // Show simple loading spinner while uploading
-    showLoading('Uploading document...');
 
     try {
         console.log('Uploading to: /upload/extract_metadata');
@@ -615,12 +625,7 @@ document.getElementById('file-form').addEventListener('submit', async function(e
             uploadState.provenance = result.provenance || {};
             console.log('Updated uploadState:', uploadState);
 
-            // Hide loading overlay and show progress card
-            hideLoading();
-            const progressCard = document.getElementById('progress-card');
-            progressCard.classList.add('active');
-
-            // Display progress messages with animation
+            // Display progress messages with animation (progress card already visible)
             console.log('Checking progress:', result.progress, result.progress ? result.progress.length : 'no progress');
             if (result.progress && result.progress.length > 0) {
                 console.log('INSIDE progress display block - will display', result.progress.length, 'messages');
@@ -716,12 +721,16 @@ document.getElementById('file-form').addEventListener('submit', async function(e
         } else {
             console.error('Server error:', result.error);
             alert('Error: ' + result.error);
-            hideLoading();
+            // Hide progress card and show form again
+            progressCard.classList.remove('active');
+            document.getElementById('file-form').style.display = 'block';
         }
     } catch (error) {
         console.error('Upload error:', error);
         alert('Error uploading document: ' + error.message);
-        hideLoading();
+        // Hide progress card and show form again
+        document.getElementById('progress-card').classList.remove('active');
+        document.getElementById('file-form').style.display = 'block';
     }
 });
 
@@ -800,8 +809,28 @@ function resetUpload() {
     document.getElementById('metadata-form').reset();
     document.getElementById('metadata-review').classList.remove('show');
 
-    // Hide progress card
-    document.getElementById('progress-card').classList.remove('active');
+    // Clear file name display
+    const fileNameDisplay = document.getElementById('file-name');
+    if (fileNameDisplay) {
+        fileNameDisplay.textContent = '';
+        fileNameDisplay.style.display = 'none';
+    }
+
+    // Clear file input
+    const fileInput = document.getElementById('file-input');
+    if (fileInput) {
+        fileInput.value = '';
+    }
+
+    // Hide progress card and reset progress
+    const progressCard = document.getElementById('progress-card');
+    progressCard.classList.remove('active');
+    document.getElementById('progress-steps').innerHTML = '';
+    document.getElementById('current-step').innerHTML = '';
+    const progressBar = document.getElementById('progress-bar');
+    progressBar.style.width = '0%';
+    progressBar.setAttribute('aria-valuenow', 0);
+    progressBar.textContent = '0%';
 
     // Remove any alerts
     document.querySelectorAll('#metadata-review .alert').forEach(alert => alert.remove());
