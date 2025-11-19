@@ -118,7 +118,8 @@ class TestingConfig(Config):
     """Testing configuration"""
     TESTING = True
     WTF_CSRF_ENABLED = False
-    SQLALCHEMY_DATABASE_URI = 'sqlite:///:memory:'
+    # Use PostgreSQL test database instead of SQLite to support JSONB and other PG-specific types
+    SQLALCHEMY_DATABASE_URI = os.environ.get('TEST_DATABASE_URL') or 'postgresql://ontextract_user:PASS@localhost:5432/ontextract_test'
 
 # Configuration mapping
 config = {
