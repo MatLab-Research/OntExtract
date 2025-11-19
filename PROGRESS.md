@@ -1,10 +1,10 @@
 # OntExtract Refactoring Progress Tracker
 
 **Branch:** `development`
-**Based On:** `development` (commit `d7a74fd`)
+**Based On:** `development` (commit `4b65548`)
 **Started:** 2025-11-16
-**Last Session:** 2025-11-18 (Session 5 - Results View Completion, Bug Fixes & Transformer Upgrade)
-**Status:** STABLE - All 5 processing result types complete with transformer-enhanced definition extraction
+**Last Session:** 2025-11-19 (Session 6 - PostgreSQL Test Infrastructure & Integration Tests)
+**Status:** STABLE - Testing infrastructure complete with PostgreSQL + 23 passing tests
 
 ---
 
@@ -59,9 +59,191 @@ This document tracks two major improvements to OntExtract:
 - **Backward Compatibility**: Manual processing outside experiments still works
 - **Impact**: Centralized results, clearer tracking, no more confusing version chains
 
+**Phase 7: PostgreSQL Test Infrastructure (COMPLETE - 2025-11-19)**
+- **Test Database Setup**: Created `ontextract_test` PostgreSQL database
+- **Configuration**: Replaced SQLite with PostgreSQL in TestingConfig (supports JSONB)
+- **Fixture Fixes**: Updated Term model fixtures to match current schema
+- **Integration Tests**: Fixed ExtractedEntity and ProvenanceEntity queries
+- **Coverage**: 23 tests passing, 22% code coverage, main temporal workflow test passing
+- **Status**: Complete testing infrastructure ready for development
+
+---
+
+## Quick Testing Guide
+
+### Running Tests
+
+**Run all tests with coverage:**
+```bash
+PYTHONPATH=/home/chris/OntExtract venv-ontextract/bin/pytest tests/ --cov=app --cov-report=html
+```
+
+**Run temporal integration tests:**
+```bash
+PYTHONPATH=/home/chris/OntExtract venv-ontextract/bin/pytest tests/test_temporal_experiment_integration.py -v
+```
+
+**View coverage report:**
+```bash
+open htmlcov/index.html
+```
+
+### Current Test Status
+- ✅ **23 tests passing** - Basic functionality verified
+- ❌ **3 tests failing** - Assertion issues in experiments_crud.py
+- ⚠️ **23 setup errors** - Database isolation issues
+- 📊 **22% code coverage** - Room for improvement
+
+### Key Achievement
+The main temporal experiment workflow integration test (`test_complete_temporal_workflow`) is passing, which validates:
+- Experiment creation
+- Document upload (5 documents)
+- Processing operations (segmentation, entity extraction, embeddings)
+- Results verification
+- Provenance tracking
+
 ---
 
 ## Session Timeline
+
+### 2025-11-19 (Session 6) - PostgreSQL Test Infrastructure & Integration Tests
+
+#### Completed Tasks
+
+1. **PostgreSQL Test Database Setup**
+   - **Time:** Session start
+   - **Database Created:** `ontextract_test` with proper permissions
+   - **Commands:**
+     ```bash
+     createdb -U postgres ontextract_test
+     GRANT ALL PRIVILEGES ON DATABASE ontextract_test TO ontextract_user
+     GRANT ALL ON SCHEMA public TO ontextract_user
+     ```
+   - **Purpose:** Replace SQLite with PostgreSQL for test environment to support JSONB columns
+   - **Status:** Database ready and accessible
+
+2. **TestingConfig Update**
+   - **File:** `config/__init__.py` (line 122)
+   - **Change:** Updated SQLALCHEMY_DATABASE_URI from SQLite to PostgreSQL
+   - **New URI:** `postgresql://ontextract_user:PASS@localhost:5432/ontextract_test`
+   - **Reason:** SQLite doesn't support JSONB column type used in models
+   - **Impact:** Tests now run against PostgreSQL database
+
+3. **Test Fixture Fixes - Term Model**
+   - **File:** `tests/conftest.py` (lines 228-233)
+   - **Problem:** Fixture using old field names (`term`, `definition`, `domain`)
+   - **Fix:** Updated to current schema (`term_text`, `description`, `research_domain`)
+   - **Impact:** Term-related tests can now create fixtures correctly
+
+4. **Integration Test Fixes - ExtractedEntity Queries**
+   - **File:** `tests/test_temporal_experiment_integration.py` (lines 277-280, 452-454)
+   - **Problem:** Tests querying `ExtractedEntity.filter_by(document_id=...)` but model doesn't have document_id
+   - **Root Cause:** ExtractedEntity relates to documents through ProcessingJob table
+   - **Fix:** Changed queries to join through ProcessingJob:
+     ```python
+     ExtractedEntity.query.join(ProcessingJob).filter(
+         ProcessingJob.document_id == doc.id
+     ).all()
+     ```
+   - **Property Fixes:** Updated to use `entity_text`, `entity_type`, `start_position`, `end_position`
+   - **Impact:** Entity extraction tests now query correctly
+
+5. **Integration Test Fixes - ProvenanceEntity Queries**
+   - **File:** `tests/test_temporal_experiment_integration.py` (line 346)
+   - **Problem:** Test querying `ProvenanceEntity.entity_type` which doesn't exist
+   - **Fix:** Changed to `ProvenanceEntity.prov_type.like('%Document%')`
+   - **Impact:** Provenance verification tests now work
+
+6. **pytest-cov Installation**
+   - **Package:** `pytest-cov==7.0.0` and `coverage==7.12.0`
+   - **Purpose:** Enable code coverage reporting for test suite
+   - **Command:** `venv-ontextract/bin/pip install pytest-cov`
+   - **Impact:** Can now generate coverage reports with `--cov` flag
+
+7. **uploads/ Directory .gitignore**
+   - **File:** `.gitignore` (lines 227-229)
+   - **Added:** `uploads/` and `uploads/**/*`
+   - **Removed:** Tracked file `uploads/d6dd53a205134b39acf419764b66f82b_NSPE_Code_of_Ethics.md`
+   - **Reason:** User uploads should not be in version control
+   - **Impact:** Upload directory now properly ignored
+
+#### Test Results
+
+**Temporal Integration Tests:**
+```bash
+pytest tests/test_temporal_experiment_integration.py -v
+```
+- ✅ 1 test PASSED (`test_complete_temporal_workflow`)
+- ⚠️ 6 tests with setup errors (database isolation issues)
+
+**Full Test Suite:**
+```bash
+pytest tests/ --cov=app --cov-report=html
+```
+- ✅ 23 tests PASSED
+- ❌ 3 tests failed (assertion issues)
+- ⚠️ 23 tests with setup errors (database isolation)
+- 📊 22% code coverage
+- Coverage report: `htmlcov/index.html`
+
+**Key Achievement:**
+- Main temporal experiment workflow test passing
+- Successfully creates experiment, uploads 5 documents, runs segmentation/entities/embeddings
+- Verifies processing results and provenance tracking
+- Complete end-to-end integration test working
+
+#### Technical Details
+
+**Database Configuration Pattern:**
+```python
+# config/__init__.py
+class TestingConfig(Config):
+    TESTING = True
+    WTF_CSRF_ENABLED = False
+    # PostgreSQL for JSONB support
+    SQLALCHEMY_DATABASE_URI = os.environ.get('TEST_DATABASE_URL') or \
+        'postgresql://ontextract_user:PASS@localhost:5432/ontextract_test'
+```
+
+**ExtractedEntity Query Pattern:**
+```python
+# Old (incorrect) - document_id doesn't exist on ExtractedEntity
+entities = ExtractedEntity.query.filter_by(document_id=doc.id).all()
+
+# New (correct) - join through ProcessingJob
+entities = ExtractedEntity.query.join(ProcessingJob).filter(
+    ProcessingJob.document_id == doc.id
+).all()
+```
+
+**Model Relationships:**
+- `ExtractedEntity` → `processing_job_id` → `ProcessingJob` → `document_id` → `Document`
+- Must query through the relationship chain
+
+#### Files Modified
+
+- `config/__init__.py` - PostgreSQL test database configuration
+- `tests/conftest.py` - Fixed Term fixture field names
+- `tests/test_temporal_experiment_integration.py` - Fixed entity and provenance queries
+- `.gitignore` - Added uploads/ directory
+
+#### Impact
+
+- **Testing Infrastructure Complete**: PostgreSQL-based test environment ready
+- **Integration Tests Working**: Main temporal workflow test passing
+- **Coverage Tracking**: Can now measure code coverage
+- **Model Compatibility**: Tests now match current database schema
+- **Development Ready**: Solid foundation for adding more tests
+
+#### Next Steps
+
+1. Fix remaining setup errors (database isolation between tests)
+2. Add more integration tests for other experiment types
+3. Increase code coverage beyond 22%
+4. Add unit tests for individual services
+5. Document testing patterns and best practices
+
+---
 
 ### 2025-11-18 (Session 2) - Experiment Versioning Refactor
 
@@ -849,7 +1031,11 @@ Upload → Normalized Columns → View Display → Edit Form → Save → Normal
 | `app/routes/processing/pipeline.py` | Dual storage queries for segments and entities results | Applied | Session 4 |
 | `TOOL_BACKEND_VERIFICATION.md` | New - Complete tool mapping documentation | Created | Session 4 |
 | `RESULTS_VIEW_FIXES.md` | New - Dual storage compatibility fixes | Created | Session 4 |
-| `PROGRESS.md` | Updated with all session changes | Applied | Session 4 |
+| `config/__init__.py` | PostgreSQL test database configuration | Merged | 652f6ed |
+| `tests/conftest.py` | Fixed Term fixture field names | Merged | 652f6ed |
+| `tests/test_temporal_experiment_integration.py` | Fixed entity/provenance queries | Merged | 652f6ed |
+| `.gitignore` | Added uploads/ directory | Merged | 652f6ed |
+| `PROGRESS.md` | Updated with all session changes | Applied | Session 6 |
 
 ### Files to Watch (Potentially Affected by Update)
 
@@ -1015,28 +1201,37 @@ Documented in `DEPLOYMENT_UPDATE_GUIDE.md` - Emergency rollback procedures avail
 
 ### Next Steps
 
-1. **Test Processing Pipeline End-to-End:**
+1. **Testing Infrastructure Improvements (HIGH PRIORITY):**
+   - Fix database isolation issues causing setup errors
+   - Add more integration tests for other experiment types
+   - Increase code coverage beyond 22%
+   - Add unit tests for individual services
+   - Document testing patterns and best practices
+
+2. **Test Processing Pipeline End-to-End:**
    - Test all 8 tools on experiment document
    - Verify "Run All Tools" executes in correct order
    - Check results pages display all artifacts correctly
    - Test with both new experiment processing and old manual processing
 
-2. **Implement Full OED Integration for Enhanced Processing:**
+3. **Implement Full OED Integration for Enhanced Processing:**
    - Replace placeholder term extraction with full implementation
    - Integrate OED API for historical definitions
    - Add period-aware term analysis
 
-3. **Other Results Pages Updates:**
+4. **Other Results Pages Updates:**
    - Update `/results/embeddings` to query ProcessingArtifact
    - Update `/results/temporal` to support temporal_expression artifacts
    - Update `/results/definitions` to support term_definition artifacts
    - Update `/results/enhanced` to support extracted_term artifacts
 
-4. **Continue JCDL Preparation:**
+5. **Continue JCDL Preparation:**
    - Complete evaluation and benchmarking
    - Update documentation with latest features
    - Prepare conference demonstration materials
-6. When ready for production deployment, follow checklist in `DEPLOYMENT_UPDATE_GUIDE.md`
+
+6. **Production Deployment:**
+   - When ready, follow checklist in `DEPLOYMENT_UPDATE_GUIDE.md`
 
 ---
 
@@ -1071,8 +1266,18 @@ Documented in `DEPLOYMENT_UPDATE_GUIDE.md` - Emergency rollback procedures avail
      - Templates unchanged
    - **Pattern:** Now implemented for segments, embeddings, entities, and definitions (can be extended to temporal and enhanced)
 
+4. **PostgreSQL for Testing (Session 6):**
+   - **Why Needed:** SQLite doesn't support JSONB column type used throughout models
+   - **Solution:** Create dedicated PostgreSQL test database (ontextract_test)
+   - **Benefits:**
+     - Tests run against same database engine as production
+     - Full feature compatibility (JSONB, advanced queries)
+     - Better integration test reliability
+     - Catches PostgreSQL-specific issues early
+   - **Pattern:** Separate test database, same user/credentials, independent of development data
+
 ---
 
-**Last Updated:** 2025-11-18 (Session 5)
-**Current Status:** STABLE - Transformer-Enhanced Definition Extraction + All Processing Result Types Complete
-**Next Steps:** Install transformers library, test transformer-enhanced extraction, add temporal results view, continue JCDL preparation
+**Last Updated:** 2025-11-19 (Session 6)
+**Current Status:** STABLE - PostgreSQL Test Infrastructure Complete + 23 Tests Passing
+**Next Steps:** Improve test coverage, fix database isolation issues, add more integration tests
