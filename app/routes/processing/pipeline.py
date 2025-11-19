@@ -1023,38 +1023,29 @@ def save_cleaned_text(document_uuid):
             ExperimentDocument.document_id.in_(all_doc_ids)
         ).all()
 
-        # Create processing records for each associated experiment
-        for exp_doc in experiment_docs:
-            # Create ExperimentDocumentProcessing entry
-            exp_processing = ExperimentDocumentProcessing(
-                experiment_document_id=exp_doc.id,
-                processing_type='clean_text',
-                processing_method='llm_claude',
-                status='completed',
-                started_at=cleanup_job.created_at,
-                completed_at=cleanup_job.completed_at
-            )
-            # Set results summary using the helper method
-            exp_processing.set_results_summary({
-                'processing_job_id': cleanup_job.id,
-                'changes_accepted': changes_accepted,
-                'changes_rejected': changes_rejected,
-                'original_length': original_length,
-                'cleaned_length': cleaned_length
-            })
-            db.session.add(exp_processing)
-            db.session.flush()  # Flush to get exp_processing.id
+        # Get unique experiment IDs
+        experiment_ids = set(exp_doc.experiment_id for exp_doc in experiment_docs)
 
-            # Create DocumentProcessingIndex entry for quick lookup
-            index_entry = DocumentProcessingIndex(
-                document_id=cleaned_version.id,  # Use the new version
-                experiment_id=exp_doc.experiment_id,
-                processing_id=exp_processing.id,
-                processing_type='clean_text',
-                processing_method='llm_claude',
-                status='completed'
-            )
-            db.session.add(index_entry)
+        # Add the new cleaned version to all experiments that have this document
+        # NOTE: The cleaned version is added with NO processing records because the text has changed
+        # and old processing results (embeddings, entities, etc.) are no longer valid.
+        # Users must re-run processing tools on the cleaned version to get accurate results.
+        for experiment_id in experiment_ids:
+            # Check if the cleaned version is already in this experiment
+            existing_exp_doc = ExperimentDocument.query.filter_by(
+                experiment_id=experiment_id,
+                document_id=cleaned_version.id
+            ).first()
+
+            if not existing_exp_doc:
+                # Add the cleaned version to the experiment (no processing records)
+                new_exp_doc = ExperimentDocument(
+                    experiment_id=experiment_id,
+                    document_id=cleaned_version.id
+                )
+                db.session.add(new_exp_doc)
+                db.session.flush()  # Flush to get the ID
+                app.logger.info(f"Added cleaned version {cleaned_version.id} to experiment {experiment_id} (no processing records)")
 
         db.session.commit()
 
@@ -1969,6 +1960,7 @@ def view_definitions_results(document_uuid):
                              error=str(e)), 500
 
 @processing_bp.route('/document/<string:document_uuid>/clear/definitions', methods=['DELETE'])
+@api_require_login_for_write
 def clear_definitions(document_uuid):
     """Clear all definition extraction results for a document."""
     try:
@@ -1982,46 +1974,79 @@ def clear_definitions(document_uuid):
         if base_doc_id not in all_version_ids:
             all_version_ids.append(base_doc_id)
 
-        deleted_artifacts = 0
-        deleted_jobs = 0
-
-        # Delete ProcessingArtifact entries (new experiment processing)
-        from app.models.experiment_processing import ProcessingArtifact
-        artifacts = ProcessingArtifact.query.filter(
-            ProcessingArtifact.document_id.in_(all_version_ids),
-            ProcessingArtifact.artifact_type == 'term_definition'
-        ).all()
-
-        for artifact in artifacts:
-            db.session.delete(artifact)
-            deleted_artifacts += 1
-
-        # Delete ProcessingJob entries (old manual processing)
-        jobs = ProcessingJob.query.filter(
-            ProcessingJob.document_id.in_(all_version_ids),
-            ProcessingJob.job_type == 'definition_extraction'
-        ).all()
-
-        for job in jobs:
-            db.session.delete(job)
-            deleted_jobs += 1
-
-        # Also delete ExperimentDocumentProcessing records for definitions
-        from app.models.experiment_processing import ExperimentDocumentProcessing
+        # Use bulk delete operations to avoid autoflush issues
+        from app.models.experiment_processing import (
+            ProcessingArtifact,
+            ExperimentDocumentProcessing,
+            DocumentProcessingIndex
+        )
         from app.models.experiment_document import ExperimentDocument
 
-        for doc_id in all_version_ids:
-            exp_docs = ExperimentDocument.query.filter_by(document_id=doc_id).all()
-            for exp_doc in exp_docs:
-                exp_processing = ExperimentDocumentProcessing.query.filter_by(
-                    experiment_document_id=exp_doc.id,
-                    processing_type='definitions'
-                ).all()
-                for exp_proc in exp_processing:
-                    db.session.delete(exp_proc)
-                    deleted_jobs += 1
+        # Count before deleting
+        deleted_artifacts = ProcessingArtifact.query.filter(
+            ProcessingArtifact.document_id.in_(all_version_ids),
+            ProcessingArtifact.artifact_type == 'term_definition'
+        ).count()
+
+        deleted_jobs = ProcessingJob.query.filter(
+            ProcessingJob.document_id.in_(all_version_ids),
+            ProcessingJob.job_type == 'definition_extraction'
+        ).count()
+
+        # Get experiment document IDs and processing IDs
+        exp_doc_ids = [ed.id for ed in ExperimentDocument.query.filter(
+            ExperimentDocument.document_id.in_(all_version_ids)
+        ).all()]
+
+        exp_processing_count = 0
+        exp_processing_ids = []
+        if exp_doc_ids:
+            exp_processing_records = ExperimentDocumentProcessing.query.filter(
+                ExperimentDocumentProcessing.experiment_document_id.in_(exp_doc_ids),
+                ExperimentDocumentProcessing.processing_type == 'definitions'
+            ).all()
+            exp_processing_count = len(exp_processing_records)
+            exp_processing_ids = [ep.id for ep in exp_processing_records]
+
+        # Delete in correct order to avoid foreign key violations:
+        # 1. First delete DocumentProcessingIndex (references ExperimentDocumentProcessing)
+        if exp_processing_ids:
+            DocumentProcessingIndex.query.filter(
+                DocumentProcessingIndex.processing_id.in_(exp_processing_ids)
+            ).delete(synchronize_session=False)
+            db.session.flush()  # Force execution before next deletion
+
+        # 2. Delete ProcessingArtifacts that reference ExperimentDocumentProcessing
+        if exp_processing_ids:
+            ProcessingArtifact.query.filter(
+                ProcessingArtifact.processing_id.in_(exp_processing_ids)
+            ).delete(synchronize_session=False)
+            db.session.flush()  # Force execution before next deletion
+
+        # 3. Then delete ExperimentDocumentProcessing
+        if exp_doc_ids:
+            ExperimentDocumentProcessing.query.filter(
+                ExperimentDocumentProcessing.experiment_document_id.in_(exp_doc_ids),
+                ExperimentDocumentProcessing.processing_type == 'definitions'
+            ).delete(synchronize_session=False)
+            db.session.flush()  # Force execution before next deletion
+
+        # 4. Delete remaining ProcessingArtifacts (by document_id)
+        ProcessingArtifact.query.filter(
+            ProcessingArtifact.document_id.in_(all_version_ids),
+            ProcessingArtifact.artifact_type == 'term_definition'
+        ).delete(synchronize_session=False)
+
+        # 5. Delete ProcessingJobs (old manual processing)
+        ProcessingJob.query.filter(
+            ProcessingJob.document_id.in_(all_version_ids),
+            ProcessingJob.job_type == 'definition_extraction'
+        ).delete(synchronize_session=False)
 
         db.session.commit()
+
+        # Update total deleted jobs
+        deleted_jobs = deleted_jobs + exp_processing_count
 
         from flask import jsonify
         return jsonify({

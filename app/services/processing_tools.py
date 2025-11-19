@@ -849,6 +849,12 @@ class DocumentProcessor:
             # Add transformer-extracted definitions first (highest quality)
             for defn in transformer_definitions:
                 term_key = defn['term'].lower()
+
+                # Filter: Only keep terms with 1-3 words (single words or short phrases)
+                term_word_count = len(defn['term'].split())
+                if term_word_count > 3:
+                    continue
+
                 if term_key not in seen_terms and len(defn['term']) > 1 and len(defn['definition']) > 10:
                     seen_terms.add(term_key)
                     definitions.append(defn)
@@ -868,6 +874,11 @@ class DocumentProcessor:
                         # Quality filters - basic length checks
                         if (len(term) < 2 or len(definition_text) < 10 or
                             len(definition_text) > 200):  # Too short or too long
+                            continue
+
+                        # REJECT: Terms with more than 3 words (only keep single words or short phrases)
+                        term_word_count = len(term.split())
+                        if term_word_count > 3:
                             continue
 
                         # REJECT: Academic citations (e.g., "Dubossarsky et al., 2015")
@@ -951,6 +962,11 @@ class DocumentProcessor:
                             # Get fuller context
                             term_phrase = ' '.join([t.text for t in token.head.subtree])
                             definition_phrase = ' '.join([t.text for t in token.subtree])
+
+                            # Only keep terms with 1-3 words
+                            term_word_count = len(term_phrase.split())
+                            if term_word_count > 3:
+                                continue
 
                             if (len(term_phrase) > 2 and len(definition_phrase) > 10 and
                                 term_phrase.lower() not in seen_terms):

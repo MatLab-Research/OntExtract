@@ -131,6 +131,16 @@
                 {% if has_definitions %}<span class="badge bg-primary ms-2">Available</span>{% endif %}
             </a>
 
+            {% set has_temporal = processing_operations|selectattr('processing_type', 'equalto', 'temporal')|selectattr('status', 'equalto', 'completed')|list %}
+            <a href="/process/document/{{ document.uuid }}/results/temporal"
+               id="result-link-temporal"
+               class="btn btn-sm btn-outline-secondary {% if not has_temporal %}disabled{% endif %}"
+               target="_blank"
+               {% if not has_temporal %}style="pointer-events: none; opacity: 0.5;"{% endif %}>
+                <i class="fas fa-clock me-1"></i>Temporal Markers
+                {% if has_temporal %}<span class="badge bg-secondary ms-2">Available</span>{% endif %}
+            </a>
+
             {% set has_enhanced = processing_operations|selectattr('processing_type', 'equalto', 'enhanced_processing')|selectattr('status', 'equalto', 'completed')|list %}
             <a href="/process/document/{{ document.uuid }}/results/enhanced"
                id="result-link-enhanced"
