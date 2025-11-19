@@ -564,10 +564,62 @@ class Document(db.Model):
         """Check if document has embeddings applied"""
         if not self.processing_metadata:
             return False
-        
+
         processing_info = self.processing_metadata.get('processing_info', {})
         return processing_info.get('embeddings_applied', False)
-    
+
+    # Primary metadata display properties - always return from root document
+    @property
+    def display_authors(self):
+        """Get authors from root document (single source of truth for bibliographic metadata)"""
+        root = self.get_root_document()
+        return root.authors if root else self.authors
+
+    @property
+    def display_publication_year(self):
+        """Get publication year from root document"""
+        root = self.get_root_document()
+        # Handle both publication_year and publication_date
+        if root:
+            return root.publication_year if hasattr(root, 'publication_year') else (root.publication_date.year if root.publication_date else None)
+        return self.publication_year if hasattr(self, 'publication_year') else (self.publication_date.year if self.publication_date else None)
+
+    @property
+    def display_doi(self):
+        """Get DOI from root document"""
+        root = self.get_root_document()
+        return root.doi if root else self.doi
+
+    @property
+    def display_isbn(self):
+        """Get ISBN from root document"""
+        root = self.get_root_document()
+        return root.isbn if root else self.isbn
+
+    @property
+    def display_journal(self):
+        """Get journal from root document"""
+        root = self.get_root_document()
+        return root.journal if root else self.journal
+
+    @property
+    def display_abstract(self):
+        """Get abstract from root document"""
+        root = self.get_root_document()
+        return root.abstract if root else self.abstract
+
+    @property
+    def display_keywords(self):
+        """Get keywords from root document"""
+        root = self.get_root_document()
+        return root.keywords if hasattr(root, 'keywords') and root else (self.keywords if hasattr(self, 'keywords') else None)
+
+    @property
+    def display_language(self):
+        """Get language from root document"""
+        root = self.get_root_document()
+        return root.language if hasattr(root, 'language') and root else (self.language if hasattr(self, 'language') else None)
+
     def to_dict(self, include_content=False):
         """Convert document to dictionary for API responses"""
         result = {
