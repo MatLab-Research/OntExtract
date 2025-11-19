@@ -276,3 +276,5 @@ data/
 
 # Development review directory (temporary files for review before deletion)
 untracked_review/
+
+/experiments
