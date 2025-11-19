@@ -167,10 +167,10 @@
                             </div>
                             {% endif %}
 
-                            {% if document.authors %}
+                            {% if document.display_authors %}
                             <div class="col-md-6">
                                 <label class="form-label text-muted small mb-1">Authors</label>
-                                <div class="form-control-plaintext py-1">{{ document.authors }}</div>
+                                <div class="form-control-plaintext py-1">{{ document.display_authors }}</div>
                             </div>
                             {% endif %}
 
@@ -181,10 +181,10 @@
                             </div>
                             {% endif %}
 
-                            {% if document.journal %}
+                            {% if document.display_journal %}
                             <div class="col-md-6">
                                 <label class="form-label text-muted small mb-1">Journal/Publisher</label>
-                                <div class="form-control-plaintext py-1">{{ document.journal }}</div>
+                                <div class="form-control-plaintext py-1">{{ document.display_journal }}</div>
                             </div>
                             {% endif %}
 
@@ -202,22 +202,22 @@
                             </div>
                             {% endif %}
 
-                            {% if document.doi %}
+                            {% if document.display_doi %}
                             <div class="col-md-6">
                                 <label class="form-label text-muted small mb-1">DOI</label>
                                 <div class="form-control-plaintext py-1">
-                                    <a href="https://doi.org/{{ document.doi }}" target="_blank"
+                                    <a href="https://doi.org/{{ document.display_doi }}" target="_blank"
                                         class="text-decoration-none">
-                                        {{ document.doi }} <i class="fas fa-external-link-alt ms-1 small"></i>
+                                        {{ document.display_doi }} <i class="fas fa-external-link-alt ms-1 small"></i>
                                     </a>
                                 </div>
                             </div>
                             {% endif %}
 
-                            {% if document.isbn %}
+                            {% if document.display_isbn %}
                             <div class="col-md-6">
                                 <label class="form-label text-muted small mb-1">ISBN</label>
-                                <div class="form-control-plaintext py-1">{{ document.isbn }}</div>
+                                <div class="form-control-plaintext py-1">{{ document.display_isbn }}</div>
                             </div>
                             {% endif %}
 
@@ -233,10 +233,10 @@
                             </div>
                             {% endif %}
 
-                            {% if document.abstract %}
+                            {% if document.display_abstract %}
                             <div class="col-md-12">
                                 <label class="form-label text-muted small mb-1">Abstract</label>
-                                <div class="form-control-plaintext py-1 small">{{ document.abstract }}</div>
+                                <div class="form-control-plaintext py-1 small">{{ document.display_abstract }}</div>
                             </div>
                             {% endif %}
 
