@@ -184,3 +184,90 @@ def entity_lineage(entity_id):
         entity=entity,
         lineage=lineage
     )
+
+
+# ========================================================================
+# ADMIN DELETE OPERATIONS
+# ========================================================================
+
+@bp.route('/activity/<activity_id>', methods=['DELETE'])
+@login_required
+def delete_activity(activity_id):
+    """Delete a single provenance activity and all related records (admin only)."""
+    if not current_user.is_admin:
+        return jsonify({'error': 'Admin access required'}), 403
+
+    from app.models.prov_o_models import ProvActivity, ProvEntity, ProvRelationship
+    from app import db
+    import uuid
+
+    try:
+        activity_uuid = uuid.UUID(activity_id)
+    except ValueError:
+        return jsonify({'error': 'Invalid activity ID'}), 400
+
+    try:
+        activity = ProvActivity.query.get(activity_uuid)
+        if not activity:
+            return jsonify({'error': 'Activity not found'}), 404
+
+        # Delete relationships where this activity is subject or object
+        ProvRelationship.query.filter(
+            db.or_(
+                db.and_(ProvRelationship.subject_type == 'activity', ProvRelationship.subject_id == activity_uuid),
+                db.and_(ProvRelationship.object_type == 'activity', ProvRelationship.object_id == activity_uuid)
+            )
+        ).delete(synchronize_session=False)
+
+        # Delete the activity
+        db.session.delete(activity)
+        db.session.commit()
+
+        return jsonify({
+            'success': True,
+            'message': f'Activity {activity_id} deleted',
+            'deleted_count': 1
+        })
+
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+
+@bp.route('/delete-all', methods=['DELETE'])
+@login_required
+def delete_all_provenance():
+    """Delete ALL provenance records (admin only, use with extreme caution)."""
+    if not current_user.is_admin:
+        return jsonify({'error': 'Admin access required'}), 403
+
+    from app.models.prov_o_models import ProvActivity, ProvEntity, ProvAgent, ProvRelationship
+    from app import db
+
+    try:
+        # Delete all relationships first
+        relationships_count = ProvRelationship.query.delete()
+
+        # Delete all entities
+        entities_count = ProvEntity.query.delete()
+
+        # Delete all activities
+        activities_count = ProvActivity.query.delete()
+
+        # Don't delete agents - keep them for reuse
+        agents_count = 0
+
+        db.session.commit()
+
+        return jsonify({
+            'success': True,
+            'message': 'All provenance records deleted',
+            'activities_deleted': activities_count,
+            'entities_deleted': entities_count,
+            'agents_deleted': agents_count,
+            'relationships_deleted': relationships_count
+        })
+
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
