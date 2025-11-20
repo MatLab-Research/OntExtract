@@ -75,28 +75,38 @@ def get_document_metadata(document_uuid):
 
     Returns normalized bibliographic fields from database columns,
     plus any custom fields from source_metadata JSONB.
+
+    For version documents, returns the root document's metadata since
+    metadata is inherited and displayed from the root.
     """
     try:
         document = Document.query.filter_by(uuid=document_uuid).first_or_404()
 
+        # For version documents, get metadata from root document
+        root_doc = document.get_root_document()
+        is_version = (root_doc.id != document.id)
+
+        # Use root document for metadata if this is a version
+        metadata_doc = root_doc if is_version else document
+
         # Build metadata from normalized columns
         metadata = {
-            'title': document.title,
-            'authors': document.authors,
-            'publication_date': document.publication_date.isoformat() if document.publication_date else None,
-            'journal': document.journal,
-            'publisher': document.publisher,
-            'doi': document.doi,
-            'isbn': document.isbn,
-            'type': document.document_subtype,
-            'abstract': document.abstract,
-            'url': document.url,
-            'citation': document.citation
+            'title': metadata_doc.title,
+            'authors': metadata_doc.display_authors,  # Use display_authors for proper formatting
+            'publication_date': metadata_doc.publication_date.isoformat() if metadata_doc.publication_date else None,
+            'journal': metadata_doc.journal,
+            'publisher': metadata_doc.publisher,
+            'doi': metadata_doc.doi,
+            'isbn': metadata_doc.isbn,
+            'type': metadata_doc.document_subtype,
+            'abstract': metadata_doc.abstract,
+            'url': metadata_doc.url,
+            'citation': metadata_doc.citation
         }
 
         # Add custom fields from source_metadata JSONB (if any)
-        if document.source_metadata:
-            for key, value in document.source_metadata.items():
+        if metadata_doc.source_metadata:
+            for key, value in metadata_doc.source_metadata.items():
                 if key not in metadata:  # Don't override standard fields
                     metadata[key] = value
 
@@ -105,7 +115,9 @@ def get_document_metadata(document_uuid):
 
         return jsonify({
             'success': True,
-            'metadata': metadata
+            'metadata': metadata,
+            'is_version': is_version,
+            'root_uuid': root_doc.uuid if is_version else None
         })
 
     except Exception as e:
@@ -142,44 +154,83 @@ def update_document_metadata(document_uuid):
             'doi', 'isbn', 'type', 'abstract', 'url', 'citation'
         }
 
-        # Update normalized column fields
+        # Track changes for provenance
+        changes = {}
+
+        # Update normalized column fields and track changes
         if 'title' in metadata and metadata['title']:
-            document.title = str(metadata['title'])[:200]
+            new_value = str(metadata['title'])[:200]
+            if document.title != new_value:
+                changes['title'] = {'old': document.title, 'new': new_value}
+                document.title = new_value
 
         if 'authors' in metadata and metadata['authors']:
-            document.authors = str(metadata['authors'])
+            new_value = str(metadata['authors'])
+            if document.authors != new_value:
+                changes['authors'] = {'old': document.authors, 'new': new_value}
+                document.authors = new_value
 
         if 'publication_date' in metadata and metadata['publication_date']:
             try:
                 # Parse date string to date object
                 parsed_date = date_parser.parse(metadata['publication_date'])
-                document.publication_date = parsed_date.date()
+                new_value = parsed_date.date()
+                if document.publication_date != new_value:
+                    changes['publication_date'] = {
+                        'old': document.publication_date.isoformat() if document.publication_date else None,
+                        'new': new_value.isoformat()
+                    }
+                    document.publication_date = new_value
             except:
                 pass  # Skip invalid dates
 
         if 'journal' in metadata and metadata['journal']:
-            document.journal = str(metadata['journal'])[:200]
+            new_value = str(metadata['journal'])[:200]
+            if document.journal != new_value:
+                changes['journal'] = {'old': document.journal, 'new': new_value}
+                document.journal = new_value
 
         if 'publisher' in metadata and metadata['publisher']:
-            document.publisher = str(metadata['publisher'])[:200]
+            new_value = str(metadata['publisher'])[:200]
+            if document.publisher != new_value:
+                changes['publisher'] = {'old': document.publisher, 'new': new_value}
+                document.publisher = new_value
 
         if 'doi' in metadata and metadata['doi']:
-            document.doi = str(metadata['doi'])[:100]
+            new_value = str(metadata['doi'])[:100]
+            if document.doi != new_value:
+                changes['doi'] = {'old': document.doi, 'new': new_value}
+                document.doi = new_value
 
         if 'isbn' in metadata and metadata['isbn']:
-            document.isbn = str(metadata['isbn'])[:20]
+            new_value = str(metadata['isbn'])[:20]
+            if document.isbn != new_value:
+                changes['isbn'] = {'old': document.isbn, 'new': new_value}
+                document.isbn = new_value
 
         if 'type' in metadata and metadata['type']:
-            document.document_subtype = str(metadata['type'])[:50]
+            new_value = str(metadata['type'])[:50]
+            if document.document_subtype != new_value:
+                changes['type'] = {'old': document.document_subtype, 'new': new_value}
+                document.document_subtype = new_value
 
         if 'abstract' in metadata and metadata['abstract']:
-            document.abstract = str(metadata['abstract'])
+            new_value = str(metadata['abstract'])
+            if document.abstract != new_value:
+                changes['abstract'] = {'old': document.abstract, 'new': new_value}
+                document.abstract = new_value
 
         if 'url' in metadata and metadata['url']:
-            document.url = str(metadata['url'])[:500]
+            new_value = str(metadata['url'])[:500]
+            if document.url != new_value:
+                changes['url'] = {'old': document.url, 'new': new_value}
+                document.url = new_value
 
         if 'citation' in metadata and metadata['citation']:
-            document.citation = str(metadata['citation'])
+            new_value = str(metadata['citation'])
+            if document.citation != new_value:
+                changes['citation'] = {'old': document.citation, 'new': new_value}
+                document.citation = new_value
 
         # Handle custom (non-standard) fields in source_metadata JSONB
         custom_fields = {k: v for k, v in metadata.items() if k not in standard_fields}
@@ -197,6 +248,16 @@ def update_document_metadata(document_uuid):
             flag_modified(document, 'source_metadata')
 
         db.session.commit()
+
+        # Track metadata update in provenance if there were changes
+        if changes:
+            try:
+                from app.services.provenance_service import provenance_service
+                provenance_service.track_metadata_update(document, current_user, changes)
+            except Exception as e:
+                # Log but don't fail the request if provenance tracking fails
+                from flask import current_app
+                current_app.logger.warning(f"Failed to track metadata update provenance: {str(e)}")
 
         # Return complete metadata (columns + JSONB)
         response_metadata = {
