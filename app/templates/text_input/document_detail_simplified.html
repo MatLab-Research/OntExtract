@@ -81,12 +81,18 @@
                             data-bs-toggle="collapse" data-bs-target="#metadataCollapse"
                             aria-expanded="{% if document.source_metadata or temporal_metadata %}true{% else %}false{% endif %}">
                             <i class="fas fa-info-circle me-2"></i>Document Metadata
-                            {% if document.source_metadata and document.source_metadata.get('zotero_key') %}
+                            {# For version documents, check root document's metadata provenance #}
+                            {% set root_doc = document.get_root_document() %}
+                            {% set is_version = root_doc.id != document.id %}
+                            {% set metadata_source = root_doc.source_metadata if is_version else document.source_metadata %}
+                            {% set metadata_prov = root_doc.metadata_provenance if is_version else document.metadata_provenance %}
+
+                            {% if metadata_source and metadata_source.get('zotero_key') %}
                             <span class="badge bg-success ms-2">Zotero Enhanced</span>
-                            {% elif document.metadata_provenance %}
-                                {% set semanticscholar_fields = document.metadata_provenance.items() | selectattr('1.source', 'equalto', 'semanticscholar') | list %}
-                                {% set crossref_fields = document.metadata_provenance.items() | selectattr('1.source', 'in', ['crossref', 'crossref_auto']) | list %}
-                                {% set user_fields = document.metadata_provenance.items() | selectattr('1.source', 'equalto', 'user') | list %}
+                            {% elif metadata_prov %}
+                                {% set semanticscholar_fields = metadata_prov.items() | selectattr('1.source', 'equalto', 'semanticscholar') | list %}
+                                {% set crossref_fields = metadata_prov.items() | selectattr('1.source', 'in', ['crossref', 'crossref_auto']) | list %}
+                                {% set user_fields = metadata_prov.items() | selectattr('1.source', 'equalto', 'user') | list %}
                                 {% if semanticscholar_fields | length > 0 and user_fields | length > 0 %}
                                 <span class="badge bg-success ms-2">Semantic Scholar + Manual</span>
                                 {% elif semanticscholar_fields | length > 0 %}
@@ -97,10 +103,10 @@
                                 <span class="badge bg-success ms-2">CrossRef</span>
                                 {% elif user_fields | length > 0 %}
                                 <span class="badge bg-primary ms-2">Manual Entry</span>
-                                {% elif document.source_metadata %}
+                                {% elif metadata_source %}
                                 <span class="badge bg-primary ms-2">Manual Entry</span>
                                 {% endif %}
-                            {% elif document.source_metadata %}
+                            {% elif metadata_source %}
                             <span class="badge bg-primary ms-2">Manual Entry</span>
                             {% elif temporal_metadata %}
                             <span class="badge bg-info ms-2">Temporal Metadata</span>
@@ -340,7 +346,7 @@
                         <div class="col-6">
                             <div class="border-end">
                                 <h4 class="text-success mb-1">
-                                    {{ document_experiments|length if document_experiments else 0 }}
+                                    {{ this_version_experiments|length if this_version_experiments else 0 }}
                                 </h4>
                                 <small class="text-muted">Experiments</small>
                             </div>
@@ -369,6 +375,175 @@
                     </div>
                 </div>
             </div>
+
+            <!-- Create Experiment Action -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h6 class="mb-0">
+                        <i class="fas fa-plus-circle me-2"></i>Analysis
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted mb-3 small">
+                        Create an experiment to analyze this document with processing tools like embeddings, segmentation, and entity extraction.
+                    </p>
+                    <div class="d-grid gap-2">
+                        <!-- Primary: Create Experiment -->
+                        <a href="{{ url_for('experiments.new') }}" class="btn btn-primary btn-sm">
+                            <i class="fas fa-flask me-2"></i>Create Experiment
+                        </a>
+
+                        <!-- Secondary: Analyze this Document -->
+                        <a href="{{ url_for('experiments.new',
+                                            mode='single_document',
+                                            document_uuid=document.uuid,
+                                            document_title=document.title) }}"
+                           class="btn btn-outline-primary btn-sm">
+                            <i class="fas fa-microscope me-2"></i>Analyze this Document
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Related Experiments -->
+            {% if this_version_experiments or all_version_experiments %}
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h6 class="mb-0">
+                        <i class="fas fa-flask me-2"></i>Related Experiments
+                    </h6>
+                    <div class="mt-2">
+                        <label class="form-label small text-muted mb-1">Version:</label>
+                        <div class="btn-group btn-group-sm w-100" role="group">
+                            <input type="radio" class="btn-check" name="expScope" id="expThisVersion" checked autocomplete="off">
+                            <label class="btn btn-outline-primary btn-sm" for="expThisVersion" onclick="showExperimentScope('this')">
+                                Current ({{ this_version_experiments|length }})
+                            </label>
+
+                            <input type="radio" class="btn-check" name="expScope" id="expAllVersions" autocomplete="off">
+                            <label class="btn btn-outline-primary btn-sm" for="expAllVersions" onclick="showExperimentScope('all')">
+                                All ({{ all_version_experiments|length }})
+                            </label>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <!-- This Version Experiments -->
+                    <div id="this-version-exps">
+                        {% if this_version_experiments %}
+                        {% for exp_doc in this_version_experiments %}
+                    <div class="experiment-item border rounded p-2 mb-2">
+                        <div>
+                            <div class="d-flex align-items-start mb-1">
+                                <div class="flex-grow-1" style="min-width: 0;">
+                                    <h6 class="mb-0 small exp-title-container">
+                                        <a href="{{ url_for('experiments.view', experiment_id=exp_doc.experiment.id) }}"
+                                           class="text-decoration-none exp-title-link"
+                                           data-full-title="{{ exp_doc.experiment.name }}">
+                                            <span class="exp-title-text" style="display: inline-block; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; vertical-align: bottom;">{{ exp_doc.experiment.name }}</span>
+                                        </a>
+                                    </h6>
+                                </div>
+                                <button class="btn btn-sm p-0 ms-1 exp-expand-btn"
+                                        style="font-size: 0.7rem; line-height: 1; border: none; background: none; color: #6c757d;"
+                                        onclick="toggleExpTitle(this)"
+                                        title="Show full title">
+                                    <i class="fas fa-angle-down"></i>
+                                </button>
+                            </div>
+                            <p class="text-muted small mb-1">
+                                <i class="fas fa-tag me-1"></i>
+                                <strong>{{ exp_doc.experiment.term.term_text if exp_doc.experiment.term else 'No term' }}</strong>
+                            </p>
+                            <div class="d-flex justify-content-between align-items-center mb-1">
+                                <div>
+                                    <span class="badge bg-info text-dark" style="font-size: 0.65rem;">
+                                        {% if exp_doc.experiment.experiment_type == 'entity_extraction' %}
+                                            Document Analysis
+                                        {% elif exp_doc.experiment.experiment_type == 'temporal_evolution' %}
+                                            Temporal Evolution
+                                        {% elif exp_doc.experiment.experiment_type == 'domain_comparison' %}
+                                            Domain Comparison
+                                        {% else %}
+                                            {{ exp_doc.experiment.experiment_type|replace('_', ' ')|title }}
+                                        {% endif %}
+                                    </span>
+                                    <span class="badge bg-secondary ms-1" style="font-size: 0.65rem;">
+                                        <i class="fas fa-file-alt me-1"></i>{{ exp_doc.experiment.documents.count() }} doc{{ 's' if exp_doc.experiment.documents.count() != 1 else '' }}
+                                    </span>
+                                </div>
+                            </div>
+                            <small class="text-muted d-block">{{ exp_doc.experiment.created_at.strftime('%m/%d/%Y') }}</small>
+                        </div>
+                    </div>
+                    {% endfor %}
+                        {% else %}
+                        <p class="text-muted mb-0 small">No experiments using this version</p>
+                        {% endif %}
+                    </div>
+
+                    <!-- All Versions Experiments -->
+                    <div id="all-version-exps" style="display: none;">
+                        {% if all_version_experiments %}
+                        {% for exp_doc in all_version_experiments %}
+                    <div class="experiment-item border rounded p-2 mb-2">
+                        <div>
+                            <!-- Version Badge -->
+                            <span class="badge {% if exp_doc.is_current_version %}bg-success{% else %}bg-secondary{% endif %} mb-1" style="font-size: 0.65rem;">
+                                v{{ exp_doc.document_version }} - {{ exp_doc.version_type[:4]|title }}
+                                {% if exp_doc.is_current_version %} (Current){% endif %}
+                            </span>
+
+                            <div class="d-flex align-items-start mb-1">
+                                <div class="flex-grow-1" style="min-width: 0;">
+                                    <h6 class="mb-0 small exp-title-container">
+                                        <a href="{{ url_for('experiments.view', experiment_id=exp_doc.experiment.id) }}"
+                                           class="text-decoration-none exp-title-link"
+                                           data-full-title="{{ exp_doc.experiment.name }}">
+                                            <span class="exp-title-text" style="display: inline-block; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; vertical-align: bottom;">{{ exp_doc.experiment.name }}</span>
+                                        </a>
+                                    </h6>
+                                </div>
+                                <button class="btn btn-sm p-0 ms-1 exp-expand-btn"
+                                        style="font-size: 0.7rem; line-height: 1; border: none; background: none; color: #6c757d;"
+                                        onclick="toggleExpTitle(this)"
+                                        title="Show full title">
+                                    <i class="fas fa-angle-down"></i>
+                                </button>
+                            </div>
+                            <p class="text-muted small mb-1">
+                                <i class="fas fa-tag me-1"></i>
+                                <strong>{{ exp_doc.experiment.term.term_text if exp_doc.experiment.term else 'No term' }}</strong>
+                            </p>
+                            <div class="d-flex justify-content-between align-items-center mb-1">
+                                <div>
+                                    <span class="badge bg-info text-dark" style="font-size: 0.65rem;">
+                                        {% if exp_doc.experiment.experiment_type == 'entity_extraction' %}
+                                            Document Analysis
+                                        {% elif exp_doc.experiment.experiment_type == 'temporal_evolution' %}
+                                            Temporal Evolution
+                                        {% elif exp_doc.experiment.experiment_type == 'domain_comparison' %}
+                                            Domain Comparison
+                                        {% else %}
+                                            {{ exp_doc.experiment.experiment_type|replace('_', ' ')|title }}
+                                        {% endif %}
+                                    </span>
+                                    <span class="badge bg-secondary ms-1" style="font-size: 0.65rem;">
+                                        <i class="fas fa-file-alt me-1"></i>{{ exp_doc.experiment.documents.count() }} doc{{ 's' if exp_doc.experiment.documents.count() != 1 else '' }}
+                                    </span>
+                                </div>
+                            </div>
+                            <small class="text-muted d-block">{{ exp_doc.experiment.created_at.strftime('%m/%d/%Y') }}</small>
+                        </div>
+                    </div>
+                        {% endfor %}
+                        {% else %}
+                        <p class="text-muted mb-0 small">No experiments across any version</p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            {% endif %}
 
             <!-- Metadata Provenance (PROV-O) - Sidebar -->
             {% if document.metadata_provenance or document_provenance_activities %}
@@ -537,6 +712,28 @@
         } else {
             thisVersionDiv.style.display = 'none';
             allVersionsDiv.style.display = 'block';
+        }
+    }
+
+    function toggleExpTitle(button) {
+        const container = button.closest('.experiment-item');
+        const titleText = container.querySelector('.exp-title-text');
+        const icon = button.querySelector('i');
+
+        if (titleText.style.whiteSpace === 'normal') {
+            // Collapse
+            titleText.style.whiteSpace = 'nowrap';
+            titleText.style.overflow = 'hidden';
+            titleText.style.textOverflow = 'ellipsis';
+            icon.className = 'fas fa-angle-down';
+            button.title = 'Show full title';
+        } else {
+            // Expand
+            titleText.style.whiteSpace = 'normal';
+            titleText.style.overflow = 'visible';
+            titleText.style.textOverflow = 'clip';
+            icon.className = 'fas fa-angle-up';
+            button.title = 'Collapse title';
         }
     }
 

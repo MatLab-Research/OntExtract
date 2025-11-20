@@ -57,6 +57,9 @@
                             {% for doc in documents %}
                             <option value="{{ doc.id }}" {% if doc.id == selected_document_id %}selected{% endif %}>
                                 {{ doc.title[:50] }}{% if doc.title|length > 50 %}...{% endif %}
+                                {% if doc.source_document_id %}
+                                    [v{{ doc.version_number }} - {{ doc.version_type[:4]|title }}]
+                                {% endif %}
                             </option>
                             {% endfor %}
                         </select>
@@ -202,7 +205,7 @@
                                         {% elif entity.type == 'document' and entity.value and entity.value.document_uuid %}
                                             <a href="{{ url_for('text_input.document_detail', document_uuid=entity.value.document_uuid) }}" class="badge bg-info me-1 text-decoration-none">
                                                 <i class="fas fa-file-alt me-1"></i>
-                                                {{ entity.value.title[:30] if entity.value.title else 'Document' }}
+                                                {{ entity.value.title if entity.value.title else 'Document' }}
                                             </a>
                                         {% elif entity.type == 'experiment' and entity.value and entity.value.experiment_id %}
                                             <a href="{{ url_for('experiments.view', experiment_id=entity.value.experiment_id) }}" class="badge bg-info me-1 text-decoration-none">
@@ -230,7 +233,7 @@
                                         {% elif entity.type == 'document' and entity.value and entity.value.document_uuid %}
                                             <a href="{{ url_for('text_input.document_detail', document_uuid=entity.value.document_uuid) }}" class="badge bg-success me-1 text-decoration-none">
                                                 <i class="fas fa-file-alt me-1"></i>
-                                                {{ entity.value.title[:30] if entity.value.title else 'Document' }}
+                                                {{ entity.value.title if entity.value.title else 'Document' }}
                                             </a>
                                         {% elif entity.type == 'experiment' and entity.value and entity.value.experiment_id %}
                                             <a href="{{ url_for('experiments.view', experiment_id=entity.value.experiment_id) }}" class="badge bg-success me-1 text-decoration-none">
