@@ -52,11 +52,28 @@ class PipelineService(BaseService):
             # Get experiment documents
             exp_docs = ExperimentDocument.query.filter_by(experiment_id=experiment_id).all()
 
-            # Build processed documents list
-            processed_docs = []
+            # Group documents by root to show only latest version
+            # Key: root_document_id, Value: list of (exp_doc, document) tuples
+            doc_families = {}
             for exp_doc in exp_docs:
                 doc = exp_doc.document
+                # Get root document ID (either the document itself or its source)
+                root_id = doc.source_document_id if doc.source_document_id else doc.id
 
+                if root_id not in doc_families:
+                    doc_families[root_id] = []
+                doc_families[root_id].append((exp_doc, doc))
+
+            # For each family, select only the latest version
+            latest_exp_docs = []
+            for root_id, family_members in doc_families.items():
+                # Sort by version_number (desc) and pick the first one
+                family_members.sort(key=lambda x: x[1].version_number or 0, reverse=True)
+                latest_exp_docs.append(family_members[0])  # (exp_doc, doc) tuple
+
+            # Build processed documents list
+            processed_docs = []
+            for exp_doc, doc in latest_exp_docs:
                 # Get all processing operations for this document (manual/user operations)
                 operations = ExperimentDocumentProcessing.query.filter_by(
                     experiment_document_id=exp_doc.id
@@ -111,6 +128,14 @@ class PipelineService(BaseService):
                 else:
                     status = 'pending'
 
+                # Check if document has completed LLM cleanup
+                from app.models import ProcessingJob
+                has_cleanup = ProcessingJob.query.filter_by(
+                    document_id=doc.id,
+                    job_type='clean_text',
+                    status='completed'
+                ).first() is not None
+
                 processed_docs.append({
                     'id': doc.id,
                     'uuid': doc.uuid,  # Add UUID for template URL generation
@@ -123,7 +148,10 @@ class PipelineService(BaseService):
                     'created_at': doc.created_at,
                     'operation_types': operation_types,
                     'total_operations': len(operations),
-                    'completed_operations': sum(1 for op in operations if op.status == 'completed')
+                    'completed_operations': sum(1 for op in operations if op.status == 'completed'),
+                    'has_cleanup': has_cleanup,  # Track if LLM cleanup has been done
+                    'version_number': doc.version_number or 1,  # Track version
+                    'version_type': doc.version_type  # Track version type (processed, experimental, etc.)
                 })
 
             # Calculate overall progress
