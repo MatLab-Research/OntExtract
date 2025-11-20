@@ -25,6 +25,7 @@ from app.utils.auth_decorators import api_require_login_for_write
 from app.services.orchestration_service import get_orchestration_service
 from app.services.workflow_executor import get_workflow_executor
 from app.services.base_service import ServiceError, ValidationError, NotFoundError
+import markdown
 from app.dto.orchestration_dto import (
     CreateOrchestrationDecisionDTO,
     RunOrchestratedAnalysisDTO
@@ -542,13 +543,30 @@ def llm_orchestration_results(experiment_id, run_id):
         from app.models import Document
         document_count = Document.query.filter_by(experiment_id=experiment_id).count()
 
+        # Convert markdown to HTML for insights
+        insights_html = None
+        if run.cross_document_insights:
+            insights_html = markdown.markdown(
+                run.cross_document_insights,
+                extensions=['fenced_code', 'tables', 'nl2br']
+            )
+
+        evolution_html = None
+        if run.term_evolution_analysis:
+            evolution_html = markdown.markdown(
+                run.term_evolution_analysis,
+                extensions=['fenced_code', 'tables', 'nl2br']
+            )
+
         return render_template(
             'experiments/llm_orchestration_results.html',
             experiment=experiment,
             run=run,
             duration=duration,
             total_operations=total_operations,
-            document_count=document_count
+            document_count=document_count,
+            insights_html=insights_html,
+            evolution_html=evolution_html
         )
 
     except Exception as e:
