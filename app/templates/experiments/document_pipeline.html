@@ -105,6 +105,229 @@
         </div>
     </div>
 
+    <!-- Corpus-Wide Analysis Section -->
+    {% if total_count > 0 %}
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card border-primary">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-layer-group me-2"></i>Corpus-Wide Analysis
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted mb-3">
+                        <i class="fas fa-info-circle me-2"></i>
+                        These operations analyze patterns across all {{ total_count }} documents in the corpus.
+                        Run document-level processing first for best results.
+                    </p>
+
+                    <!-- Experiment-Type Specific Options -->
+                    {% if experiment.experiment_type == 'temporal_evolution' %}
+                    <!-- Temporal Evolution Corpus Analysis -->
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <div class="card h-100">
+                                <div class="card-body">
+                                    <h6 class="card-title">
+                                        <i class="fas fa-search text-primary me-2"></i>
+                                        Term Extraction + OED Enrichment
+                                    </h6>
+                                    <p class="card-text small text-muted">
+                                        Extract key terms from all documents and enrich with historical definitions from the Oxford English Dictionary.
+                                    </p>
+                                    <button class="btn btn-outline-primary btn-sm" id="run-term-extraction-btn" disabled>
+                                        <i class="fas fa-play me-1"></i>Run Term Extraction
+                                    </button>
+                                    <small class="text-muted d-block mt-2">
+                                        <i class="fas fa-flask me-1"></i>Coming soon
+                                    </small>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="col-md-6">
+                            <div class="card h-100">
+                                <div class="card-body">
+                                    <h6 class="card-title">
+                                        <i class="fas fa-chart-line text-success me-2"></i>
+                                        Semantic Evolution Analysis
+                                    </h6>
+                                    <p class="card-text small text-muted">
+                                        Track how term meanings change across temporal periods using embeddings and OED data.
+                                    </p>
+                                    <button class="btn btn-outline-success btn-sm" id="run-semantic-evolution-btn" disabled>
+                                        <i class="fas fa-play me-1"></i>Run Evolution Analysis
+                                    </button>
+                                    <small class="text-muted d-block mt-2">
+                                        <i class="fas fa-flask me-1"></i>Coming soon
+                                    </small>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="col-md-6">
+                            <div class="card h-100">
+                                <div class="card-body">
+                                    <h6 class="card-title">
+                                        <i class="fas fa-project-diagram text-warning me-2"></i>
+                                        Build Domain Ontology
+                                    </h6>
+                                    <p class="card-text small text-muted">
+                                        Construct a knowledge graph of domain concepts and their historical relationships.
+                                    </p>
+                                    <button class="btn btn-outline-warning btn-sm" id="build-ontology-btn" disabled>
+                                        <i class="fas fa-play me-1"></i>Build Ontology
+                                    </button>
+                                    <small class="text-muted d-block mt-2">
+                                        <i class="fas fa-lightbulb me-1"></i>Placeholder - not yet implemented
+                                    </small>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="col-md-6">
+                            <div class="card h-100">
+                                <div class="card-body">
+                                    <h6 class="card-title">
+                                        <i class="fas fa-calendar-alt text-info me-2"></i>
+                                        Period-Based Clustering
+                                    </h6>
+                                    <p class="card-text small text-muted">
+                                        Group documents by temporal markers and analyze vocabulary shifts across periods.
+                                    </p>
+                                    <button class="btn btn-outline-info btn-sm" id="run-period-clustering-btn" disabled>
+                                        <i class="fas fa-play me-1"></i>Run Clustering
+                                    </button>
+                                    <small class="text-muted d-block mt-2">
+                                        <i class="fas fa-flask me-1"></i>Coming soon
+                                    </small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {% elif experiment.experiment_type == 'domain_comparison' %}
+                    <!-- Domain Comparison Corpus Analysis -->
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <div class="card h-100">
+                                <div class="card-body">
+                                    <h6 class="card-title">
+                                        <i class="fas fa-search text-primary me-2"></i>
+                                        Term Extraction + Domain Mapping
+                                    </h6>
+                                    <p class="card-text small text-muted">
+                                        Extract domain-specific terminology and map relationships between different domains.
+                                    </p>
+                                    <button class="btn btn-outline-primary btn-sm" id="run-domain-extraction-btn" disabled>
+                                        <i class="fas fa-play me-1"></i>Run Domain Extraction
+                                    </button>
+                                    <small class="text-muted d-block mt-2">
+                                        <i class="fas fa-flask me-1"></i>Coming soon
+                                    </small>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="col-md-6">
+                            <div class="card h-100">
+                                <div class="card-body">
+                                    <h6 class="card-title">
+                                        <i class="fas fa-exchange-alt text-success me-2"></i>
+                                        Cross-Domain Comparison
+                                    </h6>
+                                    <p class="card-text small text-muted">
+                                        Compare how the same terms are used across different research domains.
+                                    </p>
+                                    <button class="btn btn-outline-success btn-sm" id="run-domain-comparison-btn" disabled>
+                                        <i class="fas fa-play me-1"></i>Run Comparison
+                                    </button>
+                                    <small class="text-muted d-block mt-2">
+                                        <i class="fas fa-flask me-1"></i>Coming soon
+                                    </small>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="col-md-6">
+                            <div class="card h-100">
+                                <div class="card-body">
+                                    <h6 class="card-title">
+                                        <i class="fas fa-project-diagram text-warning me-2"></i>
+                                        Build Domain Ontology
+                                    </h6>
+                                    <p class="card-text small text-muted">
+                                        Construct a knowledge graph showing conceptual differences across domains.
+                                    </p>
+                                    <button class="btn btn-outline-warning btn-sm" id="build-ontology-btn" disabled>
+                                        <i class="fas fa-play me-1"></i>Build Ontology
+                                    </button>
+                                    <small class="text-muted d-block mt-2">
+                                        <i class="fas fa-lightbulb me-1"></i>Placeholder - not yet implemented
+                                    </small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {% elif experiment.experiment_type == 'entity_extraction' %}
+                    <!-- Entity Extraction Corpus Analysis -->
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <div class="card h-100">
+                                <div class="card-body">
+                                    <h6 class="card-title">
+                                        <i class="fas fa-network-wired text-primary me-2"></i>
+                                        Entity Co-occurrence Analysis
+                                    </h6>
+                                    <p class="card-text small text-muted">
+                                        Analyze which entities frequently appear together across the corpus.
+                                    </p>
+                                    <button class="btn btn-outline-primary btn-sm" id="run-cooccurrence-btn" disabled>
+                                        <i class="fas fa-play me-1"></i>Run Analysis
+                                    </button>
+                                    <small class="text-muted d-block mt-2">
+                                        <i class="fas fa-flask me-1"></i>Coming soon
+                                    </small>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="col-md-6">
+                            <div class="card h-100">
+                                <div class="card-body">
+                                    <h6 class="card-title">
+                                        <i class="fas fa-project-diagram text-warning me-2"></i>
+                                        Build Domain Ontology
+                                    </h6>
+                                    <p class="card-text small text-muted">
+                                        Construct a knowledge graph of extracted entities and their relationships.
+                                    </p>
+                                    <button class="btn btn-outline-warning btn-sm" id="build-ontology-btn" disabled>
+                                        <i class="fas fa-play me-1"></i>Build Ontology
+                                    </button>
+                                    <small class="text-muted d-block mt-2">
+                                        <i class="fas fa-lightbulb me-1"></i>Placeholder - not yet implemented
+                                    </small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {% else %}
+                    <!-- Generic Corpus Analysis -->
+                    <div class="alert alert-info mb-0">
+                        <i class="fas fa-info-circle me-2"></i>
+                        Corpus-wide analysis options will be available based on your experiment type.
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
     <!-- Document List -->
     <div class="row">
         <div class="col-12">

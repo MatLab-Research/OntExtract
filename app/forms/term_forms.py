@@ -112,42 +112,25 @@ class AddTermForm(FlaskForm):
 
 class EditTermForm(FlaskForm):
     """Form for editing existing terms."""
-    
+
     term_text = StringField(
         'Term Text',
-        validators=[DataRequired(), Length(min=1, max=255)]
+        validators=[DataRequired(), Length(min=1, max=255)],
+        render_kw={'readonly': True, 'class': 'form-control-plaintext'}
     )
-    
-    description = TextAreaField(
-        'Description',
-        validators=[Optional(), Length(max=2000)]
-    )
-    
-    etymology = TextAreaField(
-        'Etymology',
-        validators=[Optional(), Length(max=1000)]
-    )
-    
+
     research_domain = StringField(
         'Research Domain',
-        validators=[Optional(), Length(max=255)]
+        validators=[Optional(), Length(max=255)],
+        render_kw={'placeholder': 'e.g., Philosophy, Science, Politics'}
     )
-    
-    selection_rationale = TextAreaField(
-        'Selection Rationale',
-        validators=[Optional(), Length(max=1000)]
-    )
-    
-    historical_significance = TextAreaField(
-        'Historical Significance',
-        validators=[Optional(), Length(max=1000)]
-    )
-    
+
     notes = TextAreaField(
         'Additional Notes',
-        validators=[Optional(), Length(max=2000)]
+        validators=[Optional(), Length(max=2000)],
+        render_kw={'placeholder': 'Any additional notes or context', 'rows': 3}
     )
-    
+
     status = SelectField(
         'Status',
         choices=[

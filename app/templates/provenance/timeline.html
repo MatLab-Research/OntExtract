@@ -10,7 +10,13 @@
                 <i class="fas fa-history me-2"></i>
                 Provenance Timeline
             </h1>
-            <p class="text-muted">Complete audit trail of all actions in OntExtract using PROV-O standard</p>
+            <p class="text-muted">
+                W3C PROV-O standard relationships:
+                <span class="badge bg-light text-dark">prov:wasAssociatedWith</span>
+                <span class="badge bg-light text-dark">prov:generated</span>
+                <span class="badge bg-light text-dark">prov:used</span>
+                <span class="badge bg-light text-dark">prov:wasDerivedFrom</span>
+            </p>
         </div>
         {% if current_user.is_admin %}
         <div class="col-auto">
@@ -125,9 +131,11 @@
                             <div class="card-header d-flex justify-content-between align-items-center">
                                 <div>
                                     <strong>{{ item.activity.type.replace('_', ' ').title() }}</strong>
+                                    {% if item.activity.status != 'completed' %}
                                     <span class="badge bg-{{ item.activity.status | status_color }} ms-2">
                                         {{ item.activity.status }}
                                     </span>
+                                    {% endif %}
                                 </div>
                                 <div class="d-flex align-items-center gap-3">
                                     <small class="text-muted">
@@ -145,10 +153,10 @@
                                 </div>
                             </div>
                             <div class="card-body">
-                                <!-- Agent -->
+                                <!-- Agent (PROV-O: wasAssociatedWith) -->
                                 {% if item.agent %}
                                 <div class="mb-2">
-                                    <strong>Agent:</strong>
+                                    <strong><span class="text-muted small">prov:</span>wasAssociatedWith</strong>
                                     <span class="badge bg-secondary">
                                         <i class="fas {{ 'fa-user' if item.agent.type == 'Person' else 'fa-robot' }}"></i>
                                         {{ item.agent.name }}
@@ -157,45 +165,101 @@
                                 {% endif %}
 
                                 <!-- Parameters -->
-                                {% if item.activity.parameters %}
+                                {% if item.activity.parameters and item.activity.type != 'term_creation' %}
                                 <div class="mb-2">
-                                    <strong>Parameters:</strong>
-                                    <ul class="mb-0 small">
-                                        {% for key, value in item.activity.parameters.items() %}
-                                        <li>{{ key }}: {{ value }}</li>
-                                        {% endfor %}
-                                    </ul>
+                                    <strong>Details:</strong>
+                                    <div class="small">
+                                        {% if item.activity.type == 'term_update' %}
+                                            <div>
+                                                <span class="badge bg-light text-dark">{{ item.activity.parameters.term_text }}</span>
+                                                <span class="badge bg-warning text-dark ms-1">
+                                                    <i class="fas fa-edit me-1"></i>{{ item.activity.parameters.num_changes }} field(s) changed
+                                                </span>
+                                            </div>
+                                            {% if item.activity.parameters.fields_changed %}
+                                            <div class="mt-1 text-muted">({{ item.activity.parameters.fields_changed | join(', ') }})</div>
+                                            {% endif %}
+                                        {% else %}
+                                            <ul class="mb-0">
+                                                {% for key, value in item.activity.parameters.items() %}
+                                                <li>{{ key }}: {{ value }}</li>
+                                                {% endfor %}
+                                            </ul>
+                                        {% endif %}
+                                    </div>
                                 </div>
                                 {% endif %}
 
-                                <!-- Used entities -->
+                                <!-- Used entities (PROV-O: used) -->
                                 {% if item.used %}
                                 <div class="mb-2">
-                                    <strong>Used:</strong>
-                                    {% set used_counts = {} %}
+                                    <strong><span class="text-muted small">prov:</span>used</strong>
                                     {% for entity in item.used %}
-                                        {% set _ = used_counts.update({entity.type: used_counts.get(entity.type, 0) + 1}) %}
-                                    {% endfor %}
-                                    {% for entity_type, count in used_counts.items() %}
-                                    <span class="badge bg-info me-1">
-                                        {{ entity_type }}{% if count > 1 %} x{{ count }}{% endif %}
-                                    </span>
+                                        {% if entity.type == 'term' and entity.value and entity.value.term_id %}
+                                            <a href="{{ url_for('terms.view_term', term_id=entity.value.term_id) }}" class="badge bg-info me-1 text-decoration-none">
+                                                {{ entity.value.term_text or 'Term' }}
+                                            </a>
+                                        {% elif entity.type == 'document' and entity.value and entity.value.document_uuid %}
+                                            <a href="{{ url_for('text_input.document_detail', document_uuid=entity.value.document_uuid) }}" class="badge bg-info me-1 text-decoration-none">
+                                                <i class="fas fa-file-alt me-1"></i>
+                                                {{ entity.value.title[:30] if entity.value.title else 'Document' }}
+                                            </a>
+                                        {% elif entity.type == 'experiment' and entity.value and entity.value.experiment_id %}
+                                            <a href="{{ url_for('experiments.view', experiment_id=entity.value.experiment_id) }}" class="badge bg-info me-1 text-decoration-none">
+                                                <i class="fas fa-flask me-1"></i>
+                                                {{ entity.value.name or 'Experiment' }}
+                                            </a>
+                                        {% else %}
+                                            <span class="badge bg-info me-1">
+                                                {{ entity.type }}
+                                            </span>
+                                        {% endif %}
                                     {% endfor %}
                                 </div>
                                 {% endif %}
 
-                                <!-- Generated entities -->
+                                <!-- Generated entities (PROV-O: generated) -->
                                 {% if item.generated %}
-                                <div>
-                                    <strong>Generated:</strong>
-                                    {% set generated_counts = {} %}
+                                <div class="mb-2">
+                                    <strong><span class="text-muted small">prov:</span>generated</strong>
                                     {% for entity in item.generated %}
-                                        {% set _ = generated_counts.update({entity.type: generated_counts.get(entity.type, 0) + 1}) %}
+                                        {% if entity.type == 'term' and entity.value and entity.value.term_id %}
+                                            <a href="{{ url_for('terms.view_term', term_id=entity.value.term_id) }}" class="badge bg-success me-1 text-decoration-none">
+                                                {{ entity.value.term_text or 'Term' }}
+                                            </a>
+                                        {% elif entity.type == 'document' and entity.value and entity.value.document_uuid %}
+                                            <a href="{{ url_for('text_input.document_detail', document_uuid=entity.value.document_uuid) }}" class="badge bg-success me-1 text-decoration-none">
+                                                <i class="fas fa-file-alt me-1"></i>
+                                                {{ entity.value.title[:30] if entity.value.title else 'Document' }}
+                                            </a>
+                                        {% elif entity.type == 'experiment' and entity.value and entity.value.experiment_id %}
+                                            <a href="{{ url_for('experiments.view', experiment_id=entity.value.experiment_id) }}" class="badge bg-success me-1 text-decoration-none">
+                                                <i class="fas fa-flask me-1"></i>
+                                                {{ entity.value.name or 'Experiment' }}
+                                            </a>
+                                        {% else %}
+                                            <span class="badge bg-success me-1">
+                                                {{ entity.type }}
+                                            </span>
+                                        {% endif %}
                                     {% endfor %}
-                                    {% for entity_type, count in generated_counts.items() %}
-                                    <span class="badge bg-success me-1">
-                                        {{ entity_type }}{% if count > 1 %} x{{ count }}{% endif %}
-                                    </span>
+                                </div>
+                                {% endif %}
+
+                                <!-- Derived from sources (PROV-O: wasDerivedFrom) -->
+                                {% if item.derived_from %}
+                                <div class="mb-2">
+                                    <strong><span class="text-muted small">prov:</span>wasDerivedFrom</strong>
+                                    {% for source in item.derived_from %}
+                                        {% if source.type == 'external_source' and source.value and source.value.source_name %}
+                                            <span class="badge bg-warning text-dark me-1">
+                                                <i class="fas fa-book me-1"></i>{{ source.value.source_name }}
+                                            </span>
+                                        {% else %}
+                                            <span class="badge bg-warning text-dark me-1">
+                                                {{ source.type }}
+                                            </span>
+                                        {% endif %}
                                     {% endfor %}
                                 </div>
                                 {% endif %}
@@ -245,6 +309,21 @@
 .timeline-marker {
     position: relative;
     z-index: 1;
+}
+
+/* Clickable badge links */
+a.badge {
+    transition: all 0.2s ease;
+}
+
+a.badge:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    filter: brightness(1.1);
+}
+
+a.badge:active {
+    transform: translateY(0);
 }
 </style>
 

@@ -250,7 +250,7 @@
                     <input type="text" class="form-control" id="file-authors" placeholder="Comma-separated author names">
                 </div>
 
-                <button type="submit" class="btn btn-primary btn-lg">
+                <button type="submit" class="btn btn-primary btn-lg" id="submit-btn">
                     <i class="fas fa-upload"></i> Upload and Extract Metadata
                 </button>
             </form>
@@ -465,6 +465,7 @@ function updateFieldRequirements() {
     const titleLabel = titleInput.previousElementSibling;
     const yearLabel = yearInput.previousElementSibling;
     const tip = document.getElementById('metadata-tip');
+    const submitBtn = document.getElementById('submit-btn');
 
     if (enableCrossref) {
         // CrossRef enabled: fields are optional
@@ -474,6 +475,7 @@ function updateFieldRequirements() {
         yearLabel.innerHTML = 'Publication Year (optional)';
         titleInput.placeholder = 'Leave blank for automatic extraction';
         tip.style.display = 'block';
+        submitBtn.innerHTML = '<i class="fas fa-upload"></i> Upload and Extract Metadata';
     } else {
         // CrossRef disabled: require at least title
         titleInput.required = true;
@@ -482,6 +484,7 @@ function updateFieldRequirements() {
         yearLabel.innerHTML = 'Publication Year <span class="text-danger">*</span>';
         titleInput.placeholder = 'Enter document title';
         tip.style.display = 'none';
+        submitBtn.innerHTML = '<i class="fas fa-upload"></i> Upload';
     }
 }
 
@@ -572,11 +575,29 @@ document.getElementById('file-form').addEventListener('submit', async function(e
     e.preventDefault();
     console.log('File form submitted - JavaScript handler active');
 
+    // Get checkbox state early (needed for error handling)
+    const enableCrossref = document.getElementById('enable-crossref').checked;
+
     const fileInput = document.getElementById('file-input');
     const file = fileInput.files[0];
 
     if (!file) {
-        alert('Please select a file');
+        // Show Bootstrap alert instead of browser alert
+        const fileForm = document.getElementById('file-form');
+        const existingAlert = fileForm.querySelector('.alert-danger');
+        if (existingAlert) {
+            existingAlert.remove();
+        }
+
+        const alertHTML = `
+            <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                <i class="fas fa-exclamation-triangle me-2"></i>
+                <strong>No file selected!</strong> Please select a PDF file to upload.
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+        `;
+        fileForm.insertAdjacentHTML('afterbegin', alertHTML);
+
         console.log('No file selected');
         return;
     }
@@ -585,18 +606,24 @@ document.getElementById('file-form').addEventListener('submit', async function(e
 
     uploadState.currentFileName = file.name;
 
-    // Hide form and show progress card immediately
-    document.getElementById('file-form').style.display = 'none';
-    const progressCard = document.getElementById('progress-card');
-    progressCard.classList.add('active');
+    // Only show progress card if automatic extraction is enabled
+    if (enableCrossref) {
+        // Hide form and show progress card immediately
+        document.getElementById('file-form').style.display = 'none';
+        const progressCard = document.getElementById('progress-card');
+        progressCard.classList.add('active');
 
-    // Show initial progress
-    const progressBar = document.getElementById('progress-bar');
-    const currentStepDiv = document.getElementById('current-step');
-    progressBar.style.width = '10%';
-    progressBar.setAttribute('aria-valuenow', 10);
-    progressBar.textContent = '10%';
-    currentStepDiv.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Uploading document...';
+        // Show initial progress
+        const progressBar = document.getElementById('progress-bar');
+        const currentStepDiv = document.getElementById('current-step');
+        progressBar.style.width = '10%';
+        progressBar.setAttribute('aria-valuenow', 10);
+        progressBar.textContent = '10%';
+        currentStepDiv.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Uploading document...';
+    } else {
+        // For manual entry, just show loading spinner
+        showLoading('Uploading document...');
+    }
 
     const formData = new FormData();
     formData.append('document_file', file);
@@ -604,7 +631,7 @@ document.getElementById('file-form').addEventListener('submit', async function(e
     formData.append('title', document.getElementById('file-title').value);
     formData.append('publication_year', document.getElementById('file-year').value);
     formData.append('authors', document.getElementById('file-authors').value);
-    formData.append('enable_crossref', document.getElementById('enable-crossref').checked ? 'true' : 'false');
+    formData.append('enable_crossref', enableCrossref ? 'true' : 'false');
 
     try {
         console.log('Uploading to: /upload/extract_metadata');
@@ -625,59 +652,70 @@ document.getElementById('file-form').addEventListener('submit', async function(e
             uploadState.provenance = result.provenance || {};
             console.log('Updated uploadState:', uploadState);
 
-            // Display progress messages with animation (progress card already visible)
-            console.log('Checking progress:', result.progress, result.progress ? result.progress.length : 'no progress');
-            if (result.progress && result.progress.length > 0) {
-                console.log('INSIDE progress display block - will display', result.progress.length, 'messages');
-                const progressSteps = document.getElementById('progress-steps');
-                const currentStepDiv = document.getElementById('current-step');
-                const progressBar = document.getElementById('progress-bar');
+            // Only show progress animation if automatic extraction was enabled
+            if (enableCrossref) {
+                // Display progress messages with animation (progress card already visible)
+                console.log('Checking progress:', result.progress, result.progress ? result.progress.length : 'no progress');
+                if (result.progress && result.progress.length > 0) {
+                    console.log('INSIDE progress display block - will display', result.progress.length, 'messages');
+                    const progressSteps = document.getElementById('progress-steps');
+                    const currentStepDiv = document.getElementById('current-step');
+                    const progressBar = document.getElementById('progress-bar');
 
-                progressSteps.innerHTML = '';  // Clear previous messages
-                const totalSteps = result.progress.length;
+                    progressSteps.innerHTML = '';  // Clear previous messages
+                    const totalSteps = result.progress.length;
 
-                // Display messages one by one with delay and update progress bar
-                for (let i = 0; i < result.progress.length; i++) {
-                    console.log('Setting timeout for message', i, ':', result.progress[i]);
+                    // Display messages one by one with delay and update progress bar
+                    for (let i = 0; i < result.progress.length; i++) {
+                        console.log('Setting timeout for message', i, ':', result.progress[i]);
+                        setTimeout(() => {
+                            // Add completed step
+                            if (i > 0) {
+                                const prevStep = document.createElement('div');
+                                prevStep.className = 'progress-step';
+                                prevStep.innerHTML = `<i class="fas fa-check-circle text-success me-2"></i>${result.progress[i-1]}`;
+                                progressSteps.appendChild(prevStep);
+                            }
+
+                            // Show current step
+                            currentStepDiv.innerHTML = `<i class="fas fa-spinner fa-spin me-2"></i>${result.progress[i]}`;
+
+                            // Update progress bar
+                            const percentage = ((i + 1) / totalSteps) * 100;
+                            progressBar.style.width = percentage + '%';
+                            progressBar.setAttribute('aria-valuenow', percentage);
+                            progressBar.textContent = Math.round(percentage) + '%';
+                        }, i * 300);  // 300ms delay between messages
+                    }
+
+                    // Show final step and complete progress
                     setTimeout(() => {
-                        // Add completed step
-                        if (i > 0) {
-                            const prevStep = document.createElement('div');
-                            prevStep.className = 'progress-step';
-                            prevStep.innerHTML = `<i class="fas fa-check-circle text-success me-2"></i>${result.progress[i-1]}`;
-                            progressSteps.appendChild(prevStep);
-                        }
+                        const lastStep = document.createElement('div');
+                        lastStep.className = 'progress-step';
+                        lastStep.innerHTML = `<i class="fas fa-check-circle text-success me-2"></i>${result.progress[result.progress.length - 1]}`;
+                        progressSteps.appendChild(lastStep);
+                        currentStepDiv.innerHTML = '<i class="fas fa-check-circle text-success me-2"></i>Metadata extraction complete!';
 
-                        // Show current step
-                        currentStepDiv.innerHTML = `<i class="fas fa-spinner fa-spin me-2"></i>${result.progress[i]}`;
-
-                        // Update progress bar
-                        const percentage = ((i + 1) / totalSteps) * 100;
-                        progressBar.style.width = percentage + '%';
-                        progressBar.setAttribute('aria-valuenow', percentage);
-                        progressBar.textContent = Math.round(percentage) + '%';
-                    }, i * 300);  // 300ms delay between messages
+                        // Show metadata review
+                        setTimeout(() => {
+                            console.log('Calling populateMetadataForm...');
+                            populateMetadataForm(result.metadata, uploadState.provenance);
+                            console.log('Calling showMetadataReview...');
+                            showMetadataReview();
+                            console.log('Metadata review should now be visible');
+                        }, 500);
+                    }, totalSteps * 300 + 300);
+                } else {
+                    // No progress messages, show review immediately
+                    console.log('Calling populateMetadataForm...');
+                    populateMetadataForm(result.metadata, uploadState.provenance);
+                    console.log('Calling showMetadataReview...');
+                    showMetadataReview();
+                    console.log('Metadata review should now be visible');
                 }
-
-                // Show final step and complete progress
-                setTimeout(() => {
-                    const lastStep = document.createElement('div');
-                    lastStep.className = 'progress-step';
-                    lastStep.innerHTML = `<i class="fas fa-check-circle text-success me-2"></i>${result.progress[result.progress.length - 1]}`;
-                    progressSteps.appendChild(lastStep);
-                    currentStepDiv.innerHTML = '<i class="fas fa-check-circle text-success me-2"></i>Metadata extraction complete!';
-
-                    // Show metadata review
-                    setTimeout(() => {
-                        console.log('Calling populateMetadataForm...');
-                        populateMetadataForm(result.metadata, uploadState.provenance);
-                        console.log('Calling showMetadataReview...');
-                        showMetadataReview();
-                        console.log('Metadata review should now be visible');
-                    }, 500);
-                }, totalSteps * 300 + 300);
             } else {
-                // No progress messages, show review immediately
+                // Manual entry: hide loading and show review immediately
+                hideLoading();
                 console.log('Calling populateMetadataForm...');
                 populateMetadataForm(result.metadata, uploadState.provenance);
                 console.log('Calling showMetadataReview...');
@@ -721,15 +759,23 @@ document.getElementById('file-form').addEventListener('submit', async function(e
         } else {
             console.error('Server error:', result.error);
             alert('Error: ' + result.error);
-            // Hide progress card and show form again
-            progressCard.classList.remove('active');
+            // Reset UI based on which mode was used
+            if (enableCrossref) {
+                document.getElementById('progress-card').classList.remove('active');
+            } else {
+                hideLoading();
+            }
             document.getElementById('file-form').style.display = 'block';
         }
     } catch (error) {
         console.error('Upload error:', error);
         alert('Error uploading document: ' + error.message);
-        // Hide progress card and show form again
-        document.getElementById('progress-card').classList.remove('active');
+        // Reset UI based on which mode was used
+        if (enableCrossref) {
+            document.getElementById('progress-card').classList.remove('active');
+        } else {
+            hideLoading();
+        }
         document.getElementById('file-form').style.display = 'block';
     }
 });
