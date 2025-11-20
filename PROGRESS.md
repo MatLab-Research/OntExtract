@@ -289,21 +289,264 @@ has_cleanup = ProcessingJob.query.filter_by(
 
 #### Next Steps
 
-1. **Implement LLM Analyze (Phases 1-4)**:
-   - Phase 1: Backend API endpoints (3-4 hours)
-   - Phase 2: LangGraph integration (4-5 hours)
-   - Phase 3: Frontend UI (5-6 hours)
-   - Phase 4: Testing & polish (2-3 hours)
-
+1. ~~**Implement LLM Analyze (Phases 1-4)**~~ - COMPLETED in Session 8
 2. **Continue Version Management:**
    - Add "View All Versions" link for documents with multiple versions
    - Implement version comparison UI
    - Add version rollback capability
-
 3. **Testing:**
    - Test LLM cleanup on various document types
    - Verify version grouping with complex document families
    - Validate PROV-O provenance chains
+
+---
+
+### 2025-11-20 (Session 8) - LLM Analyze Feature Implementation
+
+#### Completed Tasks
+
+1. **WorkflowExecutor Service Creation**
+   - **Time:** Session start
+   - **Purpose:** Core service managing LangGraph execution and database integration
+   - **File Created:** `app/services/workflow_executor.py`
+   - **Key Methods:**
+     - `execute_recommendation_phase(run_id, review_choices)` - Stages 1-2: Analyze + Recommend
+     - `execute_processing_phase(run_id, modified_strategy, ...)` - Stages 4-5: Execute + Synthesize
+     - `_build_graph_state(experiment_id, run_id, review_choices)` - Initial state with documents and focus term
+     - `_build_processing_state(run_id)` - Load approved strategy and prepare for execution
+   - **Integration:** Manages complete lifecycle from graph execution to database persistence
+   - **Impact:** Provides clean API for orchestration routes to interact with LangGraph workflow
+
+2. **API Endpoints Implementation**
+   - **Time:** Session start
+   - **File Modified:** `app/routes/experiments/orchestration.py`
+   - **New Endpoints:**
+     - `POST /<int:experiment_id>/orchestration/analyze` - Start workflow (Stages 1-2)
+     - `GET /orchestration/status/<uuid:run_id>` - Poll status with progress %
+     - `POST /orchestration/approve-strategy/<uuid:run_id>` - Approve + execute (Stages 4-5)
+     - `GET /<int:experiment_id>/orchestration/llm-results/<uuid:run_id>` - Display results page
+     - `GET /<int:experiment_id>/orchestration/llm-provenance/<uuid:run_id>` - Download PROV-O JSON
+   - **Status Polling:** Returns current stage, progress percentage, strategy details, error messages
+   - **Impact:** Complete REST API for frontend to interact with LLM orchestration workflow
+
+3. **JavaScript Client Implementation**
+   - **Time:** Session start
+   - **File Created:** `app/static/js/llm_orchestration.js`
+   - **Class:** `LLMOrchestrationClient`
+   - **Key Features:**
+     - `startAnalysis()` - POST to start, show progress modal, begin polling
+     - `checkStatus()` - Poll every 1 second, update UI, handle state transitions
+     - `approveStrategy()` - POST approval with modifications, continue to execution
+     - Progress modal with 5-stage visual indicators (Analyze → Recommend → Review → Execute → Synthesize)
+     - Strategy review modal with confidence scores and per-document tool recommendations
+   - **Impact:** Complete client-side workflow management with real-time feedback
+
+4. **Frontend UI Components**
+   - **Time:** Session start
+   - **File Modified:** `app/templates/experiments/document_pipeline.html`
+   - **Changes:**
+     - Added data attribute to LLM Analyze button: `data-experiment-id="{{ experiment.id }}"`
+     - Removed "Coming soon" text from Corpus-Wide Analysis buttons (for paper screenshot)
+     - Added progress modal with animated progress bar and stage icons
+     - Added strategy review modal for human-in-the-loop approval
+     - Included JavaScript: `llm_orchestration.js`
+   - **Template Created:** `app/templates/experiments/llm_orchestration_results.html`
+   - **Results Page Features:**
+     - Experiment goal display
+     - Cross-document insights section (LLM-generated synthesis)
+     - Term evolution analysis (if focus term provided)
+     - Processing summary metrics (confidence, operations, duration)
+     - Per-document results accordion with tool execution details
+     - PROV-O provenance download link
+   - **Impact:** Complete UI workflow from button click → progress tracking → strategy review → results display
+
+5. **Critical Bug Fix: Document Model Attributes**
+   - **Time:** Mid-session
+   - **Error:** `'Document' object has no attribute 'source'`
+   - **Root Cause:** Document model uses `original_filename` and `created_at`, not `source` and `upload_date`
+   - **Fix Applied:** Updated `_build_graph_state()` and `_build_processing_state()` in workflow_executor.py
+   - **Code Changes:**
+     ```python
+     'metadata': {
+         'filename': doc.original_filename or '',  # Was: doc.source
+         'created_at': doc.created_at.isoformat() if doc.created_at else None,  # Was: doc.upload_date
+         'document_type': doc.document_type or '',
+         'word_count': doc.word_count or 0
+     }
+     ```
+   - **Impact:** Graph state now builds correctly with proper document metadata
+
+6. **Critical Bug Fix: State Merging Type Error**
+   - **Time:** Mid-session
+   - **Error:** `can only concatenate list (not "NoneType") to list`
+   - **Root Cause:** `execution_trace` field had `Annotated[List[Dict[str, Any]], operator.add]` which tried to concatenate None values
+   - **File Modified:** `app/orchestration/experiment_state.py`
+   - **Fix Applied:**
+     - Removed `operator.add` annotation from `execution_trace`
+     - Made all progressive state fields Optional: `experiment_goal`, `recommended_strategy`, `processing_results`, `execution_trace`
+     - Changed initialization from empty values to None
+   - **Code Changes:**
+     ```python
+     # Before:
+     execution_trace: Annotated[List[Dict[str, Any]], operator.add]
+     experiment_goal: str
+
+     # After:
+     execution_trace: Optional[List[Dict[str, Any]]]
+     experiment_goal: Optional[str]
+
+     # Initialization:
+     def create_initial_experiment_state(...):
+         return ExperimentOrchestrationState(
+             experiment_goal=None,  # Was: ""
+             recommended_strategy=None,  # Was: {}
+             execution_trace=None,  # Was: []
+             ...
+         )
+     ```
+   - **Impact:** LangGraph state merging now works correctly across all 5 stages
+
+7. **Critical Bug Fix: Missing State Keys**
+   - **Time:** Mid-session
+   - **Error:** `'documents'` key missing when executing processing nodes
+   - **Root Cause:** Node functions return only updated fields, but code was replacing entire state instead of merging
+   - **File Modified:** `app/services/workflow_executor.py` - `_execute_processing()` method
+   - **Fix Applied:**
+     ```python
+     # Before (wrong):
+     state = await execute_strategy_node(state)
+
+     # After (correct):
+     stage4_results = await execute_strategy_node(state)
+     state.update(stage4_results)  # Merge instead of replace
+     ```
+   - **Impact:** Sequential execution of Stages 4-5 with proper state propagation
+
+8. **Paper Submission Finalization**
+   - **Time:** Session end
+   - **Task:** User needed to finalize screenshot/figure for JCDL paper submission
+   - **Options Compared:**
+     - New progress modal screenshot (shows 5-stage workflow at 70%)
+     - Existing results figure (shows actual LLM-generated insights with metrics)
+   - **Recommendation:** Keep existing results figure (results.pdf) because it demonstrates actual AI-generated semantic analysis with scholarly insights, not just infrastructure
+   - **Figure Caption Discussion:** Clarified that using "generated" in diagram instead of "wasGeneratedBy" is standard practice for PROV diagrams
+   - **Impact:** User ready to submit paper with appropriate figure
+
+#### Architecture & Design Decisions
+
+**TypedDict State Schema:**
+- Progressive fields (experiment_goal, recommended_strategy, etc.) must be Optional
+- Initialize to None, not empty values
+- No operator annotations (operator.add breaks with None values)
+- LangGraph merges updates with existing state automatically
+
+**Document Model Schema:**
+- Uses `original_filename` (not `source`)
+- Uses `created_at` (not `upload_date`)
+- Uses `document_type`, `word_count` for metadata
+- Always verify model attributes with introspection when unsure
+
+**State Merging Pattern:**
+- Node functions return Dict with only updated fields
+- Always use `state.update(results)` to merge, never replace entire state
+- Critical keys like `documents`, `experiment_id`, `run_id` must persist across nodes
+
+**Async Node Execution:**
+- Import nodes in execution methods to avoid circular imports
+- Call with `await` since all nodes are async
+- Merge results immediately after each node completes
+
+#### Testing Requirements
+
+**Integration Tests Needed:**
+1. ✅ Test workflow execution (Stages 1-2) - Manually verified
+2. ✅ Test status polling endpoint - Manually verified
+3. ✅ Test strategy approval (Stages 4-5) - Manually verified
+4. ✅ Test results page rendering - Manually verified
+5. ⚠️ Test error handling (LLM failures, timeout scenarios) - NOT YET TESTED
+6. ⚠️ Test PROV-O provenance generation - NOT YET TESTED
+7. ⚠️ Test with different experiment types - NOT YET TESTED
+8. ⚠️ Test with experiments without focus terms - NOT YET TESTED
+
+**Unit Tests Needed:**
+1. `WorkflowExecutor._build_graph_state()` - Document metadata extraction
+2. `WorkflowExecutor._build_processing_state()` - Strategy loading
+3. `WorkflowExecutor._execute_processing()` - Sequential node execution
+4. Status polling with different run states (pending, analyzing, reviewing, executing, completed, failed)
+5. Strategy modification handling
+
+**Critical Test Scenarios:**
+- Multiple documents with varied metadata
+- Empty/None values in document fields
+- Strategy with different tool combinations per document
+- User modifications to recommended strategy
+- Concurrent orchestration runs
+- Database rollback on node failures
+
+#### Files Modified
+
+- `app/services/workflow_executor.py` - Created (core orchestration service)
+- `app/routes/experiments/orchestration.py` - Added 5 new endpoints
+- `app/static/js/llm_orchestration.js` - Created (frontend client)
+- `app/templates/experiments/document_pipeline.html` - Added button data attribute, removed "Coming soon" text
+- `app/templates/experiments/llm_orchestration_results.html` - Created (results display)
+- `app/orchestration/experiment_state.py` - Fixed TypedDict schema (Optional fields, removed operator.add)
+- `PROGRESS.md` - This file
+
+#### Impact
+
+**User Experience:**
+- Complete 5-stage LLM orchestration workflow accessible from UI
+- Real-time progress feedback during execution
+- Human-in-the-loop review checkpoint with modification capability
+- Comprehensive results page with cross-document insights
+- PROV-O provenance downloadable as JSON
+
+**Development Impact:**
+- Clean separation: WorkflowExecutor handles orchestration, routes handle HTTP
+- Async/await pattern consistently applied throughout
+- State management properly handles Optional fields and merging
+- Foundation ready for additional orchestration workflows
+
+**Paper Submission:**
+- Implementation aligns with JCDL paper architecture
+- User has appropriate figure demonstrating AI-generated insights
+- System ready for conference demonstration
+
+#### Known Issues
+
+1. **Imports Verified:** All routes and services successfully import without circular dependency errors ✅
+2. **Flask Server Restart:** User encountered "Failed to fetch" - resolved by restarting Flask server ✅
+3. **Error Handling:** Node-level errors may not propagate to UI status correctly ⚠️ (needs testing)
+4. **Long-Running Workflows:** No timeout handling for LLM calls that take >5 minutes ⚠️
+5. **Concurrent Runs:** Multiple simultaneous orchestration runs not tested ⚠️
+
+#### Next Steps
+
+1. **Comprehensive Testing (HIGH PRIORITY):**
+   - Add pytest tests for WorkflowExecutor methods
+   - Test error scenarios (LLM failures, network errors)
+   - Test with different experiment configurations
+   - Verify PROV-O provenance structure
+   - Test concurrent orchestration runs
+
+2. **Error Handling Improvements:**
+   - Add timeout configuration for LLM calls
+   - Improve error message propagation to UI
+   - Add retry logic for transient failures
+   - Implement workflow cancellation
+
+3. **UI Polish:**
+   - Add elapsed time display during execution
+   - Show more detailed progress per stage
+   - Add ability to cancel running workflows
+   - Improve error messages in modals
+
+4. **Documentation:**
+   - Add API documentation for orchestration endpoints
+   - Document state schema requirements
+   - Add developer guide for adding new orchestration nodes
+   - Document PROV-O provenance structure
 
 ---
 
@@ -1236,7 +1479,12 @@ Upload → Normalized Columns → View Display → Edit Form → Save → Normal
 | `tests/conftest.py` | Fixed Term fixture field names | Merged | 652f6ed |
 | `tests/test_temporal_experiment_integration.py` | Fixed entity/provenance queries | Merged | 652f6ed |
 | `.gitignore` | Added uploads/ directory | Merged | 652f6ed |
-| `PROGRESS.md` | Updated with all session changes | Applied | Session 6 |
+| `app/services/workflow_executor.py` | Created WorkflowExecutor service | Applied | Session 8 |
+| `app/routes/experiments/orchestration.py` | Added 5 new API endpoints | Applied | Session 8 |
+| `app/static/js/llm_orchestration.js` | Created JavaScript orchestration client | Applied | Session 8 |
+| `app/templates/experiments/llm_orchestration_results.html` | Created results display template | Applied | Session 8 |
+| `app/orchestration/experiment_state.py` | Fixed TypedDict schema (Optional fields, removed operator.add) | Applied | Session 8 |
+| `PROGRESS.md` | Updated with all session changes | Applied | Session 8 |
 
 ### Files to Watch (Potentially Affected by Update)
 
@@ -1281,6 +1529,29 @@ Upload → Normalized Columns → View Display → Edit Form → Save → Normal
    - **Verified:** Testing confirmed no dimension changes
    - **Status:** Consistent across versions
 
+6. **Document Model Attribute Error (2025-11-20, Session 8)**
+   - **Issue:** `'Document' object has no attribute 'source'` when building LangGraph state
+   - **Root Cause:** Document model uses `original_filename` and `created_at`, not `source` and `upload_date`
+   - **Resolution:** Updated `WorkflowExecutor._build_graph_state()` to use correct attribute names
+   - **Impact:** Graph state now builds correctly with proper document metadata
+   - **Status:** Fixed and verified
+
+7. **LangGraph State Merging Type Error (2025-11-20, Session 8)**
+   - **Issue:** `can only concatenate list (not "NoneType") to list` during workflow execution
+   - **Root Cause:** `execution_trace` field had `Annotated[List, operator.add]` which tried to concatenate None values
+   - **Resolution:** Made all progressive state fields Optional, removed operator annotations, initialized to None
+   - **Files Modified:** `app/orchestration/experiment_state.py`
+   - **Impact:** LangGraph state merging works correctly across all 5 stages
+   - **Status:** Fixed and verified
+
+8. **Missing State Keys in Processing Nodes (2025-11-20, Session 8)**
+   - **Issue:** `'documents'` key missing when executing Stage 4-5 processing nodes
+   - **Root Cause:** Code was replacing entire state instead of merging node results
+   - **Resolution:** Changed from `state = await node(state)` to `state.update(await node(state))`
+   - **Files Modified:** `app/services/workflow_executor.py`
+   - **Impact:** Sequential execution of Stages 4-5 with proper state propagation
+   - **Status:** Fixed and verified
+
 ---
 
 ## Testing Checklist
@@ -1313,6 +1584,58 @@ Upload → Normalized Columns → View Display → Edit Form → Save → Normal
 - [x] Embeddings have correct dimensions
 - [x] Performance is acceptable
 - [x] Ready for production deployment
+
+### LLM Orchestration Testing Checklist (Session 8 - CRITICAL)
+
+**Unit Tests:**
+- [ ] `WorkflowExecutor._build_graph_state()` - Document metadata extraction with various field values
+- [ ] `WorkflowExecutor._build_processing_state()` - Strategy loading from database
+- [ ] `WorkflowExecutor._execute_processing()` - Sequential node execution with state merging
+- [ ] `WorkflowExecutor.execute_recommendation_phase()` - Stages 1-2 execution
+- [ ] `WorkflowExecutor.execute_processing_phase()` - Stages 4-5 execution
+
+**Integration Tests:**
+- [x] Basic workflow execution (Stages 1-2) - Manually verified
+- [x] Status polling endpoint - Manually verified
+- [x] Strategy approval (Stages 4-5) - Manually verified
+- [x] Results page rendering - Manually verified
+- [ ] Error handling (LLM failures, network timeouts, malformed responses)
+- [ ] PROV-O provenance generation and structure validation
+- [ ] Experiments with focus terms vs. without focus terms
+- [ ] Strategy modification by user before approval
+- [ ] Concurrent orchestration runs (multiple experiments simultaneously)
+
+**Critical Test Scenarios:**
+- [ ] Multiple documents with varied metadata (some fields empty/None)
+- [ ] Documents with missing optional fields (word_count, document_type, etc.)
+- [ ] Empty experiment (no documents) - should fail gracefully
+- [ ] Strategy with different tool combinations per document
+- [ ] Long-running LLM calls (>2 minutes) - timeout handling
+- [ ] Network failures during LLM API calls - retry logic
+- [ ] Database rollback on node failures
+- [ ] Interrupted workflow (server restart mid-execution)
+
+**State Management Tests:**
+- [ ] Optional fields remain None when not set
+- [ ] State merging preserves critical keys (documents, experiment_id, run_id)
+- [ ] execution_trace properly accumulates across stages
+- [ ] recommended_strategy correctly stores per-document tool lists
+- [ ] processing_results contains all expected fields
+
+**API Endpoint Tests:**
+- [ ] POST /orchestration/analyze - Returns run_id, creates database record
+- [ ] GET /orchestration/status/:run_id - Correct progress %, stage names, error messages
+- [ ] POST /orchestration/approve-strategy/:run_id - Accepts modifications, continues workflow
+- [ ] GET /orchestration/llm-results/:run_id - Displays all results sections
+- [ ] GET /orchestration/llm-provenance/:run_id - Returns valid PROV-O JSON
+
+**Frontend Tests:**
+- [ ] Progress modal updates in real-time
+- [ ] Strategy review modal displays confidence scores correctly
+- [ ] User can modify recommended strategy
+- [ ] Results page renders cross-document insights
+- [ ] Error messages display clearly in modals
+- [ ] Polling stops after workflow completion or failure
 
 ---
 
@@ -1400,38 +1723,71 @@ Documented in `DEPLOYMENT_UPDATE_GUIDE.md` - Emergency rollback procedures avail
 6. Created comprehensive tool verification documentation
 7. Implemented dual storage pattern for backward compatibility
 
+### Completed Work (Session 2025-11-20, Session 8)
+
+**LLM Analyze Feature Implementation:**
+1. ✅ Created WorkflowExecutor service for LangGraph execution management
+2. ✅ Implemented 5 new API endpoints (start, status, approve, results, provenance)
+3. ✅ Built JavaScript client with real-time polling and progress updates
+4. ✅ Created frontend UI (progress modal, strategy review modal, results page)
+5. ✅ Fixed 3 critical bugs:
+   - Document model attribute names (original_filename vs source)
+   - State merging type errors (Optional fields, removed operator.add)
+   - Missing state keys during node execution (proper state.update() pattern)
+6. ✅ Complete 5-stage workflow: Analyze → Recommend → Review → Execute → Synthesize
+7. ✅ PROV-O provenance tracking and downloadable JSON
+8. ✅ Paper submission finalization and figure selection
+
 ### Next Steps
 
-1. **Testing Infrastructure Improvements (HIGH PRIORITY):**
+1. **LLM Orchestration Testing (HIGHEST PRIORITY - Session 8 Follow-up):**
+   - ⚠️ Write pytest tests for WorkflowExecutor service methods
+   - ⚠️ Test error scenarios (LLM failures, network timeouts, malformed responses)
+   - ⚠️ Test with different experiment configurations (with/without focus terms)
+   - ⚠️ Verify PROV-O provenance structure and completeness
+   - ⚠️ Test concurrent orchestration runs
+   - ⚠️ Test strategy modification handling
+   - ⚠️ Test with empty/None document field values
+   - **Critical:** These tests are needed to ensure production readiness
+
+2. **Testing Infrastructure Improvements (HIGH PRIORITY):**
    - Fix database isolation issues causing setup errors
    - Add more integration tests for other experiment types
    - Increase code coverage beyond 22%
    - Add unit tests for individual services
    - Document testing patterns and best practices
 
-2. **Test Processing Pipeline End-to-End:**
+3. **LLM Orchestration Enhancements:**
+   - Add timeout configuration for LLM calls (>5 minutes)
+   - Improve error message propagation from nodes to UI
+   - Add retry logic for transient failures
+   - Implement workflow cancellation capability
+   - Add elapsed time display during execution
+   - Show more detailed progress per stage
+
+4. **Test Processing Pipeline End-to-End:**
    - Test all 8 tools on experiment document
    - Verify "Run All Tools" executes in correct order
    - Check results pages display all artifacts correctly
    - Test with both new experiment processing and old manual processing
 
-3. **Implement Full OED Integration for Enhanced Processing:**
+5. **Implement Full OED Integration for Enhanced Processing:**
    - Replace placeholder term extraction with full implementation
    - Integrate OED API for historical definitions
    - Add period-aware term analysis
 
-4. **Other Results Pages Updates:**
+6. **Other Results Pages Updates:**
    - Update `/results/embeddings` to query ProcessingArtifact
    - Update `/results/temporal` to support temporal_expression artifacts
    - Update `/results/definitions` to support term_definition artifacts
    - Update `/results/enhanced` to support extracted_term artifacts
 
-5. **Continue JCDL Preparation:**
+7. **Continue JCDL Preparation:**
    - Complete evaluation and benchmarking
    - Update documentation with latest features
    - Prepare conference demonstration materials
 
-6. **Production Deployment:**
+8. **Production Deployment:**
    - When ready, follow checklist in `DEPLOYMENT_UPDATE_GUIDE.md`
 
 ---
@@ -1477,8 +1833,25 @@ Documented in `DEPLOYMENT_UPDATE_GUIDE.md` - Emergency rollback procedures avail
      - Catches PostgreSQL-specific issues early
    - **Pattern:** Separate test database, same user/credentials, independent of development data
 
+5. **LangGraph State Management (Session 8):**
+   - **Why Needed:** LangGraph's TypedDict state requires careful handling of Optional fields and state merging
+   - **Key Learnings:**
+     - Progressive state fields (experiment_goal, recommended_strategy, etc.) MUST be Optional
+     - Initialize to None, not empty values (empty strings/lists cause type errors)
+     - NEVER use operator.add annotations with Optional fields (breaks on None concatenation)
+     - Node functions return partial updates, must use `state.update()` to merge, never replace
+     - Critical keys (documents, experiment_id, run_id) must persist across all nodes
+   - **Document Model Schema:**
+     - Always use `original_filename` (not `source`), `created_at` (not `upload_date`)
+     - Use introspection when unsure: `python -c "from app.models import Document; print(dir(Document))"`
+   - **Benefits:**
+     - Clean state management without type errors
+     - Proper state propagation across all 5 workflow stages
+     - Foundation for adding more orchestration workflows
+   - **Pattern Applied:** WorkflowExecutor service centralizes graph execution, routes handle HTTP only
+
 ---
 
-**Last Updated:** 2025-11-19 (Session 6)
-**Current Status:** STABLE - PostgreSQL Test Infrastructure Complete + 23 Tests Passing
-**Next Steps:** Improve test coverage, fix database isolation issues, add more integration tests
+**Last Updated:** 2025-11-20 (Session 8)
+**Current Status:** STABLE - LLM Analyze Feature Implemented, Testing Required
+**Next Steps:** Write comprehensive tests for LLM orchestration workflow, improve error handling
