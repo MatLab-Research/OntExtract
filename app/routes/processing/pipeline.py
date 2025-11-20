@@ -1841,9 +1841,9 @@ def view_enhanced_results(document_uuid):
 
         jobs.sort(key=lambda j: (j.created_at is None, j.created_at), reverse=True)
 
-        # Get terms extracted for this document
-        from app.models.term import Term
-        terms = Term.query.filter_by(document_id=document.id).all()
+        # Note: Terms are standalone entities for semantic change analysis, not extracted from documents
+        # They are created manually via /terms/add, not from document processing
+        terms = []
 
         from flask import render_template
         return render_template('processing/enhanced_results.html',
@@ -1952,6 +1952,107 @@ def view_definitions_results(document_uuid):
                              definitions=definitions,
                              definitions_by_pattern=definitions_by_pattern,
                              total_definitions=len(definitions))
+
+    except Exception as e:
+        from flask import render_template
+        return render_template('processing/error.html',
+                             document=document,
+                             error=str(e)), 500
+
+@processing_bp.route('/document/<string:document_uuid>/results/temporal', methods=['GET'])
+def view_temporal_results(document_uuid):
+    """View temporal extraction results for a document (supports both manual and experiment processing)"""
+    try:
+        document = Document.query.filter_by(uuid=document_uuid).first_or_404()
+
+        # Get temporal extraction jobs from all versions
+        from app.services.inheritance_versioning_service import InheritanceVersioningService
+        base_doc_id = InheritanceVersioningService._get_base_document_id(document)
+
+        # Query all versions that derive from the base document
+        all_versions = Document.query.filter_by(source_document_id=base_doc_id).all()
+        all_version_ids = [v.id for v in all_versions]
+
+        # Always include the base document itself
+        if base_doc_id not in all_version_ids:
+            all_version_ids.append(base_doc_id)
+
+        # Get temporal extraction jobs from ProcessingJob (manual processing)
+        jobs = ProcessingJob.query.filter(
+            ProcessingJob.document_id.in_(all_version_ids),
+            ProcessingJob.job_type == 'temporal_extraction'
+        ).order_by(ProcessingJob.created_at.desc()).all()
+
+        # ALSO check for experiment processing records
+        from app.models.experiment_processing import ExperimentDocumentProcessing
+        from app.models.experiment_document import ExperimentDocument
+
+        # Wrapper for template compatibility
+        class JobWrapper:
+            def __init__(self, exp_processing):
+                self._exp = exp_processing
+                self.status = exp_processing.status
+                self.created_at = exp_processing.created_at
+                self.completed_at = exp_processing.completed_at
+                self.job_type = exp_processing.processing_type
+
+            def get_parameters(self):
+                return {
+                    'method': self._exp.processing_method,
+                    'processing_type': self._exp.processing_type
+                }
+
+        # Find experiment-document associations for all versions
+        for doc_id in all_version_ids:
+            exp_docs = ExperimentDocument.query.filter_by(document_id=doc_id).all()
+            for exp_doc in exp_docs:
+                exp_processing = ExperimentDocumentProcessing.query.filter_by(
+                    experiment_document_id=exp_doc.id,
+                    processing_type='temporal'
+                ).all()
+                for exp_job in exp_processing:
+                    jobs.append(JobWrapper(exp_job))
+
+        jobs.sort(key=lambda j: (j.created_at is None, j.created_at), reverse=True)
+
+        # Get temporal expressions from ProcessingArtifact (new experiment processing)
+        from app.models.experiment_processing import ProcessingArtifact
+        artifacts = ProcessingArtifact.query.filter(
+            ProcessingArtifact.document_id.in_(all_version_ids),
+            ProcessingArtifact.artifact_type == 'temporal_expression'
+        ).order_by(ProcessingArtifact.artifact_index).all()
+
+        # Extract temporal data from artifacts
+        temporal_expressions = []
+        for artifact in artifacts:
+            content = artifact.get_content()
+            metadata = artifact.get_metadata()
+            temporal_expressions.append({
+                'text': content.get('text', ''),
+                'type': content.get('type', 'UNKNOWN'),
+                'normalized': content.get('normalized'),
+                'confidence': content.get('confidence', 0),
+                'start_char': metadata.get('start_char'),
+                'end_char': metadata.get('end_char'),
+                'method': metadata.get('method', 'unknown'),
+                'context': content.get('context', '')
+            })
+
+        # Group expressions by type
+        expressions_by_type = {}
+        for expr in temporal_expressions:
+            expr_type = expr['type']
+            if expr_type not in expressions_by_type:
+                expressions_by_type[expr_type] = []
+            expressions_by_type[expr_type].append(expr)
+
+        from flask import render_template
+        return render_template('processing/temporal_results.html',
+                             document=document,
+                             jobs=jobs,
+                             temporal_expressions=temporal_expressions,
+                             expressions_by_type=expressions_by_type,
+                             total_expressions=len(temporal_expressions))
 
     except Exception as e:
         from flask import render_template

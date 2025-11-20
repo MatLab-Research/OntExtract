@@ -18,6 +18,7 @@ from app.utils.auth_decorators import write_login_required
 from app import db
 from app.models import Term, TermVersion, ContextAnchor
 from app.forms import AddTermForm, EditTermForm, AddVersionForm
+from app.services.provenance_service import provenance_service
 from sqlalchemy import func, text
 from datetime import datetime
 import uuid as uuid_module
@@ -144,6 +145,13 @@ def add_term():
 
             db.session.commit()
 
+            # Track term creation in provenance system
+            try:
+                provenance_service.track_term_creation(term, current_user)
+            except Exception as prov_error:
+                current_app.logger.error(f"Failed to track term creation provenance: {str(prov_error)}")
+                # Don't fail the term creation if provenance tracking fails
+
             flash(f'Term "{form.term_text.data}" created successfully with first temporal version.', 'success')
             return redirect(url_for('terms.view_term', term_id=term.id))
 
@@ -215,18 +223,30 @@ def edit_term(term_id):
 
     if form.validate_on_submit():
         try:
-            # Update term fields from form
-            term.term_text = form.term_text.data
-            term.description = form.description.data
-            term.etymology = form.etymology.data
+            # Track what changed for provenance
+            changes = {}
+            if term.research_domain != form.research_domain.data:
+                changes['research_domain'] = {'old': term.research_domain, 'new': form.research_domain.data}
+            if term.status != form.status.data:
+                changes['status'] = {'old': term.status, 'new': form.status.data}
+            if term.notes != form.notes.data:
+                changes['notes'] = {'old': term.notes, 'new': form.notes.data}
+
+            # Update term fields from form (term_text is read-only)
             term.research_domain = form.research_domain.data
-            term.selection_rationale = form.selection_rationale.data
-            term.historical_significance = form.historical_significance.data
             term.status = form.status.data
             term.notes = form.notes.data
             term.updated_by = current_user.id
 
             db.session.commit()
+
+            # Track term update in provenance system
+            if changes:  # Only track if something actually changed
+                try:
+                    provenance_service.track_term_update(term, current_user, changes)
+                except Exception as prov_error:
+                    current_app.logger.error(f"Failed to track term update provenance: {str(prov_error)}")
+                    # Don't fail the term update if provenance tracking fails
 
             flash(f'Term "{term.term_text}" updated successfully.', 'success')
             return redirect(url_for('terms.view_term', term_id=term_id))
@@ -239,11 +259,7 @@ def edit_term(term_id):
     # Pre-populate form with existing data for GET requests
     if request.method == 'GET':
         form.term_text.data = term.term_text
-        form.description.data = term.description
-        form.etymology.data = term.etymology
         form.research_domain.data = term.research_domain
-        form.selection_rationale.data = term.selection_rationale
-        form.historical_significance.data = term.historical_significance
         form.status.data = term.status
         form.notes.data = term.notes
 

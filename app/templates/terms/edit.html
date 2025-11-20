@@ -12,7 +12,7 @@
                         <i class="fas fa-edit me-2"></i>
                         Edit Term: {{ term.term_text }}
                     </h3>
-                    <p class="text-muted mb-0">Modify the basic information for this anchor term</p>
+                    <p class="text-muted mb-0">Edit research domain, status, and notes</p>
                     
                     <!-- Version Selector -->
                     {% if versions|length > 0 %}
@@ -49,44 +49,12 @@
                 <div class="card-body">
                     <form method="POST" action="{{ url_for('terms.edit_term', term_id=term.id) }}">
                         {{ form.hidden_tag() }}
-                        
-                        <!-- Term Text -->
+
+                        <!-- Term Text (Read-Only) -->
                         <div class="mb-3">
                             {{ form.term_text.label(class="form-label") }}
-                            {{ form.term_text(class="form-control" + (" is-invalid" if form.term_text.errors else "")) }}
-                            {% if form.term_text.errors %}
-                                <div class="invalid-feedback">
-                                    {% for error in form.term_text.errors %}
-                                        {{ error }}
-                                    {% endfor %}
-                                </div>
-                            {% endif %}
-                        </div>
-
-                        <!-- Description -->
-                        <div class="mb-3">
-                            {{ form.description.label(class="form-label") }}
-                            {{ form.description(class="form-control" + (" is-invalid" if form.description.errors else ""), rows="3") }}
-                            {% if form.description.errors %}
-                                <div class="invalid-feedback">
-                                    {% for error in form.description.errors %}
-                                        {{ error }}
-                                    {% endfor %}
-                                </div>
-                            {% endif %}
-                        </div>
-
-                        <!-- Etymology -->
-                        <div class="mb-3">
-                            {{ form.etymology.label(class="form-label") }}
-                            {{ form.etymology(class="form-control" + (" is-invalid" if form.etymology.errors else ""), rows="2") }}
-                            {% if form.etymology.errors %}
-                                <div class="invalid-feedback">
-                                    {% for error in form.etymology.errors %}
-                                        {{ error }}
-                                    {% endfor %}
-                                </div>
-                            {% endif %}
+                            {{ form.term_text(class="form-control-plaintext") }}
+                            <small class="form-text text-muted">Term text cannot be changed</small>
                         </div>
 
                         <!-- Research Domain -->
@@ -160,31 +128,7 @@
                         </div>
                         {% endif %}
 
-                        <!-- Selection Rationale -->
-                        <div class="mb-3">
-                            {{ form.selection_rationale.label(class="form-label") }}
-                            {{ form.selection_rationale(class="form-control" + (" is-invalid" if form.selection_rationale.errors else ""), rows="3") }}
-                            {% if form.selection_rationale.errors %}
-                                <div class="invalid-feedback">
-                                    {% for error in form.selection_rationale.errors %}
-                                        {{ error }}
-                                    {% endfor %}
-                                </div>
-                            {% endif %}
-                        </div>
-
-                        <!-- Historical Significance -->
-                        <div class="mb-3">
-                            {{ form.historical_significance.label(class="form-label") }}
-                            {{ form.historical_significance(class="form-control" + (" is-invalid" if form.historical_significance.errors else ""), rows="3") }}
-                            {% if form.historical_significance.errors %}
-                                <div class="invalid-feedback">
-                                    {% for error in form.historical_significance.errors %}
-                                        {{ error }}
-                                    {% endfor %}
-                                </div>
-                            {% endif %}
-                        </div>
+                        <hr class="my-4">
 
                         <!-- Status -->
                         <div class="mb-3">
@@ -232,7 +176,7 @@
             <!-- Note about versions -->
             <div class="alert alert-info mt-3">
                 <i class="fas fa-info-circle me-2"></i>
-                <strong>Note:</strong> This form edits the basic term information. Version-specific data is shown for reference. To edit temporal meanings and create new versions, use the "Add Version" feature from the term details page.
+                <strong>Note:</strong> You can edit the research domain, status, and notes for this term. Version-specific data (meaning descriptions, temporal periods, etc.) is shown for reference. To modify version data or create new versions, use the "Add Version" feature from the term details page.
             </div>
         </div>
     </div>

@@ -17,24 +17,7 @@
                 <div class="card-body">
                     <form method="POST" action="{{ url_for('terms.add_term') }}">
                         {{ form.hidden_tag() }}
-                        
-                        <!-- Term Text (MOST IMPORTANT FIELD - ALWAYS VISIBLE) -->
-                        <div class="mb-4 p-3 bg-light border rounded">
-                            <div class="mb-2">
-                                <h5 class="mb-1">{{ form.term_text.label(class="form-label") }}</h5>
-                                <small class="text-muted">Enter the term manually or use the options below to search and auto-populate</small>
-                            </div>
-                            {{ form.term_text(class="form-control form-control-lg" + (" is-invalid" if form.term_text.errors else "")) }}
-                            {% if form.term_text.errors %}
-                                <div class="invalid-feedback">
-                                    {% for error in form.term_text.errors %}
-                                        {{ error }}
-                                    {% endfor %}
-                                </div>
-                            {% endif %}
-                            <div class="form-text">The word or phrase you want to analyze for semantic change</div>
-                        </div>
-                        
+
                         <!-- Anchoring Methods -->
                         <div class="mb-4">
                             <!-- Tab Navigation -->
@@ -157,7 +140,24 @@
                                         <i class="fas fa-info-circle me-2"></i>
                                         <strong>Manual Entry:</strong> Enter term information manually. Use the fields below to specify the term, meaning, and related context.
                                     </div>
-                                    
+
+                                    <!-- Term Text -->
+                                    <div class="mb-4 p-3 bg-light border rounded">
+                                        <div class="mb-2">
+                                            <h5 class="mb-1">{{ form.term_text.label(class="form-label") }}</h5>
+                                            <small class="text-muted">Enter the term you want to analyze for semantic change</small>
+                                        </div>
+                                        {{ form.term_text(class="form-control form-control-lg" + (" is-invalid" if form.term_text.errors else "")) }}
+                                        {% if form.term_text.errors %}
+                                            <div class="invalid-feedback">
+                                                {% for error in form.term_text.errors %}
+                                                    {{ error }}
+                                                {% endfor %}
+                                            </div>
+                                        {% endif %}
+                                        <div class="form-text">The word or phrase you want to analyze for semantic change</div>
+                                    </div>
+
                                     <!-- Source Type -->
                                     <div class="mt-3">
                                         <label class="form-label">Source Type</label>
@@ -717,20 +717,13 @@ document.addEventListener('DOMContentLoaded', function() {
             alert('Error: Search results not available. Please search again.');
             return;
         }
-        
+
         const selectedResult = currentSearchResults.results[index];
         if (!selectedResult) {
             alert('Error: Selected result not found. Please try again.');
             return;
         }
-        
-        // Switch to Manual Entry tab
-        const manualTab = document.getElementById('manual-tab');
-        const manualPane = document.getElementById('manual-pane');
-        
-        // Activate manual tab
-        manualTab.click();
-        
+
         // Populate Term Text field with the searched term
         const termTextField = document.getElementById('term_text');
         if (termTextField) {
@@ -860,40 +853,42 @@ document.addEventListener('DOMContentLoaded', function() {
         if (resultsDiv) {
             resultsDiv.style.display = 'none';
         }
-        
-        // Show success message
+
+        // Show success message in service results area
         const suggestedDomainText = researchDomainField && researchDomainField.value ? `, research domain (${researchDomainField.value})` : '';
         const alertHtml = `
-            <div class="alert alert-success alert-dismissible fade show" role="alert">
+            <div class="alert alert-success alert-dismissible fade show mt-3" role="alert">
                 <i class="fas fa-check-circle me-2"></i>
-                <strong>Result Selected!</strong> 
+                <strong>Result Selected!</strong>
                 Term text, meaning description, temporal period (${currentSearchResults.current_year || 'current year'})${suggestedDomainText}, context anchors, and source citation have been populated from Merriam-Webster ${service}.
                 <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
             </div>
         `;
-        
-        // Insert alert at top of manual pane
-        const manualPaneElement = document.getElementById('manual-pane');
-        if (manualPaneElement) {
-            manualPaneElement.insertAdjacentHTML('afterbegin', alertHtml);
-        }
-        
-        // Auto-dismiss success message after 4 seconds
-        setTimeout(() => {
-            const alert = manualPaneElement.querySelector('.alert-success');
-            if (alert) {
-                alert.remove();
+
+        // Insert alert in services pane
+        const servicesPaneElement = document.getElementById('services-pane');
+        if (servicesPaneElement) {
+            // Remove any existing success alerts
+            const existingAlert = servicesPaneElement.querySelector('.alert-success');
+            if (existingAlert) {
+                existingAlert.remove();
             }
-        }, 4000);
+            servicesPaneElement.insertAdjacentHTML('beforeend', alertHtml);
+
+            // Auto-dismiss success message after 4 seconds
+            setTimeout(() => {
+                const alert = servicesPaneElement.querySelector('.alert-success');
+                if (alert) {
+                    alert.remove();
+                }
+            }, 4000);
+        }
     }
     
     // OED Search functionality - integrated with existing OED API
     const oedBtn = document.getElementById('oed-service-btn');
-    console.log('OED button found:', oedBtn);
     if (oedBtn) {
-        console.log('Adding OED button event listener');
         oedBtn.addEventListener('click', async function() {
-            console.log('OED button clicked!');
             const searchTerm = prompt('Enter term to search in OED:');
             if (!searchTerm) return;
             
@@ -1012,10 +1007,6 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Function to handle selecting an OED result
     window.selectOEDResult = async function(searchTerm, entryId, headword, pos, index) {
-        // Switch to Manual Entry tab
-        const manualTab = document.getElementById('manual-tab');
-        manualTab.click();
-        
         // Populate Term Text field
         const termTextField = document.getElementById('term_text');
         if (termTextField) {
@@ -1133,29 +1124,34 @@ document.addEventListener('DOMContentLoaded', function() {
         if (resultsDiv) {
             resultsDiv.style.display = 'none';
         }
-        
-        // Show success message
+
+        // Show success message in services pane
         const alertHtml = `
-            <div class="alert alert-success alert-dismissible fade show" role="alert">
+            <div class="alert alert-success alert-dismissible fade show mt-3" role="alert">
                 <i class="fas fa-check-circle me-2"></i>
-                <strong>OED Entry Selected!</strong> 
+                <strong>OED Entry Selected!</strong>
                 Term text, meaning description, context anchors, and source citation have been populated from the Oxford English Dictionary.
                 <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
             </div>
         `;
-        
-        const manualPaneElement = document.getElementById('manual-pane');
-        if (manualPaneElement) {
-            manualPaneElement.insertAdjacentHTML('afterbegin', alertHtml);
-        }
-        
-        // Auto-dismiss success message after 4 seconds
-        setTimeout(() => {
-            const alert = manualPaneElement.querySelector('.alert-success');
-            if (alert) {
-                alert.remove();
+
+        const servicesPaneElement = document.getElementById('services-pane');
+        if (servicesPaneElement) {
+            // Remove any existing success alerts
+            const existingAlert = servicesPaneElement.querySelector('.alert-success');
+            if (existingAlert) {
+                existingAlert.remove();
             }
-        }, 4000);
+            servicesPaneElement.insertAdjacentHTML('beforeend', alertHtml);
+
+            // Auto-dismiss success message after 4 seconds
+            setTimeout(() => {
+                const alert = servicesPaneElement.querySelector('.alert-success');
+                if (alert) {
+                    alert.remove();
+                }
+            }, 4000);
+        }
     }
     
     // WordNet Search functionality - integrated with NLTK WordNet
@@ -1292,10 +1288,6 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Function to handle selecting a WordNet result
     window.selectWordNetResult = function(searchTerm, synsetName, pos, definition, index) {
-        // Switch to Manual Entry tab
-        const manualTab = document.getElementById('manual-tab');
-        manualTab.click();
-        
         // Populate Term Text field
         const termTextField = document.getElementById('term_text');
         if (termTextField) {
@@ -1386,29 +1378,34 @@ document.addEventListener('DOMContentLoaded', function() {
         if (resultsDiv) {
             resultsDiv.style.display = 'none';
         }
-        
-        // Show success message
+
+        // Show success message in services pane
         const alertHtml = `
-            <div class="alert alert-success alert-dismissible fade show" role="alert">
+            <div class="alert alert-success alert-dismissible fade show mt-3" role="alert">
                 <i class="fas fa-check-circle me-2"></i>
-                <strong>WordNet Synset Selected!</strong> 
+                <strong>WordNet Synset Selected!</strong>
                 Term text, meaning description, context anchors (with synonyms and related terms), and source citation have been populated from WordNet.
                 <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
             </div>
         `;
-        
-        const manualPaneElement = document.getElementById('manual-pane');
-        if (manualPaneElement) {
-            manualPaneElement.insertAdjacentHTML('afterbegin', alertHtml);
-        }
-        
-        // Auto-dismiss success message after 4 seconds
-        setTimeout(() => {
-            const alert = manualPaneElement.querySelector('.alert-success');
-            if (alert) {
-                alert.remove();
+
+        const servicesPaneElement = document.getElementById('services-pane');
+        if (servicesPaneElement) {
+            // Remove any existing success alerts
+            const existingAlert = servicesPaneElement.querySelector('.alert-success');
+            if (existingAlert) {
+                existingAlert.remove();
             }
-        }, 4000);
+            servicesPaneElement.insertAdjacentHTML('beforeend', alertHtml);
+
+            // Auto-dismiss success message after 4 seconds
+            setTimeout(() => {
+                const alert = servicesPaneElement.querySelector('.alert-success');
+                if (alert) {
+                    alert.remove();
+                }
+            }, 4000);
+        }
     }
     
     // Reference Document Selection Handler

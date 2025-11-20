@@ -202,10 +202,10 @@
                                 </div>
                             </div>
 
-                            <!-- Enhanced Processing Group -->
+                            <!-- Temporal Processing Group -->
                             <div class="border rounded p-3 mb-3 bg-secondary bg-opacity-10">
                                 <h6 class="mb-3">
-                                    <i class="fas fa-sparkles text-danger me-2"></i>Enhanced Processing
+                                    <i class="fas fa-clock text-secondary me-2"></i>Temporal Analysis
                                 </h6>
                                 <div class="form-check mb-2">
                                     <input class="form-check-input tool-checkbox" type="checkbox"
@@ -219,14 +219,11 @@
                                         {% endif %}
                                     </label>
                                 </div>
-                                <div class="form-check">
-                                    <input class="form-check-input tool-checkbox" type="checkbox"
-                                           value="enhanced" id="tool-enhanced">
-                                    <label class="form-check-label" for="tool-enhanced">
-                                        <strong>Term Extraction + OED</strong>
-                                        <br><small class="text-muted">Extract terms and enrich with OED data</small>
-                                    </label>
-                                </div>
+                                <p class="small text-muted mb-0">
+                                    <i class="fas fa-info-circle me-1"></i>
+                                    For corpus-wide term extraction and semantic evolution analysis, use the
+                                    <strong>Corpus Analysis</strong> section on the Pipeline Overview page.
+                                </p>
                             </div>
                         </div>
                     </div>
@@ -418,15 +415,14 @@ document.addEventListener('DOMContentLoaded', function() {
     const runAllToolsBtn = document.getElementById('run-all-tools-btn');
     if (runAllToolsBtn) {
         runAllToolsBtn.addEventListener('click', async function() {
-            // Optimal pipeline order: segment → embeddings → extract entities/definitions → temporal/enhanced
+            // Optimal pipeline order: segment → embeddings → extract entities/definitions → temporal
             const allTools = [
                 'segment_paragraph',
                 'segment_sentence',
                 'embeddings_local',
                 'entities_spacy',
                 'definitions_spacy',
-                'temporal_spacy',
-                'enhanced'
+                'temporal_spacy'
             ];
 
             await runTools(allTools);
@@ -501,9 +497,6 @@ document.addEventListener('DOMContentLoaded', function() {
         } else if (tool === 'temporal_spacy') {
             processing_type = 'temporal';
             processing_method = 'spacy';
-        } else if (tool === 'enhanced') {
-            processing_type = 'enhanced_processing';
-            processing_method = 'enhanced';
         } else {
             throw new Error(`Unknown tool: ${tool}`);
         }
@@ -591,7 +584,8 @@ document.addEventListener('DOMContentLoaded', function() {
         if (toolName.includes('segment')) return '<i class="fas fa-cut text-warning"></i>';
         if (toolName.includes('embeddings')) return '<i class="fas fa-vector-square text-info"></i>';
         if (toolName.includes('entities')) return '<i class="fas fa-tags text-success"></i>';
-        if (toolName.includes('enhanced')) return '<i class="fas fa-sparkles text-danger"></i>';
+        if (toolName.includes('temporal')) return '<i class="fas fa-clock text-secondary"></i>';
+        if (toolName.includes('definitions')) return '<i class="fas fa-book text-primary"></i>';
         return '<i class="fas fa-cog"></i>';
     }
 
@@ -602,7 +596,8 @@ document.addEventListener('DOMContentLoaded', function() {
             'embeddings_local': 'Local Embeddings',
             'embeddings_openai': 'OpenAI Embeddings',
             'entities_spacy': 'Entity Extraction (spaCy)',
-            'enhanced': 'Enhanced Processing'
+            'definitions_spacy': 'Definition Extraction',
+            'temporal_spacy': 'Temporal Extraction'
         };
         return names[toolName] || toolName;
     }
@@ -683,23 +678,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 });
                 html += `</div>`;
             }
-        } else if (result.tool_name.includes('enhanced')) {
-            html += `
-                <div class="row text-center mb-2">
-                    <div class="col-md-6">
-                        <div class="border rounded p-2">
-                            <strong class="text-danger">${data.terms_extracted || 0}</strong>
-                            <br><small class="text-muted">Terms Extracted</small>
-                        </div>
-                    </div>
-                    <div class="col-md-6">
-                        <div class="border rounded p-2">
-                            <strong class="text-success">${data.terms_enriched || 0}</strong>
-                            <br><small class="text-muted">Terms Enriched</small>
-                        </div>
-                    </div>
-                </div>
-            `;
         }
 
         // Job ID
