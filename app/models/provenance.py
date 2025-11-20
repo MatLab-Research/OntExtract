@@ -182,7 +182,7 @@ class ProvenanceActivity(db.Model):
     def create_for_processing(cls, processing_job, agent=None):
         """Create a provenance activity for a processing job"""
         prov_id = f"activity_{processing_job.job_type}_{processing_job.id}"
-        
+
         return cls(
             prov_id=prov_id,
             prov_type=f'ont:{processing_job.job_type.title()}Processing',
@@ -196,6 +196,43 @@ class ProvenanceActivity(db.Model):
                 'processing_time': processing_job.processing_time
             }
         )
+
+    @classmethod
+    def create_for_experiment_processing(cls, exp_doc_processing, experiment_document, agent=None):
+        """Create a provenance activity for an experiment document processing operation"""
+        from datetime import datetime
+        prov_id = f"activity_{exp_doc_processing.processing_type}_{exp_doc_processing.id}"
+
+        # Get configuration
+        config = exp_doc_processing.get_configuration() or {}
+
+        # Calculate processing time if completed
+        processing_time = None
+        if exp_doc_processing.started_at and exp_doc_processing.completed_at:
+            processing_time = (exp_doc_processing.completed_at - exp_doc_processing.started_at).total_seconds()
+
+        activity = cls(
+            prov_id=prov_id,
+            prov_type=f'ont:{exp_doc_processing.processing_type.title()}Processing',
+            prov_label=f"{exp_doc_processing.processing_type} ({exp_doc_processing.processing_method}) processing of document {experiment_document.document_id}",
+            was_associated_with=agent or f"user_{config.get('created_by')}",
+            experiment_id=experiment_document.experiment_id,
+            activity_type=exp_doc_processing.processing_type,
+            started_at_time=exp_doc_processing.started_at or exp_doc_processing.created_at,
+            ended_at_time=exp_doc_processing.completed_at,
+            activity_metadata={
+                'processing_method': exp_doc_processing.processing_method,
+                'experiment_document_id': experiment_document.id,
+                'document_id': experiment_document.document_id,
+                'document_version': experiment_document.document.version_number if experiment_document.document else None,
+                'status': exp_doc_processing.status,
+                'processing_time': processing_time,
+                'configuration': config,
+                'results_summary': exp_doc_processing.get_results_summary() if hasattr(exp_doc_processing, 'get_results_summary') else None
+            }
+        )
+
+        return activity
     
     def complete_activity(self, results=None):
         """Mark activity as completed with results"""

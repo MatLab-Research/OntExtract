@@ -37,12 +37,12 @@
                     </p>
                 </div>
                 <div>
-                    <a href="{{ url_for('experiments.view', experiment_id=experiment.id) }}" 
+                    <a href="{{ url_for('experiments.view', experiment_id=experiment.id) }}"
                        class="btn btn-outline-secondary me-2">
                         <i class="fas fa-arrow-left"></i> Back to Experiment
                     </a>
-                    {% if completed_count == total_count and total_count > 0 %}
-                    <a href="{{ url_for('experiments.semantic_analysis', experiment_id=experiment.id) }}" 
+                    {% if completed_count == total_count and total_count > 0 and experiment.experiment_type == 'temporal_evolution' %}
+                    <a href="{{ url_for('experiments.semantic_evolution_visual', experiment_id=experiment.id) }}"
                        class="btn btn-success">
                         <i class="fas fa-arrow-right"></i> Continue to Semantic Analysis
                     </a>

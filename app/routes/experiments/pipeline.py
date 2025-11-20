@@ -77,12 +77,26 @@ def process_document(experiment_id, document_uuid):
         # Get process document data from service
         data = pipeline_service.get_process_document_data(experiment_id, document_id)
 
+        # Serialize processing operations for JavaScript consumption
+        processing_operations_serialized = [
+            {
+                'id': op.id,
+                'processing_type': op.processing_type,
+                'processing_method': op.processing_method,
+                'status': op.status,
+                'started_at': op.started_at.isoformat() if op.started_at else None,
+                'completed_at': op.completed_at.isoformat() if op.completed_at else None
+            }
+            for op in data['processing_operations']
+        ]
+
         return render_template(
             'experiments/process_document.html',
             experiment=data['experiment'],
             document=data['document'],
             experiment_document=data['experiment_document'],
             processing_operations=data['processing_operations'],
+            processing_operations_serialized=processing_operations_serialized,
             llm_operations=data.get('llm_operations', {}),
             processing_progress=data['processing_progress'],
             doc_index=data['doc_index'],

@@ -1094,6 +1094,78 @@ class ProvenanceService:
         return activity, entity
 
     @classmethod
+    def track_processing_operation(
+        cls,
+        processing_type: str,
+        processing_method: str,
+        document,
+        experiment_id: int,
+        user_id: int,
+        results: Dict[str, Any] = None
+    ) -> tuple[ProvActivity, ProvEntity]:
+        """
+        Track a processing operation on a document.
+
+        Args:
+            processing_type: Type of processing (segmentation, embeddings, entities, temporal, definitions)
+            processing_method: Method used (spacy, local, paragraph, sentence)
+            document: Document being processed
+            experiment_id: Experiment ID
+            user_id: User who initiated the processing
+            results: Processing results summary
+
+        Returns:
+            tuple: (activity, entity) provenance records
+        """
+        agent = cls.get_or_create_user_agent(user_id)
+        current_time = datetime.utcnow()
+
+        # Format activity type for display
+        activity_type_name = f"{processing_type}_extraction" if processing_type in ['entities', 'temporal', 'definitions'] else processing_type
+
+        # Build parameters
+        params = {
+            'processing_method': processing_method,
+            'experiment_id': experiment_id,
+            'document_id': document.id,
+            'document_version': document.version_number if hasattr(document, 'version_number') else None
+        }
+
+        # Add results if provided
+        if results:
+            params.update(results)
+
+        # Create activity
+        activity = ProvActivity(
+            activity_type=activity_type_name,
+            startedattime=current_time,
+            endedattime=current_time,
+            wasassociatedwith=agent.agent_id,
+            activity_parameters=_serialize_value(params),
+            activity_status='completed'
+        )
+        db.session.add(activity)
+        db.session.flush()
+
+        # Create entity for the processed document
+        entity = ProvEntity(
+            entity_type='document',
+            generatedattime=current_time,
+            wasgeneratedby=activity.activity_id,
+            wasattributedto=agent.agent_id,
+            entity_value=_serialize_value({
+                'document_id': document.id,
+                'document_uuid': str(document.uuid) if hasattr(document, 'uuid') else None,
+                'title': document.title if hasattr(document, 'title') else None,
+                'version': document.version_number if hasattr(document, 'version_number') else None
+            })
+        )
+        db.session.add(entity)
+        db.session.commit()
+
+        return activity, entity
+
+    @classmethod
     def track_experiment_version_creation(
         cls,
         experiment_version_document,

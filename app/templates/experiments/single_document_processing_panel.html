@@ -140,16 +140,6 @@
                 <i class="fas fa-clock me-1"></i>Temporal Markers
                 {% if has_temporal %}<span class="badge bg-secondary ms-2">Available</span>{% endif %}
             </a>
-
-            {% set has_enhanced = processing_operations|selectattr('processing_type', 'equalto', 'enhanced_processing')|selectattr('status', 'equalto', 'completed')|list %}
-            <a href="/process/document/{{ document.uuid }}/results/enhanced"
-               id="result-link-enhanced"
-               class="btn btn-sm btn-outline-danger {% if not has_enhanced %}disabled{% endif %}"
-               target="_blank"
-               {% if not has_enhanced %}style="pointer-events: none; opacity: 0.5;"{% endif %}>
-                <i class="fas fa-sparkles me-1"></i>Enhanced
-                {% if has_enhanced %}<span class="badge bg-danger ms-2">Available</span>{% endif %}
-            </a>
         </div>
     </div>
 </div>
@@ -259,8 +249,7 @@ function updateResultLinks(operations) {
     const linkMap = {
         'generate_embeddings': 'embeddings',
         'segment_document': 'segments',
-        'extract_entities': 'entities',
-        'enhanced_processing': 'enhanced'
+        'extract_entities': 'entities'
     };
 
     // Find which processing types have completed operations
@@ -295,7 +284,6 @@ function formatProcessingTypeName(jobType) {
         'generate_embeddings': 'Embeddings',
         'segment_document': 'Segmentation',
         'extract_entities': 'Entities',
-        'enhanced_processing': 'Enhanced',
         'clean_text': 'Text Cleanup'
     };
     return names[jobType] || jobType;
@@ -317,8 +305,8 @@ function viewProcessingResults(event, processingType, method, operationId) {
         url = `/process/document/${documentUuid}/results/entities`;
     } else if (processingType === 'definitions') {
         url = `/process/document/${documentUuid}/results/definitions`;
-    } else if (processingType === 'enhanced_processing') {
-        url = `/process/document/${documentUuid}/results/enhanced`;
+    } else if (processingType === 'temporal') {
+        url = `/process/document/${documentUuid}/results/temporal`;
     } else {
         // Default: go to provenance timeline
         url = `/provenance/timeline?document_uuid=${documentUuid}`;
