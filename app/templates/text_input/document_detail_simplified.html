@@ -808,7 +808,16 @@
                         document.getElementById('metadataModalTitle').textContent = 'Add Metadata';
                     }
 
-                    document.getElementById('metadataModalDocumentUuid').value = documentUuid;
+                    // Show version note if editing a version document
+                    const versionNote = document.getElementById('versionDocumentNote');
+                    if (data.is_version && versionNote) {
+                        versionNote.style.display = 'block';
+                    } else if (versionNote) {
+                        versionNote.style.display = 'none';
+                    }
+
+                    // Store the actual document UUID (will be root UUID for versions)
+                    document.getElementById('metadataModalDocumentUuid').value = data.root_uuid || documentUuid;
                     new bootstrap.Modal(document.getElementById('metadataModal')).show();
                 } else {
                     alert('Error loading metadata: ' + data.error);
@@ -904,6 +913,13 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
+                <!-- Version Document Note -->
+                <div id="versionDocumentNote" class="alert alert-info" style="display: none;">
+                    <i class="fas fa-info-circle me-2"></i>
+                    <strong>Note:</strong> This is a version document. Editing metadata will update the root document,
+                    and changes will be reflected across all versions.
+                </div>
+
                 <form id="metadataForm">
                     <input type="hidden" id="metadataModalDocumentUuid">
 
