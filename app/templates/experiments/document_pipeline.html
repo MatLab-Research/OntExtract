@@ -94,7 +94,7 @@
                                 <i class="fas fa-magic me-2"></i>
                                 Let Claude analyze all {{ total_count }} documents together and recommend an optimal processing strategy. You'll be able to review and modify the strategy before processing begins.
                             </p>
-                            <button id="analyze-experiment-btn" class="btn btn-primary btn-lg">
+                            <button id="analyze-experiment-btn" class="btn btn-primary btn-lg" data-experiment-id="{{ experiment.id }}">
                                 <i class="fas fa-chart-line me-2"></i>LLM Analyze
                             </button>
                         </div>
@@ -139,9 +139,6 @@
                                     <button class="btn btn-outline-primary btn-sm" id="run-term-extraction-btn" disabled>
                                         <i class="fas fa-play me-1"></i>Run Term Extraction
                                     </button>
-                                    <small class="text-muted d-block mt-2">
-                                        <i class="fas fa-flask me-1"></i>Coming soon
-                                    </small>
                                 </div>
                             </div>
                         </div>
@@ -159,9 +156,6 @@
                                     <button class="btn btn-outline-success btn-sm" id="run-semantic-evolution-btn" disabled>
                                         <i class="fas fa-play me-1"></i>Run Evolution Analysis
                                     </button>
-                                    <small class="text-muted d-block mt-2">
-                                        <i class="fas fa-flask me-1"></i>Coming soon
-                                    </small>
                                 </div>
                             </div>
                         </div>
@@ -179,9 +173,6 @@
                                     <button class="btn btn-outline-warning btn-sm" id="build-ontology-btn" disabled>
                                         <i class="fas fa-play me-1"></i>Build Ontology
                                     </button>
-                                    <small class="text-muted d-block mt-2">
-                                        <i class="fas fa-lightbulb me-1"></i>Placeholder - not yet implemented
-                                    </small>
                                 </div>
                             </div>
                         </div>
@@ -199,9 +190,6 @@
                                     <button class="btn btn-outline-info btn-sm" id="run-period-clustering-btn" disabled>
                                         <i class="fas fa-play me-1"></i>Run Clustering
                                     </button>
-                                    <small class="text-muted d-block mt-2">
-                                        <i class="fas fa-flask me-1"></i>Coming soon
-                                    </small>
                                 </div>
                             </div>
                         </div>
@@ -223,9 +211,6 @@
                                     <button class="btn btn-outline-primary btn-sm" id="run-domain-extraction-btn" disabled>
                                         <i class="fas fa-play me-1"></i>Run Domain Extraction
                                     </button>
-                                    <small class="text-muted d-block mt-2">
-                                        <i class="fas fa-flask me-1"></i>Coming soon
-                                    </small>
                                 </div>
                             </div>
                         </div>
@@ -243,9 +228,6 @@
                                     <button class="btn btn-outline-success btn-sm" id="run-domain-comparison-btn" disabled>
                                         <i class="fas fa-play me-1"></i>Run Comparison
                                     </button>
-                                    <small class="text-muted d-block mt-2">
-                                        <i class="fas fa-flask me-1"></i>Coming soon
-                                    </small>
                                 </div>
                             </div>
                         </div>
@@ -263,9 +245,6 @@
                                     <button class="btn btn-outline-warning btn-sm" id="build-ontology-btn" disabled>
                                         <i class="fas fa-play me-1"></i>Build Ontology
                                     </button>
-                                    <small class="text-muted d-block mt-2">
-                                        <i class="fas fa-lightbulb me-1"></i>Placeholder - not yet implemented
-                                    </small>
                                 </div>
                             </div>
                         </div>
@@ -287,9 +266,6 @@
                                     <button class="btn btn-outline-primary btn-sm" id="run-cooccurrence-btn" disabled>
                                         <i class="fas fa-play me-1"></i>Run Analysis
                                     </button>
-                                    <small class="text-muted d-block mt-2">
-                                        <i class="fas fa-flask me-1"></i>Coming soon
-                                    </small>
                                 </div>
                             </div>
                         </div>
@@ -307,9 +283,6 @@
                                     <button class="btn btn-outline-warning btn-sm" id="build-ontology-btn" disabled>
                                         <i class="fas fa-play me-1"></i>Build Ontology
                                     </button>
-                                    <small class="text-muted d-block mt-2">
-                                        <i class="fas fa-lightbulb me-1"></i>Placeholder - not yet implemented
-                                    </small>
                                 </div>
                             </div>
                         </div>
@@ -415,35 +388,188 @@
     </div>
 </div>
 
-<!-- Progress Modal for Experiment Orchestration -->
-<div class="modal fade" id="experimentProgressModal" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1">
-    <div class="modal-dialog modal-dialog-centered">
+<!-- LLM Orchestration Progress Modal -->
+<div class="modal fade" id="llm-progress-modal" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
         <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">Processing Experiment</h5>
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title">
+                    <i class="fas fa-robot me-2"></i>LLM Orchestration in Progress
+                </h5>
             </div>
             <div class="modal-body">
-                <div class="text-center mb-3">
-                    <div class="spinner-border text-primary" role="status" style="width: 3rem; height: 3rem;">
-                        <span class="visually-hidden">Processing...</span>
+                <!-- Stage Indicators -->
+                <div class="d-flex justify-content-between mb-4 flex-wrap">
+                    <div id="stage-analyzing" class="stage-indicator text-center flex-fill px-2">
+                        <div class="stage-icon mb-2">
+                            <i class="fas fa-search fa-2x"></i>
+                        </div>
+                        <small class="stage-label">Analyze</small>
+                    </div>
+                    <div class="stage-arrow flex-shrink-0 px-2">
+                        <i class="fas fa-arrow-right"></i>
+                    </div>
+                    <div id="stage-recommending" class="stage-indicator text-center flex-fill px-2">
+                        <div class="stage-icon mb-2">
+                            <i class="fas fa-lightbulb fa-2x"></i>
+                        </div>
+                        <small class="stage-label">Recommend</small>
+                    </div>
+                    <div class="stage-arrow flex-shrink-0 px-2">
+                        <i class="fas fa-arrow-right"></i>
+                    </div>
+                    <div id="stage-reviewing" class="stage-indicator text-center flex-fill px-2">
+                        <div class="stage-icon mb-2">
+                            <i class="fas fa-user-check fa-2x"></i>
+                        </div>
+                        <small class="stage-label">Review</small>
+                    </div>
+                    <div class="stage-arrow flex-shrink-0 px-2">
+                        <i class="fas fa-arrow-right"></i>
+                    </div>
+                    <div id="stage-executing" class="stage-indicator text-center flex-fill px-2">
+                        <div class="stage-icon mb-2">
+                            <i class="fas fa-cogs fa-2x"></i>
+                        </div>
+                        <small class="stage-label">Execute</small>
+                    </div>
+                    <div class="stage-arrow flex-shrink-0 px-2">
+                        <i class="fas fa-arrow-right"></i>
+                    </div>
+                    <div id="stage-synthesizing" class="stage-indicator text-center flex-fill px-2">
+                        <div class="stage-icon mb-2">
+                            <i class="fas fa-chart-line fa-2x"></i>
+                        </div>
+                        <small class="stage-label">Synthesize</small>
                     </div>
                 </div>
+
+                <!-- Progress Bar -->
                 <div class="mb-3">
-                    <strong id="exp-progress-stage">Initializing...</strong>
-                </div>
-                <div class="progress" style="height: 25px;">
-                    <div id="exp-progress-bar" class="progress-bar progress-bar-striped progress-bar-animated"
-                         role="progressbar" style="width: 0%;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">
-                        0%
+                    <div class="progress" style="height: 25px;">
+                        <div id="llm-progress-bar" class="progress-bar progress-bar-striped progress-bar-animated bg-success"
+                             role="progressbar" style="width: 0%;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">
+                            0%
+                        </div>
                     </div>
                 </div>
-                <div class="mt-3">
-                    <small class="text-muted" id="exp-progress-details">Starting orchestration...</small>
+
+                <!-- Status Message -->
+                <div class="text-center">
+                    <p id="llm-status-message" class="mb-0">Starting analysis...</p>
                 </div>
             </div>
         </div>
     </div>
 </div>
+
+<!-- Strategy Review Modal -->
+<div class="modal fade" id="strategy-review-modal" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered modal-xl modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header bg-info text-white">
+                <h5 class="modal-title">
+                    <i class="fas fa-clipboard-check me-2"></i>Review Recommended Strategy
+                </h5>
+            </div>
+            <div class="modal-body">
+                <!-- Experiment Goal -->
+                <div class="mb-4">
+                    <h6 class="text-muted mb-2">Experiment Goal</h6>
+                    <p id="review-experiment-goal" class="border-start border-4 border-primary ps-3 mb-0"></p>
+                </div>
+
+                <!-- Confidence Score -->
+                <div class="mb-4">
+                    <h6 class="text-muted mb-2">Confidence Score</h6>
+                    <div class="d-flex align-items-center">
+                        <div class="flex-grow-1 me-3">
+                            <div class="progress" style="height: 25px;">
+                                <div class="progress-bar bg-success" role="progressbar" style="width: 0%">
+                                </div>
+                            </div>
+                        </div>
+                        <strong id="review-confidence" class="text-success fs-5">0%</strong>
+                    </div>
+                </div>
+
+                <!-- Reasoning -->
+                <div class="mb-4">
+                    <h6 class="text-muted mb-2">Strategy Reasoning</h6>
+                    <p id="review-reasoning" class="bg-light p-3 rounded mb-0"></p>
+                </div>
+
+                <!-- Recommended Tools per Document -->
+                <div class="mb-4">
+                    <h6 class="text-muted mb-2">Recommended Tools by Document</h6>
+                    <div id="review-strategy-list"></div>
+                </div>
+
+                <!-- Review Notes -->
+                <div class="mb-3">
+                    <label for="review-notes" class="form-label">Your Notes (Optional)</label>
+                    <textarea id="review-notes" class="form-control" rows="3"
+                              placeholder="Add any notes about modifications or observations..."></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    <i class="fas fa-times me-1"></i>Cancel
+                </button>
+                <button type="button" id="approve-strategy-btn" class="btn btn-success">
+                    <i class="fas fa-check me-1"></i>Approve & Continue
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.stage-indicator {
+    opacity: 0.3;
+    transition: all 0.3s ease;
+}
+
+.stage-indicator.stage-completed {
+    opacity: 1;
+    color: #28a745;
+}
+
+.stage-indicator.stage-current {
+    opacity: 1;
+    color: #007bff;
+    transform: scale(1.1);
+}
+
+.stage-indicator.stage-current .stage-icon i {
+    animation: pulse 1.5s ease-in-out infinite;
+}
+
+.stage-arrow {
+    opacity: 0.3;
+    color: #6c757d;
+    display: flex;
+    align-items: center;
+}
+
+@keyframes pulse {
+    0%, 100% {
+        transform: scale(1);
+    }
+    50% {
+        transform: scale(1.1);
+    }
+}
+
+@media (max-width: 768px) {
+    .stage-arrow {
+        display: none;
+    }
+}
+</style>
+
+<!-- Include LLM Orchestration JavaScript -->
+<script src="{{ url_for('static', filename='js/llm_orchestration.js') }}"></script>
 
 <script>
 const experimentId = {{ experiment.id }};
@@ -485,116 +611,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Initialize mode
     updateMode();
-
-    // Handle experiment-level orchestration
-    const analyzeExperimentBtn = document.getElementById('analyze-experiment-btn');
-    if (analyzeExperimentBtn) {
-        analyzeExperimentBtn.addEventListener('click', async function() {
-            const btn = this;
-
-            btn.disabled = true;
-            btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Starting Analysis...';
-
-            try {
-                // Start experiment orchestration (always with review)
-                const response = await fetch(`/orchestration/analyze-experiment/${experimentId}`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        review_choices: true
-                    })
-                });
-
-                const data = await response.json();
-
-                if (data.success) {
-                    const runId = data.run_id;
-
-                    // Show progress modal and track strategy recommendation
-                    const progressModal = new bootstrap.Modal(document.getElementById('experimentProgressModal'));
-                    progressModal.show();
-
-                    // Connect to SSE for progress updates (will redirect to review page when ready)
-                    startExperimentProgressTracking(runId)
-                } else {
-                    alert(`Error: ${data.error || 'Failed to start analysis'}`);
-                    btn.disabled = false;
-                    btn.innerHTML = '<i class="fas fa-chart-line me-2"></i>LLM Analyze';
-                }
-            } catch (error) {
-                alert(`Error: ${error.message}`);
-                btn.disabled = false;
-                btn.innerHTML = '<i class="fas fa-chart-line me-2"></i>LLM Analyze';
-            }
-        });
-    }
 });
-
-// SSE Progress Tracking for Experiment Orchestration (Strategy Recommendation Phase)
-function startExperimentProgressTracking(runId) {
-    const eventSource = new EventSource(`/orchestration/experiment/${runId}/status`);
-
-    eventSource.onmessage = function(event) {
-        const data = JSON.parse(event.data);
-
-        if (data.heartbeat) {
-            // Just a keepalive, ignore
-            return;
-        }
-
-        // Update progress UI
-        if (data.stage) {
-            document.getElementById('exp-progress-stage').textContent = getStageLabel(data.stage);
-        }
-
-        if (data.progress !== undefined) {
-            const progressBar = document.getElementById('exp-progress-bar');
-            progressBar.style.width = `${data.progress}%`;
-            progressBar.textContent = `${data.progress}%`;
-            progressBar.setAttribute('aria-valuenow', data.progress);
-        }
-
-        if (data.message) {
-            document.getElementById('exp-progress-details').textContent = data.message;
-        }
-
-        // Handle strategy ready - always redirect to review page
-        if (data.status === 'strategy_ready') {
-            eventSource.close();
-            setTimeout(() => {
-                window.location.href = `/orchestration/experiment/${runId}/review`;
-            }, 500);
-        }
-
-        // Handle error
-        if (data.status === 'failed') {
-            eventSource.close();
-            alert(`Processing failed: ${data.error || 'Unknown error'}`);
-            window.location.reload();
-        }
-    };
-
-    eventSource.onerror = function(error) {
-        console.error('SSE error:', error);
-        eventSource.close();
-        alert('Connection lost. Please check the experiment page for status.');
-        window.location.reload();
-    };
-}
-
-function getStageLabel(stage) {
-    const labels = {
-        'analyzing': 'Analyzing Experiment',
-        'recommending': 'Recommending Strategy',
-        'reviewing': 'Awaiting Review',
-        'executing': 'Processing Documents',
-        'synthesizing': 'Synthesizing Results',
-        'completed': 'Complete'
-    };
-    return labels[stage] || stage;
-}
 </script>
 
 <!-- Include Text Cleanup Modal -->

@@ -23,20 +23,20 @@ class ExperimentOrchestrationState(TypedDict):
     """
 
     # Input (set at initialization)
-    experiment_id: str
+    experiment_id: int
     focus_term: Optional[str]
     documents: List[Dict[str, Any]]  # [{id, title, content, metadata}, ...]
     user_preferences: Dict[str, Any]  # {review_choices: bool, ...}
-    run_id: str  # UUID for this orchestration run
+    run_id: str  # UUID for this orchestration run (string representation)
 
     # Stage 1: Experiment Understanding
-    experiment_goal: str  # LLM's understanding of experiment purpose
+    experiment_goal: Optional[str]  # LLM's understanding of experiment purpose
     term_context: Optional[str]  # Why focus term matters (if present)
 
     # Stage 2: Strategy Recommendation
-    recommended_strategy: Dict[str, List[str]]  # {doc_id: [tool1, tool2, ...]}
-    strategy_reasoning: str  # Why LLM chose this approach
-    confidence: float  # LLM confidence in strategy (0.0-1.0)
+    recommended_strategy: Optional[Dict[str, List[str]]]  # {doc_id: [tool1, tool2, ...]}
+    strategy_reasoning: Optional[str]  # Why LLM chose this approach
+    confidence: Optional[float]  # LLM confidence in strategy (0.0-1.0)
 
     # Stage 3: Human Review (optional, based on review_choices)
     strategy_approved: bool  # Whether strategy was approved (auto or manual)
@@ -44,13 +44,13 @@ class ExperimentOrchestrationState(TypedDict):
     review_notes: Optional[str]  # User feedback on strategy
 
     # Stage 4: Execution
-    processing_results: Dict[str, Any]  # {doc_id: {tool: result, ...}}
-    execution_trace: Annotated[List[Dict[str, Any]], operator.add]  # Provenance trail
+    processing_results: Optional[Dict[str, Any]]  # {doc_id: {tool: result, ...}}
+    execution_trace: Optional[List[Dict[str, Any]]]  # Provenance trail
 
     # Stage 5: Synthesis
-    cross_document_insights: str  # Insights from analyzing all docs together
+    cross_document_insights: Optional[str]  # Insights from analyzing all docs together
     term_evolution_analysis: Optional[str]  # Focus term semantic evolution (if applicable)
-    comparative_summary: str  # High-level summary
+    comparative_summary: Optional[str]  # High-level summary
 
     # Status tracking
     current_stage: str  # analyzing, recommending, reviewing, executing, synthesizing, completed
@@ -58,7 +58,7 @@ class ExperimentOrchestrationState(TypedDict):
 
 
 def create_initial_experiment_state(
-    experiment_id: str,
+    experiment_id: int,
     run_id: str,
     documents: List[Dict[str, Any]],
     focus_term: Optional[str] = None,
@@ -68,8 +68,8 @@ def create_initial_experiment_state(
     Create initial state for experiment orchestration.
 
     Args:
-        experiment_id: UUID of experiment
-        run_id: UUID for this orchestration run
+        experiment_id: ID of experiment (integer)
+        run_id: UUID for this orchestration run (string)
         documents: List of document dicts with id, title, content, metadata
         focus_term: Optional term to focus on for semantic evolution
         user_preferences: User settings (e.g., review_choices)
@@ -86,13 +86,13 @@ def create_initial_experiment_state(
         user_preferences=user_preferences or {},
 
         # Stage 1 (will be filled by analyze_experiment_node)
-        experiment_goal="",
+        experiment_goal=None,
         term_context=None,
 
         # Stage 2 (will be filled by recommend_strategy_node)
-        recommended_strategy={},
-        strategy_reasoning="",
-        confidence=0.0,
+        recommended_strategy=None,
+        strategy_reasoning=None,
+        confidence=None,
 
         # Stage 3 (will be filled by human_review_node or auto-approved)
         strategy_approved=False,
@@ -100,13 +100,13 @@ def create_initial_experiment_state(
         review_notes=None,
 
         # Stage 4 (will be filled by execute_strategy_node)
-        processing_results={},
-        execution_trace=[],
+        processing_results=None,
+        execution_trace=None,
 
         # Stage 5 (will be filled by synthesize_experiment_node)
-        cross_document_insights="",
+        cross_document_insights=None,
         term_evolution_analysis=None,
-        comparative_summary="",
+        comparative_summary=None,
 
         # Status
         current_stage="analyzing",
