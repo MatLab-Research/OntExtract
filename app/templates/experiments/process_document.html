@@ -70,7 +70,7 @@
                 <h1 class="h3 mb-2">{{ document.get_display_name() }}</h1>
                 <div class="text-muted">
                     <i class="fas fa-calendar me-2"></i>Created {{ document.created_at.strftime('%B %d, %Y at %I:%M %p') }}
-                    {% if document.content_type == 'file' %}
+                    {% if document.content_type == 'file' and document.original_filename %}
                     <br><i class="fas fa-file me-2"></i>{{ document.original_filename }}
                     {% if document.file_size %}
                     ({{ "%.1f"|format(document.file_size / 1024) }} KB)
@@ -194,7 +194,7 @@
                                            {% if processing_operations|selectattr('processing_type', 'equalto', 'definitions')|selectattr('status', 'equalto', 'completed')|list %}disabled{% endif %}>
                                     <label class="form-check-label" for="tool-definitions">
                                         <strong>Definition Extraction</strong>
-                                        <br><small class="text-muted">Extract term definitions & explanations</small>
+                                        <br><small class="text-muted">spaCy pattern matching + dependency parsing</small>
                                         {% if processing_operations|selectattr('processing_type', 'equalto', 'definitions')|selectattr('status', 'equalto', 'completed')|list %}
                                         <br><small class="text-success"><i class="fas fa-check-circle me-1"></i>Already applied</small>
                                         {% endif %}
@@ -213,7 +213,7 @@
                                            {% if processing_operations|selectattr('processing_type', 'equalto', 'temporal')|selectattr('status', 'equalto', 'completed')|list %}disabled{% endif %}>
                                     <label class="form-check-label" for="tool-temporal">
                                         <strong>Temporal Extraction</strong>
-                                        <br><small class="text-muted">Dates, periods, historical markers</small>
+                                        <br><small class="text-muted">spaCy + date parsing (dates, periods, markers)</small>
                                         {% if processing_operations|selectattr('processing_type', 'equalto', 'temporal')|selectattr('status', 'equalto', 'completed')|list %}
                                         <br><small class="text-success"><i class="fas fa-check-circle me-1"></i>Already applied</small>
                                         {% endif %}
@@ -321,12 +321,18 @@
                             <button id="run-tools-btn" class="btn btn-primary" disabled>
                                 <i class="fas fa-play me-2"></i>Run Selected Tools
                             </button>
+                            <button id="run-local-tools-btn" class="btn btn-info">
+                                <i class="fas fa-desktop me-2"></i>Run Local Tools
+                            </button>
                             <button id="run-all-tools-btn" class="btn btn-success">
                                 <i class="fas fa-forward me-2"></i>Run All Tools
                             </button>
                         </div>
                         <div class="text-center mt-2">
-                            <small class="text-muted">Select from available processing tools</small>
+                            <small class="text-muted">
+                                <strong>Local Tools:</strong> No API costs<br>
+                                <strong>All Tools:</strong> Includes OpenAI embeddings
+                            </small>
                         </div>
 
                         <!-- Progress Bar -->
@@ -351,6 +357,31 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    // Store completed processing operations for duplicate prevention
+    const completedOperations = {{ processing_operations_serialized|tojson }};
+
+    // Helper function to check if a tool has already been completed
+    function isToolCompleted(toolName) {
+        const toolMap = {
+            'segment_paragraph': { type: 'segmentation', method: 'paragraph' },
+            'segment_sentence': { type: 'segmentation', method: 'sentence' },
+            'embeddings_local': { type: 'embeddings', method: 'local' },
+            'embeddings_openai': { type: 'embeddings', method: 'openai' },
+            'entities_spacy': { type: 'entities', method: 'spacy' },
+            'definitions_spacy': { type: 'definitions', method: 'spacy' },
+            'temporal_spacy': { type: 'temporal', method: 'spacy' }
+        };
+
+        const tool = toolMap[toolName];
+        if (!tool) return false;
+
+        return completedOperations.some(op =>
+            op.processing_type === tool.type &&
+            op.processing_method === tool.method &&
+            op.status === 'completed'
+        );
+    }
+
     // Mark complete
     const markCompleteBtn = document.getElementById('mark-complete');
     if (markCompleteBtn) {
@@ -411,12 +442,12 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // Run all tools (full pipeline)
-    const runAllToolsBtn = document.getElementById('run-all-tools-btn');
-    if (runAllToolsBtn) {
-        runAllToolsBtn.addEventListener('click', async function() {
+    // Run local tools (all tools except OpenAI embeddings)
+    const runLocalToolsBtn = document.getElementById('run-local-tools-btn');
+    if (runLocalToolsBtn) {
+        runLocalToolsBtn.addEventListener('click', async function() {
             // Optimal pipeline order: segment → embeddings → extract entities/definitions → temporal
-            const allTools = [
+            const localTools = [
                 'segment_paragraph',
                 'segment_sentence',
                 'embeddings_local',
@@ -425,7 +456,44 @@ document.addEventListener('DOMContentLoaded', function() {
                 'temporal_spacy'
             ];
 
-            await runTools(allTools);
+            // Filter out already-completed tools
+            const toolsToRun = localTools.filter(tool => !isToolCompleted(tool));
+
+            if (toolsToRun.length === 0) {
+                alert('All local tools have already been completed for this document.');
+                return;
+            }
+
+            console.log(`Running ${toolsToRun.length} local tools (${localTools.length - toolsToRun.length} already completed)`);
+            await runTools(toolsToRun);
+        });
+    }
+
+    // Run all tools (full pipeline including OpenAI embeddings)
+    const runAllToolsBtn = document.getElementById('run-all-tools-btn');
+    if (runAllToolsBtn) {
+        runAllToolsBtn.addEventListener('click', async function() {
+            // Optimal pipeline order: segment → embeddings → extract entities/definitions → temporal
+            const allTools = [
+                'segment_paragraph',
+                'segment_sentence',
+                'embeddings_local',
+                'embeddings_openai',
+                'entities_spacy',
+                'definitions_spacy',
+                'temporal_spacy'
+            ];
+
+            // Filter out already-completed tools
+            const toolsToRun = allTools.filter(tool => !isToolCompleted(tool));
+
+            if (toolsToRun.length === 0) {
+                alert('All tools have already been completed for this document.');
+                return;
+            }
+
+            console.log(`Running ${toolsToRun.length} tools (${allTools.length - toolsToRun.length} already completed)`);
+            await runTools(toolsToRun);
         });
     }
 
@@ -433,6 +501,7 @@ document.addEventListener('DOMContentLoaded', function() {
     async function runTools(tools) {
         // Show progress
         runToolsBtn.disabled = true;
+        runLocalToolsBtn.disabled = true;
         runAllToolsBtn.disabled = true;
         toolProgress.style.display = 'block';
 

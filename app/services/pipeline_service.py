@@ -449,9 +449,13 @@ class PipelineService(BaseService):
                 else:
                     raise ValidationError(f'Unsupported processing type: {processing_type}')
 
+                # Create provenance record for completed processing
+                if processing_op.status == 'completed':
+                    self._create_provenance_record(processing_op, exp_doc, user_id)
+
                 db.session.commit()
 
-                logger.info(f"Processing {processing_type} started for exp_doc {experiment_document_id} with method {processing_method}")
+                logger.info(f"Processing {processing_type} completed for exp_doc {experiment_document_id} with method {processing_method}")
 
                 return {
                     'processing_id': str(processing_op.id),
@@ -1246,6 +1250,45 @@ class PipelineService(BaseService):
 
         except Exception as e:
             raise RuntimeError(f"Enhanced processing failed: {str(e)}")
+
+    def _create_provenance_record(
+        self,
+        processing_op: ExperimentDocumentProcessing,
+        exp_doc: ExperimentDocument,
+        user_id: int
+    ):
+        """
+        Create a provenance activity record using existing PROV-O system
+
+        Args:
+            processing_op: The completed processing operation
+            exp_doc: The experiment document being processed
+            user_id: ID of the user who initiated the processing
+        """
+        try:
+            from app.services.provenance_service import ProvenanceService
+
+            # Get results summary
+            results = processing_op.get_results_summary() if hasattr(processing_op, 'get_results_summary') else {}
+
+            # Track the processing operation using existing PROV-O infrastructure
+            activity, entity = ProvenanceService.track_processing_operation(
+                processing_type=processing_op.processing_type,
+                processing_method=processing_op.processing_method,
+                document=exp_doc.document,
+                experiment_id=exp_doc.experiment_id,
+                user_id=user_id,
+                results=results
+            )
+
+            logger.info(
+                f"Created PROV-O record for {processing_op.processing_type} processing "
+                f"(activity_id: {activity.activity_id}, entity_id: {entity.entity_id})"
+            )
+
+        except Exception as e:
+            # Log error but don't fail the processing
+            logger.error(f"Failed to create provenance record: {e}", exc_info=True)
 
 
 # Singleton instance

@@ -107,11 +107,20 @@ class Document(db.Model):
         for key, value in kwargs.items():
             if hasattr(self, key):
                 setattr(self, key, value)
-        
+
+        # Validate data integrity: file documents must have original_filename
+        # Only validate on explicit creation (when content_type is in kwargs)
+        if 'content_type' in kwargs and kwargs['content_type'] == 'file':
+            if not kwargs.get('original_filename'):
+                raise ValueError(
+                    "Document with content_type='file' must have an original_filename. "
+                    "This indicates a file was uploaded but the filename wasn't captured."
+                )
+
         # Auto-generate content preview
         if self.content and not self.content_preview:
             self.content_preview = self.content[:500] + ('...' if len(self.content) > 500 else '')
-        
+
         # Calculate word and character counts
         if self.content:
             self.character_count = len(self.content)
@@ -573,7 +582,14 @@ class Document(db.Model):
     def display_authors(self):
         """Get authors from root document (single source of truth for bibliographic metadata)"""
         root = self.get_root_document()
-        return root.authors if root else self.authors
+        authors = root.authors if root else self.authors
+
+        # Clean up PostgreSQL array format if present
+        if authors and isinstance(authors, str):
+            # Remove curly braces and quotes from PostgreSQL array format
+            authors = authors.strip('{}').replace('"', '').replace('", "', ', ')
+
+        return authors
 
     @property
     def display_publication_year(self):

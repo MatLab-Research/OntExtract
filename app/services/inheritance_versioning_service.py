@@ -266,6 +266,9 @@ class InheritanceVersioningService:
                 document_type=root_document.document_type,
                 reference_subtype=root_document.reference_subtype,
                 file_type=root_document.file_type,
+                original_filename=root_document.original_filename,  # Copy filename for file documents
+                file_path=root_document.file_path,  # Copy file path
+                file_size=root_document.file_size,  # Copy file size
                 content=root_document.content,  # Start with original content
                 content_preview=root_document.content_preview,
                 detected_language=root_document.detected_language,

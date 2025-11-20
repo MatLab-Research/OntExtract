@@ -99,7 +99,11 @@ def timeline():
         'metadata_field_update',
         'document_segmentation',
         'embedding_generation',
+        'entity_extraction',
+        'temporal_extraction',
+        'definition_extraction',
         'experiment_creation',
+        'experiment_document_processing',
         'tool_execution',
         'orchestration_run'
     ]

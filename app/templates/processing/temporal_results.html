@@ -9,24 +9,9 @@
     margin-bottom: 1rem;
 }
 .temporal-text {
-    font-weight: 600;
-    color: #1f2937;
-    font-size: 1.1rem;
-}
-.type-badge {
-    font-size: 0.75rem;
-    padding: 0.25rem 0.5rem;
-}
-.confidence-bar {
-    height: 6px;
-    background: #e5e7eb;
-    border-radius: 3px;
-    overflow: hidden;
-}
-.confidence-fill {
-    height: 100%;
-    background: linear-gradient(90deg, #ef4444, #f59e0b, #10b981);
-    transition: width 0.3s;
+    font-weight: 700;
+    color: #ffffff;
+    font-size: 1.15rem;
 }
 .context-box {
     background-color: #f9fafb;
@@ -36,14 +21,14 @@
 .context-box strong {
     color: #374151;
 }
-.normalized-text {
+.normalized-badge {
     background-color: #fef3c7;
     color: #92400e;
     padding: 0.25rem 0.5rem;
     border-radius: 0.25rem;
-    font-family: monospace;
-    font-size: 0.875rem;
+    font-size: 0.75rem;
     font-weight: 500;
+    display: inline-block;
 }
 </style>
 {% endblock %}
@@ -108,7 +93,7 @@
                                     <h6>Expression Types</h6>
                                     <div class="d-flex flex-wrap gap-2">
                                         {% for expr_type, exprs in expressions_by_type.items() %}
-                                        <span class="badge bg-secondary">
+                                        <span class="badge bg-warning text-dark">
                                             {{ expr_type }}: {{ exprs|length }}
                                         </span>
                                         {% endfor %}
@@ -127,15 +112,15 @@
                     {% if temporal_expressions %}
                     <div class="card">
                         <div class="card-header">
-                            <h5 class="mb-0" style="color: #111827;">
+                            <h5 class="mb-0">
                                 <i class="fas fa-clock me-2"></i>Extracted Temporal Expressions
-                                <span class="badge bg-secondary ms-2" style="color: white;">{{ total_expressions }}</span>
+                                <span class="badge bg-warning text-dark ms-2">{{ total_expressions }}</span>
                             </h5>
                         </div>
                         <div class="card-body">
                             <!-- Type Filter -->
                             <div class="mb-3">
-                                <label class="form-label" style="color: #111827;">Filter by Type:</label>
+                                <label class="form-label">Filter by Type:</label>
                                 <div class="btn-group btn-group-sm" role="group">
                                     <button type="button" class="btn btn-outline-secondary active" onclick="filterByType('all')">
                                         All ({{ total_expressions }})
@@ -153,46 +138,30 @@
                                 {% for expr in temporal_expressions %}
                                 <div class="card temporal-card mb-3" data-type="{{ expr.type }}">
                                     <div class="card-body">
-                                        <div class="row">
-                                            <div class="col-md-8">
-                                                <div class="temporal-text mb-2">{{ expr.text }}</div>
-                                                <div class="d-flex gap-2 flex-wrap mb-2">
-                                                    <span class="badge type-badge bg-secondary">
-                                                        Type: {{ expr.type }}
-                                                    </span>
-                                                    {% if expr.normalized %}
-                                                    <span class="normalized-text">
-                                                        <i class="fas fa-calendar-alt me-1"></i>{{ expr.normalized }}
-                                                    </span>
-                                                    {% endif %}
-                                                    <span class="badge bg-light text-dark">
-                                                        Method: {{ expr.method }}
-                                                    </span>
-                                                </div>
-                                                {% if expr.context %}
-                                                <div class="context-box p-2 rounded small mt-2">
-                                                    <strong>Context:</strong> {{ expr.context }}
-                                                </div>
-                                                {% endif %}
-                                            </div>
-                                            <div class="col-md-4">
-                                                <div class="text-end">
-                                                    <div class="mb-2">
-                                                        <small style="color: #6b7280 !important;">Confidence</small>
-                                                        <div class="fs-5 fw-bold" style="color: #111827 !important;">{{ "%.0f"|format(expr.confidence * 100) }}%</div>
-                                                    </div>
-                                                    <div class="confidence-bar">
-                                                        <div class="confidence-fill" style="width: {{ expr.confidence * 100 }}%"></div>
-                                                    </div>
-                                                </div>
-                                            </div>
+                                        <div class="d-flex justify-content-between align-items-center mb-2">
+                                            <div class="temporal-text">{{ expr.text }}</div>
+                                            {% if expr.normalized %}
+                                            <span class="normalized-badge ms-3">
+                                                <i class="fas fa-calendar-alt me-1"></i>{{ expr.normalized }}
+                                            </span>
+                                            {% endif %}
                                         </div>
-                                        {% if expr.start_char is not none %}
-                                        <div class="mt-2">
-                                            <small style="color: #6b7280 !important;">
-                                                <i class="fas fa-map-marker-alt me-1"></i>
-                                                Position: {{ expr.start_char }}-{{ expr.end_char }}
-                                            </small>
+                                        <div class="d-flex gap-2 flex-wrap align-items-center">
+                                            <span class="badge bg-warning text-dark">
+                                                {{ expr.type }}
+                                            </span>
+                                            <span class="badge bg-secondary">
+                                                {{ expr.method }}
+                                            </span>
+                                            {% if expr.start_char is not none %}
+                                            <span class="badge bg-info text-dark">
+                                                <i class="fas fa-map-marker-alt me-1"></i>{{ expr.start_char }}-{{ expr.end_char }}
+                                            </span>
+                                            {% endif %}
+                                        </div>
+                                        {% if expr.context %}
+                                        <div class="context-box p-2 rounded small mt-2">
+                                            <strong>Context:</strong> {{ expr.context }}
                                         </div>
                                         {% endif %}
                                     </div>
@@ -209,21 +178,21 @@
                     <!-- Processing Jobs -->
                     <div class="card mb-4">
                         <div class="card-header">
-                            <h5 class="mb-0" style="color: #111827;"><i class="fas fa-tasks me-2"></i>Extraction Jobs</h5>
+                            <h5 class="mb-0"><i class="fas fa-tasks me-2"></i>Extraction Jobs</h5>
                         </div>
                         <div class="card-body">
                             {% if jobs %}
                                 {% for job in jobs %}
                                 <div class="d-flex justify-content-between align-items-center mb-2 pb-2 border-bottom">
                                     <div>
-                                        <div class="small" style="color: #374151;">
+                                        <div class="small">
                                             {% if job.job_type == 'temporal' or job.job_type == 'temporal_extraction' %}
-                                            <i class="fas fa-clock text-secondary me-1"></i>Temporal Extraction
+                                            <i class="fas fa-clock text-warning me-1"></i>Temporal Extraction
                                             {% else %}
                                             <i class="fas fa-cog me-1"></i>{{ job.job_type }}
                                             {% endif %}
                                         </div>
-                                        <div style="font-size: 0.75rem; color: #9ca3af;">
+                                        <div class="text-muted" style="font-size: 0.75rem;">
                                             {{ job.created_at.strftime('%Y-%m-%d %H:%M') if job.created_at else 'N/A' }}
                                         </div>
                                     </div>
@@ -241,7 +210,7 @@
                                 </div>
                                 {% endfor %}
                             {% else %}
-                                <p class="small mb-0" style="color: #6b7280;">No extraction jobs recorded.</p>
+                                <p class="text-muted small mb-0">No extraction jobs recorded.</p>
                             {% endif %}
                         </div>
                     </div>
@@ -249,7 +218,7 @@
                     <!-- Export Options -->
                     <div class="card">
                         <div class="card-header">
-                            <h5 class="mb-0" style="color: #111827;"><i class="fas fa-download me-2"></i>Export</h5>
+                            <h5 class="mb-0"><i class="fas fa-download me-2"></i>Export</h5>
                         </div>
                         <div class="card-body">
                             <div class="d-grid gap-2">
@@ -303,7 +272,7 @@ function exportAsCSV() {
     const expressions = {{ temporal_expressions|tojson }};
 
     // CSV headers
-    let csv = 'Text,Type,Normalized,Confidence,Method,Position Start,Position End\n';
+    let csv = 'Text,Type,Normalized,Method,Position Start,Position End\n';
 
     // CSV rows
     expressions.forEach(expr => {
@@ -311,7 +280,6 @@ function exportAsCSV() {
             `"${(expr.text || '').replace(/"/g, '""')}"`,
             expr.type || '',
             expr.normalized || '',
-            expr.confidence || '',
             expr.method || '',
             expr.start_char || '',
             expr.end_char || ''
