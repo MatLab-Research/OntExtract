@@ -21,6 +21,7 @@ import asyncio
 import uuid
 import json
 import time
+import markdown
 
 from app.orchestration.experiment_state import create_initial_experiment_state
 from app.orchestration.experiment_graph import get_experiment_graph
@@ -529,10 +530,27 @@ def view_results(run_id: str):
         # Get experiment
         experiment = orchestration_run.experiment
 
+        # Convert markdown to HTML for insights
+        insights_html = None
+        if orchestration_run.cross_document_insights:
+            insights_html = markdown.markdown(
+                orchestration_run.cross_document_insights,
+                extensions=['fenced_code', 'tables', 'nl2br']
+            )
+
+        evolution_html = None
+        if orchestration_run.term_evolution_analysis:
+            evolution_html = markdown.markdown(
+                orchestration_run.term_evolution_analysis,
+                extensions=['fenced_code', 'tables', 'nl2br']
+            )
+
         return render_template(
             'orchestration/experiment_results.html',
             orchestration_run=orchestration_run,
-            experiment=experiment
+            experiment=experiment,
+            insights_html=insights_html,
+            evolution_html=evolution_html
         )
 
     except Exception as e:

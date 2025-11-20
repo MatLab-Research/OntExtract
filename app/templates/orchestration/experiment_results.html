@@ -74,6 +74,7 @@
     </div>
 
     <!-- Cross-Document Insights -->
+    {% if insights_html %}
     <div class="row mb-4">
         <div class="col-12">
             <div class="card">
@@ -84,15 +85,16 @@
                 </div>
                 <div class="card-body">
                     <div class="insights-content">
-                        {{ orchestration_run.cross_document_insights|safe }}
+                        {{ insights_html|safe }}
                     </div>
                 </div>
             </div>
         </div>
     </div>
+    {% endif %}
 
     <!-- Term Evolution Analysis (if applicable) -->
-    {% if orchestration_run.term_evolution_analysis %}
+    {% if evolution_html %}
     <div class="row mb-4">
         <div class="col-12">
             <div class="card border-info">
@@ -106,7 +108,7 @@
                 </div>
                 <div class="card-body">
                     <div class="term-evolution-content">
-                        {{ orchestration_run.term_evolution_analysis|safe }}
+                        {{ evolution_html|safe }}
                     </div>
                 </div>
             </div>
@@ -266,12 +268,56 @@ document.addEventListener('DOMContentLoaded', function() {
         URL.revokeObjectURL(url);
     });
 
-    // Format insights content (convert newlines to paragraphs)
-    document.querySelectorAll('.insights-content, .term-evolution-content').forEach(el => {
-        const text = el.textContent.trim();
-        const paragraphs = text.split('\n\n').map(p => `<p>${p.trim()}</p>`).join('');
-        el.innerHTML = paragraphs;
-    });
 });
 </script>
+
+<style>
+.insights-content, .term-evolution-content {
+    line-height: 1.6;
+}
+
+.insights-content h1, .term-evolution-content h1,
+.insights-content h2, .term-evolution-content h2,
+.insights-content h3, .term-evolution-content h3 {
+    margin-top: 1.5em;
+    margin-bottom: 0.5em;
+}
+
+.insights-content h1:first-child, .term-evolution-content h1:first-child,
+.insights-content h2:first-child, .term-evolution-content h2:first-child,
+.insights-content h3:first-child, .term-evolution-content h3:first-child {
+    margin-top: 0;
+}
+
+.insights-content ul, .term-evolution-content ul,
+.insights-content ol, .term-evolution-content ol {
+    margin-left: 1.5em;
+    margin-bottom: 1em;
+}
+
+.insights-content p, .term-evolution-content p {
+    margin-bottom: 1em;
+}
+
+.insights-content code, .term-evolution-content code {
+    background-color: #f4f4f4;
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-family: 'Courier New', monospace;
+}
+
+.insights-content pre, .term-evolution-content pre {
+    background-color: #f4f4f4;
+    padding: 1em;
+    border-radius: 5px;
+    overflow-x: auto;
+}
+
+.insights-content blockquote, .term-evolution-content blockquote {
+    border-left: 4px solid #ddd;
+    padding-left: 1em;
+    margin-left: 0;
+    color: #666;
+}
+</style>
 {% endblock %}

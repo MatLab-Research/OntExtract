@@ -74,50 +74,62 @@ class PipelineService(BaseService):
             # Build processed documents list
             processed_docs = []
             for exp_doc, doc in latest_exp_docs:
-                # Get processing operations from DocumentProcessingIndex (new experiment processing system)
-                operation_types = {}
+                # Get processing operations - collect as list with methods
+                operations_list = []
+
+                # 1. Check manual processing operations (from process_document page buttons)
+                manual_ops = ExperimentDocumentProcessing.query.filter_by(
+                    experiment_document_id=exp_doc.id
+                ).all()
+
+                for op in manual_ops:
+                    if op.status == 'completed':
+                        operations_list.append({
+                            'type': op.processing_type,
+                            'method': op.processing_method,
+                            'source': 'manual'
+                        })
+
+                # 2. Check new experiment processing system (DocumentProcessingIndex)
                 index_entries = DocumentProcessingIndex.query.filter_by(
                     document_id=doc.id,
                     experiment_id=exp_doc.experiment_id
                 ).all()
 
                 for entry in index_entries:
-                    if entry.processing_type not in operation_types:
-                        operation_types[entry.processing_type] = {
-                            'total': 0,
-                            'completed': 0,
-                            'status': 'pending',
-                            'source': 'experiment'  # Experiment processing
-                        }
-                    operation_types[entry.processing_type]['total'] += 1
                     if entry.status == 'completed':
-                        operation_types[entry.processing_type]['completed'] += 1
-                        operation_types[entry.processing_type]['status'] = 'completed'
+                        operations_list.append({
+                            'type': entry.processing_type,
+                            'method': entry.processing_method,
+                            'source': 'experiment'
+                        })
 
-                # Merge orchestration results (LLM processing)
+                # 3. Merge orchestration results (LLM processing)
                 doc_id_str = str(doc.id)
                 if doc_id_str in orchestration_results:
                     llm_ops = orchestration_results[doc_id_str]
                     for tool_name, tool_result in llm_ops.items():
-                        # Map tool names to processing types
-                        processing_type = tool_name  # Or map: segment_paragraph -> segmentation, etc.
                         if tool_result.get('status') == 'executed':
-                            if processing_type not in operation_types:
-                                operation_types[processing_type] = {
-                                    'total': 1,
-                                    'completed': 1,
-                                    'status': 'completed',
-                                    'source': 'llm'  # LLM orchestration
-                                }
-                            else:
-                                # If both LLM and user processed this, mark as llm (most recent)
-                                operation_types[processing_type]['source'] = 'llm'
-                                operation_types[processing_type]['completed'] += 1
-                                operation_types[processing_type]['status'] = 'completed'
+                            operations_list.append({
+                                'type': tool_name,
+                                'method': 'llm',
+                                'source': 'llm'
+                            })
 
-                # Calculate processing progress
-                total_operation_types = 5  # segmentation, entities, temporal, embeddings, etymology
-                completed_operation_types = sum(1 for ot in operation_types.values() if ot['completed'] > 0)
+                # Deduplicate operations by (type, method) combination
+                seen = set()
+                unique_operations = []
+                for op in operations_list:
+                    key = (op['type'], op['method'])
+                    if key not in seen:
+                        seen.add(key)
+                        unique_operations.append(op)
+                operations_list = unique_operations
+
+                # Calculate processing progress based on unique operation types completed
+                unique_types = set(op['type'] for op in operations_list)
+                total_operation_types = 5  # segmentation, entities, temporal, embeddings, definitions
+                completed_operation_types = len(unique_types)
                 processing_progress = int((completed_operation_types / total_operation_types) * 100) if total_operation_types > 0 else 0
 
                 # Determine overall status
@@ -136,6 +148,19 @@ class PipelineService(BaseService):
                     status='completed'
                 ).first() is not None
 
+                # Add LLM cleanup to operations if completed
+                if has_cleanup:
+                    operations_list.append({
+                        'type': 'cleanup',
+                        'method': 'llm',
+                        'source': 'llm'
+                    })
+
+                # Calculate total operations from both systems
+                total_ops = len(manual_ops) + len(index_entries)
+                completed_ops = sum(1 for op in manual_ops if op.status == 'completed') + \
+                                sum(1 for entry in index_entries if entry.status == 'completed')
+
                 processed_docs.append({
                     'id': doc.id,
                     'uuid': doc.uuid,  # Add UUID for template URL generation
@@ -146,9 +171,9 @@ class PipelineService(BaseService):
                     'status': status,
                     'processing_progress': processing_progress,
                     'created_at': doc.created_at,
-                    'operation_types': operation_types,
-                    'total_operations': len(index_entries),
-                    'completed_operations': sum(1 for entry in index_entries if entry.status == 'completed'),
+                    'operations': operations_list,  # List of completed operations with methods
+                    'total_operations': total_ops,
+                    'completed_operations': completed_ops,
                     'has_cleanup': has_cleanup,  # Track if LLM cleanup has been done
                     'version_number': doc.version_number or 1,  # Track version
                     'version_type': doc.version_type  # Track version type (processed, experimental, etc.)
