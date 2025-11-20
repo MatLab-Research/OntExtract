@@ -198,6 +198,7 @@
     let isProcessing = false; // Track if currently processing
     let currentJobId = null;
     let progressPollInterval = null;
+    let currentDocumentUuid = null; // Store current document UUID
 
     function openTextCleanupModal(documentUuid) {
         // Reset state
@@ -206,6 +207,7 @@
         changeCounter = 0;
         isProcessing = true;
         currentJobId = null;
+        currentDocumentUuid = documentUuid; // Store the UUID for later use
 
         // Show modal
         const modal = new bootstrap.Modal(document.getElementById('textCleanupModal'));
@@ -517,7 +519,7 @@
     }
 
     function saveCleanedText() {
-        const documentUuid = '{{ document.uuid }}';
+        const documentUuid = currentDocumentUuid;
         const cleanedContent = getCleanedContent();
 
         // Count accepted and rejected changes
@@ -564,10 +566,16 @@
                 // Show success message
                 alert(`Success! ${accepted} changes accepted, ${rejected} changes rejected.\n\nNew document version created.`);
 
-                // Navigate to the new version
+                // Navigate to the new version (handle both pipeline and process_document pages)
                 const currentUrl = window.location.href;
-                const baseUrl = currentUrl.split('/process_document/')[0];
-                window.location.href = `${baseUrl}/process_document/${data.version_uuid}`;
+                if (currentUrl.includes('/process_document/')) {
+                    // We're on the individual process_document page - navigate to new version
+                    const baseUrl = currentUrl.split('/process_document/')[0];
+                    window.location.href = `${baseUrl}/process_document/${data.version_uuid}`;
+                } else {
+                    // We're on the pipeline page - reload to show updated status
+                    window.location.reload();
+                }
             } else {
                 alert('Error saving cleaned text: ' + (data.error || 'Unknown error'));
                 document.getElementById('save-cleaned-text-btn').disabled = false;

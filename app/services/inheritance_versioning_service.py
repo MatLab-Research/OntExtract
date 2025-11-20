@@ -47,6 +47,9 @@ class InheritanceVersioningService:
                 document_type=source_document.document_type,
                 reference_subtype=source_document.reference_subtype,
                 file_type=source_document.file_type,
+                original_filename=source_document.original_filename,  # Copy filename for file documents
+                file_path=source_document.file_path,  # Copy file path
+                file_size=source_document.file_size,  # Copy file size
                 content=source_document.content,  # CRITICAL: Always use original content
                 content_preview=source_document.content_preview,
                 detected_language=source_document.detected_language,

@@ -421,12 +421,14 @@ def extract_metadata():
                 authors_str = request.form.get('authors', '').strip()
                 if authors_str:
                     authors = [a.strip() for a in authors_str.split(',')]
-                    user_metadata['authors'] = authors
+                    # Store as comma-separated string for database column
+                    user_metadata['authors'] = ', '.join(authors)
                     user_provenance['authors'] = {
                         'source': 'user',
                         'confidence': 1.0,
                         'timestamp': datetime.utcnow().isoformat(),
-                        'raw_value': authors
+                        'raw_value': authors,
+                        'previous_source': 'user'
                     }
 
                 # If we have PDF-extracted metadata but no CrossRef, use it with lower confidence
@@ -578,6 +580,18 @@ def save_document():
             except (ValueError, TypeError):
                 pass
 
+        # Convert authors list to comma-separated string if needed
+        authors = metadata.get('authors')
+        if isinstance(authors, list):
+            authors = ', '.join(authors) if authors else None
+
+        # Helper function to convert empty strings to None
+        def clean_metadata_value(value):
+            """Convert empty strings to None for database nullable fields"""
+            if value == '' or value is None:
+                return None
+            return value
+
         # Create document record with normalized columns
         document = Document(
             title=metadata.get('title', filename),
@@ -588,16 +602,16 @@ def save_document():
             file_size=os.path.getsize(final_path),
             content=content,
             # Normalized bibliographic columns
-            authors=metadata.get('authors'),  # Store as comma-separated string
+            authors=authors,  # Store as comma-separated string
             publication_date=publication_date,
-            journal=metadata.get('journal'),
-            publisher=metadata.get('publisher'),
-            doi=metadata.get('doi'),
-            isbn=metadata.get('isbn'),
-            document_subtype=metadata.get('type'),
-            abstract=metadata.get('abstract'),
-            url=metadata.get('url'),
-            citation=metadata.get('citation'),
+            journal=clean_metadata_value(metadata.get('journal')),
+            publisher=clean_metadata_value(metadata.get('publisher')),
+            doi=clean_metadata_value(metadata.get('doi')),
+            isbn=clean_metadata_value(metadata.get('isbn')),
+            document_subtype=clean_metadata_value(metadata.get('type')),
+            abstract=clean_metadata_value(metadata.get('abstract')),
+            url=clean_metadata_value(metadata.get('url')),
+            citation=clean_metadata_value(metadata.get('citation')),
             # Legacy source_metadata for custom fields only
             source_metadata={'extraction_source': 'enhanced_upload'},
             metadata_provenance=provenance,
