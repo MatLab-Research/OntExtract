@@ -1429,18 +1429,22 @@ document.addEventListener('DOMContentLoaded', function() {
                         const words = data.definition.toLowerCase().match(/\b[a-z]+\b/g);
                         if (words) {
                             const filtered = filterContextTerms(words, headword);
-                            contextTerms = contextTerms.concat(filtered.slice(0, 3));
+                            // Take more words from main definition (up to 6)
+                            contextTerms = contextTerms.concat(filtered.slice(0, 6));
                         }
                     }
 
                     // Also extract from extracted_senses if available
+                    // OED typically doesn't have top-level definition, so this is the main source
                     if (data.extracted_senses && Array.isArray(data.extracted_senses)) {
+                        // Take first 2 senses but extract more words per sense
                         data.extracted_senses.slice(0, 2).forEach(sense => {
                             if (sense.definition) {
                                 const words = sense.definition.toLowerCase().match(/\b[a-z]+\b/g);
                                 if (words) {
                                     const filtered = filterContextTerms(words, headword);
-                                    contextTerms = contextTerms.concat(filtered.slice(0, 2));
+                                    // Take up to 8 words per sense since OED definitions are rich and detailed
+                                    contextTerms = contextTerms.concat(filtered.slice(0, 8));
                                 }
                             }
                         });
