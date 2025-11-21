@@ -27,8 +27,9 @@ class SemanticScholarMetadataExtractor:
 
     def __init__(self):
         """Initialize Semantic Scholar client with timeout."""
-        # Set a reasonable timeout (10 seconds)
-        self.sch = SemanticScholar(timeout=10)
+        # Set a reasonable timeout (5 seconds)
+        # Reduced from 10s to fail faster when API is slow
+        self.sch = SemanticScholar(timeout=5)
 
     def extract_from_arxiv_id(self, arxiv_id: str) -> Optional[Dict[str, Any]]:
         """

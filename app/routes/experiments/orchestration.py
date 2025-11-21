@@ -348,6 +348,91 @@ def start_llm_orchestration(experiment_id):
         }), 500
 
 
+@experiments_bp.route('/<int:experiment_id>/orchestration/check-status', methods=['GET'])
+def check_experiment_processing_status(experiment_id):
+    """
+    Check if documents have already been processed.
+
+    Used to warn users before starting LLM orchestration on already-processed documents.
+
+    Returns:
+    {
+        "experiment_id": 123,
+        "total_documents": 5,
+        "processed_documents": 2,
+        "unprocessed_documents": 3,
+        "has_partial_processing": true,
+        "has_full_processing": false,
+        "documents": [
+            {
+                "document_id": 217,
+                "title": "Document A",
+                "has_processing": true,
+                "processing_types": ["segmentation", "entities"]
+            },
+            ...
+        ]
+    }
+    """
+    try:
+        from app.models import TextSegment, ProcessingJob, ProcessingArtifact, Document
+
+        # Get experiment
+        experiment = Experiment.query.get(experiment_id)
+        if not experiment:
+            return jsonify({'error': 'Experiment not found'}), 404
+
+        # Get all documents for this experiment
+        documents = Document.query.filter_by(experiment_id=experiment_id).all()
+
+        processing_status = []
+        for doc in documents:
+            # Check for existing processing
+            has_segments = TextSegment.query.filter_by(document_id=doc.id).first() is not None
+            has_entities = ProcessingJob.query.filter_by(
+                document_id=doc.id,
+                job_type='entity_extraction'
+            ).first() is not None
+            has_artifacts = ProcessingArtifact.query.filter_by(document_id=doc.id).first() is not None
+
+            status = {
+                'document_id': doc.id,
+                'title': doc.title,
+                'has_processing': has_segments or has_entities or has_artifacts,
+                'processing_types': []
+            }
+
+            if has_segments:
+                status['processing_types'].append('segmentation')
+            if has_entities:
+                status['processing_types'].append('entities')
+            if has_artifacts:
+                artifacts = ProcessingArtifact.query.filter_by(document_id=doc.id).all()
+                # Get unique tool names
+                tool_names = list(set(a.tool_name for a in artifacts))
+                status['processing_types'].extend(tool_names)
+
+            processing_status.append(status)
+
+        # Summary
+        processed_count = sum(1 for s in processing_status if s['has_processing'])
+        total_docs = len(documents)
+
+        return jsonify({
+            'experiment_id': experiment_id,
+            'total_documents': total_docs,
+            'processed_documents': processed_count,
+            'unprocessed_documents': total_docs - processed_count,
+            'has_partial_processing': 0 < processed_count < total_docs,
+            'has_full_processing': processed_count == total_docs and total_docs > 0,
+            'documents': processing_status
+        }), 200
+
+    except Exception as e:
+        logger.error(f"Error checking processing status for experiment {experiment_id}: {e}", exc_info=True)
+        return jsonify({'error': str(e)}), 500
+
+
 @experiments_bp.route('/orchestration/status/<uuid:run_id>', methods=['GET'])
 def get_orchestration_status(run_id):
     """

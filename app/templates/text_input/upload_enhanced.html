@@ -250,6 +250,62 @@
                     <input type="text" class="form-control" id="file-authors" placeholder="Comma-separated author names">
                 </div>
 
+                <!-- Additional metadata fields (shown when auto-extraction is disabled) -->
+                <div id="additional-metadata-fields" style="display: none;">
+                    <div class="alert alert-info mb-3">
+                        <i class="fas fa-info-circle"></i>
+                        <strong>Manual metadata entry:</strong> Since automatic extraction is disabled, you can provide additional metadata below.
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="file-journal" class="form-label">Journal/Venue (optional)</label>
+                            <input type="text" class="form-control" id="file-journal" placeholder="e.g., Nature, JCDL, arXiv">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="file-publisher" class="form-label">Publisher (optional)</label>
+                            <input type="text" class="form-control" id="file-publisher" placeholder="e.g., ACM, Springer">
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="file-doi" class="form-label">DOI (optional)</label>
+                            <input type="text" class="form-control" id="file-doi" placeholder="e.g., 10.1145/1234567.1234568">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="file-url" class="form-label">URL (optional)</label>
+                            <input type="url" class="form-control" id="file-url" placeholder="e.g., https://example.com/paper.pdf">
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="file-abstract" class="form-label">Abstract (optional)</label>
+                        <textarea class="form-control" id="file-abstract" rows="4" placeholder="Paper abstract or summary"></textarea>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="file-type" class="form-label">Document Type (optional)</label>
+                            <select class="form-select" id="file-type">
+                                <option value="">Select type...</option>
+                                <option value="journal-article">Journal Article</option>
+                                <option value="conference-paper">Conference Paper</option>
+                                <option value="book">Book</option>
+                                <option value="book-chapter">Book Chapter</option>
+                                <option value="thesis">Thesis/Dissertation</option>
+                                <option value="report">Technical Report</option>
+                                <option value="preprint">Preprint</option>
+                                <option value="other">Other</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="file-isbn" class="form-label">ISBN (optional)</label>
+                            <input type="text" class="form-control" id="file-isbn" placeholder="e.g., 978-3-16-148410-0">
+                        </div>
+                    </div>
+                </div>
+
                 <button type="submit" class="btn btn-primary btn-lg" id="submit-btn">
                     <i class="fas fa-upload"></i> Upload and Extract Metadata
                 </button>
@@ -467,8 +523,10 @@ function updateFieldRequirements() {
     const tip = document.getElementById('metadata-tip');
     const submitBtn = document.getElementById('submit-btn');
 
+    const additionalFields = document.getElementById('additional-metadata-fields');
+
     if (enableCrossref) {
-        // CrossRef enabled: fields are optional
+        // CrossRef enabled: fields are optional, hide additional fields
         titleInput.required = false;
         yearInput.required = false;
         titleLabel.innerHTML = 'Title (optional)';
@@ -476,8 +534,9 @@ function updateFieldRequirements() {
         titleInput.placeholder = 'Leave blank for automatic extraction';
         tip.style.display = 'block';
         submitBtn.innerHTML = '<i class="fas fa-upload"></i> Upload and Extract Metadata';
+        additionalFields.style.display = 'none';
     } else {
-        // CrossRef disabled: require at least title
+        // CrossRef disabled: require at least title, show additional fields
         titleInput.required = true;
         yearInput.required = true;
         titleLabel.innerHTML = 'Title <span class="text-danger">*</span>';
@@ -485,6 +544,7 @@ function updateFieldRequirements() {
         titleInput.placeholder = 'Enter document title';
         tip.style.display = 'none';
         submitBtn.innerHTML = '<i class="fas fa-upload"></i> Upload';
+        additionalFields.style.display = 'block';
     }
 }
 
@@ -503,6 +563,32 @@ function showLoading(message = 'Uploading document...') {
 
 function hideLoading() {
     document.getElementById('loading').classList.remove('active');
+}
+
+/**
+ * Fetch with timeout wrapper
+ * @param {string} url - The URL to fetch
+ * @param {object} options - Fetch options
+ * @param {number} timeout - Timeout in milliseconds (default: 45000ms = 45s)
+ */
+async function fetchWithTimeout(url, options = {}, timeout = 45000) {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeout);
+
+    try {
+        const response = await fetch(url, {
+            ...options,
+            signal: controller.signal
+        });
+        clearTimeout(timeoutId);
+        return response;
+    } catch (error) {
+        clearTimeout(timeoutId);
+        if (error.name === 'AbortError') {
+            throw new Error(`Request timed out after ${timeout/1000} seconds. The metadata service may be slow or unavailable.`);
+        }
+        throw error;
+    }
 }
 
 function showMetadataReview() {
@@ -633,12 +719,23 @@ document.getElementById('file-form').addEventListener('submit', async function(e
     formData.append('authors', document.getElementById('file-authors').value);
     formData.append('enable_crossref', enableCrossref ? 'true' : 'false');
 
+    // Add additional metadata fields if provided (shown when auto-extraction is disabled)
+    if (!enableCrossref) {
+        formData.append('journal', document.getElementById('file-journal').value);
+        formData.append('publisher', document.getElementById('file-publisher').value);
+        formData.append('doi', document.getElementById('file-doi').value);
+        formData.append('url', document.getElementById('file-url').value);
+        formData.append('abstract', document.getElementById('file-abstract').value);
+        formData.append('type', document.getElementById('file-type').value);
+        formData.append('isbn', document.getElementById('file-isbn').value);
+    }
+
     try {
         console.log('Uploading to: /upload/extract_metadata');
-        const response = await fetch('/upload/extract_metadata', {
+        const response = await fetchWithTimeout('/upload/extract_metadata', {
             method: 'POST',
             body: formData
-        });
+        }, 45000); // 45 second timeout
 
         console.log('Response status:', response.status);
         const result = await response.json();
@@ -769,7 +866,23 @@ document.getElementById('file-form').addEventListener('submit', async function(e
         }
     } catch (error) {
         console.error('Upload error:', error);
-        alert('Error uploading document: ' + error.message);
+
+        // Provide user-friendly error message
+        let errorMessage = 'Error uploading document: ' + error.message;
+
+        if (error.message.includes('timed out')) {
+            errorMessage = 'The metadata lookup is taking longer than expected.\n\n' +
+                          'This usually happens when:\n' +
+                          '• Semantic Scholar API is slow or unavailable\n' +
+                          '• Your network connection is slow\n\n' +
+                          'You can try:\n' +
+                          '• Upload without automatic metadata lookup (uncheck "Automatically extract...")\n' +
+                          '• Wait a moment and try again\n' +
+                          '• Enter metadata manually';
+        }
+
+        alert(errorMessage);
+
         // Reset UI based on which mode was used
         if (enableCrossref) {
             document.getElementById('progress-card').classList.remove('active');

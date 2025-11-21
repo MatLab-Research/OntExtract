@@ -22,7 +22,19 @@ class LLMOrchestrationClient {
      */
     async startAnalysis() {
         try {
-            // Show progress modal
+            // STEP 1: Check for existing processing
+            const checkResponse = await fetch(`/experiments/${this.experimentId}/orchestration/check-status`);
+            const checkData = await checkResponse.json();
+
+            // If documents are already processed, warn user
+            if (checkData.has_partial_processing || checkData.has_full_processing) {
+                const proceed = await this.showPartialProcessingWarning(checkData);
+                if (!proceed) {
+                    return; // User cancelled
+                }
+            }
+
+            // STEP 2: Continue with orchestration
             this.showProgressModal();
             this.updateProgress('analyzing', 20, 'Starting analysis...');
 
@@ -108,7 +120,22 @@ class LLMOrchestrationClient {
                 this.showCompletionMessage(data);
             } else if (data.status === 'failed') {
                 this.stopPolling();
-                this.showError(data.error_message || 'Orchestration failed');
+
+                // Determine error type from message
+                let errorType = 'general';
+                const errorMsg = data.error_message || '';
+
+                if (errorMsg.includes('timeout') || errorMsg.includes('exceeded timeout')) {
+                    errorType = 'timeout';
+                } else if (errorMsg.includes('429') || errorMsg.includes('rate limit')) {
+                    errorType = 'rate_limit';
+                } else if (errorMsg.includes('500') || errorMsg.includes('503') || errorMsg.includes('server error')) {
+                    errorType = 'server_error';
+                } else if (errorMsg.includes('LLM') || errorMsg.includes('failed after')) {
+                    errorType = 'llm_error';
+                }
+
+                this.showError(errorMsg, errorType);
             }
 
         } catch (error) {
@@ -352,23 +379,155 @@ class LLMOrchestrationClient {
     }
 
     /**
-     * Show error message
+     * Show error message with enhanced display and retry option
      */
-    showError(message) {
-        this.hideProgressModal();
-        this.hideStrategyReview();
+    showError(message, errorType = 'general', errorData = {}) {
+        // Don't hide modal - keep it visible
+        const modal = document.getElementById('llm-progress-modal');
+        if (!modal) return;
 
-        const errorHtml = `
-            <div class="alert alert-danger alert-dismissible fade show" role="alert">
-                <strong>Error:</strong> ${message}
-                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-            </div>
+        // Update header to error state
+        const modalHeader = modal.querySelector('.modal-header');
+        modalHeader.className = 'modal-header bg-danger text-white';
+        modalHeader.querySelector('.modal-title').innerHTML = `
+            <i class="fas fa-exclamation-triangle me-2"></i>Orchestration Failed
         `;
 
-        const container = document.querySelector('.container-fluid');
-        if (container) {
-            container.insertAdjacentHTML('afterbegin', errorHtml);
+        // Hide progress indicators
+        document.getElementById('llm-progress-bar').parentElement.style.display = 'none';
+        document.getElementById('llm-status-message').style.display = 'none';
+
+        // Show error container
+        const errorContainer = document.getElementById('llm-error-container');
+        errorContainer.style.display = 'block';
+
+        // Set error title based on type
+        const errorTitles = {
+            'timeout': 'Request Timeout',
+            'rate_limit': 'Rate Limit Exceeded',
+            'server_error': 'Server Error',
+            'llm_error': 'LLM Processing Failed',
+            'general': 'Orchestration Failed'
+        };
+        document.getElementById('error-title').textContent = errorTitles[errorType] || errorTitles['general'];
+
+        // Set user-friendly message
+        const friendlyMessage = this.getFriendlyErrorMessage(message, errorType);
+        document.getElementById('error-message').textContent = friendlyMessage;
+
+        // Set technical details
+        const detailsEl = document.getElementById('error-details');
+        detailsEl.textContent = `Technical details: ${message}`;
+
+        // Show/hide retry button based on error type
+        const retryBtn = document.getElementById('retry-orchestration-btn');
+        const retriableTypes = ['timeout', 'rate_limit', 'server_error'];
+        retryBtn.style.display = retriableTypes.includes(errorType) ? 'inline-block' : 'none';
+
+        // Setup retry handler
+        if (retryBtn.style.display !== 'none') {
+            retryBtn.onclick = () => {
+                this.hideError();
+                this.startAnalysis();
+            };
         }
+    }
+
+    /**
+     * Get user-friendly error message
+     */
+    getFriendlyErrorMessage(technicalMessage, errorType) {
+        const messages = {
+            'timeout': 'The LLM took longer than expected to respond. This usually happens with large documents or high server load. Please try again.',
+            'rate_limit': 'Too many requests were made in a short time. Please wait a moment and try again.',
+            'server_error': 'The server encountered an unexpected error. This is usually temporary - please try again.',
+            'llm_error': 'The LLM encountered an error while processing your request. Please try again or simplify your experiment.',
+            'general': 'An unexpected error occurred. Please try again or contact support if the problem persists.'
+        };
+
+        return messages[errorType] || messages['general'];
+    }
+
+    /**
+     * Hide error display and restore progress UI
+     */
+    hideError() {
+        const errorContainer = document.getElementById('llm-error-container');
+        if (errorContainer) {
+            errorContainer.style.display = 'none';
+        }
+
+        // Restore progress display
+        document.getElementById('llm-progress-bar').parentElement.style.display = 'block';
+        document.getElementById('llm-status-message').style.display = 'block';
+
+        // Reset header
+        const modal = document.getElementById('llm-progress-modal');
+        const modalHeader = modal?.querySelector('.modal-header');
+        if (modalHeader) {
+            modalHeader.className = 'modal-header bg-primary text-white';
+            modalHeader.querySelector('.modal-title').innerHTML = `
+                <i class="fas fa-robot me-2"></i>LLM Orchestration in Progress
+            `;
+        }
+    }
+
+    /**
+     * Show partial processing warning and get user confirmation
+     */
+    showPartialProcessingWarning(checkData) {
+        return new Promise((resolve) => {
+            const modal = document.getElementById('partial-processing-modal');
+            if (!modal) {
+                resolve(true); // No modal, proceed anyway
+                return;
+            }
+
+            // Set message
+            const messageEl = document.getElementById('partial-processing-message');
+            if (checkData.has_full_processing) {
+                messageEl.textContent = `All ${checkData.total_documents} documents have existing processing. LLM orchestration may recommend re-processing.`;
+            } else {
+                messageEl.textContent = `${checkData.processed_documents} of ${checkData.total_documents} documents have existing processing.`;
+            }
+
+            // Show processed documents list
+            const listEl = document.getElementById('processed-docs-list');
+            listEl.innerHTML = checkData.documents
+                .filter(d => d.has_processing)
+                .map(d => `
+                    <div class="list-group-item">
+                        <strong>${d.title}</strong>
+                        <br>
+                        <small class="text-muted">
+                            Existing: ${d.processing_types.join(', ')}
+                        </small>
+                    </div>
+                `)
+                .join('');
+
+            // Setup buttons
+            const proceedBtn = document.getElementById('proceed-anyway-btn');
+            const cancelHandler = () => resolve(false);
+            const proceedHandler = () => {
+                const bsModal = bootstrap.Modal.getInstance(modal);
+                if (bsModal) bsModal.hide();
+                resolve(true);
+            };
+
+            // Remove old listeners by cloning buttons
+            const newProceedBtn = proceedBtn.cloneNode(true);
+            proceedBtn.parentNode.replaceChild(newProceedBtn, proceedBtn);
+
+            newProceedBtn.addEventListener('click', proceedHandler);
+
+            // Handle modal close/cancel
+            modal.addEventListener('hidden.bs.modal', cancelHandler, { once: true });
+
+            // Show modal
+            const bsModal = new bootstrap.Modal(modal);
+            bsModal.show();
+        });
     }
 
     /**

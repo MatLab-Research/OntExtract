@@ -65,10 +65,15 @@
     {% else %}
     <!-- Action Buttons for Authenticated Users -->
     <div class="row mb-4">
-        <div class="col">
+        <div class="col d-flex justify-content-between align-items-center">
             <a href="{{ url_for('text_input.upload_form') }}" class="btn btn-primary">
                 <i class="fas fa-upload"></i> Upload Document
             </a>
+            {% if current_user.is_admin %}
+            <button type="button" class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#deleteAllModal">
+                <i class="fas fa-trash-alt"></i> Delete All Documents
+            </button>
+            {% endif %}
         </div>
     </div>
     {% endif %}
@@ -243,4 +248,111 @@
         </div>
     </div>
 </div>
+
+<!-- Delete All Confirmation Modal -->
+<div class="modal fade" id="deleteAllModal" tabindex="-1" aria-labelledby="deleteAllModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title" id="deleteAllModalLabel">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    Delete All Documents
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p class="mb-3"><strong>This action cannot be undone!</strong></p>
+                <p>You are about to delete:</p>
+                <ul>
+                    <li>All documents and their versions</li>
+                    <li>All associated files</li>
+                    <li>All processing results</li>
+                    <li>All provenance records</li>
+                    <li>All experiment-document relationships</li>
+                </ul>
+                <p class="text-danger mb-3">
+                    <i class="fas fa-exclamation-circle me-1"></i>
+                    <strong>Warning:</strong> This will affect all experiments!
+                </p>
+                <div class="form-group">
+                    <label for="confirmText" class="form-label">Type <code>DELETE ALL</code> to confirm:</label>
+                    <input type="text" class="form-control" id="confirmText" placeholder="DELETE ALL">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-danger" id="confirmDeleteAll" disabled>
+                    <i class="fas fa-trash-alt me-1"></i> Delete Everything
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const confirmText = document.getElementById('confirmText');
+    const confirmButton = document.getElementById('confirmDeleteAll');
+
+    // Enable button only when correct text is entered
+    if (confirmText && confirmButton) {
+        confirmText.addEventListener('input', function() {
+            confirmButton.disabled = this.value !== 'DELETE ALL';
+        });
+
+        // Reset on modal close
+        const modal = document.getElementById('deleteAllModal');
+        if (modal) {
+            modal.addEventListener('hidden.bs.modal', function() {
+                confirmText.value = '';
+                confirmButton.disabled = true;
+            });
+        }
+
+        // Handle delete action
+        confirmButton.addEventListener('click', function() {
+            confirmButton.disabled = true;
+            confirmButton.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> Deleting...';
+
+            fetch('{{ url_for("text_input.delete_all_documents") }}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Close modal and reload page
+                    const bsModal = bootstrap.Modal.getInstance(modal);
+                    if (bsModal) bsModal.hide();
+
+                    // Show success message
+                    const alertDiv = document.createElement('div');
+                    alertDiv.className = 'alert alert-success alert-dismissible fade show';
+                    alertDiv.innerHTML = `
+                        <strong>Success!</strong> ${data.message}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    `;
+                    document.querySelector('.container').insertBefore(alertDiv, document.querySelector('.container').firstChild);
+
+                    // Reload page after short delay
+                    setTimeout(() => window.location.reload(), 1500);
+                } else {
+                    alert('Error: ' + (data.error || 'Unknown error occurred'));
+                    confirmButton.disabled = false;
+                    confirmButton.innerHTML = '<i class="fas fa-trash-alt me-1"></i> Delete Everything';
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('An error occurred while deleting documents');
+                confirmButton.disabled = false;
+                confirmButton.innerHTML = '<i class="fas fa-trash-alt me-1"></i> Delete Everything';
+            });
+        });
+    }
+});
+</script>
 {% endblock %}

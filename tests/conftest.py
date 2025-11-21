@@ -52,19 +52,33 @@ def db_session(app):
     """
     Provide a clean database session for each test.
     Automatically rolls back changes after each test.
+
+    This fixture creates a nested transaction that gets rolled back
+    after each test, ensuring complete isolation.
     """
     with app.app_context():
-        # Begin a transaction
+        # Create a connection and begin a transaction
         connection = db.engine.connect()
         transaction = connection.begin()
 
-        # Bind session to this connection
-        session = db.session
+        # Create a scoped session bound to this connection
+        from sqlalchemy.orm import sessionmaker, scoped_session
+        session_factory = sessionmaker(bind=connection)
+        Session = scoped_session(session_factory)
 
-        yield session
+        # Store the original session
+        original_session = db.session
 
-        # Rollback transaction and close
-        session.remove()
+        # Replace db.session with our transaction-bound scoped session
+        db.session = Session
+
+        yield Session
+
+        # Restore the original session
+        db.session = original_session
+
+        # Close the session and rollback the transaction
+        Session.remove()
         transaction.rollback()
         connection.close()
 
@@ -150,6 +164,7 @@ def sample_document(db_session, test_user):
         title='Test Document',
         content='This is test content for the document. ' * 20,
         document_type='document',
+        content_type='text/plain',
         status='completed',
         user_id=test_user.id,
         word_count=100
@@ -205,6 +220,7 @@ def sample_documents(db_session, test_user):
             title=f'Test Document {i}',
             content=content.strip(),
             document_type='document',
+            content_type='text/plain',
             status='completed',
             user_id=test_user.id,
             word_count=len(content.split())

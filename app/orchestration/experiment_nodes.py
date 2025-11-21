@@ -13,6 +13,7 @@ from typing import Dict, Any, List
 from datetime import datetime
 import asyncio
 import os
+import logging
 
 from langchain_anthropic import ChatAnthropic
 from langchain_core.prompts import ChatPromptTemplate
@@ -20,6 +21,10 @@ from langchain_core.output_parsers import JsonOutputParser
 
 from .experiment_state import ExperimentOrchestrationState
 from ..services.extraction_tools import get_tool_registry
+from .retry_utils import call_llm_with_retry, LLMTimeoutError, LLMRetryExhaustedError
+from .config import config
+
+logger = logging.getLogger(__name__)
 
 
 # Lazy initialization of Claude client
@@ -97,13 +102,28 @@ What is the goal of this experiment? What insights should we aim to extract?""")
     ])
 
     chain = prompt | claude_client
-    response = await chain.ainvoke({})
 
-    return {
-        "experiment_goal": response.content,
-        "term_context": focus_term,
-        "current_stage": "recommending"
-    }
+    # Execute LLM call with timeout and retry
+    try:
+        response = await call_llm_with_retry(
+            coro_factory=lambda: chain.ainvoke({}),
+            operation_name="Analyze Experiment (Stage 1)"
+        )
+
+        return {
+            "experiment_goal": response.content,
+            "term_context": focus_term,
+            "current_stage": "recommending"
+        }
+
+    except (LLMTimeoutError, LLMRetryExhaustedError) as e:
+        logger.error(f"Failed to analyze experiment: {e}")
+        return {
+            "experiment_goal": None,
+            "term_context": focus_term,
+            "current_stage": "failed",
+            "error_message": f"LLM analysis failed: {str(e)}"
+        }
 
 
 async def recommend_strategy_node(state: ExperimentOrchestrationState) -> Dict[str, Any]:
@@ -185,19 +205,35 @@ Recommend a processing strategy for each document that serves the experiment goa
     ])
 
     chain = prompt | claude_client | JsonOutputParser()
-    response = await chain.ainvoke({})
 
-    # Determine next stage based on user preferences
-    review_choices = state['user_preferences'].get('review_choices', False)
-    next_stage = "reviewing" if review_choices else "executing"
+    # Execute LLM call with timeout and retry
+    try:
+        response = await call_llm_with_retry(
+            coro_factory=lambda: chain.ainvoke({}),
+            operation_name="Recommend Strategy (Stage 2)"
+        )
 
-    return {
-        "recommended_strategy": response['strategy'],
-        "strategy_reasoning": response['reasoning'],
-        "confidence": response['confidence'],
-        "current_stage": next_stage,
-        "strategy_approved": not review_choices  # Auto-approve if no review
-    }
+        # Determine next stage based on user preferences
+        review_choices = state['user_preferences'].get('review_choices', False)
+        next_stage = "reviewing" if review_choices else "executing"
+
+        return {
+            "recommended_strategy": response['strategy'],
+            "strategy_reasoning": response['reasoning'],
+            "confidence": response['confidence'],
+            "current_stage": next_stage,
+            "strategy_approved": not review_choices  # Auto-approve if no review
+        }
+
+    except (LLMTimeoutError, LLMRetryExhaustedError) as e:
+        logger.error(f"Failed to recommend strategy: {e}")
+        return {
+            "recommended_strategy": None,
+            "strategy_reasoning": None,
+            "confidence": 0.0,
+            "current_stage": "failed",
+            "error_message": f"Strategy recommendation failed: {str(e)}"
+        }
 
 
 async def human_review_node(state: ExperimentOrchestrationState) -> Dict[str, Any]:
@@ -376,14 +412,29 @@ Analyze the semantic evolution of "{focus_term}" across these documents.""")
         ])
 
         chain = prompt | claude_client
-        response = await chain.ainvoke({})
 
-        return {
-            "cross_document_insights": response.content,
-            "term_evolution_analysis": response.content,
-            "comparative_summary": f"Semantic evolution analysis of '{focus_term}' across {len(documents)} documents",
-            "current_stage": "completed"
-        }
+        # Execute LLM call with timeout and retry
+        try:
+            response = await call_llm_with_retry(
+                coro_factory=lambda: chain.ainvoke({}),
+                operation_name="Synthesize Experiment - Term Evolution (Stage 5)"
+            )
+
+            return {
+                "cross_document_insights": response.content,
+                "term_evolution_analysis": response.content,
+                "comparative_summary": f"Semantic evolution analysis of '{focus_term}' across {len(documents)} documents",
+                "current_stage": "completed"
+            }
+
+        except (LLMTimeoutError, LLMRetryExhaustedError) as e:
+            logger.error(f"Failed to synthesize term evolution: {e}")
+            return {
+                "cross_document_insights": f"Synthesis failed: {str(e)}",
+                "term_evolution_analysis": None,
+                "current_stage": "failed",
+                "error_message": f"Synthesis failed: {str(e)}"
+            }
 
     else:
         # General cross-document synthesis
@@ -407,10 +458,24 @@ Synthesize insights across these documents.""")
         ])
 
         chain = prompt | claude_client
-        response = await chain.ainvoke({})
 
-        return {
-            "cross_document_insights": response.content,
-            "comparative_summary": f"Cross-document analysis across {len(documents)} documents",
-            "current_stage": "completed"
-        }
+        # Execute LLM call with timeout and retry
+        try:
+            response = await call_llm_with_retry(
+                coro_factory=lambda: chain.ainvoke({}),
+                operation_name="Synthesize Experiment - General (Stage 5)"
+            )
+
+            return {
+                "cross_document_insights": response.content,
+                "comparative_summary": f"Cross-document analysis across {len(documents)} documents",
+                "current_stage": "completed"
+            }
+
+        except (LLMTimeoutError, LLMRetryExhaustedError) as e:
+            logger.error(f"Failed to synthesize insights: {e}")
+            return {
+                "cross_document_insights": f"Synthesis failed: {str(e)}",
+                "current_stage": "failed",
+                "error_message": f"Synthesis failed: {str(e)}"
+            }
