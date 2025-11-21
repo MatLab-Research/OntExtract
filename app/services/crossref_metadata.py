@@ -50,7 +50,7 @@ class CrossRefMetadataExtractor:
             clean_doi = doi.replace('https://doi.org/', '').replace('http://dx.doi.org/', '')
 
             url = f"{self.BASE_URL}/{clean_doi}"
-            response = self.session.get(url, timeout=10)
+            response = self.session.get(url, timeout=5)
 
             if response.status_code != 200:
                 logger.warning(f"CrossRef API returned status {response.status_code} for DOI: {doi}")
@@ -107,7 +107,7 @@ class CrossRefMetadataExtractor:
                 params['query.author'] = first_author
                 logger.info(f"Searching CrossRef with title and first author: {first_author}")
 
-            response = self.session.get(self.BASE_URL, params=params, timeout=10)
+            response = self.session.get(self.BASE_URL, params=params, timeout=5)
 
             if response.status_code != 200:
                 logger.warning(f"CrossRef API returned status {response.status_code} for metadata search: {title}")
@@ -207,7 +207,7 @@ class CrossRefMetadataExtractor:
                 'rows': limit
             }
 
-            response = self.session.get(self.BASE_URL, params=params, timeout=10)
+            response = self.session.get(self.BASE_URL, params=params, timeout=5)
 
             if response.status_code != 200:
                 logger.warning(f"CrossRef API returned status {response.status_code} for title search: {title}")

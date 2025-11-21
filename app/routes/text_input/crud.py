@@ -10,6 +10,7 @@ Routes:
 - POST /input/document/<id>/delete              - Delete document (by ID)
 - POST /input/document/<uuid>/delete            - Delete document (by UUID)
 - POST /input/document/<id>/delete-all-versions - Delete all versions
+- POST /input/documents/delete-all              - Delete all documents (admin only)
 """
 
 from flask import render_template, request, flash, redirect, url_for, jsonify, current_app
@@ -374,3 +375,91 @@ def delete_all_versions(base_document_id):
             return jsonify({'success': False, 'error': str(e)}), 500
         flash('An error occurred while deleting the document family', 'error')
         return redirect(url_for('text_input.document_list'))
+
+
+@text_input_bp.route('/documents/delete-all', methods=['POST'])
+@write_login_required
+def delete_all_documents():
+    """Delete ALL documents - Admin only"""
+    # Check if user is admin
+    if not current_user.is_admin:
+        current_app.logger.warning(f"Non-admin user {current_user.id} attempted to delete all documents")
+        return jsonify({'success': False, 'error': 'Admin access required'}), 403
+
+    try:
+        from app.models.provenance import ProvenanceEntity
+        from app.models.experiment_document import ExperimentDocument
+        from app.models.experiment_processing import ExperimentDocumentProcessing, ProcessingArtifact
+
+        # Get count for logging
+        total_documents = Document.query.count()
+
+        current_app.logger.warning(f"Admin {current_user.id} initiating deletion of ALL {total_documents} documents")
+
+        # Delete related records first (in order of dependencies)
+
+        # 1. Delete provenance entities
+        provenance_count = ProvenanceEntity.query.filter(ProvenanceEntity.document_id.isnot(None)).count()
+        ProvenanceEntity.query.filter(ProvenanceEntity.document_id.isnot(None)).delete(synchronize_session=False)
+        current_app.logger.info(f"Deleted {provenance_count} provenance entities")
+
+        # 2. Delete processing artifacts
+        artifact_count = ProcessingArtifact.query.count()
+        ProcessingArtifact.query.delete(synchronize_session=False)
+        current_app.logger.info(f"Deleted {artifact_count} processing artifacts")
+
+        # 3. Delete experiment document processing operations
+        processing_count = ExperimentDocumentProcessing.query.count()
+        ExperimentDocumentProcessing.query.delete(synchronize_session=False)
+        current_app.logger.info(f"Deleted {processing_count} experiment document processing operations")
+
+        # 4. Delete experiment-document relationships
+        exp_doc_count = ExperimentDocument.query.count()
+        ExperimentDocument.query.delete(synchronize_session=False)
+        current_app.logger.info(f"Deleted {exp_doc_count} experiment-document relationships")
+
+        # 5. Delete processing jobs
+        job_count = ProcessingJob.query.count()
+        ProcessingJob.query.delete(synchronize_session=False)
+        current_app.logger.info(f"Deleted {job_count} processing jobs")
+
+        # 6. Delete text segments
+        result = db.session.execute(text("DELETE FROM text_segments"))
+        current_app.logger.info(f"Deleted {result.rowcount} text segments")
+
+        # 7. Delete document files from disk
+        documents = Document.query.all()
+        deleted_files = 0
+        for doc in documents:
+            try:
+                doc.delete_file()
+                deleted_files += 1
+            except Exception as e:
+                current_app.logger.error(f"Error deleting file for document {doc.id}: {str(e)}")
+
+        # 8. Finally, delete all documents
+        Document.query.delete(synchronize_session=False)
+
+        db.session.commit()
+
+        current_app.logger.warning(f"Successfully deleted ALL documents: {total_documents} documents, {deleted_files} files, {provenance_count} provenance records")
+
+        return jsonify({
+            'success': True,
+            'message': f'Successfully deleted {total_documents} documents and all related data',
+            'details': {
+                'documents': total_documents,
+                'files': deleted_files,
+                'provenance_records': provenance_count,
+                'processing_artifacts': artifact_count,
+                'experiment_relationships': exp_doc_count
+            }
+        })
+
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"Error during delete all documents: {str(e)}", exc_info=True)
+        return jsonify({
+            'success': False,
+            'error': f'An error occurred while deleting documents: {str(e)}'
+        }), 500

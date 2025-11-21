@@ -475,6 +475,28 @@
                 <div class="text-center">
                     <p id="llm-status-message" class="mb-0">Starting analysis...</p>
                 </div>
+
+                <!-- Error Container (Hidden by default) -->
+                <div id="llm-error-container" class="mt-4" style="display: none;">
+                    <div class="alert alert-danger mb-3">
+                        <h6 class="alert-heading">
+                            <i class="fas fa-exclamation-triangle me-2"></i>
+                            <span id="error-title">Orchestration Failed</span>
+                        </h6>
+                        <p id="error-message" class="mb-2"></p>
+                        <hr>
+                        <div id="error-details" class="small text-muted"></div>
+                    </div>
+
+                    <div class="d-flex justify-content-end gap-2">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                            Close
+                        </button>
+                        <button type="button" id="retry-orchestration-btn" class="btn btn-primary">
+                            <i class="fas fa-redo me-2"></i>Retry
+                        </button>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -535,6 +557,39 @@
                 </button>
                 <button type="button" id="approve-strategy-btn" class="btn btn-success">
                     <i class="fas fa-check me-1"></i>Approve & Continue
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Partial Processing Warning Modal -->
+<div class="modal fade" id="partial-processing-modal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header bg-warning">
+                <h5 class="modal-title">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    Existing Processing Detected
+                </h5>
+            </div>
+            <div class="modal-body">
+                <p id="partial-processing-message"></p>
+
+                <div class="list-group" id="processed-docs-list"></div>
+
+                <p class="mt-3 mb-0 text-muted small">
+                    <strong>Note:</strong> LLM orchestration may recommend re-processing
+                    these documents with different tools. Existing results will not be deleted.
+                </p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    Cancel
+                </button>
+                <button type="button" id="proceed-anyway-btn" class="btn btn-warning">
+                    <i class="fas fa-arrow-right me-2"></i>
+                    Proceed Anyway
                 </button>
             </div>
         </div>

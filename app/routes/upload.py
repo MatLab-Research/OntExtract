@@ -431,6 +431,77 @@ def extract_metadata():
                         'previous_source': 'user'
                     }
 
+                # Additional metadata fields (shown when auto-extraction is disabled)
+                journal = request.form.get('journal', '').strip()
+                if journal:
+                    user_metadata['journal'] = journal
+                    user_provenance['journal'] = {
+                        'source': 'user',
+                        'confidence': 1.0,
+                        'timestamp': datetime.utcnow().isoformat(),
+                        'raw_value': journal
+                    }
+
+                publisher = request.form.get('publisher', '').strip()
+                if publisher:
+                    user_metadata['publisher'] = publisher
+                    user_provenance['publisher'] = {
+                        'source': 'user',
+                        'confidence': 1.0,
+                        'timestamp': datetime.utcnow().isoformat(),
+                        'raw_value': publisher
+                    }
+
+                doi = request.form.get('doi', '').strip()
+                if doi:
+                    user_metadata['doi'] = doi
+                    user_provenance['doi'] = {
+                        'source': 'user',
+                        'confidence': 1.0,
+                        'timestamp': datetime.utcnow().isoformat(),
+                        'raw_value': doi
+                    }
+
+                url = request.form.get('url', '').strip()
+                if url:
+                    user_metadata['url'] = url
+                    user_provenance['url'] = {
+                        'source': 'user',
+                        'confidence': 1.0,
+                        'timestamp': datetime.utcnow().isoformat(),
+                        'raw_value': url
+                    }
+
+                abstract = request.form.get('abstract', '').strip()
+                if abstract:
+                    user_metadata['abstract'] = abstract
+                    user_provenance['abstract'] = {
+                        'source': 'user',
+                        'confidence': 1.0,
+                        'timestamp': datetime.utcnow().isoformat(),
+                        'raw_value': abstract
+                    }
+
+                doc_type = request.form.get('type', '').strip()
+                if doc_type:
+                    user_metadata['type'] = doc_type
+                    user_provenance['type'] = {
+                        'source': 'user',
+                        'confidence': 1.0,
+                        'timestamp': datetime.utcnow().isoformat(),
+                        'raw_value': doc_type
+                    }
+
+                isbn = request.form.get('isbn', '').strip()
+                if isbn:
+                    user_metadata['isbn'] = isbn
+                    user_provenance['isbn'] = {
+                        'source': 'user',
+                        'confidence': 1.0,
+                        'timestamp': datetime.utcnow().isoformat(),
+                        'raw_value': isbn
+                    }
+
                 # If we have PDF-extracted metadata but no CrossRef, use it with lower confidence
                 pdf_provenance = {}
                 if pdf_extracted_title and not crossref_metadata:
