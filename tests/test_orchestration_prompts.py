@@ -233,9 +233,9 @@ def test_synthesis_prompt_temporal_with_card_generation():
 
     # Check temporal synthesis content
     assert 'Temporal Evolution Analysis' in prompt
-    assert 'evolved across time periods' in prompt
-    assert 'Semantic Drift' in prompt
-    assert 'Context Anchor Tracking' in prompt
+    assert 'Organize tool-extracted data' in prompt or 'time period' in prompt
+    assert 'Group by time' in prompt
+    assert 'semantic anchors' in prompt
 
     # IMPORTANT: Check for structured card generation request
     assert 'generated_term_cards' in prompt

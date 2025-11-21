@@ -16,7 +16,7 @@ import os
 import logging
 
 from langchain_anthropic import ChatAnthropic
-from langchain_core.prompts import ChatPromptTemplate
+from langchain_core.messages import HumanMessage
 from langchain_core.output_parsers import JsonOutputParser
 
 from .experiment_state import ExperimentOrchestrationState
@@ -87,18 +87,14 @@ async def analyze_experiment_node(state: ExperimentOrchestrationState) -> Dict[s
         document_metadata=document_metadata
     )
 
-    prompt = ChatPromptTemplate.from_messages([
-        ("user", prompt_text)
-    ])
-
     # Use JSON output parser for structured response
     json_parser = JsonOutputParser()
-    chain = prompt | claude_client | json_parser
+    chain = claude_client | json_parser
 
     # Execute LLM call with timeout and retry
     try:
         response = await call_llm_with_retry(
-            coro_factory=lambda: chain.ainvoke({}),
+            coro_factory=lambda: chain.ainvoke([HumanMessage(content=prompt_text)]),
             operation_name="Analyze Experiment (Stage 1)"
         )
 
@@ -176,16 +172,12 @@ async def recommend_strategy_node(state: ExperimentOrchestrationState) -> Dict[s
         tool_descriptions=tool_descriptions
     )
 
-    prompt = ChatPromptTemplate.from_messages([
-        ("user", prompt_text)
-    ])
-
-    chain = prompt | claude_client | JsonOutputParser()
+    chain = claude_client | JsonOutputParser()
 
     # Execute LLM call with timeout and retry
     try:
         response = await call_llm_with_retry(
-            coro_factory=lambda: chain.ainvoke({}),
+            coro_factory=lambda: chain.ainvoke([HumanMessage(content=prompt_text)]),
             operation_name="Recommend Strategy (Stage 2)"
         )
 
@@ -348,17 +340,13 @@ async def synthesize_experiment_node(state: ExperimentOrchestrationState) -> Dic
         document_metadata=document_metadata
     )
 
-    prompt = ChatPromptTemplate.from_messages([
-        ("user", prompt_text)
-    ])
-
     # Use JSON parser to get structured response
-    chain = prompt | claude_client | JsonOutputParser()
+    chain = claude_client | JsonOutputParser()
 
     # Execute LLM call with timeout and retry
     try:
         response = await call_llm_with_retry(
-            coro_factory=lambda: chain.ainvoke({}),
+            coro_factory=lambda: chain.ainvoke([HumanMessage(content=prompt_text)]),
             operation_name="Synthesize Experiment (Stage 5)"
         )
 
