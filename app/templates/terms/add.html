@@ -2,17 +2,58 @@
 
 {% block title %}Add New Term - OntExtract{% endblock %}
 
+{% block extra_css %}
+<style>
+/* Custom tooltip styling for better readability */
+.tooltip .tooltip-inner {
+    background-color: #333;
+    color: #f0f0f0;
+    font-size: 0.9rem;
+    padding: 8px 12px;
+    max-width: 250px;
+}
+
+.tooltip .tooltip-arrow::before {
+    border-top-color: #333;
+}
+
+/* Lighter icon for thesaurus button */
+#thesaurus-lookup-btn .fas {
+    color: #9ca3af;
+}
+
+#thesaurus-lookup-btn:hover .fas {
+    color: #6b7280;
+}
+
+/* Lighter icon in thesaurus modal header */
+#thesaurusModal .modal-title .fas {
+    color: #9ca3af;
+}
+
+/* Lighter icon for Merriam-Webster Thesaurus service card */
+#mw-thes-service-btn + .btn-outline-secondary {
+    color: #9ca3af;
+}
+
+/* Target the parent div to change the icon color */
+.card-body .fa-list-alt.text-secondary {
+    color: #9ca3af !important;
+}
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="container">
     <div class="row">
         <div class="col-lg-8 mx-auto">
             <div class="card">
                 <div class="card-header">
-                    <h3 class="mb-0">
+                    <h3 class="mb-0" id="page-header-title">
                         <i class="fas fa-plus-circle me-2"></i>
                         Add New Term
                     </h3>
-                    <p class="text-muted mb-0">Create a new anchor term for semantic change analysis</p>
+                    <p class="text-muted mb-0" id="page-header-subtitle">Create a new anchor term for semantic change analysis</p>
                 </div>
                 <div class="card-body">
                     <form method="POST" action="{{ url_for('terms.add_term') }}">
@@ -232,7 +273,15 @@
                         <!-- Context Anchors -->
                         <div class="mb-3">
                             {{ form.context_anchor.label(class="form-label") }}
-                            {{ form.context_anchor(class="form-control" + (" is-invalid" if form.context_anchor.errors else "")) }}
+                            <div class="input-group">
+                                {{ form.context_anchor(class="form-control" + (" is-invalid" if form.context_anchor.errors else "")) }}
+                                <button class="btn btn-outline-secondary" type="button" id="clear-context-anchors-btn" data-bs-toggle="tooltip" data-bs-placement="top" title="Clear context anchors">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                                <button class="btn btn-outline-secondary" type="button" id="thesaurus-lookup-btn" data-bs-toggle="tooltip" data-bs-placement="top" title="Find synonyms and related terms">
+                                    <i class="fas fa-list-alt"></i> Thesaurus
+                                </button>
+                            </div>
                             {% if form.context_anchor.errors %}
                                 <div class="invalid-feedback">
                                     {% for error in form.context_anchor.errors %}
@@ -241,6 +290,14 @@
                                 </div>
                             {% endif %}
                             <div class="form-text">Related terms that help anchor this meaning (comma-separated)</div>
+
+                            <!-- Context Anchor Provenance (auto-updated) -->
+                            <div id="context-anchor-provenance" class="mt-2 p-2 bg-light border rounded" style="display: none;">
+                                <small class="text-muted">
+                                    <strong>Provenance:</strong>
+                                    <span id="provenance-text"></span>
+                                </small>
+                            </div>
                         </div>
 
                         <!-- Corpus Source -->
@@ -298,10 +355,30 @@
                                 
                                 <!-- Predefined domain suggestions -->
                                 {% set predefined_domains = [
-                                    'Philosophy', 'Science', 'Politics', 'Engineering Ethics',
-                                    'Medical Ethics', 'Business Ethics', 'Environmental Science',
-                                    'Computer Science', 'Linguistics', 'Psychology', 'Sociology',
-                                    'History', 'Law', 'Economics', 'Anthropology'
+                                    'Anthropology',
+                                    'Artificial Intelligence',
+                                    'Bioethics',
+                                    'Biology',
+                                    'Business Ethics',
+                                    'Chemistry',
+                                    'Cognitive Science',
+                                    'Computer Science',
+                                    'Economics',
+                                    'Engineering',
+                                    'Engineering Ethics',
+                                    'Environmental Science',
+                                    'History',
+                                    'Law',
+                                    'Linguistics',
+                                    'Literature',
+                                    'Mathematics',
+                                    'Medical Ethics',
+                                    'Medicine',
+                                    'Philosophy',
+                                    'Physics',
+                                    'Political Science',
+                                    'Psychology',
+                                    'Sociology'
                                 ] %}
                                 {% for domain in predefined_domains %}
                                     {% if domain not in existing_domains %}
@@ -421,9 +498,272 @@
     </div>
 </div>
 
+<!-- Thesaurus Lookup Modal -->
+<div class="modal fade" id="thesaurusModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-list-alt me-2"></i>
+                    Thesaurus: <span id="thesaurus-term-name"></span>
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="thesaurus-modal-body">
+                <div class="alert alert-info">
+                    <i class="fas fa-spinner fa-spin me-2"></i>
+                    Loading thesaurus results...
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="add-thesaurus-terms-btn" disabled>
+                    <i class="fas fa-plus me-1"></i>Add Selected Terms
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- Enhanced Term Entry Interface -->
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    // Initialize Bootstrap tooltips
+    const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+    tooltipTriggerList.map(function (tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl);
+    });
+
+    // Helper function to update page header with selected term
+    window.updatePageHeader = function(term, source) {
+        const headerTitle = document.getElementById('page-header-title');
+        const headerSubtitle = document.getElementById('page-header-subtitle');
+
+        if (headerTitle && term) {
+            headerTitle.innerHTML = `<i class="fas fa-book me-2"></i>${term}`;
+        }
+
+        if (headerSubtitle && source) {
+            headerSubtitle.textContent = `Selected from ${source}`;
+        }
+    };
+
+    // Helper function to update context anchor provenance display
+    function updateContextAnchorProvenance(source, terms) {
+        const provenanceDiv = document.getElementById('context-anchor-provenance');
+        const provenanceText = document.getElementById('provenance-text');
+
+        if (!provenanceDiv || !provenanceText) return;
+
+        if (!source || !terms || terms.length === 0) {
+            // Hide if no provenance
+            provenanceDiv.style.display = 'none';
+            return;
+        }
+
+        // Format the provenance message
+        const termsList = Array.isArray(terms) ? terms.join(', ') : terms;
+        provenanceText.textContent = `Auto-populated from ${source}: ${termsList}`;
+        provenanceDiv.style.display = 'block';
+    }
+
+    // Common English stop words to filter out from context anchors
+    // Based on NLTK's English stop words list
+    const STOP_WORDS = new Set([
+        'a', 'about', 'above', 'after', 'again', 'against', 'all', 'am', 'an', 'and', 'any', 'are',
+        'as', 'at', 'be', 'because', 'been', 'before', 'being', 'below', 'between', 'both', 'but',
+        'by', 'can', 'did', 'do', 'does', 'doing', 'don', 'down', 'during', 'each', 'few', 'for',
+        'from', 'further', 'had', 'has', 'have', 'having', 'he', 'her', 'here', 'hers', 'herself',
+        'him', 'himself', 'his', 'how', 'i', 'if', 'in', 'into', 'is', 'it', 'its', 'itself', 'just',
+        'me', 'more', 'most', 'my', 'myself', 'no', 'nor', 'not', 'now', 'of', 'off', 'on', 'once',
+        'only', 'or', 'other', 'our', 'ours', 'ourselves', 'out', 'over', 'own', 's', 'same', 'she',
+        'should', 'so', 'some', 'such', 't', 'than', 'that', 'the', 'their', 'theirs', 'them',
+        'themselves', 'then', 'there', 'these', 'they', 'this', 'those', 'through', 'to', 'too',
+        'under', 'until', 'up', 'very', 'was', 'we', 'were', 'what', 'when', 'where', 'which',
+        'while', 'who', 'whom', 'why', 'will', 'with', 'would', 'you', 'your', 'yours', 'yourself',
+        'yourselves'
+    ]);
+
+    // Helper function to filter stop words and clean extracted terms
+    function filterContextTerms(words, mainTerm) {
+        if (!words || words.length === 0) return [];
+
+        return words
+            .map(w => w.toLowerCase().trim())
+            .filter(w =>
+                w.length >= 4 &&  // At least 4 characters
+                !STOP_WORDS.has(w) &&  // Not a stop word
+                w !== mainTerm.toLowerCase()  // Not the main term itself
+            );
+    }
+
+    // Thesaurus lookup functionality
+    let thesaurusModal;
+    let selectedThesaurusTerms = [];
+
+    document.getElementById('thesaurus-lookup-btn').addEventListener('click', async function() {
+        const termField = document.getElementById('term_text');
+        const term = termField ? termField.value.trim() : '';
+
+        if (!term) {
+            alert('Please enter a term first before looking up synonyms.');
+            termField.focus();
+            return;
+        }
+
+        // Initialize modal if not already done
+        if (!thesaurusModal) {
+            thesaurusModal = new bootstrap.Modal(document.getElementById('thesaurusModal'));
+        }
+
+        // Update modal title and show it
+        document.getElementById('thesaurus-term-name').textContent = term;
+        document.getElementById('thesaurus-modal-body').innerHTML = `
+            <div class="alert alert-info">
+                <i class="fas fa-spinner fa-spin me-2"></i>
+                Loading thesaurus results for "${term}"...
+            </div>
+        `;
+        document.getElementById('add-thesaurus-terms-btn').disabled = true;
+        selectedThesaurusTerms = [];
+        thesaurusModal.show();
+
+        try {
+            const response = await fetch(`/api/merriam-webster/thesaurus/${encodeURIComponent(term)}`);
+            const data = await response.json();
+
+            if (data.success && data.results && data.results.length > 0) {
+                displayThesaurusResults(data.results, term);
+            } else {
+                document.getElementById('thesaurus-modal-body').innerHTML = `
+                    <div class="alert alert-warning">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        No thesaurus results found for "${term}".
+                        <br><small>Try a different spelling or related term.</small>
+                    </div>
+                `;
+            }
+        } catch (error) {
+            console.error('Thesaurus lookup error:', error);
+            document.getElementById('thesaurus-modal-body').innerHTML = `
+                <div class="alert alert-danger">
+                    <i class="fas fa-exclamation-circle me-2"></i>
+                    <strong>Error loading thesaurus:</strong> ${error.message}
+                </div>
+            `;
+        }
+    });
+
+    function displayThesaurusResults(results, term) {
+        let html = `
+            <div class="alert alert-success mb-3">
+                <i class="fas fa-check-circle me-2"></i>
+                <strong>Found ${results.length} result${results.length > 1 ? 's' : ''}</strong>
+                <br><small>Select terms to add as context anchors</small>
+            </div>
+        `;
+
+        results.forEach((result, idx) => {
+            const synonyms = result.synonyms ? result.synonyms.flat() : [];
+            const antonyms = result.antonyms ? result.antonyms.flat() : [];
+
+            if (synonyms.length > 0 || antonyms.length > 0) {
+                html += `
+                    <div class="card mb-3">
+                        <div class="card-body">
+                            <h6 class="card-title">
+                                ${result.word || term}
+                                ${result.functional_label ? `<span class="badge bg-secondary ms-2">${result.functional_label}</span>` : ''}
+                            </h6>
+                `;
+
+                if (synonyms.length > 0) {
+                    html += `<div class="mb-2"><strong>Synonyms:</strong></div>`;
+                    synonyms.slice(0, 15).forEach(syn => {
+                        html += `
+                            <div class="form-check form-check-inline">
+                                <input class="form-check-input thesaurus-term-checkbox" type="checkbox"
+                                       value="${syn}" id="syn-${idx}-${syn}">
+                                <label class="form-check-label" for="syn-${idx}-${syn}">${syn}</label>
+                            </div>
+                        `;
+                    });
+                }
+
+                if (antonyms.length > 0) {
+                    html += `<div class="mt-3 mb-2"><strong>Antonyms:</strong></div>`;
+                    antonyms.slice(0, 10).forEach(ant => {
+                        html += `
+                            <div class="form-check form-check-inline">
+                                <input class="form-check-input thesaurus-term-checkbox" type="checkbox"
+                                       value="${ant}" id="ant-${idx}-${ant}">
+                                <label class="form-check-label" for="ant-${idx}-${ant}">${ant}</label>
+                            </div>
+                        `;
+                    });
+                }
+
+                html += `</div></div>`;
+            }
+        });
+
+        document.getElementById('thesaurus-modal-body').innerHTML = html;
+
+        // Add event listeners to checkboxes
+        document.querySelectorAll('.thesaurus-term-checkbox').forEach(cb => {
+            cb.addEventListener('change', updateThesaurusSelection);
+        });
+
+        updateThesaurusSelection();
+    }
+
+    function updateThesaurusSelection() {
+        const checked = document.querySelectorAll('.thesaurus-term-checkbox:checked');
+        selectedThesaurusTerms = Array.from(checked).map(cb => cb.value);
+        document.getElementById('add-thesaurus-terms-btn').disabled = selectedThesaurusTerms.length === 0;
+    }
+
+    document.getElementById('add-thesaurus-terms-btn').addEventListener('click', function() {
+        if (selectedThesaurusTerms.length === 0) return;
+
+        const contextAnchorField = document.getElementById('context_anchor');
+
+        if (contextAnchorField) {
+            // Get existing context anchors
+            const existingTerms = contextAnchorField.value
+                .split(',')
+                .map(t => t.trim())
+                .filter(t => t.length > 0);
+
+            // Add new terms (avoiding duplicates)
+            const newTerms = selectedThesaurusTerms.filter(t => !existingTerms.includes(t));
+            const allTerms = [...existingTerms, ...newTerms];
+
+            contextAnchorField.value = allTerms.join(', ');
+
+            // Update provenance display
+            updateContextAnchorProvenance('Merriam-Webster Thesaurus (manual selection)', selectedThesaurusTerms);
+        }
+
+        // Close modal
+        thesaurusModal.hide();
+
+        // Show success message
+        const termField = document.getElementById('term_text');
+        const term = termField ? termField.value.trim() : '';
+        alert(`Added ${selectedThesaurusTerms.length} term${selectedThesaurusTerms.length > 1 ? 's' : ''} from thesaurus to context anchors.`);
+    });
+
+    // Clear context anchors button
+    document.getElementById('clear-context-anchors-btn').addEventListener('click', function() {
+        const contextAnchorField = document.getElementById('context_anchor');
+        if (contextAnchorField) {
+            contextAnchorField.value = '';
+            // Clear provenance display
+            updateContextAnchorProvenance(null, null);
+        }
+    });
+
     // Period selection method handling (DISABLED - temporal period section commented out)
     /*
     const periodMethods = document.querySelectorAll('input[name="period-method"]');
@@ -724,12 +1064,16 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
 
+        // Update page header with selected term
+        const serviceName = service === 'dictionary' ? 'Merriam-Webster Dictionary' : 'Merriam-Webster Thesaurus';
+        updatePageHeader(term, serviceName);
+
         // Populate Term Text field with the searched term
         const termTextField = document.getElementById('term_text');
         if (termTextField) {
             termTextField.value = term;
         }
-        
+
         // Populate Meaning Description with the selected definition
         const meaningDescriptionField = document.getElementById('meaning_description');
         if (meaningDescriptionField && selectedResult) {
@@ -753,38 +1097,60 @@ document.addEventListener('DOMContentLoaded', function() {
                 meaningDescriptionField.value = meaningText;
             }
         }
-        
-        // Populate context anchor field
+
+        // Auto-populate context anchors from selected result
         const contextAnchorField = document.getElementById('context_anchor');
         if (contextAnchorField) {
-            let contextTerms = [term]; // Start with the search term
-            
+            let contextTerms = [];
+
             if (service === 'dictionary' && selectedResult.definitions) {
                 // Extract key terms from definitions for context anchoring
                 selectedResult.definitions.forEach(def => {
-                    // Simple extraction of potential anchor terms (nouns, key concepts)
-                    const words = def.toLowerCase().match(/\b[a-z]{4,}\b/g);
+                    // Extract all words from definition
+                    const words = def.toLowerCase().match(/\b[a-z]+\b/g);
                     if (words) {
-                        contextTerms = contextTerms.concat(words.slice(0, 3)); // Take first 3 meaningful words
+                        // Filter using stop words and take first few meaningful terms
+                        const filtered = filterContextTerms(words, term);
+                        contextTerms = contextTerms.concat(filtered.slice(0, 3));
                     }
                 });
             } else if (service === 'thesaurus') {
-                // Use synonyms as context anchors
+                // Use synonyms as context anchors (synonyms don't need stop word filtering)
                 if (selectedResult.synonyms && selectedResult.synonyms.length > 0) {
                     const synonymList = selectedResult.synonyms.flat();
-                    contextTerms = contextTerms.concat(synonymList.slice(0, 5));
+                    // Still filter out the term itself
+                    const filtered = synonymList.filter(s => s.toLowerCase() !== term.toLowerCase());
+                    contextTerms = contextTerms.concat(filtered.slice(0, 5));
                 }
             }
-            
-            // Remove duplicates and join
+
+            // Remove duplicates
             contextTerms = [...new Set(contextTerms)];
-            contextAnchorField.value = contextTerms.slice(0, 8).join(', ');
+
+            // Only populate if we have related terms
+            if (contextTerms.length > 0) {
+                contextAnchorField.value = contextTerms.slice(0, 8).join(', ');
+
+                // Update provenance display
+                const serviceName = service === 'dictionary' ? 'Merriam-Webster Dictionary' : 'Merriam-Webster Thesaurus';
+                updateContextAnchorProvenance(serviceName, contextTerms.slice(0, 8));
+            } else {
+                // Clear if no related terms found
+                contextAnchorField.value = '';
+                updateContextAnchorProvenance(null, null);
+            }
         }
-        
+
+        // Populate corpus source
+        const corpusSourceField = document.getElementById('corpus_source');
+        if (corpusSourceField) {
+            corpusSourceField.value = service === 'dictionary' ? 'Merriam-Webster Dictionary' : 'Merriam-Webster Thesaurus';
+        }
+
         // Populate source citation field
-        const sourceCitationField = document.getElementById('manual-source-citation');
+        const sourceCitationField = document.getElementById('source_citation');
         if (sourceCitationField && currentSearchResults.citation) {
-            sourceCitationField.value = currentSearchResults.citation;
+            sourceCitationField.value = `${currentSearchResults.citation} (retrieved via Merriam-Webster API)`;
         }
         
         // Set source type to dictionary
@@ -1007,6 +1373,9 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Function to handle selecting an OED result
     window.selectOEDResult = async function(searchTerm, entryId, headword, pos, index) {
+        // Update page header with selected term
+        updatePageHeader(headword || searchTerm, 'Oxford English Dictionary');
+
         // Populate Term Text field
         const termTextField = document.getElementById('term_text');
         if (termTextField) {
@@ -1048,35 +1417,55 @@ document.addEventListener('DOMContentLoaded', function() {
                         meaningDescriptionField.value = meaningText;
                     }
                 }
-                
-                // Populate context anchors with related terms from OED
+
+                // Auto-populate context anchors from OED data
                 const contextAnchorField = document.getElementById('context_anchor');
-                if (contextAnchorField) {
-                    let contextTerms = [headword];
-                    
-                    // Extract etymological or related terms if available
-                    if (data.etymology) {
-                        // Simple extraction of potential related terms from etymology
-                        const etymWords = data.etymology.match(/\b[a-z]{4,}\b/gi);
-                        if (etymWords) {
-                            contextTerms = contextTerms.concat(etymWords.slice(0, 3));
+                if (contextAnchorField && data) {
+                    let contextTerms = [];
+
+                    // Extract key terms from definitions (like Merriam-Webster)
+                    // Try main definition field first
+                    if (data.definition && typeof data.definition === 'string') {
+                        const words = data.definition.toLowerCase().match(/\b[a-z]+\b/g);
+                        if (words) {
+                            const filtered = filterContextTerms(words, headword);
+                            contextTerms = contextTerms.concat(filtered.slice(0, 3));
                         }
                     }
-                    
-                    // Add variants if available
-                    if (data.variants && Array.isArray(data.variants)) {
-                        contextTerms = contextTerms.concat(data.variants.slice(0, 3));
+
+                    // Also extract from extracted_senses if available
+                    if (data.extracted_senses && Array.isArray(data.extracted_senses)) {
+                        data.extracted_senses.slice(0, 2).forEach(sense => {
+                            if (sense.definition) {
+                                const words = sense.definition.toLowerCase().match(/\b[a-z]+\b/g);
+                                if (words) {
+                                    const filtered = filterContextTerms(words, headword);
+                                    contextTerms = contextTerms.concat(filtered.slice(0, 2));
+                                }
+                            }
+                        });
                     }
-                    
+
                     // Remove duplicates
                     contextTerms = [...new Set(contextTerms)];
-                    contextAnchorField.value = contextTerms.slice(0, 8).join(', ');
+
+                    // Only populate if we have related terms
+                    if (contextTerms.length > 0) {
+                        contextAnchorField.value = contextTerms.slice(0, 8).join(', ');
+
+                        // Update provenance display
+                        updateContextAnchorProvenance('Oxford English Dictionary', contextTerms.slice(0, 8));
+                    } else {
+                        // Clear if no related terms found
+                        contextAnchorField.value = '';
+                        updateContextAnchorProvenance(null, null);
+                    }
                 }
             }
         } catch (error) {
             console.warn('Could not fetch full OED entry details:', error);
         }
-        
+
         // Populate corpus source
         const corpusSourceField = document.getElementById('corpus_source');
         if (corpusSourceField) {
@@ -1086,7 +1475,7 @@ document.addEventListener('DOMContentLoaded', function() {
         // Populate source citation
         const sourceCitationField = document.getElementById('source_citation');
         if (sourceCitationField) {
-            sourceCitationField.value = `Oxford English Dictionary, s.v. "${headword}" (entry ID: ${entryId}), Oxford University Press`;
+            sourceCitationField.value = `Oxford English Dictionary, s.v. "${headword}" (entry ID: ${entryId}), Oxford University Press (retrieved via OED Researcher API)`;
         }
 
         // Auto-select "Dictionary" as source type
@@ -1288,6 +1677,9 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Function to handle selecting a WordNet result
     window.selectWordNetResult = function(searchTerm, synsetName, pos, definition, index) {
+        // Update page header with selected term
+        updatePageHeader(searchTerm, 'WordNet');
+
         // Populate Term Text field
         const termTextField = document.getElementById('term_text');
         if (termTextField) {
@@ -1299,20 +1691,20 @@ document.addEventListener('DOMContentLoaded', function() {
         if (meaningDescriptionField && definition) {
             meaningDescriptionField.value = definition;
         }
-        
-        // Populate context anchors with synonyms and related terms from the selected synset
+
+        // Auto-populate context anchors from WordNet synset
         const contextAnchorField = document.getElementById('context_anchor');
         if (contextAnchorField && window.currentWordNetResults) {
             const synsets = window.currentWordNetResults.synsets || [];
             if (synsets[index]) {
                 const synset = synsets[index];
-                let contextTerms = [searchTerm];
-                
+                let contextTerms = [];
+
                 // Add synonyms
                 if (synset.synonyms && synset.synonyms.length > 0) {
                     contextTerms = contextTerms.concat(synset.synonyms.slice(0, 5));
                 }
-                
+
                 // Add hypernyms (more general terms)
                 if (synset.hypernyms && synset.hypernyms.length > 0) {
                     synset.hypernyms.slice(0, 2).forEach(hyper => {
@@ -1321,7 +1713,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         }
                     });
                 }
-                
+
                 // Add hyponyms (more specific terms)
                 if (synset.hyponyms && synset.hyponyms.length > 0) {
                     synset.hyponyms.slice(0, 2).forEach(hypo => {
@@ -1330,19 +1722,36 @@ document.addEventListener('DOMContentLoaded', function() {
                         }
                     });
                 }
-                
-                // Remove duplicates
-                contextTerms = [...new Set(contextTerms)];
-                contextAnchorField.value = contextTerms.slice(0, 8).join(', ');
+
+                // Remove duplicates and filter out the search term itself
+                contextTerms = [...new Set(contextTerms)].filter(t => t.toLowerCase() !== searchTerm.toLowerCase());
+
+                // Only populate if we have related terms
+                if (contextTerms.length > 0) {
+                    contextAnchorField.value = contextTerms.slice(0, 8).join(', ');
+
+                    // Update provenance display
+                    updateContextAnchorProvenance('WordNet', contextTerms.slice(0, 8));
+                } else {
+                    // Clear if no related terms found
+                    contextAnchorField.value = '';
+                    updateContextAnchorProvenance(null, null);
+                }
             }
         }
-        
-        // Populate source citation
-        const sourceCitationField = document.getElementById('manual-source-citation');
-        if (sourceCitationField) {
-            sourceCitationField.value = `WordNet: A Lexical Database for English. Princeton University. Synset: ${synsetName}`;
+
+        // Populate corpus source
+        const corpusSourceField = document.getElementById('corpus_source');
+        if (corpusSourceField) {
+            corpusSourceField.value = 'WordNet';
         }
-        
+
+        // Populate source citation
+        const sourceCitationField = document.getElementById('source_citation');
+        if (sourceCitationField) {
+            sourceCitationField.value = `WordNet: A Lexical Database for English. Princeton University. Synset: ${synsetName} (retrieved via NLTK WordNet API)`;
+        }
+
         // Set source type to dictionary
         const sourceTypeField = document.getElementById('manual-source-type');
         if (sourceTypeField) {

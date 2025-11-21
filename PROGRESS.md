@@ -54,8 +54,15 @@
    - All fields properly sent to backend and tracked with provenance
    - Better UX for uploading non-indexed or personal documents
 
+3. **Low-Confidence Match Handling:**
+   - Low-confidence CrossRef matches no longer auto-fill form
+   - Show preview of suggested match with Accept/Reject buttons
+   - PDF-extracted data preserved in form by default
+   - User explicitly accepts CrossRef data before it overwrites PDF data
+   - Prevents bad CrossRef matches from overwriting good PDF metadata
+
 **Files Modified:**
-- `app/templates/text_input/upload_enhanced.html` - Timeout wrapper, additional metadata fields UI
+- `app/templates/text_input/upload_enhanced.html` - Timeout wrapper, additional metadata fields, low-confidence match handling
 - `app/routes/upload.py` - Parse and process additional metadata fields
 - `app/services/semanticscholar_metadata.py` - Reduced timeout from 10s to 5s
 - `app/services/crossref_metadata.py` - Reduced timeout from 10s to 5s (2 locations)
@@ -64,6 +71,8 @@
 - Upload page no longer appears to "get stuck" on Semantic Scholar API
 - Users can now manually enter complete metadata when auto-extraction is disabled
 - Better support for personal papers, unpublished work, and non-indexed documents
+- Low-confidence matches don't overwrite good PDF-extracted metadata
+- User has explicit control over accepting or rejecting CrossRef suggestions
 - Faster failure means better UX when APIs are slow/unavailable
 
 ### Session 11 (2025-11-20) - UI Error Handling ✅

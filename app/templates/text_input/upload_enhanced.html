@@ -446,7 +446,9 @@ let uploadState = {
     extractedMetadata: null,
     tempPath: null,
     currentFileName: null,
-    provenance: {}
+    provenance: {},
+    lowConfidenceSuggestion: null,  // Store low-confidence CrossRef match separately
+    pdfExtractedData: null  // Store PDF-extracted data separately
 };
 
 console.log('Upload state initialized:', uploadState);
@@ -744,9 +746,43 @@ document.getElementById('file-form').addEventListener('submit', async function(e
 
         if (result.success) {
             console.log('Upload successful, processing metadata...');
-            uploadState.extractedMetadata = result.metadata;
-            uploadState.tempPath = result.temp_path;
-            uploadState.provenance = result.provenance || {};
+
+            // Check if this is a low-confidence match - if so, handle differently
+            const isLowConfidence = result.crossref_found && result.confidence_level === 'low';
+
+            if (isLowConfidence) {
+                // Store CrossRef suggestion separately for low-confidence matches
+                uploadState.lowConfidenceSuggestion = {
+                    metadata: result.metadata,
+                    provenance: result.provenance || {},
+                    matchScore: result.match_score
+                };
+
+                // Create PDF-only metadata (exclude CrossRef fields)
+                uploadState.pdfExtractedData = {};
+                uploadState.provenance = {};
+
+                // Only keep fields that came from PDF or user input
+                for (const [key, value] of Object.entries(result.metadata)) {
+                    const prov = result.provenance[key];
+                    if (prov && (prov.source === 'file' || prov.source === 'user' || prov.source === 'pdf_analysis')) {
+                        uploadState.pdfExtractedData[key] = value;
+                        uploadState.provenance[key] = prov;
+                    }
+                }
+
+                // Use PDF-extracted data for the form
+                uploadState.extractedMetadata = uploadState.pdfExtractedData;
+                uploadState.tempPath = result.temp_path;
+            } else {
+                // High-confidence or no CrossRef match: use all metadata as normal
+                uploadState.extractedMetadata = result.metadata;
+                uploadState.tempPath = result.temp_path;
+                uploadState.provenance = result.provenance || {};
+                uploadState.lowConfidenceSuggestion = null;
+                uploadState.pdfExtractedData = null;
+            }
+
             console.log('Updated uploadState:', uploadState);
 
             // Only show progress animation if automatic extraction was enabled
@@ -826,20 +862,31 @@ document.getElementById('file-form').addEventListener('submit', async function(e
 
                 // Check if this is a low-confidence CrossRef match
                 if (result.crossref_found && result.confidence_level === 'low') {
-                    // Show warning with Accept/Clear buttons (non-dismissible)
-                    alertHTML = `<div class="alert alert-warning mt-3" role="alert">
-                        <div class="d-flex justify-content-between align-items-start">
-                            <div>
-                                <i class="fas fa-exclamation-triangle"></i> ${result.message}
-                            </div>
-                            <div class="btn-group ms-3">
-                                <button type="button" class="btn btn-sm btn-success" onclick="acceptLowConfidenceMatch()">
-                                    <i class="fas fa-check"></i> Accept
-                                </button>
-                                <button type="button" class="btn btn-sm btn-danger" onclick="clearAllMetadata()">
-                                    <i class="fas fa-times"></i> Clear All
-                                </button>
-                            </div>
+                    // Show warning with preview and Accept/Reject buttons (non-dismissible)
+                    const suggestion = uploadState.lowConfidenceSuggestion.metadata;
+                    const suggestionPreview = `
+                        <div class="mt-2 p-2 bg-dark border rounded">
+                            <strong>Suggested match from CrossRef:</strong><br>
+                            <strong>Title:</strong> ${suggestion.title || 'N/A'}<br>
+                            ${suggestion.authors ? `<strong>Authors:</strong> ${suggestion.authors}<br>` : ''}
+                            ${suggestion.publication_year ? `<strong>Year:</strong> ${suggestion.publication_year}<br>` : ''}
+                            ${suggestion.journal ? `<strong>Journal:</strong> ${suggestion.journal}<br>` : ''}
+                            <small class="text-warning">Match score: ${result.match_score || 'N/A'}</small>
+                        </div>
+                    `;
+
+                    alertHTML = `<div class="alert alert-warning mt-3" role="alert" id="low-confidence-alert">
+                        <div>
+                            <i class="fas fa-exclamation-triangle"></i> ${result.message}
+                            ${suggestionPreview}
+                        </div>
+                        <div class="btn-group mt-3">
+                            <button type="button" class="btn btn-sm btn-success" onclick="acceptLowConfidenceMatch()">
+                                <i class="fas fa-check"></i> Accept This Match
+                            </button>
+                            <button type="button" class="btn btn-sm btn-secondary" onclick="rejectLowConfidenceMatch()">
+                                <i class="fas fa-times"></i> Keep PDF Data
+                            </button>
                         </div>
                     </div>`;
                 } else {
@@ -1040,6 +1087,61 @@ function clearAllMetadata() {
 
     // Clear provenance data
     uploadState.provenance = {};
+}
+
+function acceptLowConfidenceMatch() {
+    // User accepted the low-confidence CrossRef match
+    if (!uploadState.lowConfidenceSuggestion) {
+        console.error('No low-confidence suggestion to accept');
+        return;
+    }
+
+    // Replace current metadata with the CrossRef suggestion
+    uploadState.extractedMetadata = uploadState.lowConfidenceSuggestion.metadata;
+    uploadState.provenance = uploadState.lowConfidenceSuggestion.provenance;
+
+    // Re-populate the form with CrossRef data
+    populateMetadataForm(uploadState.extractedMetadata, uploadState.provenance);
+
+    // Remove the warning alert
+    const alert = document.getElementById('low-confidence-alert');
+    if (alert) {
+        alert.remove();
+    }
+
+    // Show success message
+    const successHTML = `<div class="alert alert-success alert-dismissible fade show mt-3" role="alert">
+        <i class="fas fa-check-circle"></i> CrossRef metadata accepted. You can still edit any fields before saving.
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>`;
+    document.getElementById('metadata-review').insertAdjacentHTML('afterbegin', successHTML);
+
+    // Clear the suggestion from state
+    uploadState.lowConfidenceSuggestion = null;
+}
+
+function rejectLowConfidenceMatch() {
+    // User rejected the low-confidence match - keep PDF-extracted data
+    if (!uploadState.lowConfidenceSuggestion) {
+        console.error('No low-confidence suggestion to reject');
+        return;
+    }
+
+    // Remove the warning alert
+    const alert = document.getElementById('low-confidence-alert');
+    if (alert) {
+        alert.remove();
+    }
+
+    // Show info message
+    const infoHTML = `<div class="alert alert-info alert-dismissible fade show mt-3" role="alert">
+        <i class="fas fa-info-circle"></i> CrossRef suggestion rejected. Using PDF-extracted data. You can edit any fields before saving.
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>`;
+    document.getElementById('metadata-review').insertAdjacentHTML('afterbegin', infoHTML);
+
+    // Clear the suggestion from state
+    uploadState.lowConfidenceSuggestion = null;
 }
 </script>
 {% endblock %}
