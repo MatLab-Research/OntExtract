@@ -9,6 +9,98 @@ from typing import Dict, List, Any, Optional
 import json
 
 
+def summarize_processing_results(processing_results: Dict[str, Any], max_items_per_tool: int = 50) -> Dict[str, Any]:
+    """
+    Summarize processing results to avoid token limits while preserving analytical value.
+
+    Strategy:
+    - Send ALL unique items for structured data (entities, dates, definitions)
+    - Skip raw text and embeddings (too large, not useful for synthesis)
+    - Include frequency/count metadata for pattern analysis
+
+    The goal is to provide enough structured data for LLM to identify patterns,
+    trends, and insights that wouldn't be visible from documents alone.
+
+    Args:
+        processing_results: Raw processing results {doc_id: {tool: result, ...}}
+        max_items_per_tool: Maximum number of items per tool (default 50 for meaningful analysis)
+
+    Returns:
+        Summarized results suitable for LLM synthesis
+    """
+    summarized = {}
+
+    for doc_id, tools_results in processing_results.items():
+        doc_summary = {}
+
+        for tool_name, result in tools_results.items():
+            if isinstance(result, dict):
+                tool_summary = {}
+
+                # Handle common result patterns
+                if 'entities' in result and isinstance(result['entities'], list):
+                    # Entity extraction results
+                    entities = result['entities']
+                    tool_summary['count'] = len(entities)
+                    tool_summary['top_entities'] = entities[:max_items_per_tool]
+                    if len(entities) > max_items_per_tool:
+                        tool_summary['truncated'] = True
+
+                elif 'dates' in result and isinstance(result['dates'], list):
+                    # Temporal extraction results
+                    dates = result['dates']
+                    tool_summary['count'] = len(dates)
+                    tool_summary['dates'] = dates[:max_items_per_tool]
+                    if len(dates) > max_items_per_tool:
+                        tool_summary['truncated'] = True
+
+                elif 'definitions' in result and isinstance(result['definitions'], list):
+                    # Definition extraction results
+                    definitions = result['definitions']
+                    tool_summary['count'] = len(definitions)
+                    tool_summary['definitions'] = definitions[:max_items_per_tool]
+                    if len(definitions) > max_items_per_tool:
+                        tool_summary['truncated'] = True
+
+                elif 'embeddings' in result:
+                    # Skip embeddings entirely (too large, not useful for synthesis)
+                    tool_summary['embedding_dimensions'] = len(result.get('embeddings', []))
+                    tool_summary['note'] = 'Embeddings computed but excluded from summary'
+
+                else:
+                    # Generic handling: keep small dicts, summarize large ones
+                    result_str = json.dumps(result)
+                    if len(result_str) < 1000:
+                        tool_summary = result
+                    else:
+                        tool_summary['summary'] = f'Large result ({len(result_str)} chars), {len(result)} keys'
+                        # Keep numeric/small values
+                        for k, v in result.items():
+                            if isinstance(v, (int, float, bool)) or (isinstance(v, str) and len(v) < 100):
+                                tool_summary[k] = v
+
+                doc_summary[tool_name] = tool_summary
+
+            elif isinstance(result, list):
+                # List of items - take top N
+                doc_summary[tool_name] = {
+                    'count': len(result),
+                    'items': result[:max_items_per_tool],
+                    'truncated': len(result) > max_items_per_tool
+                }
+
+            elif isinstance(result, (int, float, str, bool)):
+                # Simple values - keep as-is
+                doc_summary[tool_name] = result
+
+            else:
+                doc_summary[tool_name] = {'type': str(type(result)), 'note': 'Complex result type'}
+
+        summarized[doc_id] = doc_summary
+
+    return summarized
+
+
 def get_analyze_prompt(
     experiment_type: str,
     focus_term: Optional[str],
@@ -289,9 +381,12 @@ def get_synthesis_prompt(
 Use this baseline to identify semantic drift, evolution, or domain-specific variations.
 """
 
+    # Summarize processing results to avoid token limits while preserving analytical value
+    summarized_results = summarize_processing_results(processing_results, max_items_per_tool=50)
+
     # Build processing results summary with metadata
     results_with_metadata = []
-    for doc_id, results in processing_results.items():
+    for doc_id, results in summarized_results.items():
         doc_info = {'document_id': doc_id, 'results': results}
 
         if document_metadata and doc_id in document_metadata:
@@ -304,21 +399,27 @@ Use this baseline to identify semantic drift, evolution, or domain-specific vari
         'temporal_evolution': f"""
 ## Temporal Evolution Analysis
 
-**Your Task**: Analyze how "{focus_term}" has evolved across time periods.
+**Your Task**: Organize tool-extracted data by time period to enable temporal analysis.
 
-1. **Cross-Document Insights**: Identify patterns in how the term is used across different time periods
-2. **Semantic Drift**: Compare current usage to the baseline definition
-3. **Context Anchor Tracking**: Which anchors appear/disappear over time?
-4. **Term Evolution**: What new meanings or applications emerged? When?
+**Organization Steps**:
+1. **Group by time**: Use temporal extraction results to identify distinct time periods in the documents
+2. **Summarize per period**: For each period, gather entity counts, co-occurrences, and frequencies from tool results
+3. **List anchors**: Show which semantic anchors (from entity extraction) appear in each period
+4. **Present side-by-side**: Structure data so researchers can easily compare across periods
 
-**IMPORTANT**: Also generate structured term cards for visualization.
+**Example Organization**:
+"**Period 1 (1960-1980)**: 2 documents. Entity extraction found '{focus_term}' co-occurring with: 'program' (12×), 'system' (8×), 'autonomous' (6×). Term frequency: 0.23 per 1000 words.
 
-For each time period found in the documents, create a card with:
-- period_label: e.g., "1650-1750"
-- definition: How the term was used in this period
-- frequency: Relative usage frequency (0.0 to 1.0)
-- context_changes: List of new/changed semantic anchors
-- narrative: 2-3 sentences explaining the evolution
+**Period 2 (2000-2020)**: 3 documents. Entity extraction found '{focus_term}' co-occurring with: 'learning' (23×), 'intelligent' (15×), 'adaptive' (11×). Term frequency: 0.47 per 1000 words."
+
+**IMPORTANT**: Generate structured term cards as DATA SUMMARIES (not interpretations).
+
+For each time period found in temporal extraction results, create a card with:
+- **period_label**: Time range from tool outputs (e.g., "1960-1980")
+- **definition**: Most common co-occurring terms from entity extraction (just list the data)
+- **frequency**: Relative frequency from tool counts (normalize to 0.0-1.0 across all periods)
+- **context_changes**: New semantic anchors that appear in this period vs. previous ones (just list new terms)
+- **narrative**: 2-3 sentences presenting the key data points for this period (counts, top entities, frequencies - NO interpretation)
 
 Return JSON with:
 {{
@@ -387,15 +488,30 @@ Return JSON with:
 {term_baseline}
 
 ## Processing Results
+
+**Important Context**:
+The results below come from specialized NLP tools that extracted structured data from documents:
+- **Entity extraction** (spaCy): Identified all named entities, their types, and frequencies
+- **Temporal extraction**: Found all dates, time periods, and temporal expressions
+- **Definition extraction**: Located formal definitions and usage contexts
+- **Semantic analysis**: Measured term frequencies and co-occurrences
+
+Your task is to ORGANIZE these tool findings into a clear structure that enables the researcher to identify patterns and draw conclusions.
+
 {json.dumps(results_with_metadata, indent=2).replace('{', '{{').replace('}', '}}')}
 
 {instructions}
 
-**Guidelines**:
-- Reference specific results and documents
-- Compare usage to baseline definition (if applicable)
-- Use markdown formatting for readability
-- Be specific and cite evidence from the results
+**Organization Guidelines**:
+1. **Group by time/domain**: Organize tool findings into clear periods or domains
+2. **Present key data points**: Surface the most relevant counts, entities, and frequencies
+3. **Highlight contrasts**: Show where tool results differ across documents (without interpreting why)
+4. **Structure for analysis**: Format data so patterns are easily visible to the researcher
+5. **Preserve specificity**: Include exact numbers, entity names, and dates from tool outputs
+
+Example organization: "**1960-1980 Period** (2 documents): Entity extraction found 15 mentions of 'autonomous', co-occurring with: 'program' (12×), 'system' (8×), 'control' (6×). **2000-2020 Period** (3 documents): Entity extraction found 47 mentions of 'autonomous', co-occurring with: 'learning' (23×), 'agent' (18×), 'intelligent' (15×)."
+
+**Note**: Your role is to organize data, not interpret it. The researcher will draw their own conclusions from the structured presentation.
 """
 
     return prompt
