@@ -1,8 +1,8 @@
 # OntExtract Progress Tracker
 
 **Branch:** `development`
-**Last Session:** 2025-11-20 (Session 12)
-**Status:** STABLE - Upload Timeout & Manual Metadata Entry
+**Last Session:** 2025-11-20 (Session 13)
+**Status:** STABLE - Context Anchor Auto-Population
 
 ---
 
@@ -23,13 +23,20 @@
    - Smart error detection (timeout, rate_limit, server_error, llm_error)
    - User-friendly messages with technical details
 
-3. **Comprehensive Test Suite** (Session 10)
+3. **Term Addition Interface** (Session 13)
+   - Auto-populate context anchors from dictionary definitions
+   - NLTK-based stop word filtering (remove "from", "that", "with", etc.)
+   - Provenance tracking for auto-populated anchors
+   - Clear button and manual thesaurus lookup
+   - Integration with Merriam-Webster, OED, and WordNet
+
+4. **Comprehensive Test Suite** (Session 10)
    - 68 test cases (~1,900 lines)
    - 85% passing rate
    - Test infrastructure: PostgreSQL transaction isolation
    - Tests for WorkflowExecutor, API endpoints, integration flows
 
-4. **UI Polish** (Session 9)
+5. **UI Polish** (Session 9)
    - Badge deduplication and standardization
    - Markdown rendering for LLM insights
    - Document card restructuring
@@ -38,6 +45,42 @@
 ---
 
 ## Recent Sessions
+
+### Session 13 (2025-11-20) - Context Anchor Auto-Population ✅
+
+**Implemented:**
+1. **Stop Word Filtering:**
+   - NLTK-based stop word list (93 common English words)
+   - Filter out "from", "that", "with", "have", "been", etc.
+   - Minimum 4-character words to avoid short words
+   - Applied to Merriam-Webster and OED extraction
+
+2. **Enhanced OED Extraction:**
+   - Changed from etymology-based to definition-based extraction
+   - Extract up to 8 words per sense from first 2 senses
+   - Increased from 2 words total to 8 meaningful terms
+   - Now matches Merriam-Webster approach
+
+3. **Provenance Tracking:**
+   - Dedicated provenance display field below Context Anchors
+   - Shows source (MW Dictionary, OED, WordNet, Thesaurus)
+   - Lists auto-populated terms for transparency
+   - Hidden when no provenance data
+
+4. **User Control:**
+   - Clear button (X) to reset context anchors
+   - Manual thesaurus lookup button
+   - Auto-population can be overridden by user
+
+**Files Modified:**
+- `app/templates/terms/add.html` - Stop word filtering, OED extraction improvements, provenance display
+
+**Impact:**
+- Context anchors now contain semantically meaningful terms
+- Stop words filtered out for better semantic quality
+- OED produces 8 useful terms instead of 2 random words
+- Full transparency via provenance tracking
+- Better support for LLM analysis with rich context terms
 
 ### Session 12 (2025-11-20) - Upload Page Timeout Handling & Manual Metadata ✅
 
@@ -120,20 +163,23 @@
 
 ## Next Steps
 
-### Immediate (Session 12)
-1. **Manual Testing** - Test error handling flows in browser
-2. **Fix 4 Test Failures** - Relationship loading issues in integration tests
-3. **Workflow Cancellation** - Add cancel button to progress modal
+### Immediate (Session 14)
+1. **LLM Workflow Enhancement** - Incorporate context anchors and metadata into LLM prompts
+2. **Experiment-Specific Context** - Use different metadata based on experiment type
+3. **Strategy Prompt Improvements** - Better utilize term definitions, sources, and related terms
 
 ### Short Term
-4. **Production Deployment** - Test with real LLM API, monitor error rates
-5. **Concurrent Run Handling** - Support multiple simultaneous orchestrations
-6. **Full Test Coverage** - Target 95%+ coverage
+4. **Manual Testing** - Test error handling flows in browser
+5. **Fix 4 Test Failures** - Relationship loading issues in integration tests
+6. **Workflow Cancellation** - Add cancel button to progress modal
+7. **Production Deployment** - Test with real LLM API, monitor error rates
 
 ### Future
-7. **Performance Optimization** - Load testing, caching
-8. **UI Enhancements** - Elapsed time display, progress animations
-9. **Monitoring Dashboard** - Error rates, timeout metrics
+8. **Concurrent Run Handling** - Support multiple simultaneous orchestrations
+9. **Full Test Coverage** - Target 95%+ coverage
+10. **Performance Optimization** - Load testing, caching
+11. **UI Enhancements** - Elapsed time display, progress animations
+12. **Monitoring Dashboard** - Error rates, timeout metrics
 
 ---
 
@@ -179,12 +225,13 @@
 
 ---
 
-**Last Updated:** 2025-11-20 (Session 11)
+**Last Updated:** 2025-11-20 (Session 13)
 
 **Recent Achievements:**
 1. LLM Analyze feature fully implemented ✅
 2. Error handling (backend + frontend) complete ✅
 3. Test suite comprehensive (68 tests, 85% passing) ✅
-4. Production-ready with timeout, retry, user-friendly errors ✅
+4. Context anchor auto-population with stop word filtering ✅
+5. Production-ready with timeout, retry, user-friendly errors ✅
 
-**Next Session Focus:** Manual testing, fix remaining test failures, implement cancellation
+**Next Session Focus:** Enhance LLM workflow to use context anchors and experiment-specific metadata

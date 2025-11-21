@@ -442,7 +442,7 @@ class LLMOrchestrationClient {
             'rate_limit': 'Too many requests were made in a short time. Please wait a moment and try again.',
             'server_error': 'The server encountered an unexpected error. This is usually temporary - please try again.',
             'llm_error': 'The LLM encountered an error while processing your request. Please try again or simplify your experiment.',
-            'general': 'An unexpected error occurred. Please try again or contact support if the problem persists.'
+            'general': 'An unexpected error occurred. Please try again.'
         };
 
         return messages[errorType] || messages['general'];

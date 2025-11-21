@@ -131,11 +131,22 @@ class TestBuildGraphState:
         assert 'focus_term' in state
         assert 'user_preferences' in state
 
+        # Verify NEW metadata fields are present
+        assert 'experiment_type' in state
+        assert 'focus_term_definition' in state
+        assert 'focus_term_context_anchors' in state
+        assert 'focus_term_source' in state
+        assert 'focus_term_domain' in state
+        assert 'document_metadata' in state
+
         # Verify types
         assert state['run_id'] == str(orchestration_run.id)
         assert state['experiment_id'] == sample_experiment_with_documents.id
         assert isinstance(state['documents'], list)
         assert len(state['documents']) == 3
+
+        # Verify experiment type is populated
+        assert state['experiment_type'] == 'temporal_evolution'
 
         # Verify user preferences
         assert state['user_preferences']['review_choices'] is True
@@ -144,6 +155,11 @@ class TestBuildGraphState:
         assert state['experiment_goal'] is None
         assert state['recommended_strategy'] is None
         assert state['confidence'] is None
+
+        # Verify NEW structured output fields are initialized to None
+        assert state['generated_term_cards'] is None
+        assert state['generated_domain_cards'] is None
+        assert state['generated_entity_cards'] is None
 
     def test_build_graph_state_extracts_focus_term(
         self,

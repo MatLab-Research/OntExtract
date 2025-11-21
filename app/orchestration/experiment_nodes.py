@@ -23,6 +23,7 @@ from .experiment_state import ExperimentOrchestrationState
 from ..services.extraction_tools import get_tool_registry
 from .retry_utils import call_llm_with_retry, LLMTimeoutError, LLMRetryExhaustedError
 from .config import config
+from .prompts import get_analyze_prompt, get_recommend_strategy_prompt, get_synthesis_prompt
 
 logger = logging.getLogger(__name__)
 
@@ -52,9 +53,10 @@ async def analyze_experiment_node(state: ExperimentOrchestrationState) -> Dict[s
     """
     Stage 1: Analyze the experiment to understand its goals.
 
-    This node examines the experiment's documents and focus term to determine
-    what the researcher is trying to achieve. For term evolution tracking,
-    it identifies why the term matters.
+    Uses experiment-type-specific prompts with rich metadata including:
+    - Term definitions and context anchors
+    - Document bibliographic metadata
+    - Experiment type and domain
 
     Returns:
         - experiment_goal: Clear statement of experiment purpose
@@ -63,45 +65,35 @@ async def analyze_experiment_node(state: ExperimentOrchestrationState) -> Dict[s
     """
     claude_client = get_claude_client()
 
+    # Extract metadata from state
+    experiment_type = state.get('experiment_type', 'entity_extraction')
     focus_term = state.get('focus_term')
+    focus_term_definition = state.get('focus_term_definition')
+    focus_term_context_anchors = state.get('focus_term_context_anchors')
+    focus_term_source = state.get('focus_term_source')
+    focus_term_domain = state.get('focus_term_domain')
     documents = state['documents']
+    document_metadata = state.get('document_metadata')
 
-    # Build document summary
-    doc_summary = "\n".join([
-        f"- Document {i+1}: {doc['title']} ({len(doc.get('content', ''))} characters)"
-        for i, doc in enumerate(documents)
-    ])
-
-    term_context_text = f"""
-Focus Term: "{focus_term}"
-
-This experiment tracks the semantic evolution of this term across the document set.
-""" if focus_term else "No specific term focus - general document analysis."
+    # Generate experiment-type-specific prompt with metadata
+    prompt_text = get_analyze_prompt(
+        experiment_type=experiment_type,
+        focus_term=focus_term,
+        focus_term_definition=focus_term_definition,
+        focus_term_context_anchors=focus_term_context_anchors,
+        focus_term_source=focus_term_source,
+        focus_term_domain=focus_term_domain,
+        documents=documents,
+        document_metadata=document_metadata
+    )
 
     prompt = ChatPromptTemplate.from_messages([
-        ("system", """You are analyzing a research experiment to understand its goals.
-
-Your task:
-1. What is this experiment trying to discover?
-2. What makes this document collection interesting to analyze together?
-3. If a focus term is provided, why might researchers care about tracking it?
-4. What kinds of insights would be most valuable?
-
-Provide a clear, 2-3 sentence summary of the experiment's purpose."""),
-
-        ("user", f"""Experiment Analysis:
-
-{term_context_text}
-
-Documents in Experiment:
-{doc_summary}
-
-Number of documents: {len(documents)}
-
-What is the goal of this experiment? What insights should we aim to extract?""")
+        ("user", prompt_text)
     ])
 
-    chain = prompt | claude_client
+    # Use JSON output parser for structured response
+    json_parser = JsonOutputParser()
+    chain = prompt | claude_client | json_parser
 
     # Execute LLM call with timeout and retry
     try:
@@ -110,9 +102,15 @@ What is the goal of this experiment? What insights should we aim to extract?""")
             operation_name="Analyze Experiment (Stage 1)"
         )
 
+        # Extract fields from JSON response
+        experiment_goal = response.get('experiment_goal', 'Analyze document collection')
+        term_context = response.get('term_context', focus_term)
+
+        logger.info(f"Stage 1 complete: Goal={experiment_goal[:50]}...")
+
         return {
-            "experiment_goal": response.content,
-            "term_context": focus_term,
+            "experiment_goal": experiment_goal,
+            "term_context": term_context,
             "current_stage": "recommending"
         }
 
@@ -130,9 +128,10 @@ async def recommend_strategy_node(state: ExperimentOrchestrationState) -> Dict[s
     """
     Stage 2: Recommend processing tools for each document.
 
-    The LLM analyzes all documents together and recommends a coherent
-    processing strategy tailored to the experiment's goals. For term evolution
-    tracking, it prioritizes tools that reveal semantic context.
+    Uses experiment-type-specific prompts with:
+    - Term metadata (definition, anchors) for semantic guidance
+    - Document metadata for context-aware recommendations
+    - Type-specific tool prioritization
 
     Returns:
         - recommended_strategy: {doc_id: [tool_names]}
@@ -142,66 +141,43 @@ async def recommend_strategy_node(state: ExperimentOrchestrationState) -> Dict[s
     """
     claude_client = get_claude_client()
 
+    # Extract metadata from state
+    experiment_type = state.get('experiment_type', 'entity_extraction')
     experiment_goal = state['experiment_goal']
+    term_context = state.get('term_context')
     focus_term = state.get('focus_term')
+    focus_term_definition = state.get('focus_term_definition')
+    focus_term_context_anchors = state.get('focus_term_context_anchors')
     documents = state['documents']
+    document_metadata = state.get('document_metadata')
 
     # Get available tools from registry
-    from app.services.tool_registry import get_tool_descriptions
-    available_tools = get_tool_descriptions()
+    from app.services.tool_registry import get_available_tools
+    available_tools_dict = get_available_tools(include_stubs=True)
 
-    # Build document descriptions (include first 500 chars for context)
-    doc_descriptions = "\n\n".join([
-        f"""Document {i+1}: {doc['title']}
-- ID: {doc['id']}
-- Length: {len(doc.get('content', ''))} characters
-- Metadata: {str(doc.get('metadata', {})).replace('{', '{{').replace('}', '}}')}
-- Preview: {doc.get('content', '')[:500]}..."""
-        for i, doc in enumerate(documents)
-    ])
+    # Build list of tool names and descriptions dictionary
+    available_tools = list(available_tools_dict.keys())
+    tool_descriptions = {
+        name: tool.description
+        for name, tool in available_tools_dict.items()
+    }
 
-    term_guidance = f"""
-IMPORTANT: The experiment focuses on tracking the term "{focus_term}".
-
-For semantic evolution analysis:
-- Prioritize entity extraction (reveals what co-occurs with the term)
-- Include temporal extraction (tracks usage across time periods)
-- Consider definitions (shows how term is explicitly defined)
-- Embeddings can capture semantic shifts
-
-Recommend tools that help answer: "How does the meaning/context of '{focus_term}' change across these documents?"
-""" if focus_term else ""
+    # Generate experiment-type-specific prompt with metadata
+    prompt_text = get_recommend_strategy_prompt(
+        experiment_type=experiment_type,
+        experiment_goal=experiment_goal,
+        term_context=term_context,
+        focus_term=focus_term,
+        focus_term_definition=focus_term_definition,
+        focus_term_context_anchors=focus_term_context_anchors,
+        documents=documents,
+        document_metadata=document_metadata,
+        available_tools=available_tools,
+        tool_descriptions=tool_descriptions
+    )
 
     prompt = ChatPromptTemplate.from_messages([
-        ("system", f"""You are an expert NLP orchestration system.
-
-{available_tools}
-
-Your task:
-1. Analyze each document in the context of the experiment goal
-2. Recommend 2-4 tools per document that will best serve the experiment
-3. Ensure the strategy is coherent across all documents
-4. If a focus term exists, prioritize tools for semantic evolution analysis
-
-{term_guidance}
-
-Respond in JSON format:
-{{{{
-    "strategy": {{{{
-        "<document_id_1>": ["tool1", "tool2"],
-        "<document_id_2>": ["tool1", "tool3"]
-    }}}},
-    "reasoning": "Why this strategy serves the experiment goal...",
-    "confidence": 0.85
-}}}}"""),
-
-        ("user", f"""Experiment Goal:
-{experiment_goal}
-
-Documents to Process:
-{doc_descriptions}
-
-Recommend a processing strategy for each document that serves the experiment goal.""")
+        ("user", prompt_text)
     ])
 
     chain = prompt | claude_client | JsonOutputParser()
@@ -217,10 +193,12 @@ Recommend a processing strategy for each document that serves the experiment goa
         review_choices = state['user_preferences'].get('review_choices', False)
         next_stage = "reviewing" if review_choices else "executing"
 
+        logger.info(f"Stage 2 complete: {len(response.get('recommended_strategy', {}))} docs, confidence={response.get('confidence', 0)}")
+
         return {
-            "recommended_strategy": response['strategy'],
-            "strategy_reasoning": response['reasoning'],
-            "confidence": response['confidence'],
+            "recommended_strategy": response.get('recommended_strategy'),
+            "strategy_reasoning": response.get('strategy_reasoning'),
+            "confidence": response.get('confidence', 0.0),
             "current_stage": next_stage,
             "strategy_approved": not review_choices  # Auto-approve if no review
         }
@@ -336,146 +314,90 @@ async def synthesize_experiment_node(state: ExperimentOrchestrationState) -> Dic
     """
     Stage 5: Synthesize insights across all documents.
 
-    For term evolution experiments, this focuses on how the term's semantic
-    context changes across documents. For general experiments, it identifies
-    common themes and differences.
+    Uses experiment-type-specific prompts with metadata.
+    For temporal_evolution experiments, generates structured term cards for visualization.
 
     Returns:
-        - cross_document_insights: Main insights
+        - cross_document_insights: Main insights (markdown)
         - term_evolution_analysis: Term-specific analysis (if applicable)
-        - comparative_summary: High-level summary
+        - generated_term_cards: Structured card data (for temporal_evolution)
+        - generated_domain_cards: Structured card data (for domain_comparison)
+        - generated_entity_cards: Structured card data (for entity_extraction)
         - current_stage: "completed"
     """
     claude_client = get_claude_client()
 
+    # Extract metadata from state
+    experiment_type = state.get('experiment_type', 'entity_extraction')
+    experiment_goal = state['experiment_goal']
     focus_term = state.get('focus_term')
+    focus_term_definition = state.get('focus_term_definition')
+    focus_term_context_anchors = state.get('focus_term_context_anchors')
     processing_results = state['processing_results']
     documents = state['documents']
-    experiment_goal = state['experiment_goal']
+    document_metadata = state.get('document_metadata')
 
-    # Build results summary
-    results_summary = []
-    for doc in documents:
-        doc_id = doc['id']
-        doc_results = processing_results.get(doc_id, {})
+    # Generate experiment-type-specific synthesis prompt with metadata
+    prompt_text = get_synthesis_prompt(
+        experiment_type=experiment_type,
+        experiment_goal=experiment_goal,
+        focus_term=focus_term,
+        focus_term_definition=focus_term_definition,
+        focus_term_context_anchors=focus_term_context_anchors,
+        processing_results=processing_results,
+        document_metadata=document_metadata
+    )
 
-        # Extract entities if available
-        entities = []
-        if 'extract_entities_spacy' in doc_results:
-            entity_data = doc_results['extract_entities_spacy']
-            if isinstance(entity_data, dict):
-                entities = [e.get('text', str(e)) for e in entity_data.get('entities', [])]
+    prompt = ChatPromptTemplate.from_messages([
+        ("user", prompt_text)
+    ])
 
-        # Extract temporal info if available
-        temporal_info = ""
-        if 'extract_temporal' in doc_results:
-            temporal_data = doc_results['extract_temporal']
-            if isinstance(temporal_data, dict):
-                temporal_info = f"Temporal expressions: {len(temporal_data.get('expressions', []))}"
+    # Use JSON parser to get structured response
+    chain = prompt | claude_client | JsonOutputParser()
 
-        results_summary.append(f"""
-Document: {doc['title']}
-- ID: {doc_id}
-- Entities found: {', '.join(entities[:15])}{'...' if len(entities) > 15 else ''}
-- {temporal_info}
-- Tools applied: {', '.join(doc_results.keys())}
-""")
+    # Execute LLM call with timeout and retry
+    try:
+        response = await call_llm_with_retry(
+            coro_factory=lambda: chain.ainvoke({}),
+            operation_name="Synthesize Experiment (Stage 5)"
+        )
 
-    results_text = "\n".join(results_summary)
+        # Extract common fields
+        cross_document_insights = response.get('cross_document_insights', 'No insights generated')
+        term_evolution_analysis = response.get('term_evolution_analysis')
 
-    if focus_term:
-        # Term evolution analysis
-        prompt = ChatPromptTemplate.from_messages([
-            ("system", f"""You are analyzing semantic evolution across multiple documents.
+        # Extract structured card data (experiment-type specific)
+        generated_term_cards = response.get('generated_term_cards')
+        generated_domain_cards = response.get('generated_domain_cards')
+        generated_entity_cards = response.get('generated_entity_cards')
 
-This experiment focuses on the term: "{focus_term}"
+        # Log card generation success
+        if generated_term_cards:
+            logger.info(f"Stage 5 complete: Generated {len(generated_term_cards)} term cards for temporal_evolution")
+        elif generated_domain_cards:
+            logger.info(f"Stage 5 complete: Generated {len(generated_domain_cards)} domain cards")
+        elif generated_entity_cards:
+            logger.info(f"Stage 5 complete: Generated {len(generated_entity_cards)} entity cards")
+        else:
+            logger.info("Stage 5 complete: Text insights only (no structured cards)")
 
-Your task:
-1. How does "{focus_term}" appear in each document's context?
-2. What entities/concepts co-occur with "{focus_term}" in each document?
-3. How does the semantic field around "{focus_term}" change across documents?
-4. What does this reveal about the term's evolution or usage patterns?
+        return {
+            "cross_document_insights": cross_document_insights,
+            "term_evolution_analysis": term_evolution_analysis,
+            "generated_term_cards": generated_term_cards,
+            "generated_domain_cards": generated_domain_cards,
+            "generated_entity_cards": generated_entity_cards,
+            "current_stage": "completed"
+        }
 
-Provide:
-- Per-document analysis (2-3 sentences each)
-- Cross-document comparison (3-4 sentences)
-- Key insights about semantic evolution (4-6 bullet points)"""),
-
-            ("user", f"""Experiment Goal: {experiment_goal}
-
-Focus Term: "{focus_term}"
-
-Processing Results:
-{results_text}
-
-Analyze the semantic evolution of "{focus_term}" across these documents.""")
-        ])
-
-        chain = prompt | claude_client
-
-        # Execute LLM call with timeout and retry
-        try:
-            response = await call_llm_with_retry(
-                coro_factory=lambda: chain.ainvoke({}),
-                operation_name="Synthesize Experiment - Term Evolution (Stage 5)"
-            )
-
-            return {
-                "cross_document_insights": response.content,
-                "term_evolution_analysis": response.content,
-                "comparative_summary": f"Semantic evolution analysis of '{focus_term}' across {len(documents)} documents",
-                "current_stage": "completed"
-            }
-
-        except (LLMTimeoutError, LLMRetryExhaustedError) as e:
-            logger.error(f"Failed to synthesize term evolution: {e}")
-            return {
-                "cross_document_insights": f"Synthesis failed: {str(e)}",
-                "term_evolution_analysis": None,
-                "current_stage": "failed",
-                "error_message": f"Synthesis failed: {str(e)}"
-            }
-
-    else:
-        # General cross-document synthesis
-        prompt = ChatPromptTemplate.from_messages([
-            ("system", """You are synthesizing insights from multiple document analyses.
-
-Your task:
-1. What common themes emerge across documents?
-2. What differences are most significant?
-3. What insights does analyzing these documents together reveal?
-4. What patterns or trends are observable?
-
-Provide a comprehensive synthesis (5-8 sentences) with 3-5 key bullet points."""),
-
-            ("user", f"""Experiment Goal: {experiment_goal}
-
-Processing Results:
-{results_text}
-
-Synthesize insights across these documents.""")
-        ])
-
-        chain = prompt | claude_client
-
-        # Execute LLM call with timeout and retry
-        try:
-            response = await call_llm_with_retry(
-                coro_factory=lambda: chain.ainvoke({}),
-                operation_name="Synthesize Experiment - General (Stage 5)"
-            )
-
-            return {
-                "cross_document_insights": response.content,
-                "comparative_summary": f"Cross-document analysis across {len(documents)} documents",
-                "current_stage": "completed"
-            }
-
-        except (LLMTimeoutError, LLMRetryExhaustedError) as e:
-            logger.error(f"Failed to synthesize insights: {e}")
-            return {
-                "cross_document_insights": f"Synthesis failed: {str(e)}",
-                "current_stage": "failed",
-                "error_message": f"Synthesis failed: {str(e)}"
-            }
+    except (LLMTimeoutError, LLMRetryExhaustedError) as e:
+        logger.error(f"Failed to synthesize: {e}")
+        return {
+            "cross_document_insights": f"Synthesis failed: {str(e)}",
+            "term_evolution_analysis": None,
+            "generated_term_cards": None,
+            "generated_domain_cards": None,
+            "generated_entity_cards": None,
+            "current_stage": "failed",
+            "error_message": f"Synthesis failed: {str(e)}"
+        }

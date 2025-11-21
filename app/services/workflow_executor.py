@@ -14,9 +14,10 @@ from uuid import UUID
 
 from app import db
 from app.models import Experiment, Document
+from app.models.term import Term, TermVersion
 from app.models.experiment_orchestration_run import ExperimentOrchestrationRun
 from app.orchestration.experiment_graph import get_experiment_graph
-from app.orchestration.experiment_state import ExperimentOrchestrationState
+from app.orchestration.experiment_state import ExperimentOrchestrationState, create_initial_experiment_state
 from app.services.extraction_tools import get_tool_registry
 
 logger = logging.getLogger(__name__)
@@ -173,6 +174,12 @@ class WorkflowExecutor:
             run.cross_document_insights = result.get('cross_document_insights')
             run.term_evolution_analysis = result.get('term_evolution_analysis')
             run.comparative_summary = result.get('comparative_summary')
+
+            # Save structured card data (experiment-type specific)
+            run.generated_term_cards = result.get('generated_term_cards')
+            run.generated_domain_cards = result.get('generated_domain_cards')
+            run.generated_entity_cards = result.get('generated_entity_cards')
+
             run.completed_at = datetime.utcnow()
 
             db.session.commit()
@@ -206,7 +213,12 @@ class WorkflowExecutor:
         review_choices: bool
     ) -> Dict[str, Any]:
         """
-        Build initial state for LangGraph execution.
+        Build initial state for LangGraph execution with rich metadata.
+
+        Queries:
+        - Experiment type
+        - Focus term metadata (definition, context anchors, source, domain)
+        - Document bibliographic metadata (authors, year, journal, etc.)
 
         Args:
             experiment_id: Experiment ID
@@ -225,9 +237,14 @@ class WorkflowExecutor:
 
         # Build document list for graph
         doc_list = []
+        document_metadata = {}
+
         for doc in documents:
+            doc_id = str(doc.id)
+
+            # Basic document info
             doc_list.append({
-                'id': str(doc.id),
+                'id': doc_id,
                 'uuid': str(doc.uuid),
                 'title': doc.title or 'Untitled Document',
                 'content': doc.content or '',
@@ -239,41 +256,88 @@ class WorkflowExecutor:
                 }
             })
 
+            # Enhanced bibliographic metadata for LLM prompts
+            doc_meta = {
+                'title': doc.title or 'Untitled Document',
+            }
+
+            if doc.authors:
+                doc_meta['authors'] = doc.authors
+            if doc.publication_date:
+                # Extract year from publication_date
+                try:
+                    year = doc.publication_date.year if hasattr(doc.publication_date, 'year') else None
+                    if year:
+                        doc_meta['year'] = year
+                except:
+                    pass
+            if doc.journal:
+                doc_meta['journal'] = doc.journal
+            if doc.publisher:
+                doc_meta['publisher'] = doc.publisher
+            if doc.doi:
+                doc_meta['doi'] = doc.doi
+            if doc.abstract:
+                doc_meta['abstract'] = doc.abstract
+                doc_meta['has_abstract'] = True
+
+            # Add domain if available (could come from classification or user input)
+            # For now, this might be None, but structure is ready
+            # TODO: Could potentially extract from document classification
+
+            document_metadata[doc_id] = doc_meta
+
         # Get focus term from experiment configuration
         focus_term = None
-        if experiment.experiment_type == 'temporal_evolution' and experiment.configuration:
+        focus_term_definition = None
+        focus_term_context_anchors = None
+        focus_term_source = None
+        focus_term_domain = None
+
+        if experiment.configuration:
             import json
             config = json.loads(experiment.configuration) if isinstance(experiment.configuration, str) else experiment.configuration
             target_terms = config.get('target_terms', [])
             if target_terms:
                 focus_term = target_terms[0]
 
-        # Build state
-        state: ExperimentOrchestrationState = {
-            'run_id': str(run_id),
-            'experiment_id': experiment_id,
-            'documents': doc_list,
-            'focus_term': focus_term,
-            'user_preferences': {
-                'review_choices': review_choices
-            },
-            'current_stage': 'analyzing',
-            # Other fields will be populated by nodes
-            'experiment_goal': None,
-            'term_context': None,
-            'recommended_strategy': None,
-            'strategy_reasoning': None,
-            'confidence': None,
-            'strategy_approved': False,
-            'modified_strategy': None,
-            'review_notes': None,
-            'processing_results': None,
-            'execution_trace': None,
-            'cross_document_insights': None,
-            'term_evolution_analysis': None,
-            'comparative_summary': None,
-            'error_message': None
-        }
+                # Query term metadata from database
+                term = Term.query.filter_by(term_text=focus_term).first()
+                if term:
+                    focus_term_domain = term.research_domain
+
+                    # Get the most recent term version for this term
+                    term_version = TermVersion.query.filter_by(term_id=term.id)\
+                        .order_by(TermVersion.generated_at_time.desc())\
+                        .first()
+
+                    if term_version:
+                        focus_term_definition = term_version.meaning_description
+                        focus_term_source = term_version.corpus_source
+
+                        # Extract context anchors from JSON field
+                        if term_version.context_anchor:
+                            # context_anchor is stored as JSON array
+                            if isinstance(term_version.context_anchor, list):
+                                focus_term_context_anchors = term_version.context_anchor
+                            elif isinstance(term_version.context_anchor, dict):
+                                # Sometimes might be stored as dict with 'anchors' key
+                                focus_term_context_anchors = term_version.context_anchor.get('anchors', [])
+
+        # Use create_initial_experiment_state with all metadata
+        state = create_initial_experiment_state(
+            experiment_id=experiment_id,
+            run_id=str(run_id),
+            documents=doc_list,
+            focus_term=focus_term,
+            user_preferences={'review_choices': review_choices},
+            experiment_type=experiment.experiment_type,
+            focus_term_definition=focus_term_definition,
+            focus_term_context_anchors=focus_term_context_anchors,
+            focus_term_source=focus_term_source,
+            focus_term_domain=focus_term_domain,
+            document_metadata=document_metadata if document_metadata else None
+        )
 
         return state
 
@@ -281,54 +345,28 @@ class WorkflowExecutor:
         """
         Build state for processing phase from existing run.
 
+        Re-uses the metadata-rich state building from recommendation phase,
+        then overlays the recommendation results.
+
         Args:
             run: ExperimentOrchestrationRun with completed recommendation phase
 
         Returns:
             State dictionary ready for processing
         """
-        # Get documents again
-        documents = Document.query.filter_by(experiment_id=run.experiment_id).all()
-        doc_list = []
-        for doc in documents:
-            doc_list.append({
-                'id': str(doc.id),
-                'uuid': str(doc.uuid),
-                'title': doc.title or 'Untitled Document',
-                'content': doc.content or '',
-                'metadata': {
-                    'filename': doc.original_filename or '',
-                    'created_at': doc.created_at.isoformat() if doc.created_at else None,
-                    'document_type': doc.document_type or '',
-                    'word_count': doc.word_count or 0
-                }
-            })
+        # Build full state with metadata (same as recommendation phase)
+        state = self._build_graph_state(run.experiment_id, run.id, False)
 
-        # Build state from existing run
-        state: ExperimentOrchestrationState = {
-            'run_id': str(run.id),
-            'experiment_id': run.experiment_id,
-            'documents': doc_list,
-            'focus_term': run.term_context,
-            'user_preferences': {
-                'review_choices': False  # Already reviewed
-            },
-            'current_stage': 'executing',
-            'experiment_goal': run.experiment_goal,
-            'term_context': run.term_context,
-            'recommended_strategy': run.recommended_strategy,
-            'strategy_reasoning': run.strategy_reasoning,
-            'confidence': run.confidence,
-            'strategy_approved': True,
-            'modified_strategy': run.modified_strategy,
-            'review_notes': run.review_notes,
-            'processing_results': None,
-            'execution_trace': None,
-            'cross_document_insights': None,
-            'term_evolution_analysis': None,
-            'comparative_summary': None,
-            'error_message': None
-        }
+        # Overlay existing recommendation results
+        state['current_stage'] = 'executing'
+        state['experiment_goal'] = run.experiment_goal
+        state['term_context'] = run.term_context
+        state['recommended_strategy'] = run.recommended_strategy
+        state['strategy_reasoning'] = run.strategy_reasoning
+        state['confidence'] = run.confidence
+        state['strategy_approved'] = True
+        state['modified_strategy'] = run.modified_strategy
+        state['review_notes'] = run.review_notes
 
         return state
 

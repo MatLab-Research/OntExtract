@@ -40,7 +40,7 @@ class ExperimentOrchestrationRun(db.Model):
 
     # Stage 1: Experiment Understanding
     experiment_goal = db.Column(db.Text, nullable=True)
-    term_context = db.Column(db.String(200), nullable=True)  # Focus term if present
+    term_context = db.Column(db.Text, nullable=True)  # Focus term if present
 
     # Stage 2: Strategy Recommendation
     recommended_strategy = db.Column(JSONB, nullable=True)  # {doc_id: [tools]}
@@ -62,6 +62,11 @@ class ExperimentOrchestrationRun(db.Model):
     cross_document_insights = db.Column(db.Text, nullable=True)
     term_evolution_analysis = db.Column(db.Text, nullable=True)  # If focus term exists
     comparative_summary = db.Column(db.Text, nullable=True)
+
+    # Structured outputs for card-based visualizations (experiment-type specific)
+    generated_term_cards = db.Column(JSONB, nullable=True)  # For temporal_evolution: period-by-period term cards
+    generated_domain_cards = db.Column(JSONB, nullable=True)  # For domain_comparison: domain-specific cards
+    generated_entity_cards = db.Column(JSONB, nullable=True)  # For entity_extraction: entity relationship cards
 
     # Relationships
     experiment = db.relationship('Experiment', backref=db.backref('orchestration_runs', passive_deletes=True))
@@ -106,5 +111,10 @@ class ExperimentOrchestrationRun(db.Model):
             # Stage 5
             'cross_document_insights': self.cross_document_insights,
             'term_evolution_analysis': self.term_evolution_analysis,
-            'comparative_summary': self.comparative_summary
+            'comparative_summary': self.comparative_summary,
+
+            # Structured outputs
+            'generated_term_cards': self.generated_term_cards,
+            'generated_domain_cards': self.generated_domain_cards,
+            'generated_entity_cards': self.generated_entity_cards
         }

@@ -267,6 +267,273 @@ NLP_TOOLS = {
 
 ---
 
+## Session 14 Planning: Metadata-Enhanced LLM Workflow
+
+### Current Gaps
+
+**Underutilized Data:**
+1. **Context Anchors** (NEW in Session 13)
+   - Auto-populated related terms from dictionaries
+   - Semantically filtered (stop words removed)
+   - Could provide semantic disambiguation for LLM
+
+2. **Term Metadata**
+   - `meaning_description` - Definition of focus term
+   - `corpus_source` - Where definition came from (OED, MW, WordNet)
+   - `source_citation` - Full citation for provenance
+   - `research_domain` - Discipline context
+   - Currently only used for display, not LLM analysis
+
+3. **Document Metadata**
+   - Title, authors, publication year, journal
+   - DOI, abstract, document type
+   - Currently provided as "content preview" only
+   - Not structured in prompts
+
+4. **Experiment-Specific Data**
+   - Different experiment types have different goals
+   - Not customizing prompts per experiment type
+   - One-size-fits-all approach
+
+### Experiment Types & Their Unique Data Needs
+
+**1. Temporal Experiments**
+- **Available:** Anchor terms with historical definitions
+- **Could Use:** Publication dates, temporal evolution of meaning
+- **LLM Enhancement:** Compare term usage across time periods
+
+**2. Cross-Domain Experiments**
+- **Available:** Research domains per term/document
+- **Could Use:** Domain-specific definitions and context
+- **LLM Enhancement:** Analyze semantic shift across disciplines
+
+**3. Document Analysis Experiments**
+- **Available:** Rich document metadata (authors, citations, journal)
+- **Could Use:** Bibliographic context for interpretation
+- **LLM Enhancement:** Consider authorial/publication context
+
+**4. Single Document Processing**
+- **Available:** Full document text, title, abstract
+- **Could Use:** Document structure, section analysis
+- **LLM Enhancement:** Deep semantic analysis with term anchors
+
+### Proposed Enhancements by Stage
+
+#### Stage 1: Analyze Experiment
+**Current Prompt Structure:**
+```
+Analyze this experiment:
+- Name, Description, Focus Term
+- Documents: titles and snippets
+```
+
+**Enhanced Prompt Should Include:**
+```python
+{
+  "experiment": {
+    "type": "temporal_analysis",  # Use to customize analysis
+    "focus_term": "agent",
+    "term_definition": "A person who or thing which acts upon someone...",
+    "context_anchors": ["person", "thing", "acts", "exerts", "power"],
+    "source": "Oxford English Dictionary",
+    "research_domain": "Philosophy"
+  },
+  "documents": [
+    {
+      "title": "...",
+      "authors": ["Smith, J.", "Jones, M."],
+      "year": 2020,
+      "journal": "...",
+      "abstract": "...",
+      "domain": "AI Ethics"
+    }
+  ]
+}
+```
+
+**Benefits:**
+- LLM understands baseline meaning via definition + context anchors
+- Can identify semantic drift using anchor terms as reference
+- Domain context helps interpret specialized usage
+- Bibliographic metadata helps assess credibility/context
+
+#### Stage 2: Recommend Strategy
+**Current Prompt Structure:**
+```
+Based on goal, recommend tools...
+Available tools: [list]
+```
+
+**Enhanced Prompt Should Include:**
+```python
+{
+  "experiment_goal": "...",
+  "experiment_type": "temporal_analysis",
+  "focus_term": {
+    "term": "agent",
+    "baseline_meaning": "...",
+    "semantic_anchors": ["person", "thing", "acts", ...],
+    "domain": "Philosophy"
+  },
+  "documents": [
+    {
+      "id": 1,
+      "metadata": {
+        "year": 1990,
+        "domain": "Cognitive Science",
+        "has_abstract": true
+      }
+    },
+    {
+      "id": 2,
+      "metadata": {
+        "year": 2020,
+        "domain": "AI Ethics",
+        "has_abstract": true
+      }
+    }
+  ],
+  "available_tools": [...]
+}
+```
+
+**Strategy Recommendations Based on Experiment Type:**
+
+**Temporal Analysis:**
+- Prioritize: `extract_temporal`, `semantic_similarity` (compare to anchors)
+- Use: Context anchors to track meaning shift over time
+- Consider: Document chronology, publication venues
+
+**Cross-Domain:**
+- Prioritize: `extract_entities_spacy`, `semantic_similarity`
+- Use: Domain metadata to group similar papers
+- Compare: Term usage patterns across domains
+
+**Single Document:**
+- Prioritize: `llm_extract_concepts`, `extract_entities_spacy`
+- Use: Context anchors for deep semantic analysis
+- Focus: Comprehensive extraction from single source
+
+#### Stage 5: Synthesize Insights
+**Current Prompt Structure:**
+```
+Synthesize cross-document insights...
+Processing results: {...}
+```
+
+**Enhanced Prompt Should Include:**
+```python
+{
+  "experiment_goal": "...",
+  "baseline_term": {
+    "term": "agent",
+    "definition": "...",
+    "context_anchors": ["person", "thing", "acts", ...],
+    "source": "OED"
+  },
+  "processing_results": {
+    "1": {...},
+    "2": {...}
+  },
+  "document_metadata": {
+    "1": {
+      "title": "...",
+      "year": 1990,
+      "domain": "Cognitive Science",
+      "citation": "Smith (1990)"
+    },
+    "2": {
+      "title": "...",
+      "year": 2020,
+      "domain": "AI Ethics",
+      "citation": "Jones (2020)"
+    }
+  }
+}
+```
+
+**Synthesis Questions to Answer:**
+
+**For Temporal:**
+- How does usage differ from baseline definition?
+- Which context anchors appear/disappear over time?
+- What new meanings emerged? When?
+
+**For Cross-Domain:**
+- How does definition vary across domains?
+- Which anchors are universal vs. domain-specific?
+- What semantic shifts occurred crossing disciplines?
+
+**For All Types:**
+- Does usage align with dictionary definition?
+- Which context anchors are most relevant?
+- What nuances did the LLM discover?
+
+### Implementation Checklist for Session 14
+
+**1. Update State Schema** (`experiment_state.py`)
+```python
+class ExperimentWorkflowState(TypedDict):
+    # ADD: Rich term context
+    focus_term_definition: Optional[str]
+    focus_term_context_anchors: Optional[List[str]]
+    focus_term_source: Optional[str]
+    focus_term_domain: Optional[str]
+
+    # ADD: Document metadata
+    document_metadata: Optional[Dict[str, Dict[str, Any]]]
+```
+
+**2. Enhance Stage 1 Node** (`experiment_nodes.py`)
+- Query term metadata from database
+- Include definition + context anchors in prompt
+- Extract research domain
+- Build structured document metadata
+
+**3. Enhance Stage 2 Node**
+- Pass term definition + anchors to LLM
+- Include experiment type in prompt
+- Use document metadata for strategy decisions
+- Customize tool recommendations per type
+
+**4. Enhance Stage 5 Node**
+- Provide baseline definition for comparison
+- Ask LLM to reference context anchors
+- Include bibliographic context
+- Generate type-specific insights
+
+**5. Update Prompts** (New file: `app/orchestration/prompts.py`)
+```python
+def get_analyze_prompt(experiment_type: str, ...) -> str:
+    """Generate type-specific analysis prompt"""
+
+def get_strategy_prompt(experiment_type: str, ...) -> str:
+    """Generate type-specific strategy prompt"""
+
+def get_synthesis_prompt(experiment_type: str, ...) -> str:
+    """Generate type-specific synthesis prompt"""
+```
+
+### Expected Benefits
+
+**Better Analysis:**
+- LLM understands baseline meaning → detects drift
+- Context anchors → semantic disambiguation
+- Domain context → interprets specialized usage
+
+**Smarter Strategies:**
+- Type-specific tool recommendations
+- Metadata-informed prioritization
+- Better match between goals and methods
+
+**Richer Insights:**
+- Compare usage to dictionary baseline
+- Track anchor term presence/absence
+- Incorporate bibliographic context
+- Domain-aware interpretation
+
+---
+
 **See Also:**
 - [QUICK_REFERENCE.md](QUICK_REFERENCE.md) - Running the app, API endpoints
 - [PROGRESS.md](PROGRESS.md) - Session history and current status

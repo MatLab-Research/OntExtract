@@ -29,6 +29,18 @@ class ExperimentOrchestrationState(TypedDict):
     user_preferences: Dict[str, Any]  # {review_choices: bool, ...}
     run_id: str  # UUID for this orchestration run (string representation)
 
+    # Experiment metadata (set at initialization)
+    experiment_type: Optional[str]  # entity_extraction, temporal_evolution, domain_comparison
+
+    # Term metadata (set at initialization from database)
+    focus_term_definition: Optional[str]  # Dictionary definition of focus term
+    focus_term_context_anchors: Optional[List[str]]  # Related semantic terms (stop-word filtered)
+    focus_term_source: Optional[str]  # Source of definition (OED, MW, WordNet)
+    focus_term_domain: Optional[str]  # Research domain/discipline
+
+    # Document metadata (structured bibliographic info)
+    document_metadata: Optional[Dict[str, Dict[str, Any]]]  # {doc_id: {title, authors, year, journal, ...}}
+
     # Stage 1: Experiment Understanding
     experiment_goal: Optional[str]  # LLM's understanding of experiment purpose
     term_context: Optional[str]  # Why focus term matters (if present)
@@ -52,6 +64,11 @@ class ExperimentOrchestrationState(TypedDict):
     term_evolution_analysis: Optional[str]  # Focus term semantic evolution (if applicable)
     comparative_summary: Optional[str]  # High-level summary
 
+    # Structured outputs for card-based visualizations (experiment-type specific)
+    generated_term_cards: Optional[List[Dict[str, Any]]]  # For temporal_evolution: period-by-period term cards
+    generated_domain_cards: Optional[List[Dict[str, Any]]]  # For domain_comparison: domain-specific cards
+    generated_entity_cards: Optional[List[Dict[str, Any]]]  # For entity_extraction: entity relationship cards
+
     # Status tracking
     current_stage: str  # analyzing, recommending, reviewing, executing, synthesizing, completed
     error_message: Optional[str]  # Error details if workflow fails
@@ -62,7 +79,13 @@ def create_initial_experiment_state(
     run_id: str,
     documents: List[Dict[str, Any]],
     focus_term: Optional[str] = None,
-    user_preferences: Optional[Dict[str, Any]] = None
+    user_preferences: Optional[Dict[str, Any]] = None,
+    experiment_type: Optional[str] = None,
+    focus_term_definition: Optional[str] = None,
+    focus_term_context_anchors: Optional[List[str]] = None,
+    focus_term_source: Optional[str] = None,
+    focus_term_domain: Optional[str] = None,
+    document_metadata: Optional[Dict[str, Dict[str, Any]]] = None
 ) -> ExperimentOrchestrationState:
     """
     Create initial state for experiment orchestration.
@@ -73,6 +96,12 @@ def create_initial_experiment_state(
         documents: List of document dicts with id, title, content, metadata
         focus_term: Optional term to focus on for semantic evolution
         user_preferences: User settings (e.g., review_choices)
+        experiment_type: Type of experiment (entity_extraction, temporal_evolution, domain_comparison)
+        focus_term_definition: Dictionary definition of focus term
+        focus_term_context_anchors: Related semantic terms (stop-word filtered)
+        focus_term_source: Source of definition (OED, MW, WordNet)
+        focus_term_domain: Research domain/discipline
+        document_metadata: Structured bibliographic info per document
 
     Returns:
         Initial state dict
@@ -84,6 +113,18 @@ def create_initial_experiment_state(
         focus_term=focus_term,
         documents=documents,
         user_preferences=user_preferences or {},
+
+        # Experiment metadata
+        experiment_type=experiment_type,
+
+        # Term metadata
+        focus_term_definition=focus_term_definition,
+        focus_term_context_anchors=focus_term_context_anchors,
+        focus_term_source=focus_term_source,
+        focus_term_domain=focus_term_domain,
+
+        # Document metadata
+        document_metadata=document_metadata,
 
         # Stage 1 (will be filled by analyze_experiment_node)
         experiment_goal=None,
@@ -107,6 +148,11 @@ def create_initial_experiment_state(
         cross_document_insights=None,
         term_evolution_analysis=None,
         comparative_summary=None,
+
+        # Structured outputs (will be filled by synthesize_experiment_node)
+        generated_term_cards=None,
+        generated_domain_cards=None,
+        generated_entity_cards=None,
 
         # Status
         current_stage="analyzing",
