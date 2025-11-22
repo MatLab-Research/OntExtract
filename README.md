@@ -1,6 +1,6 @@
 # OntExtract
 
-Intelligent LLM-Orchestrated Document Processing for Historical Text Analysis
+User-Empowered Historical Document Analysis with Optional LLM Orchestration
 
 Presented at JCDL 2025 (Joint Conference on Digital Libraries)
 December 15-19, 2025
@@ -9,9 +9,9 @@ December 15-19, 2025
 
 ## Overview
 
-OntExtract implements a 5-stage LLM orchestration framework for analyzing historical documents. The system mediates between high-level research questions and low-level NLP tool execution through automated tool selection, configuration, execution, and synthesis.
+OntExtract is a digital humanities platform for analyzing historical documents with full manual control and optional LLM enhancements. The system supports period-aware document processing, temporal evolution tracking, and semantic change annotation.
 
-Instead of manually selecting and configuring NLP tools for each document, researchers describe their analysis goals and the system recommends appropriate processing strategies, executes the tools, and generates cross-document insights.
+Researchers have complete control over document analysis through manual tool selection, period definition, and event annotation. For those with API access, an optional 5-stage LLM orchestration framework can suggest processing strategies and generate cross-document insights - but all core features work without any API keys.
 
 ---
 
@@ -160,25 +160,55 @@ Provenance Layer:
 
 OntExtract operates in two modes based on available resources:
 
-### API-Enhanced Mode (Requires Anthropic API Key)
-Full 5-stage orchestration workflow:
-- LLM analyzes experiment goals and document characteristics
-- Automated tool selection and strategy recommendation
-- Human review of LLM recommendations
-- Coordinated tool execution
-- Cross-document synthesis with pattern identification
-
-Configuration: Set ANTHROPIC_API_KEY environment variable to enable orchestration features.
-
-### Standalone Mode (No API Key Required)
-All document processing capabilities without LLM orchestration:
+### Standalone Mode (No API Key Required) - PRIMARY MODE
+Complete document processing and temporal analysis capabilities:
 - Manual tool selection through interface
 - Same NLP libraries (spaCy, NLTK, sentence-transformers)
 - Entity extraction, temporal analysis, definition extraction
 - Text segmentation and embedding generation
+- **Temporal timeline with ontology-backed event types**
+- **Manual semantic change annotation**
+- **Period-aware document linking**
+- **OED integration for historical definitions**
 - Full PROV-O provenance tracking
+- SPARQL queries over semantic events
 
-Users can apply multiple processing strategies to documents and compare results in either mode. Standalone mode provides complete document analysis functionality for researchers without API access, while API-enhanced mode adds intelligent tool coordination.
+Configuration: Works immediately - no API keys or external services required. Ontology metadata loaded from local file.
+
+### API-Enhanced Mode (Requires Anthropic API Key) - OPTIONAL
+Additional LLM orchestration features that enhance but don't replace user control:
+- Automated tool selection and strategy recommendation
+- Cross-document synthesis with pattern identification
+- LLM suggestions for semantic events (user reviews and approves)
+- Enhanced context anchor extraction
+- Human-in-the-loop review of all LLM recommendations
+
+Configuration: Set ANTHROPIC_API_KEY environment variable to enable LLM features.
+
+**Key Point**: All core features work without an API key. LLM features provide suggestions and insights, but users remain in control of all annotations and decisions.
+
+---
+
+## Ontology-Informed Design
+
+OntExtract's semantic change event types are derived from a formally validated ontology:
+
+- **34 event type classes** from comprehensive literature review (12 papers, 200+ pages)
+- **33 academic citations** embedded directly in ontology
+- **Pellet reasoner validation** ensures logical consistency
+- **BFO-aligned** for upper-level ontology integration
+
+Event types include:
+- Pejoration/Amelioration (sentiment change - Jatowt & Duh 2014)
+- Linguistic Drift (gradual meaning shift - Kutuzov et al. 2018)
+- Intension/Extension Drift (definition vs. usage - Stavropoulos et al. 2019)
+- Lexical Emergence/Obsolescence (lifecycle changes - Tahmasebi et al. 2021)
+- URI/Hierarchy Drift (structural changes - Capobianco et al. 2020)
+
+Users select event types from an ontology-backed dropdown that displays academic definitions and citations, ensuring scholarly rigor without requiring external service dependencies.
+
+**Ontology**: [semantic-change-ontology-v2.ttl](ontologies/semantic-change-ontology-v2.ttl)
+**Validation**: [VALIDATION_GUIDE.md](VALIDATION_GUIDE.md)
 
 ---
 

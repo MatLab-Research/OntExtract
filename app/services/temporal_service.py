@@ -118,8 +118,8 @@ class TemporalService(BaseService):
                 experiment_id=experiment.id
             ).order_by(OrchestrationDecision.created_at.desc()).limit(10).all()
 
-            # Hydrate period_documents with full Document objects
-            # The config stores {id, title, date_source}, but template needs full objects with UUID
+            # Hydrate period_documents with serialized Document data
+            # The config stores {id, title, date_source}, but template needs full data with UUID
             period_documents_config = config.get('period_documents', {})
             period_documents_hydrated = {}
 
@@ -130,7 +130,14 @@ class TemporalService(BaseService):
                     if doc_id:
                         doc = Document.query.get(doc_id)
                         if doc:
-                            hydrated_docs.append(doc)
+                            # Serialize Document to dict for JSON compatibility
+                            hydrated_docs.append({
+                                'id': doc.id,
+                                'uuid': str(doc.uuid),
+                                'title': doc.title or 'Untitled Document',
+                                'publication_date': doc.publication_date.isoformat() if doc.publication_date else None,
+                                'date_source': doc_info.get('date_source', 'publication_date')
+                            })
                         else:
                             # Document no longer exists, skip it
                             logger.warning(f"Document {doc_id} referenced in period {period_key} not found")

@@ -394,6 +394,19 @@ def save_semantic_event(experiment_id):
                 'error': 'Missing required fields: event_type, from_period, description'
             }), 400
 
+        # Get ontology metadata for this event type
+        from app.services.local_ontology_service import get_ontology_service
+        from datetime import datetime
+
+        ontology = get_ontology_service()
+        event_types = ontology.get_all_for_dropdown()
+
+        # Find matching event type from ontology
+        ontology_metadata = next(
+            (et for et in event_types if et['value'] == event_type),
+            None
+        )
+
         # Get configuration
         config = json.loads(experiment.configuration) if experiment.configuration else {}
         semantic_events = config.get('semantic_events', [])
@@ -411,14 +424,29 @@ def save_semantic_event(experiment_id):
                 for doc in documents
             ]
 
-        # Create/update event
+        # Check if this is an update or new event
+        existing_event = next((e for e in semantic_events if e.get('id') == event_id), None)
+        is_update = existing_event is not None
+
+        # Create/update event with full metadata
         event_obj = {
             'id': event_id,
             'event_type': event_type,
             'from_period': from_period,
             'to_period': to_period,
             'description': description,
-            'related_documents': related_documents
+            'related_documents': related_documents,
+            # Ontology metadata
+            'type_label': ontology_metadata['label'] if ontology_metadata else event_type.replace('_', ' ').title(),
+            'type_uri': ontology_metadata['uri'] if ontology_metadata else None,
+            'definition': ontology_metadata['definition'] if ontology_metadata else None,
+            'citation': ontology_metadata['citation'] if ontology_metadata else None,
+            'example': ontology_metadata['example'] if ontology_metadata else None,
+            # Provenance metadata
+            'created_by': existing_event.get('created_by') if is_update else current_user.id,
+            'created_at': existing_event.get('created_at') if is_update else datetime.utcnow().isoformat(),
+            'modified_by': current_user.id if is_update else None,
+            'modified_at': datetime.utcnow().isoformat() if is_update else None
         }
 
         # Find and update or append
@@ -432,6 +460,38 @@ def save_semantic_event(experiment_id):
         config['semantic_events'] = semantic_events
         experiment.configuration = json.dumps(config)
         db.session.commit()
+
+        # Record provenance
+        from app.services.provenance_service import provenance_service
+
+        activity_type = 'semantic_event_update' if is_update else 'semantic_event_creation'
+
+        provenance_service.record_activity(
+            activity_type=activity_type,
+            user_id=current_user.id,
+            activity_parameters={
+                'experiment_id': experiment_id,
+                'event_id': event_id,
+                'event_type': event_type,
+                'type_uri': event_obj.get('type_uri'),
+                'type_label': event_obj.get('type_label'),
+                'from_period': from_period,
+                'to_period': to_period
+            },
+            generated_entities=[{
+                'entity_type': 'semantic_event',
+                'entity_value': event_id,
+                'metadata': {
+                    'type': event_type,
+                    'type_uri': event_obj.get('type_uri'),
+                    'label': event_obj.get('type_label')
+                }
+            }],
+            used_entities=[{
+                'entity_type': 'document',
+                'entity_value': str(doc['uuid'])
+            } for doc in related_documents]
+        )
 
         logger.info(f"Saved semantic event '{event_type}' for experiment {experiment_id}")
 
@@ -475,6 +535,9 @@ def remove_semantic_event(experiment_id):
         config = json.loads(experiment.configuration) if experiment.configuration else {}
         semantic_events = config.get('semantic_events', [])
 
+        # Find event before removing (for provenance)
+        removed_event = next((e for e in semantic_events if e.get('id') == event_id), None)
+
         # Remove event
         semantic_events = [e for e in semantic_events if e.get('id') != event_id]
 
@@ -482,6 +545,26 @@ def remove_semantic_event(experiment_id):
         config['semantic_events'] = semantic_events
         experiment.configuration = json.dumps(config)
         db.session.commit()
+
+        # Record provenance
+        if removed_event:
+            from app.services.provenance_service import provenance_service
+
+            provenance_service.record_activity(
+                activity_type='semantic_event_deletion',
+                user_id=current_user.id,
+                activity_parameters={
+                    'experiment_id': experiment_id,
+                    'event_id': event_id,
+                    'event_type': removed_event.get('event_type'),
+                    'type_uri': removed_event.get('type_uri'),
+                    'type_label': removed_event.get('type_label')
+                },
+                used_entities=[{
+                    'entity_type': 'semantic_event',
+                    'entity_value': event_id
+                }]
+            )
 
         logger.info(f"Removed semantic event {event_id} from experiment {experiment_id}")
 
@@ -497,3 +580,65 @@ def remove_semantic_event(experiment_id):
             'success': False,
             'error': str(e)
         }), 500
+
+
+@experiments_bp.route('/<int:experiment_id>/semantic_event_types', methods=['GET'])
+@api_require_login_for_write
+def get_semantic_event_types(experiment_id):
+    """
+    Get semantic change event types from ontology for dropdown.
+
+    Returns event types with definitions and citations for UI display.
+    Uses LocalOntologyService to load from local .ttl file (JCDL standalone mode).
+    """
+    try:
+        from app.services.local_ontology_service import get_ontology_service
+
+        ontology = get_ontology_service()
+        event_types = ontology.get_all_for_dropdown()
+
+        return jsonify({
+            'success': True,
+            'event_types': event_types,
+            'count': len(event_types),
+            'source': 'semantic-change-ontology-v2.ttl'
+        }), 200
+
+    except Exception as e:
+        logger.error(f"Failed to load event types: {e}", exc_info=True)
+
+        # Fallback to hardcoded types if ontology load fails
+        fallback_types = [
+            {
+                'value': 'pejoration',
+                'label': 'Pejoration',
+                'definition': 'Negative shift in word meaning or connotation',
+                'citation': 'Jatowt & Duh 2014',
+                'example': None,
+                'uri': None
+            },
+            {
+                'value': 'amelioration',
+                'label': 'Amelioration',
+                'definition': 'Positive shift in word meaning or connotation',
+                'citation': 'Jatowt & Duh 2014',
+                'example': None,
+                'uri': None
+            },
+            {
+                'value': 'semantic_drift',
+                'label': 'Semantic Drift',
+                'definition': 'Gradual, incremental meaning change over extended period',
+                'citation': 'Hamilton et al. 2016',
+                'example': None,
+                'uri': None
+            }
+        ]
+
+        return jsonify({
+            'success': True,
+            'event_types': fallback_types,
+            'count': len(fallback_types),
+            'source': 'fallback (ontology load failed)',
+            'error': str(e)
+        }), 200

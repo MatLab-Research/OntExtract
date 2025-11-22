@@ -198,6 +198,11 @@ class TestTemporalExperimentWorkflow:
 
         db_session.commit()
 
+        # Re-query documents to get fresh instances attached to current session
+        # (after commit, objects can become detached due to nested transactions)
+        doc_ids = [d.id for d in documents]
+        documents = Document.query.filter(Document.id.in_(doc_ids)).all()
+
         # Verify linkage
         exp_docs = ExperimentDocument.query.filter_by(experiment_id=experiment.id).all()
         assert len(exp_docs) == 5, f"Expected 5 experiment documents, found {len(exp_docs)}"

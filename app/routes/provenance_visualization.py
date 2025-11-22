@@ -105,7 +105,10 @@ def timeline():
         'experiment_creation',
         'experiment_document_processing',
         'tool_execution',
-        'orchestration_run'
+        'orchestration_run',
+        'semantic_event_creation',
+        'semantic_event_update',
+        'semantic_event_deletion'
     ]
 
     return render_template(

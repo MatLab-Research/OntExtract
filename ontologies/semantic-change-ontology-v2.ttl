@@ -1,0 +1,617 @@
+@prefix sco: <http://ontextract.org/sco#> .
+@prefix bfo: <http://purl.obolibrary.org/obo/> .
+@prefix time: <http://www.w3.org/2006/time#> .
+@prefix skos: <http://www.w3.org/2004/02/skos/core#> .
+@prefix prov: <http://www.w3.org/ns/prov#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+@prefix dcterms: <http://purl.org/dc/terms/> .
+
+# =============================================================================
+# Ontology Metadata
+# =============================================================================
+
+sco: a owl:Ontology ;
+    rdfs:label "Semantic Change Ontology" ;
+    rdfs:comment "Ontology for modeling semantic change phenomena based on comprehensive literature review" ;
+    dcterms:creator "OntExtract Project" ;
+    dcterms:created "2025-11-21"^^xsd:date ;
+    dcterms:modified "2025-11-22"^^xsd:date ;
+    dcterms:description """Models semantic change events with academic backing from:
+        - Lexical semantic change (Hamilton 2016, Kutuzov 2018, Dubossarsky 2019, Montariol 2021)
+        - Ontology drift (Stavropoulos 2019, Gulla 2010, Capobianco 2020)
+        - Provenance tracking (Missier 2013 D-PROV)
+        Integrates BFO upper ontology with PROV-O for research annotations.""" ;
+    owl:versionInfo "2.0.0" ;
+    dcterms:bibliographicCitation """
+        Hamilton et al. (2016). Diachronic Word Embeddings Reveal Statistical Laws. ACL.
+        Stavropoulos et al. (2019). SemaDrift. Journal of Web Semantics.
+        Dubossarsky et al. (2019). Time-Out: Temporal Referencing. ACL.
+        Gulla et al. (2010). Semantic Drift in Ontologies. WEBIST.
+        Tahmasebi et al. (2021). Survey of Computational Approaches. Language Science Press.
+        """ ;
+    owl:imports <http://purl.obolibrary.org/obo/bfo.owl> ,
+                <http://www.w3.org/2006/time> ,
+                <http://www.w3.org/2004/02/skos/core> ,
+                <http://www.w3.org/ns/prov#> .
+
+# =============================================================================
+# Core Semantic Change Event Classes
+# =============================================================================
+
+sco:SemanticChangeEvent a owl:Class ;
+    rdfs:subClassOf bfo:BFO_0000015 ;  # bfo:Process
+    rdfs:label "Semantic Change Event" ;
+    rdfs:comment "A process by which the meaning of a term changes over time. Top-level class for all semantic change phenomena." ;
+    skos:definition "A temporal process wherein a linguistic term undergoes modification in its semantic content, usage patterns, or conceptual associations within a discourse community." ;
+    dcterms:bibliographicCitation "Tahmasebi et al. (2021). Survey of Computational Approaches to Lexical Semantic Change Detection. Language Science Press." .
+
+# =============================================================================
+# Specific Event Types - Original (v1.0)
+# =============================================================================
+
+sco:InflectionPoint a owl:Class ;
+    rdfs:subClassOf sco:SemanticChangeEvent ;
+    rdfs:label "Inflection Point" ;
+    rdfs:comment "Rapid semantic transition marking shift between distinct meanings. Characterized by abrupt change in term usage patterns." ;
+    skos:definition "A semantic change event characterized by an abrupt, concentrated shift in meaning occurring within a relatively short temporal window." ;
+    skos:example "The term 'agent' in 1995: transition from primarily human actor to computational system in AI discourse." ;
+    skos:example "The term 'ontology' in 1993: shift from philosophical metaphysics to information science knowledge representation." ;
+    skos:note "May be operationalized as sudden increase in semantic displacement rate (Hamilton et al. 2016)." .
+
+sco:StablePolysemy a owl:Class ;
+    rdfs:subClassOf sco:SemanticChangeEvent ;
+    rdfs:label "Stable Polysemy" ;
+    rdfs:comment "Multiple distinct meanings coexist without conflict across disciplines. No single dominant sense emerges." ;
+    skos:definition "A semantic state wherein a term maintains multiple distinct, stable meanings across different discourse communities without one meaning dominating or replacing others." ;
+    skos:example "The term 'agent' in 2024: simultaneously refers to legal person (law), autonomous system (AI), and chemical catalyst (chemistry)." ;
+    dcterms:bibliographicCitation "Hamilton et al. (2016) discuss polysemy as driver of change; this represents stable state without active change." .
+
+sco:DomainNetwork a owl:Class ;
+    rdfs:subClassOf sco:SemanticChangeEvent ;
+    rdfs:label "Domain Network" ;
+    rdfs:comment "Development of discipline-specific semantic network with specialized terminology." ;
+    skos:definition "The emergence of a domain-specific constellation of meanings and related terms forming a coherent semantic network within a particular field." ;
+    skos:example "In AI discourse, 'agent' develops associations with: percept-action loop, rationality, autonomy, multi-agent systems." .
+
+sco:ConceptualBridge a owl:Class ;
+    rdfs:subClassOf sco:SemanticChangeEvent ;
+    rdfs:label "Conceptual Bridge" ;
+    rdfs:comment "Work or publication that mediates between different disciplinary meanings, facilitating semantic transfer." ;
+    skos:definition "A scholarly contribution that explicitly connects or transfers meaning between different disciplinary contexts, enabling cross-domain semantic evolution." ;
+    skos:example "Anscombe's 'Intention' (1957): bridges legal concept of agency to philosophical analysis of action." .
+
+sco:SemanticDrift a owl:Class ;
+    rdfs:subClassOf sco:SemanticChangeEvent ;
+    rdfs:label "Semantic Drift" ;
+    rdfs:comment "Gradual, incremental meaning change over extended period without distinct inflection point." ;
+    skos:definition "A semantic change process characterized by slow, continuous modification of meaning over an extended temporal interval." ;
+    skos:example "The gradual shift in 'computer' from human occupation (1920s-1940s) to electronic machine (1950s onwards)." ;
+    dcterms:bibliographicCitation "Hamilton et al. (2016); Gulla et al. (2010); Stavropoulos et al. (2019)." .
+
+sco:Emergence a owl:Class ;
+    rdfs:subClassOf sco:SemanticChangeEvent ;
+    rdfs:label "Emergence" ;
+    rdfs:comment "New meaning appears in discourse, often through neologism or semantic extension." ;
+    skos:definition "The introduction of a previously non-existent meaning or sense for a term within a discourse community." ;
+    skos:example "Emergence of 'cloud' as distributed computing infrastructure in late 2000s." ;
+    dcterms:bibliographicCitation "Tahmasebi et al. (2021): 'new words are coined or borrowed from other languages'." .
+
+sco:Decline a owl:Class ;
+    rdfs:subClassOf sco:SemanticChangeEvent ;
+    rdfs:label "Decline" ;
+    rdfs:comment "Meaning becomes obsolete, archaic, or significantly less frequent in usage." ;
+    skos:definition "The process by which a particular sense or meaning of a term becomes progressively less common, eventually reaching obsolescence." ;
+    skos:example "Decline of 'computer' as human occupation after widespread adoption of electronic computers." ;
+    dcterms:bibliographicCitation "Tahmasebi et al. (2021): 'obsolete words slide into obscurity'." .
+
+# =============================================================================
+# NEW: Sentiment Change Types (Jatowt & Duh 2014)
+# =============================================================================
+
+sco:Pejoration a owl:Class ;
+    rdfs:subClassOf sco:SemanticChangeEvent ;
+    rdfs:label "Pejoration" ;
+    rdfs:comment "Semantic change toward negative sentiment or attitude (degeneration)." ;
+    skos:definition "A semantic change event wherein a term acquires increasingly negative connotations, attitudes, or evaluative associations over time." ;
+    skos:example "'fatal' and 'propaganda' have undergone pejoration (Jatowt & Duh 2014)." ;
+    skos:altLabel "Degeneration"@en ;
+    dcterms:bibliographicCitation "Jatowt & Duh (2014). Framework for analyzing semantic change. JCDL. Bloomfield (1933) nine classes." .
+
+sco:Amelioration a owl:Class ;
+    rdfs:subClassOf sco:SemanticChangeEvent ;
+    rdfs:label "Amelioration" ;
+    rdfs:comment "Semantic change toward positive sentiment or attitude (elevation)." ;
+    skos:definition "A semantic change event wherein a term acquires increasingly positive connotations, attitudes, or evaluative associations over time." ;
+    skos:example "'aggressive' has undergone amelioration, acquiring positive connotations in business/sports contexts (Jatowt & Duh 2014)." ;
+    skos:altLabel "Elevation"@en ;
+    dcterms:bibliographicCitation "Jatowt & Duh (2014). Framework for analyzing semantic change. JCDL. Bloomfield (1933) nine classes." .
+
+# =============================================================================
+# NEW: Linguistic vs Cultural Change (Kutuzov 2018)
+# =============================================================================
+
+sco:LinguisticDrift a owl:Class ;
+    rdfs:subClassOf sco:SemanticDrift ;
+    rdfs:label "Linguistic Drift" ;
+    rdfs:comment "Slow, regular changes in core meaning driven by internal linguistic factors." ;
+    skos:definition "Semantic drift resulting from language-internal motivations and systematic patterns of meaning evolution." ;
+    dcterms:bibliographicCitation "Kutuzov et al. (2018). Diachronic word embeddings and semantic shifts: a survey. COLING." .
+
+sco:CulturalShift a owl:Class ;
+    rdfs:subClassOf sco:SemanticChangeEvent ;
+    rdfs:label "Cultural Shift" ;
+    rdfs:comment "Culturally determined changes in word associations, not core meaning." ;
+    skos:definition "Semantic change driven by external cultural, societal, or technological factors affecting a term's associations rather than its core denotation." ;
+    skos:example "Iraq/Syria acquiring war-related associations (Kutuzov 2018)." ;
+    dcterms:bibliographicCitation "Kutuzov et al. (2018). Distinguishes cultural shifts from linguistic drifts." .
+
+# =============================================================================
+# NEW: Ontology Drift Types (Gulla 2010, Stavropoulos 2019, Capobianco 2020)
+# =============================================================================
+
+sco:IntrinsicDrift a owl:Class ;
+    rdfs:subClassOf sco:SemanticDrift ;
+    rdfs:label "Intrinsic Drift" ;
+    rdfs:comment "Concept's semantic value changes relative to OTHER concepts in the ontology." ;
+    skos:definition "Semantic drift wherein a concept's meaning shifts with respect to its relationships with other concepts within the same ontology, typically reflected in changed relationships." ;
+    dcterms:bibliographicCitation "Gulla et al. (2010). Semantic Drift in Ontologies. WEBIST." .
+
+sco:ExtrinsicDrift a owl:Class ;
+    rdfs:subClassOf sco:SemanticDrift ;
+    rdfs:label "Extrinsic Drift" ;
+    rdfs:comment "Concept's semantic value changes relative to real-world phenomena it describes." ;
+    skos:definition "Semantic drift wherein a concept's meaning shifts with respect to the external reality or phenomena it represents, potentially without internal ontology changes." ;
+    skos:note "If whole ontology shows extrinsic but not intrinsic drift, indicates collective drift (domain evolved, ontology internally consistent)." ;
+    dcterms:bibliographicCitation "Gulla et al. (2010). Semantic Drift in Ontologies. WEBIST." .
+
+sco:CollectiveDrift a owl:Class ;
+    rdfs:subClassOf sco:ExtrinsicDrift ;
+    rdfs:label "Collective Drift" ;
+    rdfs:comment "Entire ontology drifts consistently together; domain evolved but ontology remains internally coherent." ;
+    skos:definition "A pattern of semantic drift wherein all concepts in an ontology exhibit extrinsic drift but minimal intrinsic drift, indicating domain-wide evolution with preserved internal consistency." ;
+    dcterms:bibliographicCitation "Gulla et al. (2010). Concept exposed to extrinsic but not intrinsic drift." .
+
+sco:LabelDrift a owl:Class ;
+    rdfs:subClassOf sco:SemanticChangeEvent ;
+    rdfs:label "Label Drift" ;
+    rdfs:comment "Changes in the lexical labels (names) of a concept." ;
+    skos:definition "Semantic change affecting the rdfs:label or naming of a concept, measured via string similarity (Monge-Elkan)." ;
+    dcterms:bibliographicCitation "Wang et al. (2009, 2011); Stavropoulos et al. (2019). SemaDrift." .
+
+sco:IntensionalDrift a owl:Class ;
+    rdfs:subClassOf sco:SemanticChangeEvent ;
+    rdfs:label "Intensional Drift" ;
+    rdfs:comment "Changes in concept properties (characteristics implied by the concept)." ;
+    skos:definition "Semantic change affecting the intensional definition of a concept via modifications to its properties, measured via Jaccard similarity of property sets." ;
+    dcterms:bibliographicCitation "Wang et al. (2009, 2011); Stavropoulos et al. (2019). SemaDrift." .
+
+sco:ExtensionalDrift a owl:Class ;
+    rdfs:subClassOf sco:SemanticChangeEvent ;
+    rdfs:label "Extensional Drift" ;
+    rdfs:comment "Changes in concept instances (things the concept extends to)." ;
+    skos:definition "Semantic change affecting the extensional definition of a concept via modifications to its instances, measured via Jaccard similarity of instance sets." ;
+    dcterms:bibliographicCitation "Wang et al. (2009, 2011); Stavropoulos et al. (2019). SemaDrift." .
+
+sco:StructuralDrift a owl:Class ;
+    rdfs:subClassOf sco:SemanticChangeEvent ;
+    rdfs:label "Structural Drift" ;
+    rdfs:comment "Changes to ontology structure: hierarchy, URIs, equivalences." ;
+    skos:definition "Semantic change affecting the structural aspects of an ontology including URIs, class hierarchies, and equivalence relationships." ;
+    dcterms:bibliographicCitation "Capobianco et al. (2020). OntoDrift. MEPDaW@ISWC." .
+
+sco:URIDrift a owl:Class ;
+    rdfs:subClassOf sco:StructuralDrift ;
+    rdfs:label "URI Drift" ;
+    rdfs:comment "Changes to concept identifiers/URIs." ;
+    skos:definition "Modifications to the URI or identifier of an ontology concept, affecting referenceability and version stability." ;
+    dcterms:bibliographicCitation "Capobianco et al. (2020). OntoDrift adds URI metric." .
+
+sco:SubclassDrift a owl:Class ;
+    rdfs:subClassOf sco:StructuralDrift ;
+    rdfs:label "Subclass Drift" ;
+    rdfs:comment "Changes to taxonomic children (specializations below concept)." ;
+    skos:definition "Changes in the subclass relationships of a concept, affecting the taxonomic structure below it in the hierarchy." ;
+    dcterms:bibliographicCitation "Capobianco et al. (2020). OntoDrift adds Subclasses metric." .
+
+sco:SuperclassDrift a owl:Class ;
+    rdfs:subClassOf sco:StructuralDrift ;
+    rdfs:label "Superclass Drift" ;
+    rdfs:comment "Changes to taxonomic parents (generalizations above concept)." ;
+    skos:definition "Changes in the superclass relationships of a concept, indicating reclassification or generalization shifts in the taxonomy." ;
+    dcterms:bibliographicCitation "Capobianco et al. (2020). OntoDrift adds Superclasses metric." .
+
+sco:EquivalentClassDrift a owl:Class ;
+    rdfs:subClassOf sco:StructuralDrift ;
+    rdfs:label "Equivalent Class Drift" ;
+    rdfs:comment "Changes to owl:equivalentClass relationships." ;
+    skos:definition "Modifications to equivalence mappings between concepts, affecting ontology alignment and integration." ;
+    dcterms:bibliographicCitation "Capobianco et al. (2020). OntoDrift adds Equivalent Classes metric." .
+
+# =============================================================================
+# NEW: Lexical Lifecycle Events (Tahmasebi 2021)
+# =============================================================================
+
+sco:LexicalEmergence a owl:Class ;
+    rdfs:subClassOf sco:Emergence ;
+    rdfs:label "Lexical Emergence" ;
+    rdfs:comment "New word coined or borrowed from other language." ;
+    skos:definition "The introduction of an entirely new lexical item (word form) into a language through coinage or borrowing." ;
+    dcterms:bibliographicCitation "Tahmasebi et al. (2021): 'new words are coined or borrowed from other languages'." .
+
+sco:LexicalObsolescence a owl:Class ;
+    rdfs:subClassOf sco:Decline ;
+    rdfs:label "Lexical Obsolescence" ;
+    rdfs:comment "Word slides into obscurity, becomes archaic." ;
+    skos:definition "The process by which a lexical item falls out of common usage and becomes obsolete or archaic." ;
+    dcterms:bibliographicCitation "Tahmasebi et al. (2021): 'obsolete words slide into obscurity'." .
+
+sco:LexicalReplacement a owl:Class ;
+    rdfs:subClassOf sco:SemanticChangeEvent ;
+    rdfs:label "Lexical Replacement" ;
+    rdfs:comment "One word replaces another for expressing the same concept." ;
+    skos:definition "A semantic change process wherein one lexical item supplants another in expressing a particular meaning or concept." ;
+    dcterms:bibliographicCitation "Tahmasebi et al. (2021). Lexical replacement patterns." .
+
+# =============================================================================
+# NEW: Sense-Level vs Word-Level (Montariol 2021)
+# =============================================================================
+
+sco:WordLevelChange a owl:Class ;
+    rdfs:subClassOf sco:SemanticChangeEvent ;
+    rdfs:label "Word-Level Change" ;
+    rdfs:comment "Aggregate semantic change across all senses of a word." ;
+    skos:definition "Semantic change measured at the word level, aggregating changes across all senses and usages." ;
+    dcterms:bibliographicCitation "Montariol et al. (2021). Scalable and Interpretable Semantic Change Detection. NAACL." .
+
+sco:SenseLevelChange a owl:Class ;
+    rdfs:subClassOf sco:SemanticChangeEvent ;
+    rdfs:label "Sense-Level Change" ;
+    rdfs:comment "Semantic change in a specific word sense/usage." ;
+    skos:definition "Semantic change measured at the sense level, tracking evolution of specific word meanings or usages identified through clustering." ;
+    dcterms:bibliographicCitation "Montariol et al. (2021). Cluster-based sense-level analysis." .
+
+# =============================================================================
+# Object Properties
+# =============================================================================
+
+sco:affectsConcept a owl:ObjectProperty ;
+    rdfs:label "affects concept" ;
+    rdfs:comment "Links a semantic change event to the term/concept undergoing change." ;
+    rdfs:domain sco:SemanticChangeEvent ;
+    rdfs:range skos:Concept ;
+    skos:definition "Relates a semantic change event to the linguistic concept or term that is the subject of the change." .
+
+sco:occursDuringInterval a owl:ObjectProperty ;
+    rdfs:label "occurs during interval" ;
+    rdfs:comment "Links semantic change event to the temporal interval when it occurred." ;
+    rdfs:domain sco:SemanticChangeEvent ;
+    rdfs:range time:Interval ;
+    skos:definition "Specifies the temporal region during which a semantic change event took place." .
+
+sco:hasFromMeaning a owl:ObjectProperty ;
+    rdfs:label "has from meaning" ;
+    rdfs:comment "The original or source meaning before the semantic change." ;
+    rdfs:domain sco:SemanticChangeEvent ;
+    rdfs:range skos:Concept ;
+    skos:definition "Indicates the semantic content or meaning that served as the starting point for a semantic change event." .
+
+sco:hasToMeaning a owl:ObjectProperty ;
+    rdfs:label "has to meaning" ;
+    rdfs:comment "The new or target meaning after the semantic change." ;
+    rdfs:domain sco:SemanticChangeEvent ;
+    rdfs:range skos:Concept ;
+    skos:definition "Indicates the semantic content or meaning that resulted from a semantic change event." .
+
+sco:evidencedBy a owl:ObjectProperty ;
+    rdfs:label "evidenced by" ;
+    rdfs:comment "Links semantic change event to documentary evidence supporting its identification." ;
+    rdfs:domain sco:SemanticChangeEvent ;
+    rdfs:range bfo:BFO_0000016 ;  # bfo:InformationContentEntity (documents)
+    skos:definition "Associates a semantic change event with a document or information artifact that provides evidence for the change." .
+
+sco:hasTextualEvidence a owl:ObjectProperty ;
+    rdfs:label "has textual evidence" ;
+    rdfs:comment "Links to specific text segment providing evidence for semantic change." ;
+    rdfs:domain sco:SemanticChangeEvent ;
+    rdfs:subPropertyOf sco:evidencedBy ;
+    skos:definition "Relates a semantic change event to a specific textual passage that exemplifies or evidences the change." .
+
+sco:occursInDomain a owl:ObjectProperty ;
+    rdfs:label "occurs in domain" ;
+    rdfs:comment "The disciplinary or discourse domain where semantic change occurs." ;
+    rdfs:domain sco:SemanticChangeEvent ;
+    rdfs:range skos:Concept ;
+    skos:definition "Specifies the academic discipline, professional field, or discourse community within which a semantic change event manifests." .
+
+# NEW Properties
+
+sco:hasCause a owl:ObjectProperty ;
+    rdfs:label "has cause" ;
+    rdfs:comment "Links semantic change to its driving cause (external or internal)." ;
+    rdfs:domain sco:SemanticChangeEvent ;
+    skos:definition "Relates a semantic change event to the causal factor that drove the change." ;
+    dcterms:bibliographicCitation "Tahmasebi et al. (2021). External vs internal drivers." .
+
+sco:hasExternalCause a owl:ObjectProperty ;
+    rdfs:subPropertyOf sco:hasCause ;
+    rdfs:label "has external cause" ;
+    rdfs:comment "External driver: cultural, societal, or technological change." ;
+    dcterms:bibliographicCitation "Tahmasebi et al. (2021): 'external factors such as cultural, societal and technological changes'." .
+
+sco:hasInternalCause a owl:ObjectProperty ;
+    rdfs:subPropertyOf sco:hasCause ;
+    rdfs:label "has internal cause" ;
+    rdfs:comment "Internal linguistic motivations for semantic change." ;
+    dcterms:bibliographicCitation "Tahmasebi et al. (2021): 'only partially understood internal motivations'." .
+
+sco:hasSenseCluster a owl:ObjectProperty ;
+    rdfs:label "has sense cluster" ;
+    rdfs:comment "Links change event to specific sense cluster identified via embedding clustering." ;
+    rdfs:domain sco:SenseLevelChange ;
+    skos:definition "Associates a sense-level semantic change with the cluster of contextual embeddings representing that sense." ;
+    dcterms:bibliographicCitation "Montariol et al. (2021). Cluster-based sense identification." .
+
+sco:usesDetectionMethod a owl:ObjectProperty ;
+    rdfs:label "uses detection method" ;
+    rdfs:comment "The computational method used to detect/measure this semantic change." ;
+    rdfs:domain sco:SemanticChangeEvent ;
+    rdfs:range sco:DetectionMethod ;
+    skos:definition "Specifies the analytical or computational approach employed to identify and characterize a semantic change event." .
+
+sco:hasControlCondition a owl:ObjectProperty ;
+    rdfs:label "has control condition" ;
+    rdfs:comment "Reference to control/null condition for validating genuine vs. artifact change." ;
+    rdfs:domain sco:SemanticChangeEvent ;
+    dcterms:bibliographicCitation "Dubossarsky et al. (2017, 2019). Control condition requirement." .
+
+sco:usesExternalKnowledgeBase a owl:ObjectProperty ;
+    rdfs:label "uses external knowledge base" ;
+    rdfs:comment "External knowledge source consulted for semantic correspondence." ;
+    rdfs:domain sco:SemanticChangeEvent ;
+    dcterms:bibliographicCitation "Maree & Belkhatir (2015). Multi-source aggregation." .
+
+sco:hasWorkflowStructure a owl:ObjectProperty ;
+    rdfs:label "has workflow structure" ;
+    rdfs:comment "Links semantic change detection to process design (prospective provenance)." ;
+    rdfs:domain sco:SemanticChangeEvent ;
+    rdfs:range prov:Plan ;
+    dcterms:bibliographicCitation "Missier et al. (2013). D-PROV workflow structure." .
+
+sco:hasProcessSpecification a owl:ObjectProperty ;
+    rdfs:label "has process specification" ;
+    rdfs:comment "Prospective provenance: HOW change should be detected." ;
+    rdfs:domain sco:SemanticChangeEvent ;
+    rdfs:range prov:Plan ;
+    dcterms:bibliographicCitation "Missier et al. (2013). D-PROV prospective provenance." .
+
+sco:hasExecutionTrace a owl:ObjectProperty ;
+    rdfs:label "has execution trace" ;
+    rdfs:comment "Retrospective provenance: WHAT was actually detected." ;
+    rdfs:domain sco:SemanticChangeEvent ;
+    rdfs:range prov:Activity ;
+    dcterms:bibliographicCitation "Missier et al. (2013). D-PROV retrospective provenance." .
+
+# =============================================================================
+# Datatype Properties
+# =============================================================================
+
+sco:hasConfidence a owl:DatatypeProperty ;
+    rdfs:label "has confidence" ;
+    rdfs:comment "Researcher's confidence in the semantic change annotation (0.0-1.0)." ;
+    rdfs:domain sco:SemanticChangeEvent ;
+    rdfs:range xsd:float ;
+    skos:definition "A numerical value between 0.0 and 1.0 indicating the annotator's confidence in the identification and classification of a semantic change event." ;
+    dcterms:bibliographicCitation "Hamilton et al. (2016) use statistical significance (p < 0.05) for validation." .
+
+sco:hasStartYear a owl:DatatypeProperty ;
+    rdfs:label "has start year" ;
+    rdfs:comment "Calendar year when semantic change began (for query convenience)." ;
+    rdfs:domain sco:SemanticChangeEvent ;
+    rdfs:range xsd:integer ;
+    skos:definition "The calendar year marking the beginning of a semantic change event, cached from temporal interval for efficient querying." .
+
+sco:hasEndYear a owl:DatatypeProperty ;
+    rdfs:label "has end year" ;
+    rdfs:comment "Calendar year when semantic change completed or stabilized (for query convenience)." ;
+    rdfs:domain sco:SemanticChangeEvent ;
+    rdfs:range xsd:integer ;
+    skos:definition "The calendar year marking the conclusion or stabilization of a semantic change event, cached from temporal interval for efficient querying." .
+
+sco:hasDescription a owl:DatatypeProperty ;
+    rdfs:label "has description" ;
+    rdfs:comment "Human-readable description of the semantic change event." ;
+    rdfs:domain sco:SemanticChangeEvent ;
+    rdfs:range xsd:string ;
+    skos:definition "A natural language description explaining the nature, context, and significance of a semantic change event." .
+
+# NEW Datatype Properties
+
+sco:hasSentimentDirection a owl:DatatypeProperty ;
+    rdfs:label "has sentiment direction" ;
+    rdfs:comment "Direction of sentiment change: pejoration, amelioration, or neutral." ;
+    rdfs:domain sco:SemanticChangeEvent ;
+    rdfs:range xsd:string ;
+    dcterms:bibliographicCitation "Jatowt & Duh (2014). Sentiment orientation level." .
+
+sco:hasTemporalScale a owl:DatatypeProperty ;
+    rdfs:label "has temporal scale" ;
+    rdfs:comment "Scale of temporal span: centuries, decades, years, months." ;
+    rdfs:domain sco:SemanticChangeEvent ;
+    rdfs:range xsd:string ;
+    skos:definition "The characteristic timescale over which a semantic change event unfolds." ;
+    dcterms:bibliographicCitation "Montariol (2021): COVID-19 (months) vs COHA (centuries)." .
+
+sco:passesControlTest a owl:DatatypeProperty ;
+    rdfs:label "passes control test" ;
+    rdfs:comment "Boolean: whether change observed in genuine but not control condition." ;
+    rdfs:domain sco:SemanticChangeEvent ;
+    rdfs:range xsd:boolean ;
+    dcterms:bibliographicCitation "Dubossarsky et al. (2017). Control condition validation." .
+
+sco:controlledForArtifacts a owl:DatatypeProperty ;
+    rdfs:label "controlled for artifacts" ;
+    rdfs:comment "Boolean: whether detection method controlled for frequency/polysemy artifacts." ;
+    rdfs:domain sco:SemanticChangeEvent ;
+    rdfs:range xsd:boolean ;
+    dcterms:bibliographicCitation "Dubossarsky et al. (2019). Alignment artifacts." .
+
+sco:hasURIStability a owl:DatatypeProperty ;
+    rdfs:label "has URI stability" ;
+    rdfs:comment "Measure of identifier consistency (0.0-1.0); 1.0 = no URI changes." ;
+    rdfs:domain sco:SemanticChangeEvent ;
+    rdfs:range xsd:float ;
+    dcterms:bibliographicCitation "Capobianco et al. (2020). URI stability as quality metric." .
+
+sco:isSynthetic a owl:DatatypeProperty ;
+    rdfs:label "is synthetic" ;
+    rdfs:comment "Boolean: whether this is synthetic (simulated) or authentic (real) semantic change." ;
+    rdfs:domain sco:SemanticChangeEvent ;
+    rdfs:range xsd:boolean ;
+    dcterms:bibliographicCitation "Dubossarsky et al. (2019). Synthetic task for method validation." .
+
+# =============================================================================
+# Detection Method Classes (for methodology tracking)
+# =============================================================================
+
+sco:DetectionMethod a owl:Class ;
+    rdfs:label "Detection Method" ;
+    rdfs:comment "A computational or analytical approach for detecting semantic change." ;
+    skos:definition "A systematic methodology for identifying and measuring semantic change phenomena." .
+
+sco:TemporalReferencingMethod a owl:Class ;
+    rdfs:subClassOf sco:DetectionMethod ;
+    rdfs:label "Temporal Referencing Method" ;
+    rdfs:comment "Avoids alignment by using single vector space with temporal tags (word_1910, word_1920, etc.)." ;
+    dcterms:bibliographicCitation "Dubossarsky et al. (2019). Time-Out. Superior to alignment-based methods." .
+
+sco:AlignmentBasedMethod a owl:Class ;
+    rdfs:subClassOf sco:DetectionMethod ;
+    rdfs:label "Alignment-Based Method" ;
+    rdfs:comment "Aligns embeddings across time periods (e.g., Orthogonal Procrustes). May introduce artifacts." ;
+    dcterms:bibliographicCitation "Hamilton et al. (2016); Dubossarsky et al. (2019) show alignment introduces noise." .
+
+sco:ClusterBasedMethod a owl:Class ;
+    rdfs:subClassOf sco:DetectionMethod ;
+    rdfs:label "Cluster-Based Method" ;
+    rdfs:comment "Clusters contextual embeddings to identify word senses, then tracks sense evolution." ;
+    dcterms:bibliographicCitation "Montariol et al. (2021). Scalable clustering for sense-level analysis." .
+
+sco:SignatureBasedMethod a owl:Class ;
+    rdfs:subClassOf sco:DetectionMethod ;
+    rdfs:label "Signature-Based Method" ;
+    rdfs:comment "Constructs concept signatures from usage patterns in documents, tracks signature evolution." ;
+    dcterms:bibliographicCitation "Gulla et al. (2010). Usage-based drift detection." .
+
+sco:HybridMethod a owl:Class ;
+    rdfs:subClassOf sco:DetectionMethod ;
+    rdfs:label "Hybrid Method" ;
+    rdfs:comment "Combines text similarity, structural similarity, and other approaches." ;
+    dcterms:bibliographicCitation "Stavropoulos et al. (2019). SemaDrift hybrid approach." .
+
+# =============================================================================
+# Integration with PROV-O (D-PROV extensions)
+# =============================================================================
+
+# Note: PROV-O classes and properties are imported, not redefined
+# Semantic change events can be linked to PROV-O provenance:
+#
+# RETROSPECTIVE PROVENANCE (what actually happened):
+# - prov:wasAttributedTo -> links event to researcher who identified it
+# - prov:wasGeneratedBy -> links event to annotation activity
+# - prov:wasDerivedFrom -> links event to source document analysis
+# - prov:used -> links annotation activity to source documents
+#
+# PROSPECTIVE PROVENANCE (what should happen - D-PROV):
+# - prov:Plan -> process specification for detection method
+# - sco:hasWorkflowStructure -> links to workflow design
+# - sco:hasProcessSpecification -> intended detection process
+# - sco:hasExecutionTrace -> actual execution log
+#
+# Reference: Missier et al. (2013). D-PROV: Extending PROV with Workflow Structure.
+
+# =============================================================================
+# Annotation Guidelines (as OWL annotations)
+# =============================================================================
+
+sco: rdfs:seeAlso <https://github.com/MatLab-Research/OntExtract/docs/semantic-change-annotation-guidelines> ;
+    rdfs:comment """
+    ANNOTATION GUIDELINES (Evidence-Based) v2.0
+
+    1. Event Type Selection:
+
+       ORIGINAL TYPES (v1.0):
+       - InflectionPoint: Rapid change (< 5 years typically)
+       - StablePolysemy: Multiple meanings coexist without conflict
+       - DomainNetwork: Term develops field-specific semantic cluster
+       - ConceptualBridge: Works that explicitly connect disciplines
+       - SemanticDrift: Gradual change (> 10 years)
+       - Emergence: New meaning appears
+       - Decline: Meaning becomes obsolete
+
+       SENTIMENT TYPES (Jatowt & Duh 2014):
+       - Pejoration: Negative attitude development (e.g., "propaganda")
+       - Amelioration: Positive attitude development (e.g., "aggressive" in business)
+
+       LINGUISTIC TYPES (Kutuzov 2018):
+       - LinguisticDrift: Language-internal, slow core meaning change
+       - CulturalShift: External cultural/social associations change
+
+       ONTOLOGY DRIFT (Gulla 2010, Stavropoulos 2019, Capobianco 2020):
+       - IntrinsicDrift: Change relative to other ontology concepts
+       - ExtrinsicDrift: Change relative to real-world phenomena
+       - CollectiveDrift: Whole domain drifts together
+       - LabelDrift: rdfs:label changes
+       - IntensionalDrift: Property changes
+       - ExtensionalDrift: Instance changes
+       - StructuralDrift: Hierarchy/URI/equivalence changes
+
+       LEXICAL LIFECYCLE (Tahmasebi 2021):
+       - LexicalEmergence: New word coined/borrowed
+       - LexicalObsolescence: Word becomes archaic
+       - LexicalReplacement: One word supplants another
+
+       GRANULARITY (Montariol 2021):
+       - WordLevelChange: Aggregate across all senses
+       - SenseLevelChange: Specific usage/sense tracked
+
+    2. Evidence Requirements:
+       - Minimum: 2 documents from different time periods
+       - Preferred: Explicit discussion of term usage in scholarly work
+       - Ideal: Quantitative frequency data + qualitative analysis
+       - Control: Test on randomized corpus (Dubossarsky 2017/2019)
+
+    3. Confidence Scores (Hamilton et al. 2016 significance levels):
+       - 0.9-1.0: Strong textual evidence, clear temporal boundaries, p < 0.01
+       - 0.7-0.9: Good evidence, approximate boundaries, p < 0.05
+       - 0.5-0.7: Suggestive evidence, uncertain boundaries
+       - < 0.5: Speculative, requires further investigation
+
+    4. Temporal Precision:
+       - Use OWL-Time intervals when possible
+       - For approximate dating, use decade-level granularity
+       - Document uncertainty in description field
+       - Specify hasTemporalScale: centuries|decades|years|months
+
+    5. Detection Method Tracking (REQUIRED for reproducibility):
+       - usesDetectionMethod: specify method class
+       - controlledForArtifacts: true if frequency/polysemy controlled
+       - passesControlTest: true if validated against null condition
+       - isSynthetic: true if simulated change, false if authentic
+
+    6. Provenance Tracking (D-PROV - Missier 2013):
+       - PROSPECTIVE: hasProcessSpecification (how change SHOULD be detected)
+       - RETROSPECTIVE: hasExecutionTrace (what WAS actually detected)
+       - Enables reproducibility and method comparison
+
+    7. Cause Attribution (Tahmasebi 2021):
+       - hasExternalCause: cultural, societal, technological factors
+       - hasInternalCause: linguistic motivations
+       - Document evidence for causal claims
+
+    8. Academic References:
+       - Cite supporting literature in dcterms:bibliographicCitation
+       - Include DOI or permanent URL when available
+       - Reference specific page numbers for direct quotes
+    """ .

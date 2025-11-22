@@ -913,17 +913,17 @@
                 <input type="hidden" id="eventEditId" value="">
 
                 <div class="mb-3">
-                    <label for="eventType" class="form-label">Event Type <span class="text-danger">*</span></label>
-                    <select class="form-control" id="eventType" required>
-                        <option value="">-- Select Event Type --</option>
-                        <option value="inflection_point">Inflection Point - Major semantic shift</option>
-                        <option value="stable_polysemy">Stable Polysemy - Multiple stable meanings coexist</option>
-                        <option value="domain_network">Domain Network - Domain-specific semantic usage</option>
-                        <option value="semantic_shift">Semantic Shift - Gradual meaning change</option>
-                        <option value="emergence">Emergence - New meaning emerging</option>
-                        <option value="decline">Decline - Meaning fading or becoming obsolete</option>
+                    <label for="eventType" class="form-label">
+                        Event Type <span class="text-danger">*</span>
+                        <span class="badge bg-success ms-2" title="Event types from validated ontology"><i class="bi bi-shield-check"></i></span>
+                    </label>
+                    <select class="form-control" id="eventType" required onchange="showEventTypeMetadata(this)">
+                        <option value="">Loading from ontology...</option>
                     </select>
                     <small class="text-muted">Type of semantic transition or event</small>
+
+                    <!-- Metadata display area -->
+                    <div id="event-type-metadata" class="mt-2"></div>
                 </div>
 
                 <div class="row">
@@ -990,7 +990,78 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Fetch experiment documents for event modal
     fetchExperimentDocuments();
+
+    // Load event types from ontology
+    loadEventTypes();
 });
+
+// Load event types from ontology
+async function loadEventTypes() {
+    try {
+        const response = await fetch(`/experiments/${experimentId}/semantic_event_types`);
+        const data = await response.json();
+
+        if (!data.success) {
+            console.error('Failed to load event types:', data.error);
+            return;
+        }
+
+        console.log(`Loaded ${data.count} event types from ${data.source}`);
+
+        // Populate dropdown
+        const select = document.getElementById('eventType');
+        select.innerHTML = '<option value="">-- Select semantic change type --</option>';
+
+        data.event_types.forEach(type => {
+            const option = document.createElement('option');
+            option.value = type.value;
+            option.textContent = type.label;
+
+            // Store metadata as data attributes
+            option.dataset.definition = type.definition || '';
+            option.dataset.citation = type.citation || '';
+            option.dataset.example = type.example || '';
+            option.dataset.uri = type.uri || '';
+
+            select.appendChild(option);
+        });
+
+    } catch (error) {
+        console.error('Error loading event types:', error);
+        // Keep fallback "Loading..." option
+    }
+}
+
+// Show event type metadata when user selects an event type
+function showEventTypeMetadata(selectElement) {
+    const selectedOption = selectElement.options[selectElement.selectedIndex];
+
+    if (!selectedOption || !selectedOption.value) {
+        document.getElementById('event-type-metadata').innerHTML = '';
+        return;
+    }
+
+    const definition = selectedOption.dataset.definition;
+    const citation = selectedOption.dataset.citation;
+    const example = selectedOption.dataset.example;
+
+    let html = `
+        <div class="alert alert-info">
+            <strong>Definition:</strong> ${definition}
+    `;
+
+    if (citation) {
+        html += `<br><small><strong>Citation:</strong> ${citation}</small>`;
+    }
+
+    if (example) {
+        html += `<br><small><strong>Example:</strong> ${example}</small>`;
+    }
+
+    html += '</div>';
+
+    document.getElementById('event-type-metadata').innerHTML = html;
+}
 
 // Remove term
 function removeTerm(term) {
