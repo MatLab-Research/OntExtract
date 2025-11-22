@@ -274,86 +274,197 @@ Experiment configuration JSON format:
 - Migrates data from `DocumentTemporalMetadata.publication_year` → `Document.publication_date`
 - Run with: `PYTHONPATH=/home/chris/OntExtract venv-ontextract/bin/python migrations/migrate_publication_dates.py`
 
-## PROV-O Implementation Plan
+## BFO + PROV-O Implementation Plan
 
-**Objective**: Transition from JSON-based semantic events to PROV-O compliant database architecture with full provenance tracking, following methodologies from:
+**Objective**: Transition from JSON-based semantic events to ontology-backed database architecture using BFO for semantic change modeling and PROV-O for analytical provenance tracking.
+
+**Key Architecture Change**: Dual ontology approach
+- **BFO + Semantic Change Ontology (SCO)**: Model semantic change *phenomena* (the thing being studied)
+- **PROV-O**: Track research *provenance* (who studied it, when, how)
+
+**Reference papers**:
 - "Managing Semantic Change in Research" (Rauch et al., 2024)
 - "OntExtract: PROV-O Provenance Tracking for Document Analysis Workflows"
 
+**Infrastructure**: Leverages existing OntServe deployment at `https://ontserve.ontorealm.net/`
+
+**Why This Approach?**
+1. **Proper Ontological Modeling**: BFO's `bfo:Process` correctly models semantic change as temporal processes, not just data artifacts
+2. **Reuses Existing Infrastructure**: Integrates with your BFO-based OntServe deployment
+3. **Standards Compliant**: Uses W3C (PROV-O, OWL-Time, SKOS) and OBO (BFO) standards
+4. **Clear Separation**: Distinguishes what's being studied (semantic change) from the research process (annotation)
+5. **Queryable**: Enables SPARQL queries over temporal patterns and provenance chains
+6. **Publishable**: Export as proper RDF/OWL for linked open data
+
 ### Design Principles
 
-1. **Separation of Facts and Insights**:
+1. **Dual Ontology Architecture**:
+   - **BFO + Semantic Change Ontology (SCO)**: Model the *phenomenon* of semantic change
+     - `bfo:TemporalRegion` - time periods (1910-1920, etc.)
+     - `bfo:Process` - semantic change events (inflection points, stable polysemy, etc.)
+     - `skos:Concept` - terms/concepts being studied
+   - **PROV-O**: Track *who studied* the phenomenon (analytical provenance)
+     - `prov:Activity` - annotation activities
+     - `prov:Agent` - researchers, tools
+     - `prov:wasAttributedTo` - who created which annotation
+
+2. **Separation of Concerns**:
    - **Period Cards** = temporal containers (objective facts: documents exist in time)
-   - **Event Cards** = analytical annotations (subjective insights: semantic shifts identified by researchers)
+   - **Event Cards** = semantic change phenomena (BFO processes) + researcher annotations (PROV-O)
+   - **Object of study** (BFO/SCO) ≠ **research process** (PROV-O)
 
-2. **PROV-O Entity-Activity-Agent Model**:
-   - **Entities**: Documents, text segments, semantic events, analytical artifacts
-   - **Activities**: Document upload, segmentation, entity extraction, event annotation
-   - **Agents**: Researchers, LLM orchestrators, analysis tools (spaCy, NLTK, etc.)
+3. **Ontology-Backed Types**:
+   - Event types are URIs from Semantic Change Ontology
+   - Enables semantic interoperability and SPARQL queries
+   - Integrates with existing BFO-based infrastructure
 
-3. **Evidence-Based Annotations**:
+4. **Evidence-Based Annotations**:
    - Link events to specific document segments (character-level positions)
    - Track provenance: who identified the shift, when, based on what evidence
    - Enable reproducible semantic change analysis
 
-### Phase 1: Database Foundation (PROV-O Core)
+### Phase 1: Semantic Change Ontology + Database Foundation
 
 **Status**: Planning
-**Goal**: Replace JSON-based semantic events with proper database tables implementing W3C PROV-O standard
+**Goal**: Create BFO-based Semantic Change Ontology in OntServe and adapt database to use ontology URIs
 
-#### 1.1 Create PROV-O Base Tables
+#### 1.1 Create Semantic Change Ontology (in OntServe)
 
-**New tables** (in `app/models/provenance.py`):
+**Ontology**: `semantic-change-ontology.ttl` (SCO)
+**Namespace**: `http://ontextract.org/sco#`
+**Deployed to**: `https://ontserve.ontorealm.net/`
+
+```turtle
+@prefix sco: <http://ontextract.org/sco#> .
+@prefix bfo: <http://purl.obolibrary.org/obo/> .
+@prefix time: <http://www.w3.org/2006/time#> .
+@prefix skos: <http://www.w3.org/2004/02/skos/core#> .
+@prefix prov: <http://www.w3.org/ns/prov#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+
+# Ontology metadata
+sco: a owl:Ontology ;
+    rdfs:label "Semantic Change Ontology" ;
+    rdfs:comment "Ontology for modeling semantic change phenomena in terminology research" ;
+    owl:imports <http://purl.obolibrary.org/obo/bfo.owl> ,
+                <http://www.w3.org/2006/time> ,
+                <http://www.w3.org/2004/02/skos/core> .
+
+# === Semantic Change Event Classes (subclasses of bfo:Process) ===
+
+sco:SemanticChangeEvent a owl:Class ;
+    rdfs:subClassOf bfo:BFO_0000015 ;  # bfo:Process
+    rdfs:label "Semantic Change Event" ;
+    rdfs:comment "A process by which the meaning of a term changes over time" .
+
+sco:InflectionPoint a owl:Class ;
+    rdfs:subClassOf sco:SemanticChangeEvent ;
+    rdfs:label "Inflection Point" ;
+    rdfs:comment "Rapid semantic transition marking shift between distinct meanings" ;
+    skos:example "agent 1995: human actor → computational system" .
+
+sco:StablePolysemy a owl:Class ;
+    rdfs:subClassOf sco:SemanticChangeEvent ;
+    rdfs:label "Stable Polysemy" ;
+    rdfs:comment "Multiple distinct meanings coexist without conflict across disciplines" ;
+    skos:example "agent 2024: legal person AND autonomous system" .
+
+sco:DomainNetwork a owl:Class ;
+    rdfs:subClassOf sco:SemanticChangeEvent ;
+    rdfs:label "Domain Network" ;
+    rdfs:comment "Development of discipline-specific semantic network" ;
+    skos:example "agent in AI: percept-action loop, rationality" .
+
+sco:ConceptualBridge a owl:Class ;
+    rdfs:subClassOf sco:SemanticChangeEvent ;
+    rdfs:label "Conceptual Bridge" ;
+    rdfs:comment "Work that mediates between different disciplinary meanings" ;
+    skos:example "Anscombe 1957: legal → philosophical agency" .
+
+sco:SemanticDrift a owl:Class ;
+    rdfs:subClassOf sco:SemanticChangeEvent ;
+    rdfs:label "Semantic Drift" ;
+    rdfs:comment "Gradual meaning change over extended period" .
+
+sco:Emergence a owl:Class ;
+    rdfs:subClassOf sco:SemanticChangeEvent ;
+    rdfs:label "Emergence" ;
+    rdfs:comment "New meaning appears in discourse" .
+
+sco:Decline a owl:Class ;
+    rdfs:subClassOf sco:SemanticChangeEvent ;
+    rdfs:label "Decline" ;
+    rdfs:comment "Meaning becomes obsolete or rare" .
+
+# === Properties for Semantic Change ===
+
+sco:affectsConcept a owl:ObjectProperty ;
+    rdfs:label "affects concept" ;
+    rdfs:domain sco:SemanticChangeEvent ;
+    rdfs:range skos:Concept ;
+    rdfs:comment "The term/concept undergoing semantic change" .
+
+sco:occursDuringInterval a owl:ObjectProperty ;
+    rdfs:label "occurs during interval" ;
+    rdfs:domain sco:SemanticChangeEvent ;
+    rdfs:range time:Interval ;
+    rdfs:comment "Temporal interval when change occurred" .
+
+sco:hasFromMeaning a owl:ObjectProperty ;
+    rdfs:label "has from meaning" ;
+    rdfs:domain sco:SemanticChangeEvent ;
+    rdfs:range skos:Concept ;
+    rdfs:comment "Original/source meaning before change" .
+
+sco:hasToMeaning a owl:ObjectProperty ;
+    rdfs:label "has to meaning" ;
+    rdfs:domain sco:SemanticChangeEvent ;
+    rdfs:range skos:Concept ;
+    rdfs:comment "New/target meaning after change" .
+
+sco:evidencedBy a owl:ObjectProperty ;
+    rdfs:label "evidenced by" ;
+    rdfs:domain sco:SemanticChangeEvent ;
+    rdfs:range bfo:BFO_0000016 ;  # bfo:InformationContentEntity (documents)
+    rdfs:comment "Document that provides evidence for the semantic change" .
+
+sco:hasConfidence a owl:DatatypeProperty ;
+    rdfs:label "has confidence" ;
+    rdfs:domain sco:SemanticChangeEvent ;
+    rdfs:range xsd:float ;
+    rdfs:comment "Researcher confidence in annotation (0.0-1.0)" .
+```
+
+**Upload to OntServe**:
+```bash
+# Deploy ontology to OntServe
+curl -X POST https://ontserve.ontorealm.net/api/ontology/upload \
+  -H "Content-Type: text/turtle" \
+  -d @semantic-change-ontology.ttl
+```
+
+**Tasks**:
+- [ ] Create `semantic-change-ontology.ttl` with BFO extensions
+- [ ] Upload to OntServe instance
+- [ ] Verify ontology loads correctly
+- [ ] Test SPARQL queries against ontology
+
+#### 1.2 Update Database Schema for Ontology URIs
+
+**Modified tables** (in `app/models/provenance.py`):
 
 ```python
-# PROV-O Core Concepts
-class ProvenanceEntity(db.Model):
-    """PROV-O Entity: Artifact created or used in analysis"""
-    __tablename__ = 'provenance_entities'
-
-    id = db.Column(db.Integer, primary_key=True)
-    entity_type = db.Column(db.String(50), nullable=False)
-    # Types: 'document', 'segment', 'semantic_event', 'extraction'
-
-    # Generic metadata storage (flexible schema)
-    metadata = db.Column(JSONB, nullable=False)
-
-    # Timestamps
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-
-    # Relationships
-    generated_by_activity_id = db.Column(db.Integer,
-        db.ForeignKey('provenance_activities.id'))
-    derived_from_entity_id = db.Column(db.Integer,
-        db.ForeignKey('provenance_entities.id'))
-
-
-class ProvenanceActivity(db.Model):
-    """PROV-O Activity: Process that generates/modifies entities"""
-    __tablename__ = 'provenance_activities'
-
-    id = db.Column(db.Integer, primary_key=True)
-    activity_type = db.Column(db.String(50), nullable=False)
-    # Types: 'upload', 'segment', 'extract', 'annotate_event'
-
-    # When activity occurred
-    started_at = db.Column(db.DateTime, nullable=False)
-    ended_at = db.Column(db.DateTime)
-
-    # Configuration used for this activity
-    parameters = db.Column(JSONB)
-
-    # Which agent performed this activity
-    agent_id = db.Column(db.Integer, db.ForeignKey('provenance_agents.id'))
-
-
+# PROV-O tables for analytical provenance
 class ProvenanceAgent(db.Model):
     """PROV-O Agent: Person or software that performs activities"""
     __tablename__ = 'provenance_agents'
 
     id = db.Column(db.Integer, primary_key=True)
-    agent_type = db.Column(db.String(50), nullable=False)
-    # Types: 'researcher', 'llm_orchestrator', 'analysis_tool'
+
+    # Ontology-backed type (PROV-O Agent subclass)
+    agent_type_uri = db.Column(db.String(500), nullable=False)
+    # e.g., "http://www.w3.org/ns/prov#Person" or "http://www.w3.org/ns/prov#SoftwareAgent"
 
     name = db.Column(db.String(200), nullable=False)
     version = db.Column(db.String(50))  # For tools: spaCy 3.8.11
@@ -363,53 +474,98 @@ class ProvenanceAgent(db.Model):
 
     # For software agents, store configuration
     configuration = db.Column(JSONB)
+
+
+class ProvenanceActivity(db.Model):
+    """PROV-O Activity: Process that generates annotations"""
+    __tablename__ = 'provenance_activities'
+
+    id = db.Column(db.Integer, primary_key=True)
+
+    # Activity type (e.g., "annotate_semantic_event")
+    activity_type = db.Column(db.String(50), nullable=False)
+
+    # When activity occurred
+    started_at = db.Column(db.DateTime, nullable=False)
+    ended_at = db.Column(db.DateTime)
+
+    # Configuration used for this activity
+    parameters = db.Column(JSONB)
+
+    # Which agent performed this activity (PROV-O: wasAssociatedWith)
+    agent_id = db.Column(db.Integer, db.ForeignKey('provenance_agents.id'))
 ```
 
-#### 1.2 Create Semantic Event Schema
+#### 1.3 Create Semantic Event Schema with Ontology URIs
 
 **New tables** (in `app/models/semantic_events.py`):
 
 ```python
 class SemanticEvent(db.Model):
-    """Research annotation: identified semantic shift or transition"""
+    """
+    Semantic change phenomenon (BFO process) with researcher annotation (PROV-O).
+    Represents both:
+    - The semantic change itself (modeled in SCO ontology)
+    - The research annotation of that change (PROV-O provenance)
+    """
     __tablename__ = 'semantic_events'
 
     id = db.Column(db.Integer, primary_key=True)
 
-    # Link to PROV-O entity
-    entity_id = db.Column(db.Integer,
-        db.ForeignKey('provenance_entities.id'), nullable=False)
+    # === Ontology URIs (BFO + SCO) ===
+
+    # Event type from Semantic Change Ontology
+    event_type_uri = db.Column(db.String(500), nullable=False)
+    # e.g., "http://ontextract.org/sco#InflectionPoint"
+
+    # Link to SKOS concept being studied
+    concept_uri = db.Column(db.String(500))
+    # e.g., "http://ontextract.org/terms/agent"
+
+    # Link to BFO temporal region
+    temporal_region_uri = db.Column(db.String(500))
+    # e.g., "http://ontextract.org/temporal/1995-2020"
+
+    # === Database fields for query performance ===
 
     # Experiment context
     experiment_id = db.Column(db.Integer,
         db.ForeignKey('experiments.id'), nullable=False)
 
-    # Event classification
-    event_type = db.Column(db.String(50), nullable=False)
-    # Controlled vocabulary: inflection_point, stable_polysemy,
-    # domain_network, semantic_shift, emergence, decline
-
-    # Temporal scope
+    # Temporal scope (cached from ontology for SQL queries)
     from_period = db.Column(db.Integer, nullable=False)
     to_period = db.Column(db.Integer)  # Nullable for point events
 
-    # Researcher's description
+    # Human-readable description
     description = db.Column(db.Text, nullable=False)
 
-    # Confidence (optional: researcher's certainty)
-    confidence = db.Column(db.Float)  # 0.0-1.0
+    # Researcher confidence (0.0-1.0)
+    confidence = db.Column(db.Float)
 
-    # Timestamps (inherited from entity, but cached for queries)
+    # === PROV-O Provenance ===
+
+    # Link to annotation activity (PROV-O: wasGeneratedBy)
+    annotation_activity_id = db.Column(db.Integer,
+        db.ForeignKey('provenance_activities.id'))
+
+    # Timestamps
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, onupdate=datetime.utcnow)
 
-    # Relationships
+    # === Relationships ===
+
     evidence_links = db.relationship('SemanticEventEvidence',
-        back_populates='semantic_event')
+        back_populates='semantic_event', cascade='all, delete-orphan')
+
+    annotation_activity = db.relationship('ProvenanceActivity',
+        foreign_keys=[annotation_activity_id])
 
 
 class SemanticEventEvidence(db.Model):
-    """Links semantic events to supporting document segments"""
+    """
+    Links semantic events to supporting document segments.
+    Represents evidence chain: SemanticEvent --(evidencedBy)--> Document/Segment
+    """
     __tablename__ = 'semantic_event_evidence'
 
     id = db.Column(db.Integer, primary_key=True)
@@ -417,9 +573,13 @@ class SemanticEventEvidence(db.Model):
     semantic_event_id = db.Column(db.Integer,
         db.ForeignKey('semantic_events.id'), nullable=False)
 
-    # Link to document
+    # Link to document (BFO: InformationContentEntity)
     document_id = db.Column(db.Integer,
         db.ForeignKey('documents.id'), nullable=False)
+
+    # Optional URI for document in ontology
+    document_uri = db.Column(db.String(500))
+    # e.g., "http://ontextract.org/document/{uuid}"
 
     # Optional: link to specific segment (from ProcessingArtifact)
     segment_id = db.Column(db.Integer,
@@ -1045,22 +1205,34 @@ def export_experiment_to_rdf(experiment_id: int) -> str:
    - [ ] Verify JSON serialization of event data
    - [ ] Test with minimal payload
 
-### Phase 1: PROV-O Foundation (Priority)
-1. **Database Schema**:
-   - [ ] Create `app/models/provenance.py` with PROV-O base classes
-   - [ ] Create `app/models/semantic_events.py` with event schema
+### Phase 1: BFO + PROV-O Foundation (Priority)
+1. **Semantic Change Ontology (in OntServe)**:
+   - [ ] Create `semantic-change-ontology.ttl` extending BFO
+   - [ ] Upload to OntServe at https://ontserve.ontorealm.net/
+   - [ ] Test SPARQL queries against ontology
+   - [ ] Document event type URIs for UI integration
+
+2. **Database Schema**:
+   - [ ] Create `app/models/provenance.py` with PROV-O classes
+   - [ ] Create `app/models/semantic_events.py` with ontology URI fields
    - [ ] Write Alembic migration script
    - [ ] Test migration with existing data
 
-2. **Service Layer**:
-   - [ ] Create `app/services/provenance_service.py`
-   - [ ] Implement CRUD operations with provenance tracking
+3. **OntServe Integration**:
+   - [ ] Create `app/services/ontserve_client.py` for API calls
+   - [ ] Implement ontology caching (fetch event types on startup)
+   - [ ] Add UI dropdowns populated from ontology
+
+4. **Service Layer**:
+   - [ ] Create `app/services/semantic_event_service.py`
+   - [ ] Implement CRUD with BFO URIs and PROV-O provenance
    - [ ] Update backend routes to use new models
 
-3. **Testing**:
-   - [ ] Create semantic event with provenance
+5. **Testing**:
+   - [ ] Create semantic event with ontology URIs
    - [ ] Query provenance chain
-   - [ ] Verify PROV-O relationships
+   - [ ] Verify BFO and PROV-O relationships
+   - [ ] Test RDF export
 
 ### Phase 2: Enhanced Event Cards
 1. **UI Updates**:
