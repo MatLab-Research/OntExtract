@@ -11,7 +11,7 @@ import logging
 import re
 
 from app import db
-from app.models import Experiment
+from app.models import Experiment, Document
 from app.models.orchestration_logs import OrchestrationDecision
 from app.services.base_service import BaseService, ServiceError, NotFoundError, ValidationError
 
@@ -118,6 +118,24 @@ class TemporalService(BaseService):
                 experiment_id=experiment.id
             ).order_by(OrchestrationDecision.created_at.desc()).limit(10).all()
 
+            # Hydrate period_documents with full Document objects
+            # The config stores {id, title, date_source}, but template needs full objects with UUID
+            period_documents_config = config.get('period_documents', {})
+            period_documents_hydrated = {}
+
+            for period_key, doc_list in period_documents_config.items():
+                hydrated_docs = []
+                for doc_info in doc_list:
+                    doc_id = doc_info.get('id')
+                    if doc_id:
+                        doc = Document.query.get(doc_id)
+                        if doc:
+                            hydrated_docs.append(doc)
+                        else:
+                            # Document no longer exists, skip it
+                            logger.warning(f"Document {doc_id} referenced in period {period_key} not found")
+                period_documents_hydrated[period_key] = hydrated_docs
+
             return {
                 'experiment': experiment,
                 'time_periods': time_periods,
@@ -128,7 +146,7 @@ class TemporalService(BaseService):
                 'oed_period_data': config.get('oed_period_data', {}),
                 'term_periods': config.get('term_periods', {}),
                 'orchestration_decisions': orchestration_decisions,
-                'period_documents': config.get('period_documents', {}),
+                'period_documents': period_documents_hydrated,
                 'period_metadata': config.get('period_metadata', {}),
                 'semantic_events': config.get('semantic_events', [])
             }
