@@ -458,7 +458,249 @@ curl -X POST https://ontserve.ontorealm.net/api/ontology/upload \
 - [ ] Verify ontology loads correctly
 - [ ] Test SPARQL queries against ontology
 
-#### 1.2 Update Database Schema for Ontology URIs
+#### 1.2 MCP Integration Layer Architecture
+
+**Design principle**: Isolate external MCP server orchestration behind a single integration layer
+
+**Architecture**:
+```
+┌─────────────────────────────────────────┐
+│   Application Layer (Routes/Services)  │
+│   - semantic_event_service.py          │
+│   - temporal_service.py                │
+└──────────────┬──────────────────────────┘
+               │
+               ↓
+┌─────────────────────────────────────────┐
+│   Ontology Client (ontserve_client.py) │
+│   - get_event_types()                   │
+│   - query_sparql()                      │
+│   - validate_uri()                      │
+└──────────────┬──────────────────────────┘
+               │
+               ↓
+┌─────────────────────────────────────────┐
+│   MCP Integration Layer (mcp_client.py) │
+│   - Single point for MCP communication  │
+│   - Connection pooling                  │
+│   - Error handling & fallback           │
+└──────────────┬──────────────────────────┘
+               │
+               ↓
+┌─────────────────────────────────────────┐
+│   External MCP Server                   │
+│   /home/chris/onto/OntServe/servers     │
+│   OR                                    │
+│   OntServe Web API (HTTP fallback)      │
+│   https://ontserve.ontorealm.net/       │
+└─────────────────────────────────────────┘
+```
+
+**Implementation** (`app/services/mcp_client.py`):
+
+```python
+"""
+MCP Integration Layer
+Single abstraction for all external MCP server communication.
+"""
+from typing import Dict, Any, Optional
+import requests
+from contextlib import contextmanager
+
+class MCPClient:
+    """
+    Abstraction layer for MCP server communication.
+    Provides fallback to HTTP API if MCP server unavailable.
+    """
+
+    def __init__(self, mcp_server_path: str = None, http_fallback_url: str = None):
+        self.mcp_server_path = mcp_server_path or "/home/chris/onto/OntServe/servers"
+        self.http_fallback_url = http_fallback_url or "https://ontserve.ontorealm.net"
+        self._use_mcp = self._check_mcp_available()
+
+    def _check_mcp_available(self) -> bool:
+        """Check if MCP server is available"""
+        try:
+            # Check if MCP server is running
+            # Implementation depends on OntServe MCP protocol
+            return os.path.exists(self.mcp_server_path)
+        except Exception:
+            return False
+
+    def call_mcp(self, method: str, params: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Call MCP server method with fallback to HTTP API.
+
+        Args:
+            method: MCP method name (e.g., "ontology.query_sparql")
+            params: Method parameters
+
+        Returns:
+            Response from MCP server or HTTP API
+        """
+        if self._use_mcp:
+            try:
+                return self._call_mcp_server(method, params)
+            except Exception as e:
+                # Log MCP failure, fall back to HTTP
+                print(f"MCP call failed: {e}, falling back to HTTP API")
+                return self._call_http_api(method, params)
+        else:
+            return self._call_http_api(method, params)
+
+    def _call_mcp_server(self, method: str, params: Dict[str, Any]) -> Dict[str, Any]:
+        """Direct MCP server communication"""
+        # Implementation depends on OntServe MCP protocol
+        # Review ProEthica for reference implementation
+        raise NotImplementedError("MCP protocol implementation pending")
+
+    def _call_http_api(self, method: str, params: Dict[str, Any]) -> Dict[str, Any]:
+        """HTTP API fallback"""
+        # Map MCP method to HTTP endpoint
+        endpoint_map = {
+            "ontology.list_classes": "/api/ontology/classes",
+            "ontology.query_sparql": "/api/sparql/query",
+            "ontology.upload": "/api/ontology/upload"
+        }
+
+        endpoint = endpoint_map.get(method)
+        if not endpoint:
+            raise ValueError(f"Unknown MCP method: {method}")
+
+        response = requests.post(
+            f"{self.http_fallback_url}{endpoint}",
+            json=params,
+            timeout=30
+        )
+        response.raise_for_status()
+        return response.json()
+
+
+# Global MCP client instance
+mcp_client = MCPClient()
+```
+
+**Ontology Client** (`app/services/ontserve_client.py`):
+
+```python
+"""
+OntServe Client
+High-level ontology operations using MCP integration layer.
+"""
+from typing import List, Dict, Any
+from functools import lru_cache
+from .mcp_client import mcp_client
+
+class OntServeClient:
+    """Client for OntServe ontology operations"""
+
+    def __init__(self):
+        self.namespace = "http://ontextract.org/sco#"
+
+    @lru_cache(maxsize=1)
+    def get_event_types(self) -> List[Dict[str, Any]]:
+        """
+        Fetch semantic event types from SCO ontology.
+        Cached for application lifetime.
+
+        Returns:
+            List of event types with URIs, labels, colors, icons
+        """
+        # Use MCP layer to query ontology
+        sparql = """
+        PREFIX sco: <http://ontextract.org/sco#>
+        PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+        PREFIX skos: <http://www.w3.org/2004/02/skos/core#>
+
+        SELECT ?eventType ?label ?comment ?example
+        WHERE {
+            ?eventType rdfs:subClassOf* sco:SemanticChangeEvent .
+            ?eventType rdfs:label ?label .
+            OPTIONAL { ?eventType rdfs:comment ?comment }
+            OPTIONAL { ?eventType skos:example ?example }
+        }
+        """
+
+        result = mcp_client.call_mcp("ontology.query_sparql", {
+            "ontology": "semantic-change-ontology",
+            "query": sparql
+        })
+
+        # Transform SPARQL results to UI format
+        event_types = []
+        for binding in result.get("results", {}).get("bindings", []):
+            uri = binding["eventType"]["value"]
+            event_name = uri.split("#")[-1]
+
+            event_types.append({
+                "uri": uri,
+                "name": event_name,
+                "label": binding["label"]["value"],
+                "description": binding.get("comment", {}).get("value", ""),
+                "color": self._get_color_for_type(event_name),
+                "icon": self._get_icon_for_type(event_name)
+            })
+
+        return event_types
+
+    def validate_event_uri(self, uri: str) -> bool:
+        """Validate that URI exists in SCO ontology"""
+        try:
+            result = mcp_client.call_mcp("ontology.validate_uri", {
+                "ontology": "semantic-change-ontology",
+                "uri": uri
+            })
+            return result.get("valid", False)
+        except Exception:
+            return False
+
+    def _get_color_for_type(self, event_name: str) -> str:
+        """Map event type to UI color (temporary until stored in ontology)"""
+        colors = {
+            "InflectionPoint": "#6f42c1",
+            "StablePolysemy": "#20c997",
+            "DomainNetwork": "#fd7e14",
+            "ConceptualBridge": "#17a2b8",
+            "SemanticDrift": "#d63384",
+            "Emergence": "#198754",
+            "Decline": "#dc3545"
+        }
+        return colors.get(event_name, "#6c757d")
+
+    def _get_icon_for_type(self, event_name: str) -> str:
+        """Map event type to FontAwesome icon"""
+        icons = {
+            "InflectionPoint": "fas fa-turn-up",
+            "StablePolysemy": "fas fa-code-branch",
+            "DomainNetwork": "fas fa-project-diagram",
+            "ConceptualBridge": "fas fa-link",
+            "SemanticDrift": "fas fa-water",
+            "Emergence": "fas fa-seedling",
+            "Decline": "fas fa-arrow-trend-down"
+        }
+        return icons.get(event_name, "fas fa-circle")
+
+
+# Global OntServe client instance
+ontserve_client = OntServeClient()
+```
+
+**Benefits of MCP Integration Layer**:
+1. **Single point of control**: All MCP communication goes through one module
+2. **Fallback resilience**: Automatic fallback to HTTP API if MCP unavailable
+3. **Easy testing**: Mock the MCP layer instead of individual calls
+4. **Protocol isolation**: Application code doesn't know about MCP details
+5. **Caching**: Centralized cache management for ontology data
+6. **Connection pooling**: Reuse MCP connections across requests
+
+**Tasks**:
+- [ ] Review ProEthica's MCP integration approach
+- [ ] Implement `mcp_client.py` with MCP protocol support
+- [ ] Implement `ontserve_client.py` with SPARQL queries
+- [ ] Add startup hook to warm ontology cache
+- [ ] Add health check endpoint for MCP connection status
+
+#### 1.3 Update Database Schema for Ontology URIs
 
 **Modified tables** (in `app/models/provenance.py`):
 
@@ -1228,10 +1470,15 @@ def export_experiment_to_rdf(experiment_id: int) -> str:
 
 3. **OntServe Integration**:
    - [ ] Review ProEthica integration patterns (`/home/chris/onto/proethica`)
-   - [ ] Create `app/services/ontserve_client.py` for API calls
+   - [ ] **Create MCP integration layer** (`app/services/mcp_client.py`)
+     - Single abstraction for all external MCP server communication
+     - Isolates OntServe MCP server calls from rest of codebase
+     - Provides fallback to direct HTTP API if MCP unavailable
+   - [ ] Create `app/services/ontserve_client.py` (uses MCP layer)
+     - Ontology-specific operations (fetch classes, query SPARQL)
+     - Caching layer for ontology data
    - [ ] Implement ontology caching (fetch event types on startup)
    - [ ] Add UI dropdowns populated from ontology
-   - [ ] Consider MCP server integration (OntServe has MCP at `/servers`)
    - [ ] Align approach with ProEthica's ontology usage patterns
 
 4. **Service Layer**:
