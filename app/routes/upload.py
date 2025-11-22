@@ -410,12 +410,12 @@ def extract_metadata():
 
                 pub_year = request.form.get('publication_year', '').strip()
                 if pub_year:
-                    user_metadata['publication_year'] = int(pub_year)
+                    user_metadata['publication_year'] = pub_year  # Keep as string for flexible date parsing
                     user_provenance['publication_year'] = {
                         'source': 'user',
                         'confidence': 1.0,
                         'timestamp': datetime.utcnow().isoformat(),
-                        'raw_value': int(pub_year)
+                        'raw_value': pub_year
                     }
 
                 authors_str = request.form.get('authors', '').strip()
@@ -642,14 +642,11 @@ def save_document():
         if error:
             return jsonify({'error': error}), 400
 
-        # Parse publication date if provided
+        # Parse publication date if provided (supports year, year-month, or full date)
         publication_date = None
         if metadata.get('publication_year'):
-            try:
-                year = int(metadata.get('publication_year'))
-                publication_date = datetime(year, 1, 1).date()
-            except (ValueError, TypeError):
-                pass
+            from app.utils.date_parser import parse_flexible_date
+            publication_date = parse_flexible_date(metadata.get('publication_year'))
 
         # Convert authors list to comma-separated string if needed
         authors = metadata.get('authors')
