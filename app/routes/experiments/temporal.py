@@ -42,6 +42,18 @@ def manage_temporal_terms(experiment_id):
         # Get temporal UI data from service
         data = temporal_service.get_temporal_ui_data(experiment_id)
 
+        # Get document date statistics for UI
+        # Note: Using Document.publication_date as single source of truth
+        from app.models import Document
+        documents = Document.query.filter_by(experiment_id=experiment_id).all()
+
+        docs_with_pub_dates = sum(1 for doc in documents if doc.publication_date)
+        docs_with_any_dates = sum(1 for doc in documents if doc.publication_date or doc.created_at)
+
+        data['document_count'] = len(documents)
+        data['docs_with_pub_dates'] = docs_with_pub_dates
+        data['docs_with_any_dates'] = docs_with_any_dates
+
         return render_template(
             'experiments/temporal_term_manager.html',
             experiment=data['experiment'],
@@ -52,7 +64,13 @@ def manage_temporal_terms(experiment_id):
             use_oed_periods=data['use_oed_periods'],
             oed_period_data=data['oed_period_data'],
             term_periods=data['term_periods'],
-            orchestration_decisions=data['orchestration_decisions']
+            orchestration_decisions=data['orchestration_decisions'],
+            document_count=data['document_count'],
+            docs_with_pub_dates=data['docs_with_pub_dates'],
+            docs_with_any_dates=data['docs_with_any_dates'],
+            period_documents=data['period_documents'],
+            period_metadata=data['period_metadata'],
+            semantic_events=data['semantic_events']
         )
 
     except ValidationError as e:
@@ -170,6 +188,59 @@ def get_temporal_terms(experiment_id):
         }), 500
 
 
+@experiments_bp.route('/<int:experiment_id>/generate_periods_from_documents', methods=['POST'])
+@api_require_login_for_write
+def generate_periods_from_documents(experiment_id):
+    """
+    Generate time periods based on document publication dates
+
+    Analyzes all documents in the experiment and creates evenly-spaced
+    time periods covering the date range.
+    """
+    try:
+        # Generate periods from document dates
+        result = temporal_service.generate_periods_from_documents(experiment_id)
+
+        return jsonify({
+            'success': True,
+            'periods': result['periods'],
+            'document_count': result['document_count'],
+            'date_range': result['date_range'],
+            'source_type': result.get('source_type', 'publication dates'),
+            'using_fallback': result.get('using_fallback', False),
+            'message': f"Generated {len(result['periods'])} periods from {result['document_count']} documents"
+        }), 200
+
+    except ValidationError as e:
+        # Business validation errors
+        logger.warning(f"Validation error generating periods: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 400
+
+    except NotFoundError as e:
+        logger.warning(f"Experiment {experiment_id} not found: {e}")
+        return jsonify({
+            'success': False,
+            'error': 'Experiment not found'
+        }), 404
+
+    except ServiceError as e:
+        logger.error(f"Service error generating periods for experiment {experiment_id}: {e}", exc_info=True)
+        return jsonify({
+            'success': False,
+            'error': 'Failed to generate periods from documents'
+        }), 500
+
+    except Exception as e:
+        logger.error(f"Unexpected error generating periods for experiment {experiment_id}: {e}", exc_info=True)
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
 @experiments_bp.route('/<int:experiment_id>/fetch_temporal_data', methods=['POST'])
 @api_require_login_for_write
 def fetch_temporal_data(experiment_id):
@@ -243,4 +314,191 @@ def fetch_temporal_data(experiment_id):
         return jsonify({
             'success': False,
             'error': f'Server error: {str(e)}'
+        }), 500
+
+
+@experiments_bp.route('/<int:experiment_id>/documents', methods=['GET'])
+@api_require_login_for_write
+def get_experiment_documents(experiment_id):
+    """
+    Get all documents in an experiment for semantic event linking
+
+    Returns basic document information (id, title) for use in dropdowns
+    """
+    try:
+        from app.models import Document
+
+        experiment = Experiment.query.filter_by(id=experiment_id).first()
+        if not experiment:
+            return jsonify({
+                'success': False,
+                'error': 'Experiment not found'
+            }), 404
+
+        documents = Document.query.filter_by(experiment_id=experiment_id).all()
+
+        return jsonify({
+            'success': True,
+            'documents': [
+                {
+                    'id': doc.id,
+                    'uuid': str(doc.uuid),
+                    'title': doc.title or 'Untitled Document',
+                    'publication_date': doc.publication_date.isoformat() if doc.publication_date else None
+                }
+                for doc in documents
+            ]
+        }), 200
+
+    except Exception as e:
+        logger.error(f"Error getting documents for experiment {experiment_id}: {e}", exc_info=True)
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
+@experiments_bp.route('/<int:experiment_id>/save_semantic_event', methods=['POST'])
+@api_require_login_for_write
+def save_semantic_event(experiment_id):
+    """
+    Save a semantic event (transition marker) to experiment configuration
+
+    Semantic events track important temporal transitions like:
+    - Inflection points (major semantic shift)
+    - Stable polysemy (multiple stable meanings)
+    - Domain-specific networks
+    - etc.
+    """
+    try:
+        from app.models import Document
+        import json
+
+        experiment = Experiment.query.filter_by(id=experiment_id).first()
+        if not experiment:
+            return jsonify({
+                'success': False,
+                'error': 'Experiment not found'
+            }), 404
+
+        # Get event data from request
+        event_data = request.get_json()
+        event_id = event_data.get('id')
+        event_type = event_data.get('event_type')
+        from_period = event_data.get('from_period')
+        to_period = event_data.get('to_period')
+        description = event_data.get('description')
+        related_document_ids = event_data.get('related_document_ids', [])
+
+        # Validation
+        if not event_type or not from_period or not description:
+            return jsonify({
+                'success': False,
+                'error': 'Missing required fields: event_type, from_period, description'
+            }), 400
+
+        # Get configuration
+        config = json.loads(experiment.configuration) if experiment.configuration else {}
+        semantic_events = config.get('semantic_events', [])
+
+        # Get related documents
+        related_documents = []
+        if related_document_ids:
+            documents = Document.query.filter(Document.id.in_(related_document_ids)).all()
+            related_documents = [
+                {
+                    'id': doc.id,
+                    'uuid': str(doc.uuid),
+                    'title': doc.title or 'Untitled Document'
+                }
+                for doc in documents
+            ]
+
+        # Create/update event
+        event_obj = {
+            'id': event_id,
+            'event_type': event_type,
+            'from_period': from_period,
+            'to_period': to_period,
+            'description': description,
+            'related_documents': related_documents
+        }
+
+        # Find and update or append
+        existing_index = next((i for i, e in enumerate(semantic_events) if e.get('id') == event_id), None)
+        if existing_index is not None:
+            semantic_events[existing_index] = event_obj
+        else:
+            semantic_events.append(event_obj)
+
+        # Save configuration
+        config['semantic_events'] = semantic_events
+        experiment.configuration = json.dumps(config)
+        db.session.commit()
+
+        logger.info(f"Saved semantic event '{event_type}' for experiment {experiment_id}")
+
+        return jsonify({
+            'success': True,
+            'semantic_events': semantic_events
+        }), 200
+
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error saving semantic event for experiment {experiment_id}: {e}", exc_info=True)
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
+@experiments_bp.route('/<int:experiment_id>/remove_semantic_event', methods=['POST'])
+@api_require_login_for_write
+def remove_semantic_event(experiment_id):
+    """
+    Remove a semantic event from experiment configuration
+    """
+    try:
+        import json
+
+        experiment = Experiment.query.filter_by(id=experiment_id).first()
+        if not experiment:
+            return jsonify({
+                'success': False,
+                'error': 'Experiment not found'
+            }), 404
+
+        # Get event ID from request
+        event_id = request.get_json().get('event_id')
+        if not event_id:
+            return jsonify({
+                'success': False,
+                'error': 'Missing event_id'
+            }), 400
+
+        # Get configuration
+        config = json.loads(experiment.configuration) if experiment.configuration else {}
+        semantic_events = config.get('semantic_events', [])
+
+        # Remove event
+        semantic_events = [e for e in semantic_events if e.get('id') != event_id]
+
+        # Save configuration
+        config['semantic_events'] = semantic_events
+        experiment.configuration = json.dumps(config)
+        db.session.commit()
+
+        logger.info(f"Removed semantic event {event_id} from experiment {experiment_id}")
+
+        return jsonify({
+            'success': True,
+            'semantic_events': semantic_events
+        }), 200
+
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error removing semantic event for experiment {experiment_id}: {e}", exc_info=True)
+        return jsonify({
+            'success': False,
+            'error': str(e)
         }), 500

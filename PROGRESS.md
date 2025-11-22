@@ -1,8 +1,8 @@
 # OntExtract Progress Tracker
 
 **Branch:** `development`
-**Last Session:** 2025-11-20 (Session 13)
-**Status:** STABLE - Context Anchor Auto-Population
+**Last Session:** 2025-11-21 (Session 14)
+**Status:** STABLE - Publication Date Consolidation & Temporal UI Cleanup
 
 ---
 
@@ -45,6 +45,67 @@
 ---
 
 ## Recent Sessions
+
+### Session 14 (2025-11-21) - Publication Date Consolidation & Temporal UI Cleanup ✅
+
+**Problem Identified:**
+- Multiple conflicting sources for publication dates causing confusion
+- `DocumentTemporalMetadata.publication_year` (integer) vs `Document.publication_date` (date)
+- Temporal term manager had legacy UI elements from old workflows
+- No flexible date format support (users needed Zotero-style year/year-month/full date)
+
+**Implemented:**
+1. **Publication Date Consolidation:**
+   - Established `Document.publication_date` as single source of truth
+   - Deprecated `DocumentTemporalMetadata.publication_year` (kept for backward compatibility)
+   - Updated temporal service to check only `Document.publication_date`
+   - Simplified route statistics (removed DocumentTemporalMetadata checks)
+
+2. **Zotero-Style Flexible Date Parser:**
+   - Created `app/utils/date_parser.py` with two utilities:
+     - `parse_flexible_date()` - Accepts 2020, "2020-05", "2020-05-15" formats
+     - `format_date_display()` - Shows "2020" for year-only, full date otherwise
+   - Updated upload route to use `parse_flexible_date()`
+   - Supports year-only (→ YYYY-01-01), year-month (→ YYYY-MM-01), full date
+
+3. **Data Migration:**
+   - Created migration script `migrations/migrate_publication_dates.py`
+   - Migrated 7 documents (1910, 1956, 1995, 2019, 2022, 2024) to new field
+   - All existing temporal metadata preserved in correct location
+
+4. **Temporal Term Manager UI Cleanup:**
+   - Removed legacy 4-step progress pipeline widget
+   - Removed "Human-in-the-Loop Analysis" button (old workflow)
+   - Removed "Traditional Analysis" button
+   - Removed "Orchestration Decisions" preview section
+   - Added "LLM Analyze" button linking to current workflow
+   - Streamlined navigation with "Back to Experiment" button
+
+5. **Auto-Generate Periods Feature:**
+   - New "Auto-Generate from Documents" button in period configuration
+   - Backend route: `POST /experiments/<id>/generate_periods_from_documents`
+   - Service method: `TemporalService.generate_periods_from_documents()`
+   - Generates 5-year interval periods from document publication dates
+   - Visual feedback showing how many documents have dates
+   - Manual entry option for custom periods
+
+**Files Modified:**
+- `app/templates/experiments/temporal_term_manager.html` - UI cleanup, period generation options
+- `app/services/temporal_service.py` - Single source for dates, auto-generate method
+- `app/routes/experiments/temporal.py` - New generate endpoint, simplified statistics
+- `app/routes/upload.py` - Use `parse_flexible_date()` utility
+- `app/models/document.py` - Documentation of publication_date as primary source
+- `app/models/temporal_experiment.py` - Deprecation notice on publication_year
+- `app/utils/date_parser.py` - NEW: Flexible date parsing utilities
+- `migrations/migrate_publication_dates.py` - NEW: Data migration script
+
+**Impact:**
+- One clear source of truth for publication dates (eliminates confusion)
+- Users can enter dates flexibly like Zotero (year, year-month, or full date)
+- Temporal period auto-generation works correctly with migrated data
+- UI is cleaner and aligned with current LLM orchestration workflow
+- No breaking changes (old field kept for backward compatibility)
+- Migration completed successfully (7 documents updated)
 
 ### Session 13 (2025-11-20) - Context Anchor Auto-Population ✅
 
@@ -197,6 +258,8 @@
 - LLM timeout handling
 - Retry logic with exponential backoff
 - UI error display
+- Multiple publication date sources (consolidated to Document.publication_date)
+- Legacy temporal UI elements (cleaned up)
 
 ### In Progress ⚠️
 - 4 test failures (relationship loading) - Low priority
@@ -211,6 +274,13 @@
 - `QUICK_REFERENCE.md` - Commands, API endpoints, troubleshooting
 - `PROGRESS.md` - This file (session history)
 - `LLM_ANALYZE_TEST_SUMMARY.md` - Test suite details
+- `LLM_WORKFLOW_REFERENCE.md` - LLM orchestration architecture
+
+**Utilities:**
+- `app/utils/date_parser.py` - Flexible date parsing (Zotero-style)
+
+**Migrations:**
+- `migrations/migrate_publication_dates.py` - Publication date consolidation
 
 **Core Code:**
 - `app/services/workflow_executor.py` - Main orchestration service
@@ -225,7 +295,7 @@
 
 ---
 
-**Last Updated:** 2025-11-20 (Session 13)
+**Last Updated:** 2025-11-21 (Session 14)
 
 **Recent Achievements:**
 1. LLM Analyze feature fully implemented ✅
@@ -233,5 +303,8 @@
 3. Test suite comprehensive (68 tests, 85% passing) ✅
 4. Context anchor auto-population with stop word filtering ✅
 5. Production-ready with timeout, retry, user-friendly errors ✅
+6. Publication dates consolidated to single source (Document.publication_date) ✅
+7. Zotero-style flexible date parsing implemented ✅
+8. Temporal UI modernized and integrated with current workflow ✅
 
 **Next Session Focus:** Enhance LLM workflow to use context anchors and experiment-specific metadata
