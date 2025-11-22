@@ -288,6 +288,14 @@ Experiment configuration JSON format:
 
 **Infrastructure**: Leverages existing OntServe deployment at `https://ontserve.ontorealm.net/`
 
+**OntServe Details**:
+- **GitHub**: https://github.com/MatLab-Research/OntServe
+- **Local path**: `/home/chris/onto/OntServe`
+  - MCP server: `/home/chris/onto/OntServe/servers`
+  - Web server: `/home/chris/onto/OntServe/web`
+- **Reference implementation**: `/home/chris/onto/proethica` (shows integration patterns)
+- **Goal**: Align OntExtract's ontology integration with ProEthica approach
+
 **Why This Approach?**
 1. **Proper Ontological Modeling**: BFO's `bfo:Process` correctly models semantic change as temporal processes, not just data artifacts
 2. **Reuses Existing Infrastructure**: Integrates with your BFO-based OntServe deployment
@@ -1219,9 +1227,12 @@ def export_experiment_to_rdf(experiment_id: int) -> str:
    - [ ] Test migration with existing data
 
 3. **OntServe Integration**:
+   - [ ] Review ProEthica integration patterns (`/home/chris/onto/proethica`)
    - [ ] Create `app/services/ontserve_client.py` for API calls
    - [ ] Implement ontology caching (fetch event types on startup)
    - [ ] Add UI dropdowns populated from ontology
+   - [ ] Consider MCP server integration (OntServe has MCP at `/servers`)
+   - [ ] Align approach with ProEthica's ontology usage patterns
 
 4. **Service Layer**:
    - [ ] Create `app/services/semantic_event_service.py`
