@@ -22,7 +22,10 @@ from app.dto.temporal_dto import (
     FetchTemporalDataDTO
 )
 from pydantic import ValidationError as PydanticValidationError
+from app.models import Experiment, Document
+from app import db
 import logging
+import json
 
 from . import experiments_bp
 
@@ -326,8 +329,6 @@ def get_experiment_documents(experiment_id):
     Returns basic document information (id, title) for use in dropdowns
     """
     try:
-        from app.models import Document
-
         experiment = Experiment.query.filter_by(id=experiment_id).first()
         if not experiment:
             return jsonify({
@@ -371,9 +372,6 @@ def save_semantic_event(experiment_id):
     - etc.
     """
     try:
-        from app.models import Document
-        import json
-
         experiment = Experiment.query.filter_by(id=experiment_id).first()
         if not experiment:
             return jsonify({
@@ -459,8 +457,6 @@ def remove_semantic_event(experiment_id):
     Remove a semantic event from experiment configuration
     """
     try:
-        import json
-
         experiment = Experiment.query.filter_by(id=experiment_id).first()
         if not experiment:
             return jsonify({
