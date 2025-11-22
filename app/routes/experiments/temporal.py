@@ -47,7 +47,6 @@ def manage_temporal_terms(experiment_id):
 
         # Get document date statistics for UI
         # Note: Using Document.publication_date as single source of truth
-        from app.models import Document
         documents = Document.query.filter_by(experiment_id=experiment_id).all()
 
         docs_with_pub_dates = sum(1 for doc in documents if doc.publication_date)
