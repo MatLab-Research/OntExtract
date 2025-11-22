@@ -272,7 +272,7 @@ Experiment configuration JSON format:
 ### Publication Date Migration
 - Script: `/migrations/migrate_publication_dates.py`
 - Migrates data from `DocumentTemporalMetadata.publication_year` → `Document.publication_date`
-- Run with: `PYTHONPATH=/home/chris/OntExtract venv-ontextract/bin/python migrations/migrate_publication_dates.py`
+- Run with: `PYTHONPATH=/home/chris/onto/OntExtract venv-ontextract/bin/python migrations/migrate_publication_dates.py`
 
 ## BFO + PROV-O Implementation Plan
 
