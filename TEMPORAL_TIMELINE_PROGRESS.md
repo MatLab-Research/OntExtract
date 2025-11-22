@@ -274,21 +274,828 @@ Experiment configuration JSON format:
 - Migrates data from `DocumentTemporalMetadata.publication_year` → `Document.publication_date`
 - Run with: `PYTHONPATH=/home/chris/OntExtract venv-ontextract/bin/python migrations/migrate_publication_dates.py`
 
+## PROV-O Implementation Plan
+
+**Objective**: Transition from JSON-based semantic events to PROV-O compliant database architecture with full provenance tracking, following methodologies from:
+- "Managing Semantic Change in Research" (Rauch et al., 2024)
+- "OntExtract: PROV-O Provenance Tracking for Document Analysis Workflows"
+
+### Design Principles
+
+1. **Separation of Facts and Insights**:
+   - **Period Cards** = temporal containers (objective facts: documents exist in time)
+   - **Event Cards** = analytical annotations (subjective insights: semantic shifts identified by researchers)
+
+2. **PROV-O Entity-Activity-Agent Model**:
+   - **Entities**: Documents, text segments, semantic events, analytical artifacts
+   - **Activities**: Document upload, segmentation, entity extraction, event annotation
+   - **Agents**: Researchers, LLM orchestrators, analysis tools (spaCy, NLTK, etc.)
+
+3. **Evidence-Based Annotations**:
+   - Link events to specific document segments (character-level positions)
+   - Track provenance: who identified the shift, when, based on what evidence
+   - Enable reproducible semantic change analysis
+
+### Phase 1: Database Foundation (PROV-O Core)
+
+**Status**: Planning
+**Goal**: Replace JSON-based semantic events with proper database tables implementing W3C PROV-O standard
+
+#### 1.1 Create PROV-O Base Tables
+
+**New tables** (in `app/models/provenance.py`):
+
+```python
+# PROV-O Core Concepts
+class ProvenanceEntity(db.Model):
+    """PROV-O Entity: Artifact created or used in analysis"""
+    __tablename__ = 'provenance_entities'
+
+    id = db.Column(db.Integer, primary_key=True)
+    entity_type = db.Column(db.String(50), nullable=False)
+    # Types: 'document', 'segment', 'semantic_event', 'extraction'
+
+    # Generic metadata storage (flexible schema)
+    metadata = db.Column(JSONB, nullable=False)
+
+    # Timestamps
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    # Relationships
+    generated_by_activity_id = db.Column(db.Integer,
+        db.ForeignKey('provenance_activities.id'))
+    derived_from_entity_id = db.Column(db.Integer,
+        db.ForeignKey('provenance_entities.id'))
+
+
+class ProvenanceActivity(db.Model):
+    """PROV-O Activity: Process that generates/modifies entities"""
+    __tablename__ = 'provenance_activities'
+
+    id = db.Column(db.Integer, primary_key=True)
+    activity_type = db.Column(db.String(50), nullable=False)
+    # Types: 'upload', 'segment', 'extract', 'annotate_event'
+
+    # When activity occurred
+    started_at = db.Column(db.DateTime, nullable=False)
+    ended_at = db.Column(db.DateTime)
+
+    # Configuration used for this activity
+    parameters = db.Column(JSONB)
+
+    # Which agent performed this activity
+    agent_id = db.Column(db.Integer, db.ForeignKey('provenance_agents.id'))
+
+
+class ProvenanceAgent(db.Model):
+    """PROV-O Agent: Person or software that performs activities"""
+    __tablename__ = 'provenance_agents'
+
+    id = db.Column(db.Integer, primary_key=True)
+    agent_type = db.Column(db.String(50), nullable=False)
+    # Types: 'researcher', 'llm_orchestrator', 'analysis_tool'
+
+    name = db.Column(db.String(200), nullable=False)
+    version = db.Column(db.String(50))  # For tools: spaCy 3.8.11
+
+    # For human agents, link to User
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'))
+
+    # For software agents, store configuration
+    configuration = db.Column(JSONB)
+```
+
+#### 1.2 Create Semantic Event Schema
+
+**New tables** (in `app/models/semantic_events.py`):
+
+```python
+class SemanticEvent(db.Model):
+    """Research annotation: identified semantic shift or transition"""
+    __tablename__ = 'semantic_events'
+
+    id = db.Column(db.Integer, primary_key=True)
+
+    # Link to PROV-O entity
+    entity_id = db.Column(db.Integer,
+        db.ForeignKey('provenance_entities.id'), nullable=False)
+
+    # Experiment context
+    experiment_id = db.Column(db.Integer,
+        db.ForeignKey('experiments.id'), nullable=False)
+
+    # Event classification
+    event_type = db.Column(db.String(50), nullable=False)
+    # Controlled vocabulary: inflection_point, stable_polysemy,
+    # domain_network, semantic_shift, emergence, decline
+
+    # Temporal scope
+    from_period = db.Column(db.Integer, nullable=False)
+    to_period = db.Column(db.Integer)  # Nullable for point events
+
+    # Researcher's description
+    description = db.Column(db.Text, nullable=False)
+
+    # Confidence (optional: researcher's certainty)
+    confidence = db.Column(db.Float)  # 0.0-1.0
+
+    # Timestamps (inherited from entity, but cached for queries)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, onupdate=datetime.utcnow)
+
+    # Relationships
+    evidence_links = db.relationship('SemanticEventEvidence',
+        back_populates='semantic_event')
+
+
+class SemanticEventEvidence(db.Model):
+    """Links semantic events to supporting document segments"""
+    __tablename__ = 'semantic_event_evidence'
+
+    id = db.Column(db.Integer, primary_key=True)
+
+    semantic_event_id = db.Column(db.Integer,
+        db.ForeignKey('semantic_events.id'), nullable=False)
+
+    # Link to document
+    document_id = db.Column(db.Integer,
+        db.ForeignKey('documents.id'), nullable=False)
+
+    # Optional: link to specific segment (from ProcessingArtifact)
+    segment_id = db.Column(db.Integer,
+        db.ForeignKey('processing_artifacts.id'))
+
+    # Character-level position in document
+    char_start = db.Column(db.Integer)
+    char_end = db.Column(db.Integer)
+
+    # Extracted text (for display)
+    text_snippet = db.Column(db.Text)
+
+    # Evidence type
+    evidence_type = db.Column(db.String(50))
+    # Types: 'primary', 'supporting', 'contradictory'
+
+    # Researcher's note about this evidence
+    note = db.Column(db.Text)
+
+    # Relationships
+    semantic_event = db.relationship('SemanticEvent',
+        back_populates='evidence_links')
+```
+
+#### 1.3 PROV-O Relationship Mapping
+
+**Implementation** (in `app/services/provenance_service.py`):
+
+```python
+def create_semantic_event_with_provenance(
+    experiment_id: int,
+    event_type: str,
+    from_period: int,
+    to_period: int,
+    description: str,
+    researcher_id: int,
+    evidence_documents: List[int] = None
+) -> SemanticEvent:
+    """
+    Create semantic event with full PROV-O provenance chain.
+
+    PROV-O Relationships:
+    - wasAttributedTo: Event attributed to researcher
+    - wasGeneratedBy: Event generated by annotation activity
+    - wasDerivedFrom: Event derived from document analysis
+    - used: Annotation activity used source documents
+    """
+
+    # 1. Get or create researcher agent
+    agent = ProvenanceAgent.query.filter_by(
+        agent_type='researcher',
+        user_id=researcher_id
+    ).first()
+
+    if not agent:
+        agent = ProvenanceAgent(
+            agent_type='researcher',
+            name=User.query.get(researcher_id).username,
+            user_id=researcher_id
+        )
+        db.session.add(agent)
+
+    # 2. Create annotation activity
+    activity = ProvenanceActivity(
+        activity_type='annotate_semantic_event',
+        started_at=datetime.utcnow(),
+        ended_at=datetime.utcnow(),
+        agent_id=agent.id,
+        parameters={
+            'event_type': event_type,
+            'from_period': from_period,
+            'to_period': to_period
+        }
+    )
+    db.session.add(activity)
+    db.session.flush()  # Get activity.id
+
+    # 3. Create PROV-O entity for this semantic event
+    entity = ProvenanceEntity(
+        entity_type='semantic_event',
+        generated_by_activity_id=activity.id,
+        metadata={
+            'event_type': event_type,
+            'description': description
+        }
+    )
+    db.session.add(entity)
+    db.session.flush()  # Get entity.id
+
+    # 4. Create semantic event record
+    event = SemanticEvent(
+        entity_id=entity.id,
+        experiment_id=experiment_id,
+        event_type=event_type,
+        from_period=from_period,
+        to_period=to_period,
+        description=description
+    )
+    db.session.add(event)
+    db.session.flush()
+
+    # 5. Link evidence documents
+    if evidence_documents:
+        for doc_id in evidence_documents:
+            evidence = SemanticEventEvidence(
+                semantic_event_id=event.id,
+                document_id=doc_id,
+                evidence_type='primary'
+            )
+            db.session.add(evidence)
+
+    db.session.commit()
+    return event
+```
+
+#### 1.4 Migration Strategy
+
+**Alembic migration** to:
+1. Create new PROV-O tables
+2. Migrate existing semantic events from JSON to database
+3. Create provenance records for historical events
+4. Add foreign key constraints
+
+**Migration script** (`migrations/versions/xxx_add_prov_o_tables.py`):
+```python
+def upgrade():
+    # Create PROV-O tables
+    op.create_table('provenance_agents', ...)
+    op.create_table('provenance_activities', ...)
+    op.create_table('provenance_entities', ...)
+    op.create_table('semantic_events', ...)
+    op.create_table('semantic_event_evidence', ...)
+
+    # Migrate existing data from experiment.configuration JSON
+    # to semantic_events table with retroactive provenance
+```
+
+**Tasks**:
+- [ ] Create `app/models/provenance.py` with PROV-O base classes
+- [ ] Create `app/models/semantic_events.py` with event schema
+- [ ] Create `app/services/provenance_service.py` with CRUD operations
+- [ ] Write Alembic migration script
+- [ ] Test migration with existing experiment data
+- [ ] Update backend routes to use new models instead of JSON
+
+### Phase 2: Enhanced Event Cards with Evidence
+
+**Status**: Planning
+**Goal**: Improve event card UI to show provenance and evidence links
+
+#### 2.1 Event Type Vocabulary (from Research)
+
+Based on "Managing Semantic Change in Research" and OntExtract papers:
+
+```python
+# app/utils/semantic_event_types.py
+
+SEMANTIC_EVENT_TYPES = {
+    'inflection_point': {
+        'label': 'Inflection Point',
+        'description': 'Major semantic shift marking transition between meanings',
+        'color': '#6f42c1',  # purple
+        'icon': 'fas fa-turn-up',
+        'examples': [
+            '"agent" 1995: human → computational',
+            '"ontology" 1993: philosophy → information science'
+        ]
+    },
+    'stable_polysemy': {
+        'label': 'Stable Polysemy',
+        'description': 'Multiple distinct meanings coexist without conflict',
+        'color': '#20c997',  # teal
+        'icon': 'fas fa-code-branch',
+        'examples': [
+            '"agent" 2024: legal person AND autonomous system',
+            'Parallel meanings across disciplines'
+        ]
+    },
+    'domain_network': {
+        'label': 'Domain Network',
+        'description': 'Domain-specific semantic network develops',
+        'color': '#fd7e14',  # orange
+        'icon': 'fas fa-project-diagram',
+        'examples': [
+            '"agent" in AI: percept-action loop, rationality',
+            'Specialized terminology within field'
+        ]
+    },
+    'conceptual_bridge': {
+        'label': 'Conceptual Bridge',
+        'description': 'Work mediates between different meanings',
+        'color': '#17a2b8',  # cyan
+        'icon': 'fas fa-link',
+        'examples': [
+            'Anscombe 1957: legal → philosophical agency'
+        ]
+    },
+    'semantic_drift': {
+        'label': 'Semantic Drift',
+        'description': 'Gradual meaning change over extended period',
+        'color': '#d63384',  # pink
+        'icon': 'fas fa-water',
+        'examples': []
+    },
+    'emergence': {
+        'label': 'Emergence',
+        'description': 'New meaning appears in discourse',
+        'color': '#198754',  # green
+        'icon': 'fas fa-seedling',
+        'examples': []
+    },
+    'decline': {
+        'label': 'Decline',
+        'description': 'Meaning becomes obsolete or rare',
+        'color': '#dc3545',  # red
+        'icon': 'fas fa-arrow-trend-down',
+        'examples': []
+    }
+}
+```
+
+#### 2.2 Event Card Enhancements
+
+**Template updates** (`temporal_term_manager.html`):
+
+```html
+<!-- Event card with provenance and evidence -->
+<div class="card event-card mb-3"
+     style="border-left: 4px solid {{ event_color }}">
+
+  <!-- Card Header: Event Type and Temporal Scope -->
+  <div class="card-header d-flex justify-content-between align-items-center">
+    <div>
+      <i class="{{ event_icon }}"></i>
+      <strong>{{ event_label }}</strong>
+      <span class="text-muted ms-2">
+        {{ event.from_period }}
+        {% if event.to_period %}→ {{ event.to_period }}{% endif %}
+      </span>
+    </div>
+
+    <!-- Provenance badge -->
+    <div>
+      <span class="badge bg-secondary"
+            title="Annotated by {{ event.researcher.username }} on {{ event.created_at }}">
+        <i class="fas fa-user"></i> {{ event.researcher.username }}
+      </span>
+      {% if event.confidence %}
+      <span class="badge bg-info">
+        {{ (event.confidence * 100)|int }}% confidence
+      </span>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- Card Body: Description and Evidence -->
+  <div class="card-body">
+    <p class="card-text">{{ event.description }}</p>
+
+    <!-- Evidence Section -->
+    {% if event.evidence_links %}
+    <div class="evidence-section mt-3">
+      <h6 class="text-muted mb-2">
+        <i class="fas fa-book-open"></i> Evidence ({{ event.evidence_links|length }})
+      </h6>
+
+      <div class="list-group">
+        {% for evidence in event.evidence_links %}
+        <a href="/document/{{ evidence.document.uuid }}"
+           class="list-group-item list-group-item-action"
+           target="_blank">
+
+          <div class="d-flex justify-content-between align-items-start">
+            <div>
+              <div class="fw-bold">{{ evidence.document.title }}</div>
+
+              <!-- Show text snippet if available -->
+              {% if evidence.text_snippet %}
+              <blockquote class="text-muted small mt-1 mb-0">
+                "{{ evidence.text_snippet|truncate(120) }}"
+              </blockquote>
+              {% endif %}
+
+              {% if evidence.note %}
+              <small class="text-info">
+                <i class="fas fa-sticky-note"></i> {{ evidence.note }}
+              </small>
+              {% endif %}
+            </div>
+
+            <!-- Evidence type badge -->
+            <span class="badge bg-{{ evidence_type_color(evidence.evidence_type) }}">
+              {{ evidence.evidence_type }}
+            </span>
+          </div>
+        </a>
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
+  </div>
+
+  <!-- Card Footer: Actions -->
+  <div class="card-footer">
+    <button class="btn btn-sm btn-outline-primary"
+            onclick="editSemanticEvent('{{ event.id }}')">
+      <i class="fas fa-edit"></i> Edit
+    </button>
+    <button class="btn btn-sm btn-outline-danger"
+            onclick="removeSemanticEvent('{{ event.id }}')">
+      <i class="fas fa-trash"></i> Remove
+    </button>
+    <button class="btn btn-sm btn-outline-secondary"
+            onclick="showProvenance('{{ event.id }}')">
+      <i class="fas fa-history"></i> View Provenance
+    </button>
+  </div>
+</div>
+```
+
+#### 2.3 Provenance Viewer Modal
+
+**New modal** for displaying complete PROV-O chain:
+
+```html
+<div class="modal fade" id="provenanceModal">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Annotation Provenance</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+
+      <div class="modal-body">
+        <!-- PROV-O visualization -->
+        <div class="provenance-chain">
+          <div class="prov-entity">
+            <h6>Entity: Semantic Event</h6>
+            <dl>
+              <dt>Type:</dt>
+              <dd id="prov-event-type"></dd>
+              <dt>Created:</dt>
+              <dd id="prov-created-at"></dd>
+            </dl>
+          </div>
+
+          <div class="prov-relationship">
+            <i class="fas fa-arrow-down"></i>
+            <span>wasGeneratedBy</span>
+          </div>
+
+          <div class="prov-activity">
+            <h6>Activity: Annotation</h6>
+            <dl>
+              <dt>Activity Type:</dt>
+              <dd>annotate_semantic_event</dd>
+              <dt>Parameters:</dt>
+              <dd><pre id="prov-parameters"></pre></dd>
+            </dl>
+          </div>
+
+          <div class="prov-relationship">
+            <i class="fas fa-arrow-down"></i>
+            <span>wasAssociatedWith</span>
+          </div>
+
+          <div class="prov-agent">
+            <h6>Agent: Researcher</h6>
+            <dl>
+              <dt>Name:</dt>
+              <dd id="prov-agent-name"></dd>
+              <dt>Agent Type:</dt>
+              <dd>researcher</dd>
+            </dl>
+          </div>
+
+          <div class="prov-relationship">
+            <i class="fas fa-arrow-down"></i>
+            <span>used</span>
+          </div>
+
+          <div class="prov-entities">
+            <h6>Source Documents</h6>
+            <ul id="prov-source-docs"></ul>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+```
+
+**Tasks**:
+- [ ] Update event card template with provenance display
+- [ ] Add evidence section to event cards
+- [ ] Create provenance viewer modal
+- [ ] Update semantic event modal to include evidence linking
+- [ ] Add confidence score input (optional slider 0-100%)
+- [ ] Update JavaScript functions for new schema
+
+### Phase 3: Segment-Level Evidence Linking
+
+**Status**: Planning
+**Goal**: Link semantic events to specific text passages, not just whole documents
+
+#### 3.1 Text Selection Interface
+
+**JavaScript for text selection** in document viewer:
+
+```javascript
+// When viewing a document, allow text selection for evidence
+function enableEvidenceSelection(documentId) {
+    const documentText = document.getElementById('document-content');
+
+    documentText.addEventListener('mouseup', function() {
+        const selection = window.getSelection();
+        const selectedText = selection.toString().trim();
+
+        if (selectedText.length > 0) {
+            // Calculate character positions
+            const range = selection.getRangeAt(0);
+            const charStart = getCharacterOffsetWithin(range.startContainer, documentText);
+            const charEnd = charStart + selectedText.length;
+
+            // Show "Add as Evidence" button
+            showEvidenceButton(documentId, selectedText, charStart, charEnd);
+        }
+    });
+}
+
+function showEvidenceButton(documentId, text, charStart, charEnd) {
+    // Create floating button near selection
+    const button = document.createElement('button');
+    button.className = 'btn btn-sm btn-primary evidence-button';
+    button.innerHTML = '<i class="fas fa-link"></i> Add as Evidence';
+    button.onclick = () => {
+        openEvidenceLinkDialog(documentId, text, charStart, charEnd);
+    };
+
+    // Position near selection
+    // ... positioning logic
+}
+```
+
+#### 3.2 Evidence Linking Workflow
+
+1. **User workflow**:
+   - View document in experiment
+   - Select relevant text passage
+   - Click "Add as Evidence"
+   - Choose which semantic event this supports
+   - Add optional note about why this text is evidence
+   - Save link
+
+2. **Backend storage**:
+```python
+evidence = SemanticEventEvidence(
+    semantic_event_id=event_id,
+    document_id=document_id,
+    char_start=char_start,
+    char_end=char_end,
+    text_snippet=text[char_start:char_end],
+    evidence_type='primary',
+    note=user_note
+)
+```
+
+3. **Display in event card**:
+   - Show clickable evidence links
+   - Clicking opens document and highlights the specific passage
+   - Deep link format: `/document/{uuid}#evidence-{char_start}-{char_end}`
+
+**Tasks**:
+- [ ] Add text selection capability to document viewer
+- [ ] Create "Add as Evidence" floating button
+- [ ] Build evidence linking dialog
+- [ ] Implement deep linking to document passages
+- [ ] Add text highlighting for evidence segments
+- [ ] Update event cards to show segment-level evidence
+
+### Phase 4: Integration with Existing ProcessingArtifacts
+
+**Status**: Planning
+**Goal**: Connect semantic events to ProcessingArtifact segments from document analysis
+
+#### 4.1 Leverage Existing Segmentation
+
+The system already has:
+- `ProcessingArtifact` table with character-level positions
+- Paragraph and sentence segmentation
+- Entity extraction with positions
+
+**Integration approach**:
+```python
+def link_event_to_segments(
+    event_id: int,
+    segment_ids: List[int]
+) -> List[SemanticEventEvidence]:
+    """
+    Link semantic event to existing ProcessingArtifact segments.
+    Useful when event is identified through automated analysis.
+    """
+    evidence_links = []
+
+    for segment_id in segment_ids:
+        segment = ProcessingArtifact.query.get(segment_id)
+
+        evidence = SemanticEventEvidence(
+            semantic_event_id=event_id,
+            document_id=segment.document_id,
+            segment_id=segment_id,
+            char_start=segment.metadata.get('char_start'),
+            char_end=segment.metadata.get('char_end'),
+            text_snippet=segment.content[:200],  # Truncate for display
+            evidence_type='automated'
+        )
+        evidence_links.append(evidence)
+        db.session.add(evidence)
+
+    db.session.commit()
+    return evidence_links
+```
+
+#### 4.2 Automated Event Detection (Future)
+
+**Potential workflow**:
+1. Run document processing (segmentation, extraction, embeddings)
+2. Analyze ProcessingArtifacts for semantic patterns
+3. Suggest potential semantic events to researcher
+4. Researcher reviews and approves, creating SemanticEvent with provenance
+
+This leverages existing infrastructure while maintaining human oversight.
+
+**Tasks**:
+- [ ] Add segment_id foreign key to SemanticEventEvidence
+- [ ] Create helper functions to link events to existing segments
+- [ ] Update UI to show both manual selections and automated segments
+- [ ] (Future) Implement automated event suggestion based on ProcessingArtifacts
+
+### Phase 5: RDF Export (Future Enhancement)
+
+**Status**: Planning
+**Goal**: Export temporal timeline as RDF using PROV-O, SKOS, Dublin Core
+
+#### 5.1 Ontology Mapping
+
+```python
+# app/services/rdf_export.py
+
+from rdflib import Graph, Namespace, Literal, URIRef
+from rdflib.namespace import RDF, RDFS, DCTERMS, XSD
+
+# Define namespaces
+PROV = Namespace("http://www.w3.org/ns/prov#")
+SKOS = Namespace("http://www.w3.org/2004/02/skos/core#")
+ONTEXTRACT = Namespace("http://ontextract.org/ns#")
+
+def export_experiment_to_rdf(experiment_id: int) -> str:
+    """Export experiment timeline as RDF Turtle"""
+    g = Graph()
+    g.bind("prov", PROV)
+    g.bind("skos", SKOS)
+    g.bind("dcterms", DCTERMS)
+    g.bind("ontex", ONTEXTRACT)
+
+    experiment = Experiment.query.get(experiment_id)
+
+    # Experiment as PROV Entity
+    exp_uri = URIRef(f"http://ontextract.org/experiment/{experiment_id}")
+    g.add((exp_uri, RDF.type, PROV.Entity))
+    g.add((exp_uri, DCTERMS.title, Literal(experiment.name)))
+
+    # Semantic events
+    events = SemanticEvent.query.filter_by(
+        experiment_id=experiment_id
+    ).all()
+
+    for event in events:
+        event_uri = URIRef(f"http://ontextract.org/event/{event.id}")
+
+        # Event as PROV Entity
+        g.add((event_uri, RDF.type, PROV.Entity))
+        g.add((event_uri, RDF.type, ONTEXTRACT[event.event_type]))
+        g.add((event_uri, RDFS.label, Literal(event.description)))
+
+        # Temporal scope
+        g.add((event_uri, ONTEXTRACT.fromPeriod,
+               Literal(event.from_period, datatype=XSD.integer)))
+        if event.to_period:
+            g.add((event_uri, ONTEXTRACT.toPeriod,
+                   Literal(event.to_period, datatype=XSD.integer)))
+
+        # Provenance: wasAttributedTo researcher
+        entity = ProvenanceEntity.query.get(event.entity_id)
+        activity = entity.generated_by_activity
+        agent = activity.agent
+
+        agent_uri = URIRef(f"http://ontextract.org/agent/{agent.id}")
+        g.add((event_uri, PROV.wasAttributedTo, agent_uri))
+
+        # Evidence documents
+        for evidence in event.evidence_links:
+            doc_uri = URIRef(f"http://ontextract.org/document/{evidence.document.uuid}")
+            g.add((event_uri, DCTERMS.references, doc_uri))
+
+    # Serialize to Turtle
+    return g.serialize(format='turtle')
+```
+
+**Tasks** (Future):
+- [ ] Implement RDF export service
+- [ ] Create ONTEXTRACT vocabulary for semantic event types
+- [ ] Add export button to timeline interface
+- [ ] Support JSON-LD format for web publishing
+- [ ] Validate RDF output against PROV-O constraints
+
 ## Next Steps
 
-### Immediate
-1. **Fix semantic event save bug**: Debug HTML response issue
-   - Check Flask logs for error traceback
-   - Add logging to `save_semantic_event` route
-   - Verify JSON serialization of event data
+### Immediate (Fix Current Bug)
+1. **Debug semantic event save error**:
+   - [ ] Check Flask logs for Python traceback
+   - [ ] Add logging to `save_semantic_event` route
+   - [ ] Verify JSON serialization of event data
+   - [ ] Test with minimal payload
+
+### Phase 1: PROV-O Foundation (Priority)
+1. **Database Schema**:
+   - [ ] Create `app/models/provenance.py` with PROV-O base classes
+   - [ ] Create `app/models/semantic_events.py` with event schema
+   - [ ] Write Alembic migration script
+   - [ ] Test migration with existing data
+
+2. **Service Layer**:
+   - [ ] Create `app/services/provenance_service.py`
+   - [ ] Implement CRUD operations with provenance tracking
+   - [ ] Update backend routes to use new models
+
+3. **Testing**:
+   - [ ] Create semantic event with provenance
+   - [ ] Query provenance chain
+   - [ ] Verify PROV-O relationships
+
+### Phase 2: Enhanced Event Cards
+1. **UI Updates**:
+   - [ ] Update event card template with provenance display
+   - [ ] Add evidence section to event cards
+   - [ ] Create provenance viewer modal
+   - [ ] Update semantic event modal for evidence linking
+
+2. **JavaScript**:
+   - [ ] Update `saveSemanticEvent()` for new schema
+   - [ ] Add provenance display functions
+   - [ ] Implement evidence link management
+
+### Phase 3: Segment-Level Evidence
+1. **Text Selection**:
+   - [ ] Add text selection to document viewer
+   - [ ] Create "Add as Evidence" button
+   - [ ] Build evidence linking dialog
+
+2. **Deep Linking**:
+   - [ ] Implement document deep links with highlighting
+   - [ ] Update evidence display in event cards
 
 ### Future Enhancements
-1. **Timeline Visualization**: Add graphical timeline view (vis.js or D3.js)
-2. **Batch Operations**: Add/edit multiple events at once
-3. **Export Timeline**: Generate PDF/PNG of timeline
-4. **Event Templates**: Pre-defined event types with descriptions
-5. **Period Suggestions**: ML-based period detection from document analysis
-6. **Event Connections**: Link semantic events to specific term definitions
+1. **Automated Analysis**:
+   - Link events to ProcessingArtifacts
+   - Suggest potential events based on analysis
+
+2. **RDF Export**:
+   - Export timeline as PROV-O/SKOS RDF
+   - Support linked open data publishing
+
+3. **Visualization**:
+   - Add graphical timeline view (D3.js)
+   - Show provenance chains visually
 
 ## Testing Checklist
 
