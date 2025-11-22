@@ -38,7 +38,7 @@ langsmith==0.4.43
 # Text Processing & Analysis
 nltk==3.9.2
 spacy==3.8.11
-en-core-web-sm @ https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.7.1/en_core_web_sm-3.7.1-py3-none-any.whl
+en-core-web-sm @ https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.8.0/en_core_web_sm-3.8.0-py3-none-any.whl
 python-dateutil==2.9.0
 langdetect==1.0.9
 beautifulsoup4==4.13.4
@@ -48,8 +48,8 @@ lxml==6.0.0
 
 # ML & Embeddings
 sentence-transformers==5.1.2
-transformers==4.36.0
-torch==2.1.2
+transformers==4.47.0
+torch==2.5.1
 numpy==1.26.4
 
 # Graph & Visualization

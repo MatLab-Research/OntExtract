@@ -1,8 +1,9 @@
 # Temporal Timeline Feature - Progress Document
 
-**Last Updated**: 2025-11-21
+**Last Updated**: 2025-11-22
 **Branch**: development
 **Last Commit**: `2089d04 update temporal experiment cards`
+**Latest Session**: Session 15 - Literature Review & Ontology Validation
 
 ## Overview
 
@@ -295,6 +296,211 @@ Experiment configuration JSON format:
   - Web server: `/home/chris/onto/OntServe/web`
 - **Reference implementation**: `/home/chris/onto/proethica` (shows integration patterns)
 - **Goal**: Align OntExtract's ontology integration with ProEthica approach
+
+### Ontology Status (2025-11-22)
+
+**Current Status**: VALIDATED ✅
+
+**Semantic Change Ontology v2.0**:
+- **File**: [ontologies/semantic-change-ontology-v2.ttl](ontologies/semantic-change-ontology-v2.ttl)
+- **Classes**: 34 (expanded from 8 in v1.0)
+- **Object Properties**: 17
+- **Data Properties**: 10
+- **Academic Citations**: 33 papers cited directly in ontology
+- **Consistency Check**: PASSED (Pellet reasoner)
+- **Inferred Relationships**: 32 discovered
+- **Literature Review**: 12 papers (200+ pages) reviewed
+
+**Validation Results**:
+```
+======================================================================
+ONTOLOGY VALIDATION REPORT
+======================================================================
+File: semantic-change-ontology-v2.ttl
+Reasoner: pellet
+
+STATISTICS:
+  Classes: 34
+  Object Properties: 17
+  Data Properties: 10
+  Individuals: 0
+
+CONSISTENCY: PASSED
+
+INFO:
+  ✅ Ontology is consistent (pellet)
+  ✅ Class hierarchy is well-formed
+  Found 32 relationships
+
+WARNINGS:
+  ⚠️  9 properties have no domain/range (intentional - unrestricted properties)
+
+======================================================================
+RESULT: ✅ VALIDATION PASSED WITH WARNINGS
+======================================================================
+```
+
+**OntServe Integration Status**: ✅ COMPLETE (Session 16)
+- Validation script works perfectly ✅
+- Reasoner integration functional ✅
+- Database storage bug FIXED ✅
+- Ontology successfully imported to OntServe ✅
+- Database verification confirmed ✅
+
+**Completed Work** (2025-11-22 Session 16):
+- Fixed KeyError in postgresql_storage.py (_create_ontology_version method)
+- Successfully imported semantic-change-ontology-v2.ttl
+- Database verification: Ontology ID 93, Version 1, 35,664 bytes
+- Ready for MCP access via localhost:8082
+
+**Documentation**:
+- [LITERATURE_REVIEW_PROGRESS.md](LITERATURE_REVIEW_PROGRESS.md) - Detailed paper extractions
+- [LITERATURE_REVIEW_SUMMARY.md](LITERATURE_REVIEW_SUMMARY.md) - Executive summary
+- [ONTOLOGY_ENHANCEMENTS_V2.md](ONTOLOGY_ENHANCEMENTS_V2.md) - Class-by-class documentation
+- [VALIDATION_GUIDE.md](VALIDATION_GUIDE.md) - Validation procedures and troubleshooting
+- [scripts/validate_semantic_change_ontology.py](scripts/validate_semantic_change_ontology.py) - Validation script
+
+### Is OntServe Integration Required? EVALUATION
+
+**Question**: Do we need semantic-change-ontology-v2.ttl in OntServe to continue with temporal timeline work?
+
+**Answer**: **It depends on which features you want to implement.**
+
+#### Current Timeline Features (NO OntServe Required) ✅
+
+**Working Now Without OntServe**:
+- Period cards (auto-generated, manual, OED)
+- Semantic event cards with hardcoded types
+- Timeline visualization
+- Document linking
+- JSON-based configuration storage
+- All current UI functionality
+
+**Implementation**: Uses `experiment.configuration` JSON field with hardcoded event type strings.
+
+**Limitations**:
+- Event types are strings ("inflection_point", "stable_polysemy")
+- No academic definitions or validation
+- No semantic interoperability
+- Cannot query across experiments
+- Limited to current 6 event types
+
+#### BFO + PROV-O Features (OntServe REQUIRED) ⚠️
+
+**Blocked Without OntServe**:
+- Ontology-backed event types with URIs
+- SPARQL queries for event type metadata
+- MCP integration layer (Phase 1.2)
+- Semantic event database schema with URIs (Phase 1.3)
+- Cross-experiment semantic queries
+- RDF export for linked open data
+- Academic rigor and interoperability
+
+**Implementation**: Requires:
+1. Ontology deployed in OntServe
+2. MCP client to query OntServe
+3. Database schema with ontology URIs
+4. Event type metadata from SPARQL
+
+**Dependencies from Plan**:
+- Line 448-453: Upload ontology to OntServe (explicit requirement)
+- Line 609-627: SPARQL queries against OntServe for event types
+- Line 697-701: MCP integration following ProEthica pattern
+- Line 768: `event_type_uri` database field requires OntServe URIs
+
+#### Partial Solutions (Work-Arounds)
+
+**Option 1: File-Based Access**
+- Read ontology directly from .ttl file
+- Parse with rdflib locally
+- No MCP integration needed
+- **Pros**: Can use ontology immediately
+- **Cons**: No centralized management, no SPARQL server, harder to query
+
+**Option 2: Delayed Integration**
+- Continue development with JSON-based events
+- Build other features (LLM workflow, context anchors)
+- Integrate OntServe in Phase 2
+- **Pros**: Parallel development
+- **Cons**: Database migration needed later
+
+**Option 3: Complete Integration Now**
+- Fix OntServe storage issue (minor)
+- Implement MCP layer (1-2 days)
+- Implement database migration (1-2 days)
+- **Pros**: Full functionality unlocked
+- **Cons**: Delays other features
+
+#### Recommendation
+
+**SHORT TERM (Next 1-2 weeks)**:
+Continue with current JSON-based implementation while building:
+- Context anchor LLM integration
+- Error handling improvements
+- Test coverage
+- UI refinements
+
+**MEDIUM TERM (Weeks 3-4)**:
+Complete OntServe integration:
+1. Fix storage issue in OntServe importer
+2. Implement MCP client layer
+3. Migrate event types to ontology URIs
+4. Add PROV-O provenance tables
+
+**LONG TERM (Month 2+)**:
+Full BFO + PROV-O architecture:
+- Semantic queries across experiments
+- RDF export and publication
+- Academic paper with formal ontology
+- Integration with external semantic web resources
+
+#### Critical Dependencies
+
+**These tasks REQUIRE OntServe**:
+- [ ] Fetch event types from ontology (Phase 1.1)
+- [ ] MCP integration layer (Phase 1.2)
+- [ ] Database schema with URIs (Phase 1.3)
+- [ ] SPARQL-based event type queries
+- [ ] RDF export of semantic events
+- [ ] Cross-experiment semantic queries
+
+**These tasks DON'T require OntServe**:
+- [x] Timeline visualization (complete)
+- [x] Period management (complete)
+- [x] Document linking (complete)
+- [ ] LLM workflow enhancements
+- [ ] Context anchor integration
+- [ ] Test coverage improvements
+- [ ] UI/UX refinements
+
+#### Current Blocker Status
+
+**OntServe Integration**: ⚠️ **NOT a blocker** for immediate development
+
+**Reasons**:
+1. Current features fully functional without it
+2. Many other tasks available (LLM, testing, UI)
+3. Ontology validated and ready when needed
+4. Storage issue is minor and fixable
+
+**When it becomes a blocker**:
+- When implementing Phase 1.2 (MCP layer)
+- When adding ontology URI fields to database
+- When building semantic query features
+- When preparing for publication (need formal RDF)
+
+#### Summary
+
+**Can you continue?** YES ✅
+- Current temporal timeline works without OntServe
+- Many other features can be developed in parallel
+- Ontology is validated and ready for integration when needed
+
+**Should you integrate OntServe?** YES, but not immediately ⚡
+- Complete when ready for Phase 1.2-1.3 of BFO plan
+- Enables full semantic web architecture
+- Required for scholarly publication
+- Not blocking current development sprint
 
 **Why This Approach?**
 1. **Proper Ontological Modeling**: BFO's `bfo:Process` correctly models semantic change as temporal processes, not just data artifacts

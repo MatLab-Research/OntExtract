@@ -655,6 +655,10 @@ def llm_orchestration_results(experiment_id, run_id):
         )
 
     except Exception as e:
+        # Re-raise HTTPExceptions (like abort(404)) without catching them
+        from werkzeug.exceptions import HTTPException
+        if isinstance(e, HTTPException):
+            raise
         logger.error(f"Error displaying LLM orchestration results: {e}", exc_info=True)
         from flask import abort
         abort(500)
