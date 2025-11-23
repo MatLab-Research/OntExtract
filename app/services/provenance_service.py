@@ -1397,6 +1397,106 @@ class ProvenanceService:
         return entity
 
     # ========================================================================
+    # SEMANTIC EVENT TRACKING
+    # ========================================================================
+
+    @classmethod
+    def track_semantic_event(
+        cls,
+        event_type: str,
+        experiment,
+        user,
+        event_metadata: Dict[str, Any],
+        related_documents: List[Dict[str, Any]] = None,
+        is_update: bool = False,
+        is_deletion: bool = False
+    ) -> tuple[ProvActivity, ProvEntity]:
+        """
+        Track semantic event creation, update, or deletion.
+
+        Args:
+            event_type: Type of semantic change event
+            experiment: Experiment model instance
+            user: User model instance
+            event_metadata: Event metadata (type_uri, type_label, periods, etc.)
+            related_documents: List of documents used as evidence
+            is_update: True if updating existing event
+            is_deletion: True if deleting event
+
+        Returns:
+            (activity, entity) tuple
+        """
+        agent = cls.get_or_create_user_agent(user.id, user.username)
+
+        if is_deletion:
+            activity_type = 'semantic_event_deletion'
+        elif is_update:
+            activity_type = 'semantic_event_update'
+        else:
+            activity_type = 'semantic_event_creation'
+
+        activity = ProvActivity(
+            activity_type=activity_type,
+            startedattime=datetime.utcnow(),
+            endedattime=datetime.utcnow(),
+            wasassociatedwith=agent.agent_id,
+            activity_parameters=_serialize_value({
+                'experiment_id': experiment.id,
+                'event_id': event_metadata.get('id'),
+                'event_type': event_type,
+                'type_uri': event_metadata.get('type_uri'),
+                'type_label': event_metadata.get('type_label'),
+                'from_period': event_metadata.get('from_period'),
+                'to_period': event_metadata.get('to_period')
+            }),
+            activity_status='completed'
+        )
+        db.session.add(activity)
+        db.session.flush()
+
+        # Create entity for the semantic event
+        entity = ProvEntity(
+            entity_type='semantic_event',
+            generatedattime=datetime.utcnow(),
+            wasgeneratedby=activity.activity_id,
+            wasattributedto=agent.agent_id,
+            entity_value=_serialize_value({
+                'event_id': event_metadata.get('id'),
+                'event_type': event_type,
+                'type_uri': event_metadata.get('type_uri'),
+                'type_label': event_metadata.get('type_label'),
+                'experiment_id': experiment.id
+            })
+        )
+        db.session.add(entity)
+        db.session.flush()
+
+        # Create "used" relationships for related documents
+        if related_documents and not is_deletion:
+            for doc in related_documents:
+                doc_uuid = doc.get('uuid')
+                if doc_uuid:
+                    # Find document entity
+                    doc_entity = ProvEntity.query.filter(
+                        ProvEntity.entity_type == 'document',
+                        ProvEntity.entity_value['document_uuid'].astext == str(doc_uuid)
+                    ).order_by(ProvEntity.created_at.desc()).first()
+
+                    if doc_entity:
+                        used_rel = ProvRelationship(
+                            relationship_type='used',
+                            subject_type='Activity',
+                            subject_id=activity.activity_id,
+                            object_type='Entity',
+                            object_id=doc_entity.entity_id
+                        )
+                        db.session.add(used_rel)
+
+        db.session.commit()
+
+        return activity, entity
+
+    # ========================================================================
     # QUERY HELPERS FOR TIMELINE UI
     # ========================================================================
 

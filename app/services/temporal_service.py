@@ -155,7 +155,8 @@ class TemporalService(BaseService):
                 'orchestration_decisions': orchestration_decisions,
                 'period_documents': period_documents_hydrated,
                 'period_metadata': config.get('period_metadata', {}),
-                'semantic_events': config.get('semantic_events', [])
+                'semantic_events': config.get('semantic_events', []),
+                'periods': config.get('periods', [])  # Full period objects for timeline view
             }
 
         except (NotFoundError, ValidationError):

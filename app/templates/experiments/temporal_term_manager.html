@@ -192,8 +192,11 @@
         margin-bottom: 16px;
         min-width: 250px;
         max-width: 300px;
+        min-height: 200px;
         transition: all 0.2s ease;
         box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        display: flex;
+        flex-direction: column;
     }
 
     .period-card:hover {
@@ -253,6 +256,10 @@
 
     .period-documents {
         padding: 12px 16px;
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        justify-content: flex-start;
     }
 
     .period-documents-title {
@@ -358,8 +365,11 @@
         margin-bottom: 16px;
         min-width: 250px;
         max-width: 300px;
+        min-height: 220px;
         transition: all 0.2s ease;
         box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        display: flex;
+        flex-direction: column;
     }
 
     .semantic-event-card:hover {
@@ -429,6 +439,10 @@
 
     .semantic-event-body {
         padding: 12px 16px;
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        justify-content: flex-start;
     }
 
     .semantic-event-description {
@@ -544,35 +558,48 @@
     <!-- Header -->
     <div class="row mt-4">
         <div class="col-12">
-            <div class="d-flex justify-content-between align-items-center mb-4">
-                <div>
-                    <h2>{{ experiment.name }}</h2>
-                    <p class="text-muted mb-0">
-                        <i class="fas fa-clock"></i> Temporal Evolution Experiment
-                        <span class="ms-3">
-                            <i class="fas fa-calendar-alt"></i> 
-                            {{ start_year }} - {{ end_year }}
-                            <span class="badge bg-secondary ms-1">{{ time_periods|length }} periods</span>
-                        </span>
-                        <span class="ms-3">
-                            <i class="fas fa-tags"></i> 
-                            <span id="term-count">{{ terms|length }}</span> Terms
-                        </span>
-                    </p>
-                </div>
-                <div>
-                    <a href="{{ url_for('experiments.view', experiment_id=experiment.id) }}"
-                       class="btn btn-outline-secondary me-2">
-                        <i class="fas fa-arrow-left"></i> Back to Experiment
-                    </a>
-                    <button class="btn btn-outline-primary me-2" onclick="saveTerms()">
-                        <i class="fas fa-save"></i> Save Configuration
-                    </button>
-                    <a href="{{ url_for('experiments.document_pipeline', experiment_id=experiment.id) }}"
-                       class="btn btn-success">
-                        <i class="fas fa-robot"></i> LLM Analyze
-                    </a>
-                </div>
+            <!-- Row 1: Buttons -->
+            <div class="d-flex justify-content-start align-items-center mb-3">
+                <a href="{{ url_for('experiments.view', experiment_id=experiment.id) }}"
+                   class="btn btn-outline-secondary me-2">
+                    <i class="fas fa-arrow-left"></i> Back to Experiment
+                </a>
+                {% if terms and terms|length > 0 %}
+                <button class="btn btn-outline-primary me-2" onclick="saveTerms()">
+                    <i class="fas fa-save"></i> Save Configuration
+                </button>
+                {% endif %}
+                {% if semantic_events and semantic_events|length > 0 %}
+                <a href="{{ url_for('experiments.timeline_view', experiment_id=experiment.id) }}"
+                   class="btn btn-outline-secondary me-2">
+                    <i class="fas fa-stream"></i> View Timeline
+                </a>
+                {% endif %}
+                <a href="{{ url_for('experiments.document_pipeline', experiment_id=experiment.id) }}"
+                   class="btn btn-success">
+                    <i class="fas fa-robot"></i> LLM Analyze
+                </a>
+            </div>
+
+            <!-- Row 2: Title -->
+            <div class="mb-2">
+                <h2>{{ experiment.name }}</h2>
+            </div>
+
+            <!-- Row 3: Metadata -->
+            <div class="mb-4">
+                <p class="text-muted mb-0">
+                    <i class="fas fa-clock"></i> Temporal Evolution Experiment
+                    <span class="ms-3">
+                        <i class="fas fa-calendar-alt"></i>
+                        {{ start_year }} - {{ end_year }}
+                        <span class="badge bg-secondary ms-1">{{ time_periods|length }} periods</span>
+                    </span>
+                    <span class="ms-3">
+                        <i class="fas fa-tags"></i>
+                        <span id="term-count">{{ terms|length }}</span> Terms
+                    </span>
+                </p>
             </div>
         </div>
     </div>
@@ -631,7 +658,8 @@
                     </div>
                     {% endif %}
 
-                    <div class="mb-3">
+                    {# List View (default) - vertical cards #}
+                    <div id="list-view" class="mb-3">
                         <div class="d-flex justify-content-between align-items-center mb-2">
                             <strong><i class="fas fa-stream"></i> Timeline</strong>
                             <span>
@@ -662,11 +690,15 @@
                             {# Add semantic events to timeline #}
                             {% if semantic_events %}
                                 {% for event in semantic_events %}
+                                    {% set from_period_meta = period_metadata.get(event.from_period|string, {}) %}
+                                    {% set event_year = from_period_meta.get('year', from_period_meta.get('start_year', 0)) %}
                                     {% set _ = timeline_items.append({
                                         'type': 'event',
-                                        'year': event.from_period,
-                                        'sort_key': event.from_period,
-                                        'event': event
+                                        'year': event_year,
+                                        'sort_key': event_year,
+                                        'event': event,
+                                        'from_period': event.from_period,
+                                        'to_period': event.to_period
                                     }) %}
                                 {% endfor %}
                             {% endif %}
@@ -710,7 +742,9 @@
                                         <div class="semantic-event-header">
                                             <div class="semantic-event-type">
                                                 <span class="semantic-event-type-label">Event Type</span>
-                                                <span class="semantic-event-type-name">{{ item.event.event_type|replace('_', ' ')|title }}</span>
+                                                <span class="semantic-event-type-name">
+                                                    {{ item.event.type_label if item.event.type_label else item.event.event_type|replace('_', ' ')|title }}
+                                                </span>
                                             </div>
                                             <div class="semantic-event-date-range">
                                                 {{ item.event.from_period }}{% if item.event.to_period %} → {{ item.event.to_period }}{% endif %}
@@ -718,6 +752,12 @@
                                         </div>
 
                                         <div class="semantic-event-body">
+                                            {% if item.event.citation %}
+                                            <div class="small mb-2" style="color: #6c757d; font-style: italic;">
+                                                <i class="bi bi-book"></i> {{ item.event.citation }}
+                                            </div>
+                                            {% endif %}
+
                                             <div class="semantic-event-description">
                                                 {{ item.event.description }}
                                             </div>
@@ -768,6 +808,7 @@
                         </div>
                         {% endif %}
                     </div>
+                    {# End of List View #}
                 </div>
             </div>
         </div>
@@ -1533,7 +1574,7 @@ function refreshTimelineUI() {
                 card.className = `semantic-event-card ${event.event_type}`;
                 card.setAttribute('data-event-id', event.id);
 
-                const eventTypeName = event.event_type.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+                const eventTypeName = event.type_label || event.event_type.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
                 const dateRange = event.to_period ? `${event.from_period} → ${event.to_period}` : `${event.from_period}`;
 
                 let cardHTML = `
@@ -1545,6 +1586,17 @@ function refreshTimelineUI() {
                         <div class="semantic-event-date-range">${dateRange}</div>
                     </div>
                     <div class="semantic-event-body">
+                `;
+
+                if (event.citation) {
+                    cardHTML += `
+                        <div class="small mb-2" style="color: #6c757d; font-style: italic;">
+                            <i class="bi bi-book"></i> ${event.citation}
+                        </div>
+                    `;
+                }
+
+                cardHTML += `
                         <div class="semantic-event-description">${event.description}</div>
                 `;
 

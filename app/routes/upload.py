@@ -3,7 +3,7 @@ Unified upload route for all content types.
 """
 
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, current_app
-from flask_login import current_user
+from flask_login import current_user, login_required
 from app.utils.auth_decorators import require_login_for_write, api_require_login_for_write
 from werkzeug.utils import secure_filename
 from datetime import datetime
@@ -780,3 +780,48 @@ def save_document():
         db.session.rollback()
         current_app.logger.error(f"Error saving document: {str(e)}")
         return jsonify({'error': str(e)}), 500
+
+
+@upload_bp.route('/create_reference', methods=['POST'])
+@login_required
+def create_reference():
+    """
+    Create a reference document from dictionary definition
+    Quick add feature for experiment creation
+    """
+    try:
+        data = request.get_json()
+
+        title = data.get('title')
+        content = data.get('content')
+        source = data.get('source')  # MW or OED
+        source_type = data.get('source_type', 'dictionary')
+
+        if not title or not content:
+            return jsonify({'success': False, 'error': 'Title and content are required'}), 400
+
+        # Create reference document
+        document = Document(
+            title=title,
+            content=content,
+            document_type='reference',
+            source=source,
+            user_id=current_user.id,
+            content_type='text/plain',
+            word_count=len(content.split()),
+            created_at=datetime.utcnow()
+        )
+
+        db.session.add(document)
+        db.session.commit()
+
+        return jsonify({
+            'success': True,
+            'document_id': document.id,
+            'document_uuid': str(document.uuid)
+        })
+
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"Error creating reference: {str(e)}")
+        return jsonify({'success': False, 'error': str(e)}), 500

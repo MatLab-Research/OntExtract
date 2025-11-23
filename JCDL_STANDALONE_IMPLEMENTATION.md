@@ -795,15 +795,15 @@ python -c "import rdflib; print(rdflib.__version__)"
 
 ### New Files
 - [x] `app/services/local_ontology_service.py` - Ontology parsing
-- [ ] `scripts/create_demo_experiment.py` - Demo data
-- [ ] `templates/experiments/ontology_info.html` - Info page
+- [x] `scripts/create_demo_experiment.py` - Demo data
+- [x] `templates/experiments/ontology_info.html` - Info page
 
 ### Modified Files
-- [ ] `app/routes/experiments/temporal.py` - Add event types endpoint
-- [ ] `static/js/temporal_timeline.js` - Load from ontology
-- [ ] `templates/experiments/temporal_term_manager.html` - Show metadata
-- [ ] `README.md` - Update with ontology section
-- [ ] `requirements.txt` - Ensure rdflib listed
+- [x] `app/routes/experiments/temporal.py` - Added event types endpoint + ontology info page + provenance tracking
+- [x] `templates/experiments/temporal_term_manager.html` - Shows metadata (citations, type_label) on timeline cards
+- [x] `README.md` - Updated with ontology section (done in Session 18)
+- [x] `requirements.txt` - rdflib already present (v7.0.0)
+- [x] `app/routes/provenance_visualization.py` - Added semantic event activity types
 
 ### Documentation Files
 - [x] `USER_AGENCY_ARCHITECTURE.md` - Already created
@@ -849,6 +849,23 @@ python -c "import rdflib; print(rdflib.__version__)"
 
 ---
 
-**Next Action**: Implement Phase 1.1 (LocalOntologyService) - 2 hours
+**Status**: Phase 1 COMPLETE, Phase 2 COMPLETE, Phase 3 Ready
 
-Ready to begin?
+**Next Action**: Phase 3 Testing (JCDL_TESTING_CHECKLIST.md) - 1-2 hours
+
+**Session 20 Complete (2025-11-22):**
+- Demo experiment created (Experiment ID: 75)
+- 7 documents (1867-1947), 4 periods, 4 semantic events
+- Full-page timeline visualization implemented
+- Provenance tracking fixed
+- UI polish complete
+
+**Demo Access:**
+- Management: http://localhost:8765/experiments/75/manage_temporal_terms
+- Timeline: http://localhost:8765/experiments/75/timeline
+- Credentials: demo/demo123
+
+**Documentation:**
+- [SESSION_20_SUMMARY.md](SESSION_20_SUMMARY.md) - Phase 2 complete
+- [SESSION_20_TIMELINE_VIEW_FINAL.md](SESSION_20_TIMELINE_VIEW_FINAL.md) - Timeline implementation
+- [DEMO_EXPERIMENT_SUMMARY.md](DEMO_EXPERIMENT_SUMMARY.md) - Demo data reference

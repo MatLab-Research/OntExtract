@@ -12,6 +12,21 @@
                 </div>
                 <div class="card-body">
                     <form id="new-experiment-form">
+                        {# Temporal Evolution - Focus Term Selection (appears at top when selected) #}
+                        <div id="focus-term-section" class="mb-3" style="display: none;">
+                            <label for="focus-term" class="form-label">Focus Term *</label>
+                            <select class="form-select" id="focus-term">
+                                <option value="">Select a term...</option>
+                                {% for term in terms %}
+                                <option value="{{ term.id }}">{{ term.term_text }}</option>
+                                {% endfor %}
+                            </select>
+                            <small class="text-muted">
+                                <i class="fas fa-info-circle"></i>
+                                Required for temporal evolution experiments
+                            </small>
+                        </div>
+
                         {# Basic Information #}
                         <div class="row">
                             <div class="col-md-6">
@@ -29,7 +44,8 @@
                                         <option value="">Select type...</option>
                                         <option value="entity_extraction" {% if mode == 'single_document' %}selected{% endif %}>Document Analysis</option>
                                         <option value="temporal_evolution">Temporal Evolution</option>
-                                        <option value="domain_comparison">Domain Comparison</option>
+                                        {# Temporarily disabled for JCDL - will re-enable post-conference #}
+                                        {# <option value="domain_comparison">Domain Comparison</option> #}
                                     </select>
                                     {% if mode == 'single_document' %}
                                     <small class="text-muted">Single document mode - defaults to Document Analysis. To create a different experiment type, <a href="{{ url_for('experiments.new') }}">start a new experiment</a>.</small>
@@ -80,9 +96,34 @@
 
                                 {# References #}
                                 <div class="col-md-6">
-                                    <h6><i class="fas fa-book text-success"></i> References</h6>
-                                    <small class="text-muted mb-3 d-block">Dictionary entries, papers, standards</small>
+                                    <div class="d-flex justify-content-between align-items-center mb-2">
+                                        <div>
+                                            <h6 class="mb-0"><i class="fas fa-book text-success"></i> References</h6>
+                                            <small class="text-muted">Dictionary entries, papers, standards</small>
+                                        </div>
+                                        <button type="button" class="btn btn-sm btn-outline-success" data-bs-toggle="collapse" data-bs-target="#quick-add-reference">
+                                            <i class="fas fa-plus"></i> Quick Add
+                                        </button>
+                                    </div>
 
+                                    {# Quick Add Reference Interface #}
+                                    <div class="collapse mb-3" id="quick-add-reference">
+                                        <div class="card card-body">
+                                            <small class="text-muted mb-2">Fetch dictionary definitions and create references</small>
+                                            <div class="input-group input-group-sm mb-2">
+                                                <input type="text" class="form-control" id="quick-ref-term" placeholder="Enter term...">
+                                                <button class="btn btn-outline-primary" type="button" id="quick-mw-btn">
+                                                    <i class="fas fa-book"></i> MW
+                                                </button>
+                                                <button class="btn btn-outline-primary" type="button" id="quick-oed-btn">
+                                                    <i class="fas fa-university"></i> OED
+                                                </button>
+                                            </div>
+                                            <div id="quick-ref-results" style="max-height: 200px; overflow-y: auto;"></div>
+                                        </div>
+                                    </div>
+
+                                    {# Existing References List #}
                                     {% if references %}
                                     <div class="reference-list border rounded p-3" style="max-height: 300px; overflow-y: auto;">
                                         {% for reference in references %}
@@ -97,41 +138,15 @@
                                         {% endfor %}
                                     </div>
                                     {% else %}
-                                    <div class="alert alert-warning">
+                                    <div class="alert alert-warning mb-0">
                                         <i class="fas fa-exclamation-triangle"></i>
-                                        No references available.
+                                        No references available. Use Quick Add above.
                                     </div>
                                     {% endif %}
                                 </div>
                             </div>
                         </div>
 
-                        {# Additional Configuration (shown based on experiment type) #}
-                        <div id="configuration-options" style="display: none;">
-                            {# Temporal Evolution Config #}
-                            <div id="temporal-config" style="display: none;">
-                                <h5>Temporal Evolution Settings</h5>
-                                <div class="mb-3">
-                                    <label for="focus-term" class="form-label">Focus Term</label>
-                                    <select class="form-select" id="focus-term">
-                                        <option value="">Select a term...</option>
-                                        {% for term in terms %}
-                                        <option value="{{ term.id }}">{{ term.term_text }}</option>
-                                        {% endfor %}
-                                    </select>
-                                </div>
-                            </div>
-
-                            {# Domain Comparison Config #}
-                            <div id="domain-config" style="display: none;">
-                                <h5>Domain Comparison Settings</h5>
-                                <div class="mb-3">
-                                    <label for="domain-focus" class="form-label">Target Domains</label>
-                                    <input type="text" class="form-control" id="domain-focus"
-                                           placeholder="e.g., Philosophy, Computer Science, Law">
-                                </div>
-                            </div>
-                        </div>
 
                         {# Submit Buttons #}
                         <div class="d-flex justify-content-between mt-4">
@@ -154,36 +169,51 @@
 document.addEventListener('DOMContentLoaded', function() {
     const form = document.getElementById('new-experiment-form');
     const typeSelect = document.getElementById('experiment-type');
-    const configOptions = document.getElementById('configuration-options');
-    const temporalConfig = document.getElementById('temporal-config');
-    const domainConfig = document.getElementById('domain-config');
+    const focusTermSection = document.getElementById('focus-term-section');
     const typeDescription = document.getElementById('type-description');
 
     // Update UI based on experiment type selection
     typeSelect.addEventListener('change', function() {
         const type = this.value;
+        const descriptionField = document.getElementById('experiment-description');
 
-        // Hide all config sections
-        if (configOptions) configOptions.style.display = 'none';
-        if (temporalConfig) temporalConfig.style.display = 'none';
-        if (domainConfig) domainConfig.style.display = 'none';
+        // Hide focus term section by default
+        if (focusTermSection) focusTermSection.style.display = 'none';
 
         // Update description and show relevant config
         if (type === 'entity_extraction') {
             typeDescription.textContent = 'Analyze document content using embeddings, segmentation, entity extraction, and NLP pipelines.';
+            // Don't override user-entered description for entity extraction
         } else if (type === 'temporal_evolution') {
             typeDescription.textContent = 'Track how a term evolves across time and disciplines.';
-            if (configOptions) configOptions.style.display = 'block';
-            if (temporalConfig) temporalConfig.style.display = 'block';
+            // Auto-fill description if empty
+            if (!descriptionField.value.trim()) {
+                descriptionField.value = 'Track semantic change and evolution of terminology across historical periods and different domains.';
+            }
+            // Show focus term selection
+            if (focusTermSection) focusTermSection.style.display = 'block';
         } else if (type === 'domain_comparison') {
             typeDescription.textContent = 'Compare terminology and concepts across different domains.';
-            if (configOptions) configOptions.style.display = 'block';
-            if (domainConfig) domainConfig.style.display = 'block';
         }
     });
 
     // Initialize on page load
     typeSelect.dispatchEvent(new Event('change'));
+
+    // Auto-fill experiment name when focus term is selected
+    const focusTermSelect = document.getElementById('focus-term');
+    if (focusTermSelect) {
+        focusTermSelect.addEventListener('change', function() {
+            const experimentNameField = document.getElementById('experiment-name');
+            const type = typeSelect.value;
+
+            // Only auto-fill if temporal evolution is selected and name field is empty
+            if (type === 'temporal_evolution' && !experimentNameField.value.trim() && this.value) {
+                const termText = this.options[this.selectedIndex].text;
+                experimentNameField.value = `${termText} Temporal Evolution`;
+            }
+        });
+    }
 
     // Form submission
     form.addEventListener('submit', async function(e) {
@@ -226,7 +256,11 @@ document.addEventListener('DOMContentLoaded', function() {
         const configuration = {};
         if (type === 'temporal_evolution') {
             const termId = document.getElementById('focus-term')?.value;
-            if (termId) configuration.focus_term_id = termId;
+            if (!termId) {
+                alert('Please select a focus term for temporal evolution experiments');
+                return;
+            }
+            configuration.focus_term_id = termId;
         } else if (type === 'domain_comparison') {
             const domains = document.getElementById('domain-focus')?.value;
             if (domains) configuration.domain_focus = domains;
@@ -254,6 +288,166 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         } catch (error) {
             alert('Error creating experiment: ' + error.message);
+        }
+    });
+
+    // Quick Add Reference functionality
+    const quickRefTerm = document.getElementById('quick-ref-term');
+    const quickMwBtn = document.getElementById('quick-mw-btn');
+    const quickOedBtn = document.getElementById('quick-oed-btn');
+    const quickRefResults = document.getElementById('quick-ref-results');
+
+    async function fetchDictionaryDefinitions(term, source) {
+        quickRefResults.innerHTML = '<div class="text-center"><div class="spinner-border spinner-border-sm"></div> Loading...</div>';
+
+        try {
+            let url, response, data;
+
+            if (source === 'mw') {
+                url = `/api/merriam-webster/dictionary/${encodeURIComponent(term)}`;
+                response = await fetch(url);
+                data = await response.json();
+
+                if (!data.success) {
+                    quickRefResults.innerHTML = `<div class="alert alert-danger alert-sm mb-0">${data.error || 'Failed to fetch definitions'}</div>`;
+                    return;
+                }
+
+                const results = data.results || [];
+                if (results.length === 0) {
+                    quickRefResults.innerHTML = '<div class="alert alert-info alert-sm mb-0">No definitions found</div>';
+                    return;
+                }
+
+                let html = '<div class="list-group list-group-flush">';
+                results.forEach((result, resultIndex) => {
+                    const definitions = result.definitions || [];
+                    definitions.forEach((definition, defIndex) => {
+                        const senseNumber = resultIndex * 10 + defIndex + 1;
+                        html += `
+                            <div class="list-group-item p-2">
+                                <div class="d-flex justify-content-between align-items-start">
+                                    <div class="flex-grow-1">
+                                        <strong class="text-primary">${senseNumber}.</strong>
+                                        <span class="small">${definition}</span>
+                                    </div>
+                                    <button type="button" class="btn btn-sm btn-outline-success create-ref-btn"
+                                            data-term="${term}"
+                                            data-source="MW"
+                                            data-definition="${definition.replace(/"/g, '&quot;')}"
+                                            data-sense-number="${senseNumber}">
+                                        <i class="fas fa-plus"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        `;
+                    });
+                });
+                html += '</div>';
+                quickRefResults.innerHTML = html;
+
+            } else if (source === 'oed') {
+                url = `/references/api/oed/entry?q=${encodeURIComponent(term)}`;
+                response = await fetch(url);
+                data = await response.json();
+
+                if (!data.success) {
+                    quickRefResults.innerHTML = `<div class="alert alert-danger alert-sm mb-0">${data.error || 'Failed to fetch definitions'}</div>`;
+                    return;
+                }
+
+                const senses = data.data?.extracted_senses || data.data?.senses || [];
+                if (senses.length === 0) {
+                    quickRefResults.innerHTML = '<div class="alert alert-info alert-sm mb-0">No definitions found</div>';
+                    return;
+                }
+
+                let html = '<div class="list-group list-group-flush">';
+                senses.forEach((sense, index) => {
+                    const definition = sense.definition || 'No definition';
+                    html += `
+                        <div class="list-group-item p-2">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div class="flex-grow-1">
+                                    <strong class="text-primary">${index + 1}.</strong>
+                                    <span class="small">${definition}</span>
+                                </div>
+                                <button type="button" class="btn btn-sm btn-outline-success create-ref-btn"
+                                        data-term="${term}"
+                                        data-source="OED"
+                                        data-definition="${definition.replace(/"/g, '&quot;')}"
+                                        data-sense-number="${index + 1}">
+                                    <i class="fas fa-plus"></i>
+                                </button>
+                            </div>
+                        </div>
+                    `;
+                });
+                html += '</div>';
+                quickRefResults.innerHTML = html;
+            }
+
+            // Add click handlers for create buttons
+            document.querySelectorAll('.create-ref-btn').forEach(btn => {
+                btn.addEventListener('click', async function() {
+                    await createReference(this.dataset);
+                });
+            });
+
+        } catch (error) {
+            quickRefResults.innerHTML = `<div class="alert alert-danger alert-sm mb-0">Error: ${error.message}</div>`;
+        }
+    }
+
+    async function createReference(data) {
+        try {
+            const title = `${data.term} (${data.source.toUpperCase()}) - Sense ${data.senseNumber}`;
+            const response = await fetch('/upload/create_reference', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    title: title,
+                    content: data.definition,
+                    source: data.source.toUpperCase(),
+                    source_type: 'dictionary'
+                })
+            });
+
+            const result = await response.json();
+            if (result.success) {
+                // Reload page to show new reference
+                window.location.reload();
+            } else {
+                alert('Error creating reference: ' + (result.error || 'Unknown error'));
+            }
+        } catch (error) {
+            alert('Error creating reference: ' + error.message);
+        }
+    }
+
+    quickMwBtn.addEventListener('click', () => {
+        const term = quickRefTerm.value.trim();
+        if (!term) {
+            alert('Please enter a term');
+            return;
+        }
+        fetchDictionaryDefinitions(term, 'mw');
+    });
+
+    quickOedBtn.addEventListener('click', () => {
+        const term = quickRefTerm.value.trim();
+        if (!term) {
+            alert('Please enter a term');
+            return;
+        }
+        fetchDictionaryDefinitions(term, 'oed');
+    });
+
+    // Allow Enter key to trigger MW lookup
+    quickRefTerm.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            quickMwBtn.click();
         }
     });
 });
