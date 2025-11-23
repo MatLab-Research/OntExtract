@@ -72,7 +72,8 @@ def manage_temporal_terms(experiment_id):
             docs_with_any_dates=data['docs_with_any_dates'],
             period_documents=data['period_documents'],
             period_metadata=data['period_metadata'],
-            semantic_events=data['semantic_events']
+            semantic_events=data['semantic_events'],
+            periods=data.get('periods', [])  # Full period objects for timeline view
         )
 
     except ValidationError as e:
@@ -88,6 +89,38 @@ def manage_temporal_terms(experiment_id):
     except ServiceError as e:
         logger.error(f"Service error getting temporal UI data: {e}", exc_info=True)
         flash('Failed to load temporal term manager', 'danger')
+        return redirect(url_for('experiments.view', experiment_id=experiment_id))
+
+
+@experiments_bp.route('/<int:experiment_id>/timeline')
+@api_require_login_for_write
+def timeline_view(experiment_id):
+    """
+    Full-page horizontal timeline visualization for temporal evolution
+    """
+    try:
+        # Get temporal UI data from service
+        data = temporal_service.get_temporal_ui_data(experiment_id)
+
+        return render_template(
+            'experiments/temporal_timeline_view.html',
+            experiment=data['experiment'],
+            periods=data.get('periods', []),
+            semantic_events=data['semantic_events']
+        )
+
+    except ValidationError as e:
+        flash(str(e), 'warning')
+        return redirect(url_for('experiments.view', experiment_id=experiment_id))
+
+    except NotFoundError as e:
+        logger.warning(f"Experiment {experiment_id} not found: {e}")
+        from flask import abort
+        abort(404)
+
+    except ServiceError as e:
+        logger.error(f"Service error getting timeline data: {e}", exc_info=True)
+        flash('Failed to load timeline', 'danger')
         return redirect(url_for('experiments.view', experiment_id=experiment_id))
 
 
@@ -462,35 +495,15 @@ def save_semantic_event(experiment_id):
         db.session.commit()
 
         # Record provenance
-        from app.services.provenance_service import provenance_service
+        from app.services.provenance_service import ProvenanceService
 
-        activity_type = 'semantic_event_update' if is_update else 'semantic_event_creation'
-
-        provenance_service.record_activity(
-            activity_type=activity_type,
-            user_id=current_user.id,
-            activity_parameters={
-                'experiment_id': experiment_id,
-                'event_id': event_id,
-                'event_type': event_type,
-                'type_uri': event_obj.get('type_uri'),
-                'type_label': event_obj.get('type_label'),
-                'from_period': from_period,
-                'to_period': to_period
-            },
-            generated_entities=[{
-                'entity_type': 'semantic_event',
-                'entity_value': event_id,
-                'metadata': {
-                    'type': event_type,
-                    'type_uri': event_obj.get('type_uri'),
-                    'label': event_obj.get('type_label')
-                }
-            }],
-            used_entities=[{
-                'entity_type': 'document',
-                'entity_value': str(doc['uuid'])
-            } for doc in related_documents]
+        ProvenanceService.track_semantic_event(
+            event_type=event_type,
+            experiment=experiment,
+            user=current_user,
+            event_metadata=event_obj,
+            related_documents=related_documents,
+            is_update=is_update
         )
 
         logger.info(f"Saved semantic event '{event_type}' for experiment {experiment_id}")
@@ -548,22 +561,15 @@ def remove_semantic_event(experiment_id):
 
         # Record provenance
         if removed_event:
-            from app.services.provenance_service import provenance_service
+            from app.services.provenance_service import ProvenanceService
 
-            provenance_service.record_activity(
-                activity_type='semantic_event_deletion',
-                user_id=current_user.id,
-                activity_parameters={
-                    'experiment_id': experiment_id,
-                    'event_id': event_id,
-                    'event_type': removed_event.get('event_type'),
-                    'type_uri': removed_event.get('type_uri'),
-                    'type_label': removed_event.get('type_label')
-                },
-                used_entities=[{
-                    'entity_type': 'semantic_event',
-                    'entity_value': event_id
-                }]
+            ProvenanceService.track_semantic_event(
+                event_type=removed_event.get('event_type', 'unknown'),
+                experiment=experiment,
+                user=current_user,
+                event_metadata=removed_event,
+                related_documents=None,
+                is_deletion=True
             )
 
         logger.info(f"Removed semantic event {event_id} from experiment {experiment_id}")
@@ -580,6 +586,37 @@ def remove_semantic_event(experiment_id):
             'success': False,
             'error': str(e)
         }), 500
+
+
+@experiments_bp.route('/ontology/info', methods=['GET'])
+def ontology_info():
+    """Display ontology validation information and event types"""
+    try:
+        from app.services.local_ontology_service import get_ontology_service
+        from pathlib import Path
+
+        ontology = get_ontology_service()
+        event_types = ontology.get_semantic_change_event_types()
+
+        # Get ontology file path for display
+        ontology_path = 'ontologies/semantic-change-ontology-v2.ttl'
+
+        # Check if validation guide exists
+        validation_guide_path = Path('VALIDATION_GUIDE.md')
+        validation_exists = validation_guide_path.exists()
+
+        return render_template(
+            'experiments/ontology_info.html',
+            event_types=event_types,
+            event_count=len(event_types),
+            ontology_path=ontology_path,
+            validation_exists=validation_exists
+        )
+
+    except Exception as e:
+        logger.error(f"Error displaying ontology info: {e}", exc_info=True)
+        flash('Failed to load ontology information', 'danger')
+        return redirect(url_for('experiments.index'))
 
 
 @experiments_bp.route('/<int:experiment_id>/semantic_event_types', methods=['GET'])
