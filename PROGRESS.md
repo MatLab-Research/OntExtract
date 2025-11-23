@@ -1,7 +1,7 @@
 # OntExtract Progress Tracker
 
 **Branch:** `development`
-**Last Session:** 2025-11-22 (Session 20)
+**Last Session:** 2025-11-22 (Session 22)
 **Status:** DEMO-READY - JCDL Conference Preparation Complete
 
 ---
@@ -61,6 +61,104 @@
 ---
 
 ## Recent Sessions
+
+### Session 22 (2025-11-22) - Temporal Evolution Experiment Creation Agent ✅
+
+**Goal:** Create repeatable, semi-automated workflow for temporal evolution experiments (JCDL preparation)
+
+**Accomplished:**
+
+1. **Temporal Evolution Experiment Creation Agent:**
+   - Created [.claude/agents/temporal-evolution-experiment.md](.claude/agents/temporal-evolution-experiment.md) (500+ lines)
+   - Comprehensive 8-phase workflow: Document Analysis → Term Creation → Experiment Setup → Document Upload → Period Design → Event Creation → Timeline Visualization → Provenance Export
+   - Technical details: 10+ database tables, 15+ API endpoints, configuration files
+   - Error handling: Large PDF extraction, missing terms, timeline rendering, provenance verification
+   - JCDL presentation checklist with demo credentials and backup plans
+
+2. **Agent Architecture:**
+   - **Phase 1**: Document Collection Analysis (metadata extraction, session planning, temporal coverage)
+   - **Phase 2**: Focus Term Creation/Validation (MW/OED reference definitions)
+   - **Phase 3**: Experiment Structure Creation (auto-fill features, term selection)
+   - **Phase 4**: Document Processing (multi-session workflow for 1000+ page PDFs)
+   - **Phase 5**: Temporal Period Design (auto-generation, meaningful labels, historical alignment)
+   - **Phase 6**: Semantic Event Identification (ontology-backed types, analytical descriptions)
+   - **Phase 7**: Timeline Visualization (management + full-page views, screenshots)
+   - **Phase 8**: Provenance Tracking & Export (PROV-O verification, metadata export)
+
+3. **Repeatable Features:**
+   - **Semi-Automated**: Automated metadata extraction, database operations, timeline generation
+   - **Adaptable**: Handles different document sets, temporal ranges, event types
+   - **Structured**: Clear deliverables per phase, verification checklists
+   - **JCDL-Ready**: Demo checklist, screenshot preparation, presentation materials
+
+4. **Technical Documentation:**
+   - Database tables: experiments, documents, periods, events, provenance (10+ tables)
+   - API endpoints: experiment management, document upload, period/event CRUD, timeline views (15+ endpoints)
+   - Configuration: Semantic Change Ontology v2.0 (34 classes, 33 citations, Pellet validated)
+   - Error handling: 7 common issues with solutions (large PDFs, missing terms, timeline rendering)
+
+**Files Created:**
+- [.claude/agents/temporal-evolution-experiment.md](.claude/agents/temporal-evolution-experiment.md) - Complete agent specification
+
+**Impact:**
+- Repeatable workflow for creating temporal evolution experiments
+- Can recreate experiments multiple times during JCDL preparation
+- Adapts to different terms, document collections, temporal ranges
+- Reduces manual effort through automation while preserving analytical control
+- Ensures consistency across experiment recreations
+
+**Next Steps:**
+- Test agent by creating "agent" temporal evolution experiment (1910-2024)
+- Verify all 8 phases execute correctly
+- Document any issues or improvements needed
+- Prepare additional experiment examples for JCDL backup demos
+
+### Session 21 (2025-11-22) - Experiment Creation Workflow Enhancements ✅
+
+**Goal:** Streamline experiment creation workflow for JCDL demo
+
+**Accomplished:**
+
+1. **Quick Add Reference Feature:**
+   - Added dictionary lookup directly from experiment creation page
+   - Users can search MW/OED and create reference documents per sense
+   - Frontend: [app/templates/experiments/new.html](app/templates/experiments/new.html:82-131)
+   - Backend: [app/routes/upload.py](app/routes/upload.py:785-827) - `/upload/create_reference` endpoint
+   - Fixed endpoint URLs: MW (`/api/merriam-webster/dictionary/{term}`), OED (`/references/api/oed/entry?q={term}`)
+
+2. **Temporal Evolution Required Fields:**
+   - Focus Term selection now required for temporal evolution experiments
+   - Validation: Alert shown if term not selected before submission
+   - UI: Label marked with asterisk, help text added
+   - Files: [app/templates/experiments/new.html](app/templates/experiments/new.html:141-151, 259-265)
+
+3. **Auto-Fill Features:**
+   - **Description**: Auto-fills "Track semantic change and evolution of terminology across historical periods and different domains" when Temporal Evolution selected
+   - **Experiment Name**: Auto-fills "{term} Temporal Evolution" when focus term selected (e.g., "agent Temporal Evolution")
+   - Only auto-fills if fields are empty (won't override user input)
+   - Files: [app/templates/experiments/new.html](app/templates/experiments/new.html:187-216)
+
+4. **UI Reorganization:**
+   - Moved Focus Term selection to top of card body (before Experiment Name and Type)
+   - Shows/hides dynamically when Temporal Evolution selected
+   - Cleaner, more logical form flow
+   - Files: [app/templates/experiments/new.html](app/templates/experiments/new.html:15-28)
+
+5. **Feature Management:**
+   - Temporarily disabled Domain Comparison experiment type (post-JCDL re-enable)
+   - Commented out with Jinja2 syntax for easy restoration
+   - Files: [app/templates/experiments/new.html](app/templates/experiments/new.html:31-32)
+
+**Files Modified:**
+- [app/templates/experiments/new.html](app/templates/experiments/new.html) - Quick Add UI, term selection, auto-fill logic
+- [app/routes/upload.py](app/routes/upload.py) - Added `create_reference` endpoint, fixed import
+- [JCDL_STANDALONE_IMPLEMENTATION.md](JCDL_STANDALONE_IMPLEMENTATION.md) - Updated Session 21 status
+
+**Impact:**
+- Faster experiment creation workflow for JCDL demo
+- Better user guidance (required fields, auto-fill)
+- Cleaner UI focused on temporal evolution use case
+- Dictionary integration directly in experiment creation
 
 ### Session 20 (2025-11-22) - JCDL Demo Preparation & Timeline View ✅
 
@@ -208,17 +306,20 @@
 
 ## Next Steps
 
-### Immediate (Session 21)
+### Immediate (Next Session)
 
 **Option A: Browser Testing** (Recommended)
 - Execute [JCDL_TESTING_CHECKLIST.md](JCDL_TESTING_CHECKLIST.md) (30+ test cases)
 - Verify all features work in browser
-- Test demo flow from login → timeline
+- Test complete workflow: Create experiment → Add documents → Generate periods → Create events → View timeline
+- Test Quick Add Reference feature (MW/OED lookup)
+- Test new auto-fill features for temporal evolution
 - Document any issues found
 
 **Option B: Presentation Materials**
 - Create slides showing ontology-informed UI
 - Screenshot timeline visualization
+- Screenshot new experiment creation workflow
 - Prepare talking points for demo
 - Create backup plans for demo day
 

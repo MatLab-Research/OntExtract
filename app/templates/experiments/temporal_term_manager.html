@@ -216,6 +216,41 @@
         border-left-color: #198754;
     }
 
+    /* Period boundary markers - special styling */
+    .period-card[data-boundary="start"] {
+        border-left-color: #6f42c1;
+        border-left-width: 6px;
+        position: relative;
+    }
+
+    .period-card[data-boundary="end"] {
+        border-left-color: #6f42c1;
+        border-left-width: 6px;
+        position: relative;
+    }
+
+    .period-card[data-boundary="start"]::after {
+        content: "▶";
+        position: absolute;
+        right: -12px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: #28a745;
+        font-size: 1.2rem;
+        z-index: 1;
+    }
+
+    .period-card[data-boundary="end"]::before {
+        content: "◀";
+        position: absolute;
+        left: -12px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: #dc3545;
+        font-size: 1.2rem;
+        z-index: 1;
+    }
+
     .period-card-header {
         display: flex;
         justify-content: space-between;
@@ -552,6 +587,34 @@
     .semantic-event-add-btn:hover i {
         color: #6f42c1;
     }
+
+    /* Expanded timeline view */
+    .timeline-expanded {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        z-index: 1050;
+        background: white;
+        overflow-y: auto;
+        padding: 20px;
+    }
+
+    .timeline-expanded .card {
+        margin: 0;
+        border: none;
+        box-shadow: none;
+    }
+
+    .timeline-expand-btn {
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+
+    .timeline-expand-btn:hover {
+        color: #0d6efd;
+    }
 </style>
 
 <div class="container-fluid px-4">
@@ -605,11 +668,17 @@
     </div>
 
     <!-- Timeline: Periods & Semantic Events -->
-    <div class="row mb-3">
+    <div class="row mb-3" id="timeline-section">
         <div class="col-12">
             <div class="card">
-                <div class="card-header">
-                    <h5 class="mb-0"><i class="fas fa-stream"></i> Temporal Timeline</h5>
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="fas fa-layer-group"></i> Temporal Elements</h5>
+                    <div class="d-flex align-items-center gap-2">
+                        <span class="badge bg-secondary">{{ semantic_events|length if semantic_events else 0 }} events</span>
+                        <span class="timeline-expand-btn" onclick="toggleTimelineExpanded()" title="Expand to full screen">
+                            <i class="fas fa-expand" id="timeline-expand-icon"></i>
+                        </span>
+                    </div>
                 </div>
                 <div class="card-body">
                     <div class="row mb-3">
@@ -618,7 +687,7 @@
                                 <i class="fas fa-file-alt"></i> Auto-generate from document dates
                             </button>
                             <small class="text-muted d-block">
-                                Creates one period for each document's publication year
+                                Creates artifact markers for each document's publication year
                                 {% if document_count %}
                                 <br>
                                 <span class="badge bg-{{ 'success' if docs_with_pub_dates > 0 else 'warning' }} mt-1">
@@ -660,12 +729,8 @@
 
                     {# List View (default) - vertical cards #}
                     <div id="list-view" class="mb-3">
-                        <div class="d-flex justify-content-between align-items-center mb-2">
-                            <strong><i class="fas fa-stream"></i> Timeline</strong>
-                            <span>
-                                <span class="badge bg-primary">{{ time_periods|length }} periods</span>
-                                <span class="badge bg-secondary ms-1">{{ semantic_events|length if semantic_events else 0 }} events</span>
-                            </span>
+                        <div class="mb-2">
+                            <strong><i class="fas fa-calendar-alt"></i> Periods & Events</strong>
                         </div>
                         {% if time_periods|length > 0 or (semantic_events and semantic_events|length > 0) %}
                         <div id="timeline-container" class="d-flex flex-wrap gap-3">
@@ -677,10 +742,13 @@
                                 {% set period_meta = period_metadata.get(period|string, {}) %}
                                 {% set period_docs = period_documents.get(period|string, []) %}
                                 {% set source_type = period_meta.get('source', 'manual') %}
+                                {# Sort order: START=0, ARTIFACT/EVENT=1, END=2 #}
+                                {% set boundary_type = period_meta.get('boundary_type', '') %}
+                                {% set sort_order = 0 if boundary_type == 'start' else (2 if boundary_type == 'end' else 1) %}
                                 {% set _ = timeline_items.append({
                                     'type': 'period',
                                     'year': period,
-                                    'sort_key': period,
+                                    'sort_key': (period * 10) + sort_order,
                                     'meta': period_meta,
                                     'docs': period_docs,
                                     'source_type': source_type
@@ -692,10 +760,11 @@
                                 {% for event in semantic_events %}
                                     {% set from_period_meta = period_metadata.get(event.from_period|string, {}) %}
                                     {% set event_year = from_period_meta.get('year', from_period_meta.get('start_year', 0)) %}
+                                    {# Events sort in the middle (1) like artifacts #}
                                     {% set _ = timeline_items.append({
                                         'type': 'event',
                                         'year': event_year,
-                                        'sort_key': event_year,
+                                        'sort_key': (event_year * 10) + 1,
                                         'event': event,
                                         'from_period': event.from_period,
                                         'to_period': event.to_period
@@ -710,10 +779,24 @@
                             {% for item in sorted_timeline %}
                                 {% if item.type == 'period' %}
                                     {# Period card #}
-                                    <div class="period-card {{ item.source_type }}" data-year="{{ item.year }}" data-source="{{ item.source_type }}">
+                                    <div class="period-card {{ item.source_type }}" data-year="{{ item.year }}" data-source="{{ item.source_type }}"
+                                         {% if item.meta.get('boundary_type') %}data-boundary="{{ item.meta.get('boundary_type') }}"{% endif %}>
                                         <div class="period-card-header">
-                                            <span class="period-year">{{ item.year }}</span>
-                                            <span class="period-source-badge {{ item.source_type }}">{{ item.source_type }}</span>
+                                            <div>
+                                                <span class="period-year">{{ item.year }}</span>
+                                                {% if item.meta.get('period_name') %}
+                                                <div style="font-size: 0.75rem; color: #6c757d; margin-top: 2px;">{{ item.meta.get('period_name') }}</div>
+                                                {% endif %}
+                                            </div>
+                                            {% if item.meta.get('boundary_type') %}
+                                            <span class="period-source-badge manual">
+                                                {% if item.meta.get('boundary_type') == 'start' %}START{% else %}END{% endif %}
+                                            </span>
+                                            {% else %}
+                                            <span class="period-source-badge {{ item.source_type }}">
+                                                {% if item.source_type == 'auto-generated' %}ARTIFACT{% else %}{{ item.source_type|upper }}{% endif %}
+                                            </span>
+                                            {% endif %}
                                         </div>
 
                                         {% if item.docs|length > 0 %}
@@ -942,6 +1025,53 @@
     </div>
 </div>
 
+<!-- Add Period Modal -->
+<div class="modal fade" id="addPeriodModal" tabindex="-1" aria-labelledby="addPeriodModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="addPeriodModalLabel">Add Temporal Period</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label for="periodName" class="form-label">Period Name</label>
+                    <input type="text" class="form-control" id="periodName"
+                           placeholder="e.g., Early AI Era, Classical Period">
+                    <small class="text-muted">Optional: Give this period a descriptive name</small>
+                </div>
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label for="periodStartYear" class="form-label">Start Year <span class="text-danger">*</span></label>
+                        <input type="number" class="form-control" id="periodStartYear"
+                               placeholder="e.g., 1950" required>
+                        <small class="text-muted">Beginning of period</small>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label for="periodEndYear" class="form-label">End Year <span class="text-danger">*</span></label>
+                        <input type="number" class="form-control" id="periodEndYear"
+                               placeholder="e.g., 1970" required>
+                        <small class="text-muted">End of period</small>
+                    </div>
+                </div>
+                <div class="mb-3">
+                    <label for="periodDescription" class="form-label">Description</label>
+                    <textarea class="form-control" id="periodDescription" rows="2"
+                              placeholder="Optional description of what defines this period..."></textarea>
+                    <small class="text-muted">Optional: Describe the historical context</small>
+                </div>
+                <div class="alert alert-info mb-0" style="font-size: 0.875rem;">
+                    <i class="fas fa-info-circle"></i> <strong>Note:</strong> Period boundaries can share years with document artifacts. If a year matches an existing document date, the artifact will be converted to a period boundary marker while preserving the document references.
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="savePeriod()">Add Period</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- Semantic Event Modal -->
 <div class="modal fade" id="semanticEventModal" tabindex="-1" aria-labelledby="semanticEventModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-lg">
@@ -1023,6 +1153,36 @@ let periodMetadata = {{ period_metadata|tojson|safe }};    // Metadata about eac
 // Semantic events
 let semanticEvents = {{ semantic_events|default([])|tojson|safe }};  // Semantic transition events
 let experimentDocuments = [];  // Will be populated for document selection
+
+// Toggle timeline expanded view
+function toggleTimelineExpanded() {
+    const section = document.getElementById('timeline-section');
+    const icon = document.getElementById('timeline-expand-icon');
+
+    if (section.classList.contains('timeline-expanded')) {
+        // Collapse
+        section.classList.remove('timeline-expanded');
+        icon.classList.remove('fa-compress');
+        icon.classList.add('fa-expand');
+        document.body.style.overflow = '';
+    } else {
+        // Expand
+        section.classList.add('timeline-expanded');
+        icon.classList.remove('fa-expand');
+        icon.classList.add('fa-compress');
+        document.body.style.overflow = 'hidden';
+    }
+}
+
+// Close expanded view on ESC key
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+        const section = document.getElementById('timeline-section');
+        if (section && section.classList.contains('timeline-expanded')) {
+            toggleTimelineExpanded();
+        }
+    }
+});
 
 // Initialize
 document.addEventListener('DOMContentLoaded', function() {
@@ -1432,50 +1592,134 @@ function applyManualPeriods() {
 
 // Show add period dialog
 function showAddPeriodDialog() {
-    const newYear = prompt('Enter a year to add as a new period:');
+    // Reset form
+    document.getElementById('periodName').value = '';
+    document.getElementById('periodStartYear').value = '';
+    document.getElementById('periodEndYear').value = '';
+    document.getElementById('periodDescription').value = '';
 
-    if (!newYear) {
+    // Show modal
+    const modal = new bootstrap.Modal(document.getElementById('addPeriodModal'));
+    modal.show();
+}
+
+// Save period (creates two boundary markers)
+async function savePeriod() {
+    const name = document.getElementById('periodName').value.trim();
+    const startYear = parseInt(document.getElementById('periodStartYear').value);
+    const endYear = parseInt(document.getElementById('periodEndYear').value);
+    const description = document.getElementById('periodDescription').value.trim();
+
+    // Validation
+    if (isNaN(startYear) || isNaN(endYear)) {
+        alert('Please enter valid start and end years');
         return;
     }
 
-    const year = parseInt(newYear.trim());
-
-    if (isNaN(year)) {
-        alert('Please enter a valid year');
+    if (startYear >= endYear) {
+        alert('Start year must be before end year');
         return;
     }
 
-    if (timePeriods.includes(year)) {
-        alert('This period already exists');
+    // Check if years already exist as PERIOD BOUNDARIES (not artifacts)
+    const startMeta = periodMetadata[startYear.toString()] || {};
+    const endMeta = periodMetadata[endYear.toString()] || {};
+
+    if (startMeta.boundary_type) {
+        alert(`Year ${startYear} is already a ${startMeta.boundary_type} boundary for period "${startMeta.period_name || 'Unnamed'}"`);
         return;
     }
 
-    // Add and sort periods
-    timePeriods.push(year);
+    if (endMeta.boundary_type) {
+        alert(`Year ${endYear} is already a ${endMeta.boundary_type} boundary for period "${endMeta.period_name || 'Unnamed'}"`);
+        return;
+    }
+
+    // Generate unique period ID
+    const periodId = `period_${Date.now()}`;
+
+    // Add years to timePeriods if they don't already exist
+    if (!timePeriods.includes(startYear)) {
+        timePeriods.push(startYear);
+    }
+    if (!timePeriods.includes(endYear)) {
+        timePeriods.push(endYear);
+    }
     timePeriods.sort((a, b) => a - b);
 
-    // Mark as manually added
-    const yearStr = year.toString();
-    periodMetadata[yearStr] = {
-        source: 'manual',
-        document_count: 0
-    };
-    periodDocuments[yearStr] = [];
+    // Preserve existing documents if year was an artifact
+    const existingStartDocs = periodDocuments[startYear.toString()] || [];
+    const existingEndDocs = periodDocuments[endYear.toString()] || [];
 
-    // Refresh UI
-    refreshTimePeriodsUI();
+    // Add/update metadata for start boundary
+    periodMetadata[startYear.toString()] = {
+        source: 'manual',
+        document_count: existingStartDocs.length,
+        boundary_type: 'start',
+        period_id: periodId,
+        period_name: name,
+        period_description: description,
+        paired_with: endYear
+    };
+    periodDocuments[startYear.toString()] = existingStartDocs;
+
+    // Add/update metadata for end boundary
+    periodMetadata[endYear.toString()] = {
+        source: 'manual',
+        document_count: existingEndDocs.length,
+        boundary_type: 'end',
+        period_id: periodId,
+        period_name: name,
+        period_description: description,
+        paired_with: startYear
+    };
+    periodDocuments[endYear.toString()] = existingEndDocs;
+
+    // Close modal
+    const modal = bootstrap.Modal.getInstance(document.getElementById('addPeriodModal'));
+    modal.hide();
+
+    // Save to backend
+    await saveTerms(() => {
+        // Refresh UI after save completes
+        refreshTimePeriodsUI();
+    });
 }
 
 // Remove a period
-function removePeriod(year) {
-    if (!confirm(`Remove period ${year}?`)) {
-        return;
+async function removePeriod(year) {
+    const yearStr = year.toString();
+    const meta = periodMetadata[yearStr] || {};
+
+    // Check if this is a period boundary (has a paired year)
+    if (meta.paired_with) {
+        const periodName = meta.period_name || `Period ${year}-${meta.paired_with}`;
+        if (!confirm(`Remove entire period "${periodName}"?\n\nThis will remove both boundary markers: ${Math.min(year, meta.paired_with)} and ${Math.max(year, meta.paired_with)}`)) {
+            return;
+        }
+
+        // Remove both boundaries
+        timePeriods = timePeriods.filter(p => p !== year && p !== meta.paired_with);
+        delete periodMetadata[yearStr];
+        delete periodMetadata[meta.paired_with.toString()];
+        delete periodDocuments[yearStr];
+        delete periodDocuments[meta.paired_with.toString()];
+    } else {
+        // Single date marker
+        if (!confirm(`Remove date marker ${year}?`)) {
+            return;
+        }
+
+        timePeriods = timePeriods.filter(p => p !== year);
+        delete periodMetadata[yearStr];
+        delete periodDocuments[yearStr];
     }
 
-    timePeriods = timePeriods.filter(p => p !== year);
-
-    // Refresh UI
-    refreshTimePeriodsUI();
+    // Save to backend
+    await saveTerms(() => {
+        // Refresh UI after save completes
+        refreshTimePeriodsUI();
+    });
 }
 
 // Refresh the periods UI
@@ -1489,25 +1733,31 @@ function refreshTimelineUI() {
 
     // Add periods
     timePeriods.forEach(period => {
+        const meta = periodMetadata[period.toString()] || {};
+        const boundaryType = meta.boundary_type;
+        // Sort order: START=0, ARTIFACT/EVENT=1, END=2
+        const sortOrder = boundaryType === 'start' ? 0 : (boundaryType === 'end' ? 2 : 1);
+
         timelineItems.push({
             type: 'period',
             year: period,
-            sortKey: period,
+            sortKey: (period * 10) + sortOrder,
             data: {
                 period: period,
-                meta: periodMetadata[period.toString()] || {},
+                meta: meta,
                 docs: periodDocuments[period.toString()] || [],
-                sourceType: (periodMetadata[period.toString()] || {}).source || 'manual'
+                sourceType: meta.source || 'manual'
             }
         });
     });
 
     // Add semantic events
     semanticEvents.forEach(event => {
+        // Events sort in the middle (1) like artifacts
         timelineItems.push({
             type: 'event',
             year: event.from_period,
-            sortKey: event.from_period,
+            sortKey: (event.from_period * 10) + 1,
             data: event
         });
     });
@@ -1533,11 +1783,23 @@ function refreshTimelineUI() {
                 card.className = `period-card ${sourceType}`;
                 card.setAttribute('data-year', period);
                 card.setAttribute('data-source', sourceType);
+                if (meta.boundary_type) {
+                    card.setAttribute('data-boundary', meta.boundary_type);
+                }
+
+                const boundaryType = meta.boundary_type;
+                const periodName = meta.period_name;
+                const badgeText = boundaryType ? (boundaryType === 'start' ? 'START' : 'END') :
+                                (sourceType === 'auto-generated' ? 'ARTIFACT' : sourceType.toUpperCase());
+                const badgeClass = boundaryType ? 'manual' : sourceType;
 
                 let cardHTML = `
                     <div class="period-card-header">
-                        <span class="period-year">${period}</span>
-                        <span class="period-source-badge ${sourceType}">${sourceType}</span>
+                        <div>
+                            <span class="period-year">${period}</span>
+                            ${periodName ? `<div style="font-size: 0.75rem; color: #6c757d; margin-top: 2px;">${periodName}</div>` : ''}
+                        </div>
+                        <span class="period-source-badge ${badgeClass}">${badgeText}</span>
                     </div>
                 `;
 
@@ -1666,12 +1928,16 @@ async function saveTerms(callback) {
             body: JSON.stringify({
                 terms: currentTerms,
                 periods: timePeriods,
-                temporal_data: termData
+                temporal_data: {
+                    ...termData,
+                    period_metadata: periodMetadata,
+                    period_documents: periodDocuments
+                }
             })
         });
-        
+
         const data = await response.json();
-        
+
         if (data.success) {
             if (callback) callback();
         } else {

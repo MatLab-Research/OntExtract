@@ -849,7 +849,7 @@ python -c "import rdflib; print(rdflib.__version__)"
 
 ---
 
-**Status**: Phase 1 COMPLETE, Phase 2 COMPLETE, Phase 3 Ready
+**Status**: Phase 1 COMPLETE, Phase 2 COMPLETE, Phase 3 Enhanced
 
 **Next Action**: Phase 3 Testing (JCDL_TESTING_CHECKLIST.md) - 1-2 hours
 
@@ -860,9 +860,28 @@ python -c "import rdflib; print(rdflib.__version__)"
 - Provenance tracking fixed
 - UI polish complete
 
+**Session 21 Complete (2025-11-22):**
+- Experiment creation workflow streamlined for JCDL demo
+- Quick Add Reference feature: Dictionary lookup (MW/OED) from experiment creation page
+- Focus Term selection: Required for temporal evolution experiments
+- Auto-fill: Description field populates when Temporal Evolution selected
+- Auto-fill: Experiment name from selected term (e.g., "agent Temporal Evolution")
+- UI reorganization: Focus Term moved to top of form for better workflow
+- Domain Comparison temporarily disabled (post-JCDL)
+
+**Session 22 Complete (2025-11-22):**
+- Temporal Evolution Experiment Creation Agent (repeatable workflow)
+- Agent location: [.claude/agents/temporal-evolution-experiment.md](.claude/agents/temporal-evolution-experiment.md)
+- 8-phase workflow: Document Analysis → Term Creation → Experiment Setup → Document Upload → Period Design → Event Creation → Timeline Visualization → Provenance Export
+- Handles large PDFs (1000+ pages), multi-session processing, error recovery
+- JCDL presentation checklist with demo credentials and backup plans
+- Technical documentation: 10+ database tables, 15+ API endpoints, ontology integration
+- Enables rapid experiment recreation for JCDL preparation and testing
+
 **Demo Access:**
 - Management: http://localhost:8765/experiments/75/manage_temporal_terms
 - Timeline: http://localhost:8765/experiments/75/timeline
+- Create Experiment: http://localhost:8765/experiments/new
 - Credentials: demo/demo123
 
 **Documentation:**
