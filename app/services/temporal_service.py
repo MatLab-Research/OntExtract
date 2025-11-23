@@ -286,6 +286,12 @@ class TemporalService(BaseService):
             config['time_periods'] = periods
             config['temporal_data'] = temporal_data
 
+            # Extract period_metadata and period_documents if present in temporal_data
+            if 'period_metadata' in temporal_data:
+                config['period_metadata'] = temporal_data['period_metadata']
+            if 'period_documents' in temporal_data:
+                config['period_documents'] = temporal_data['period_documents']
+
             experiment.configuration = json.dumps(config)
             experiment.updated_at = datetime.utcnow()
             db.session.commit()
