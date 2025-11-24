@@ -26,7 +26,12 @@ settings_bp = Blueprint('settings', __name__, url_prefix='/settings')
 @settings_bp.route('/')
 @api_require_login_for_write
 def index():
-    """Settings dashboard with tabbed interface."""
+    """Settings dashboard with tabbed interface (admin only)."""
+
+    # Only administrators can access system settings
+    if not current_user.is_admin:
+        flash('Only administrators can access system settings.', 'danger')
+        return redirect(url_for('main.index'))
 
     # Get all categories
     categories = ['prompts', 'nlp', 'processing', 'llm', 'ui']
@@ -40,10 +45,15 @@ def index():
     # Get all prompt templates
     templates = PromptTemplate.query.filter_by(is_active=True).all()
 
+    # Check for API key availability
+    import os
+    api_key_available = bool(os.getenv('ANTHROPIC_API_KEY'))
+
     return render_template('settings/index.html',
                          settings=settings_by_category,
                          templates=templates,
-                         active_tab=request.args.get('tab', 'llm'))
+                         active_tab=request.args.get('tab', 'llm'),
+                         api_key_available=api_key_available)
 
 
 @settings_bp.route('/update', methods=['POST'])
