@@ -406,33 +406,34 @@ Use this baseline to identify semantic drift, evolution, or domain-specific vari
 2. **Summarize per period**: For each period, gather entity counts, co-occurrences, and frequencies from tool results
 3. **List anchors**: Show which semantic anchors (from entity extraction) appear in each period
 4. **Present side-by-side**: Structure data so researchers can easily compare across periods
+5. **Cite sources**: Include document IDs and tool names for all data points
 
 **Example Organization**:
-"**Period 1 (1960-1980)**: 2 documents. Entity extraction found '{focus_term}' co-occurring with: 'program' (12×), 'system' (8×), 'autonomous' (6×). Term frequency: 0.23 per 1000 words.
+"**Period 1 (1960-1980)**: 2 documents [Docs 393-394]. Entity extraction found '{focus_term}' co-occurring with: 'program' (12×), 'system' (8×), 'autonomous' (6×) [extract_entities_spacy]. Term frequency: 0.23 per 1000 words [extract_definitions].
 
-**Period 2 (2000-2020)**: 3 documents. Entity extraction found '{focus_term}' co-occurring with: 'learning' (23×), 'intelligent' (15×), 'adaptive' (11×). Term frequency: 0.47 per 1000 words."
+**Period 2 (2000-2020)**: 3 documents [Docs 397-399]. Entity extraction found '{focus_term}' co-occurring with: 'learning' (23×), 'intelligent' (15×), 'adaptive' (11×) [extract_entities_spacy]. Term frequency: 0.47 per 1000 words [extract_definitions]."
 
 **IMPORTANT**: Generate structured term cards as DATA SUMMARIES (not interpretations).
 
 For each time period found in temporal extraction results, create a card with:
 - **period_label**: Time range from tool outputs (e.g., "1960-1980")
-- **definition**: Most common co-occurring terms from entity extraction (just list the data)
+- **definition**: Most common co-occurring terms from entity extraction (just list the data with counts)
 - **frequency**: Relative frequency from tool counts (normalize to 0.0-1.0 across all periods)
-- **context_changes**: New semantic anchors that appear in this period vs. previous ones (just list new terms)
-- **narrative**: 2-3 sentences presenting the key data points for this period (counts, top entities, frequencies - NO interpretation)
+- **context_changes**: New semantic anchors that appear in this period vs. previous ones (just list new terms, no interpretation)
+- **narrative**: 2-3 factual sentences presenting key data points (counts, entities, frequencies). Use neutral language: "found", "observed", "present", "absent". Include document sources [Doc IDs]. NO interpretation or value judgments.
 
 Return JSON with:
 {{
-    "cross_document_insights": "Markdown text with overall analysis",
-    "term_evolution_analysis": "Markdown text focused on the term",
+    "cross_document_insights": "Markdown text with overall data organization and patterns (neutral tone, with source citations)",
+    "term_evolution_analysis": "Markdown text focused on term usage patterns across time (neutral tone, with source citations)",
     "generated_term_cards": [
         {{
             "term": "{focus_term}",
             "period_label": "Period range",
-            "definition": "Usage in this period",
+            "definition": "Usage in this period (data only)",
             "frequency": 0.5,
             "context_changes": ["new", "anchor", "terms"],
-            "narrative": "Explanation of changes"
+            "narrative": "Factual summary with document sources [Doc IDs]"
         }}
     ]
 }}
@@ -508,10 +509,19 @@ Your task is to ORGANIZE these tool findings into a clear structure that enables
 3. **Highlight contrasts**: Show where tool results differ across documents (without interpreting why)
 4. **Structure for analysis**: Format data so patterns are easily visible to the researcher
 5. **Preserve specificity**: Include exact numbers, entity names, and dates from tool outputs
+6. **Cite sources**: For every claim, include document ID and tool name in brackets like [Doc 393: extract_entities_spacy] or [Docs 393-395: extract_temporal]
 
-Example organization: "**1960-1980 Period** (2 documents): Entity extraction found 15 mentions of 'autonomous', co-occurring with: 'program' (12×), 'system' (8×), 'control' (6×). **2000-2020 Period** (3 documents): Entity extraction found 47 mentions of 'autonomous', co-occurring with: 'learning' (23×), 'agent' (18×), 'intelligent' (15×)."
+Example organization: "**1960-1980 Period** (2 documents): Entity extraction found 15 mentions of 'autonomous' [Doc 393: extract_entities_spacy], co-occurring with: 'program' (12×), 'system' (8×), 'control' (6×). **2000-2020 Period** (3 documents): Entity extraction found 47 mentions of 'autonomous' [Docs 397-398: extract_entities_spacy], co-occurring with: 'learning' (23×), 'agent' (18×), 'intelligent' (15×)."
 
-**Note**: Your role is to organize data, not interpret it. The researcher will draw their own conclusions from the structured presentation.
+**CRITICAL TONE REQUIREMENTS**:
+- Maintain a neutral, objective, academic tone throughout
+- NEVER use enthusiastic or emphatic language ("remarkable", "striking", "dramatic", "revolutionary", "significant breakthrough")
+- Use measured, factual language ("observed", "found", "identified", "present", "absent")
+- Avoid superlatives and value judgments
+- Present data objectively without interpretation beyond direct observations
+- When patterns emerge, describe them neutrally: "X co-occurs with Y in 15 of 20 instances" not "X shows strong association with Y"
+
+**Note**: Your role is to organize data, not interpret it. The researcher will draw their own conclusions from the structured presentation. Users will be concerned about potential hallucination, so ground every statement in specific tool outputs with clear source citations.
 """
 
     return prompt

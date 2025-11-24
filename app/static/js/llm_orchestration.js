@@ -19,6 +19,9 @@ class LLMOrchestrationClient {
 
     /**
      * Start the LLM orchestration workflow
+     *
+     * SIMPLIFIED: No resume logic. Always starts fresh.
+     * Any interrupted runs are automatically marked as failed by the backend.
      */
     async startAnalysis() {
         try {
@@ -38,14 +41,15 @@ class LLMOrchestrationClient {
             this.showProgressModal();
             this.updateProgress('analyzing', 20, 'Starting analysis...');
 
-            // Make API call
+            // STEP 2: Start orchestration (runs in background thread)
+            // Backend will mark any existing in-progress runs as failed automatically
             const response = await fetch(`/experiments/${this.experimentId}/orchestration/analyze`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
                 },
                 body: JSON.stringify({
-                    review_choices: true
+                    review_choices: false  // Demo mode: automatic execution
                 })
             });
 
@@ -108,7 +112,8 @@ class LLMOrchestrationClient {
             this.updateProgress(
                 data.current_stage,
                 data.progress_percentage,
-                this.getStageMessage(data.current_stage)
+                this.getStageMessage(data.current_stage),
+                data.current_operation  // Detailed operation status
             );
 
             // Handle different statuses
@@ -209,7 +214,7 @@ class LLMOrchestrationClient {
     /**
      * Update progress display
      */
-    updateProgress(stage, percentage, message) {
+    updateProgress(stage, percentage, message, currentOperation) {
         // Update progress bar
         const progressBar = document.getElementById('llm-progress-bar');
         if (progressBar) {
@@ -221,7 +226,12 @@ class LLMOrchestrationClient {
         // Update status message
         const statusMessage = document.getElementById('llm-status-message');
         if (statusMessage) {
-            statusMessage.textContent = message;
+            // If we have detailed current_operation, show both stage and detail
+            if (currentOperation) {
+                statusMessage.innerHTML = `<strong>${message}</strong><br><small class="text-muted">${currentOperation}</small>`;
+            } else {
+                statusMessage.textContent = message;
+            }
         }
 
         // Update stage indicators

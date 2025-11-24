@@ -7,6 +7,12 @@ This script starts the OntExtract Flask application with shared services enabled
 
 import os
 from dotenv import load_dotenv
+
+# Fix for libblis/SpaCy threading crash - must be set before importing any NLP libraries
+os.environ.setdefault('OPENBLAS_NUM_THREADS', '1')
+os.environ.setdefault('OMP_NUM_THREADS', '1')
+os.environ.setdefault('MKL_NUM_THREADS', '1')
+
 from app import create_app
 
 # Load environment variables from .env only (do not auto-overlay .env.local)
@@ -72,11 +78,15 @@ def main():
         pass
 
     # Run the Flask app
+    # Note: use_reloader disabled to prevent killing long-running orchestration workflows
+    # Enable with FLASK_USE_RELOADER=1 if needed for active development
+    use_reloader = os.environ.get('FLASK_USE_RELOADER', '0') == '1'
+
     app.run(
         host='0.0.0.0',
         port=8765,
         debug=True,
-        use_reloader=True
+        use_reloader=use_reloader
     )
 
 if __name__ == '__main__':
