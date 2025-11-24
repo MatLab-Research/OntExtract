@@ -7,6 +7,10 @@ Connects orchestration layer to DocumentProcessor implementations.
 
 from typing import Dict, Any, Optional
 from app.services.processing_tools import DocumentProcessor, ProcessingResult
+from app.services.processing_registry_service import processing_registry_service
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class ToolExecutor:
@@ -32,12 +36,57 @@ class ToolExecutor:
             )
         return self._processor
 
-    async def execute(self, document_text: str, **kwargs) -> Dict[str, Any]:
+    def _get_artifact_config(self, tool_name: str) -> Dict[str, str]:
+        """
+        Map tool names to ProcessingArtifactGroup configuration.
+
+        Returns:
+            Dictionary with 'type' and 'method_key' for the tool
+        """
+        artifact_configs = {
+            "segment_paragraph": {
+                "type": "segmentation",
+                "method_key": "paragraph"
+            },
+            "segment_sentence": {
+                "type": "segmentation",
+                "method_key": "sentence"
+            },
+            "extract_entities_spacy": {
+                "type": "entities",
+                "method_key": "spacy_ner"
+            },
+            "extract_temporal": {
+                "type": "temporal",
+                "method_key": "temporal_extraction"
+            },
+            "extract_causal": {
+                "type": "causal",
+                "method_key": "causal_extraction"
+            },
+            "extract_definitions": {
+                "type": "definitions",
+                "method_key": "definition_extraction"
+            },
+            "period_aware_embedding": {
+                "type": "embeddings",
+                "method_key": "period_aware"
+            }
+        }
+        return artifact_configs.get(tool_name, {"type": "unknown", "method_key": tool_name})
+
+    async def execute(self, document_text: str, document_id: Optional[int] = None,
+                      orchestration_run_id: Optional[str] = None, **kwargs) -> Dict[str, Any]:
         """
         Execute the tool on document text.
 
+        Automatically creates a ProcessingArtifactGroup record for successful operations
+        to track what processing was done during orchestration.
+
         Args:
             document_text: Document content to process
+            document_id: Optional document ID for creating ProcessingArtifactGroup
+            orchestration_run_id: Optional orchestration run ID for provenance tracking
             **kwargs: Additional tool-specific parameters
 
         Returns:
@@ -72,6 +121,49 @@ class ToolExecutor:
         # Execute the tool (synchronously)
         try:
             result: ProcessingResult = tool_method(document_text)
+
+            # Create ProcessingArtifactGroup after successful execution
+            if result.status == "success" and document_id is not None:
+                try:
+                    artifact_config = self._get_artifact_config(self.tool_name)
+
+                    # Build metadata
+                    metadata = {
+                        'created_by': 'llm_orchestration',
+                        'tool_name': self.tool_name,
+                        'processing_params': kwargs
+                    }
+
+                    # Add orchestration run ID if provided
+                    if orchestration_run_id:
+                        metadata['orchestration_run_id'] = orchestration_run_id
+
+                    # Merge with any metadata from the processing result
+                    if result.metadata:
+                        metadata.update(result.metadata)
+
+                    # Create or get the artifact group
+                    group = processing_registry_service.create_or_get_group(
+                        document_id=document_id,
+                        artifact_type=artifact_config['type'],
+                        method_key=artifact_config['method_key'],
+                        metadata=metadata,
+                        include_in_composite=True
+                    )
+
+                    logger.info(
+                        f"Created ProcessingArtifactGroup {group.id} for document {document_id}, "
+                        f"tool {self.tool_name}, type {artifact_config['type']}, "
+                        f"method {artifact_config['method_key']}"
+                    )
+
+                except Exception as group_error:
+                    # Log error but don't fail the whole operation
+                    logger.error(
+                        f"Failed to create ProcessingArtifactGroup for document {document_id}, "
+                        f"tool {self.tool_name}: {group_error}",
+                        exc_info=True
+                    )
 
             # Convert ProcessingResult to orchestration format
             return {
