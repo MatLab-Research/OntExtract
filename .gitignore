@@ -242,8 +242,9 @@ CLAUDE.md
 backup_ontextract_*.sql
 
 # Documentation directories (development/internal only)
-docs/
-*/docs/
+# Allow docs/ for MkDocs documentation source
+# docs/
+# */docs/
 
 # Scripts and development artifacts
 scripts/
@@ -277,4 +278,4 @@ data/
 # Development review directory (temporary files for review before deletion)
 untracked_review/
 
-/experiments
+site/

@@ -1,0 +1,74 @@
+site_name: OntExtract Documentation
+site_description: User manual for OntExtract historical document analysis platform
+site_author: OntExtract Project
+site_url: https://ontextract.ontorealm.net/docs
+
+# Repository
+repo_url: https://github.com/MatLab-Research/OntExtract
+repo_name: OntExtract
+edit_uri: edit/main/docs/
+
+theme:
+  name: material
+  palette:
+    # Dark mode (matches OntExtract Darkly theme)
+    - scheme: slate
+      primary: blue
+      accent: teal
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+    # Light mode
+    - scheme: default
+      primary: blue
+      accent: teal
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+
+  features:
+    - navigation.instant
+    - navigation.tracking
+    - navigation.tabs
+    - navigation.sections
+    - navigation.expand
+    - navigation.top
+    - search.suggest
+    - search.highlight
+    - content.code.copy
+
+  icon:
+    logo: material/brain
+    repo: fontawesome/brands/github
+
+plugins:
+  - search:
+      lang: en
+  - minify:
+      minify_html: true
+
+markdown_extensions:
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true
+  - attr_list
+  - md_in_html
+  - tables
+  - toc:
+      permalink: true
+
+nav:
+  - Home: index.md
+  - Getting Started:
+      - Installation: getting-started/installation.md
+      - First Login: getting-started/first-login.md
+  - How-To Guides:
+      - Create Temporal Experiment: how-to/create-temporal-experiment.md
+  - FAQ: faq.md
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/MatLab-Research/OntExtract
