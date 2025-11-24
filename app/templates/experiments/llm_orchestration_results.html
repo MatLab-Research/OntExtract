@@ -94,27 +94,25 @@
     </div>
     {% endif %}
 
-    <!-- LLM Interpretation (Collapsed) -->
+    <!-- LLM Interpretation (Collapsed, Minimal) -->
     {% if evolution_html and run.term_context %}
     <div class="row mb-4">
         <div class="col-12">
-            <div class="card border-0 bg-light">
-                <div class="card-header bg-transparent border-0">
-                    <h6 class="mb-0">
-                        <a class="text-muted text-decoration-none d-flex align-items-center py-2"
-                           data-bs-toggle="collapse"
-                           href="#llmAnalysisCollapse"
-                           aria-expanded="false"
-                           aria-controls="llmAnalysisCollapse"
-                           style="font-size: 0.9rem;">
-                            <i class="fas fa-robot me-2" style="font-size: 0.75rem;"></i>
-                            <span>LLM Analysis: "{{ run.term_context }}"</span>
-                            <i class="fas fa-chevron-down ms-auto" style="font-size: 0.75rem;"></i>
-                        </a>
-                    </h6>
-                </div>
+            <div class="border-top pt-3">
+                <p class="mb-2">
+                    <a class="text-muted text-decoration-none d-flex align-items-center"
+                       data-bs-toggle="collapse"
+                       href="#llmAnalysisCollapse"
+                       aria-expanded="false"
+                       aria-controls="llmAnalysisCollapse"
+                       style="font-size: 0.85rem;">
+                        <i class="fas fa-robot me-2" style="font-size: 0.7rem; opacity: 0.6;"></i>
+                        <span>LLM Analysis</span>
+                        <i class="fas fa-chevron-down ms-2" style="font-size: 0.65rem;"></i>
+                    </a>
+                </p>
                 <div class="collapse" id="llmAnalysisCollapse">
-                    <div class="card-body bg-white">
+                    <div class="ps-4 pt-2">
                         <div class="evolution-content">
                             {{ evolution_html | safe }}
                         </div>
