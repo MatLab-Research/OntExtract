@@ -37,6 +37,7 @@ from pydantic import ValidationError as PydanticValidationError
 import logging
 from uuid import UUID
 from datetime import datetime
+import threading
 
 from . import experiments_bp
 
@@ -271,26 +272,60 @@ def orchestration_provenance_json(experiment_id):
 # NEW: LLM Analyze Workflow Routes
 # ============================================================================
 
+def _run_orchestration_in_background(run_id, review_choices):
+    """
+    Background thread function to execute orchestration workflow.
+
+    This runs in a separate thread to avoid blocking Flask.
+    """
+    from app import create_app
+
+    # Create new Flask app context for this thread
+    app = create_app()
+    with app.app_context():
+        try:
+            logger.info(f"[Background Thread] Starting orchestration for run {run_id}")
+            result = workflow_executor.execute_recommendation_phase(
+                run_id=run_id,
+                review_choices=review_choices
+            )
+            logger.info(f"[Background Thread] Orchestration completed for run {run_id}: {result['status']}")
+        except Exception as e:
+            logger.error(f"[Background Thread] Orchestration failed for run {run_id}: {e}", exc_info=True)
+            # Mark run as failed
+            try:
+                run = ExperimentOrchestrationRun.query.get(run_id)
+                if run:
+                    run.status = 'failed'
+                    run.error_message = str(e)
+                    run.completed_at = datetime.utcnow()
+                    db.session.commit()
+            except Exception as db_error:
+                logger.error(f"Failed to mark run as failed: {db_error}", exc_info=True)
+
+
 @experiments_bp.route('/<int:experiment_id>/orchestration/analyze', methods=['POST'])
 @api_require_login_for_write
 def start_llm_orchestration(experiment_id):
     """
-    Start LLM orchestration workflow (Stages 1-2: Analyze + Recommend)
+    Start LLM orchestration workflow (Stages 1-5: Full pipeline)
+
+    SIMPLIFIED: No resume logic - always starts fresh.
+    If previous runs were interrupted, they are marked as failed.
 
     POST Body:
     {
-        "review_choices": true,  // Whether to pause for user review
-        "auto_approve_high_confidence": false,
-        "confidence_threshold": 0.85
+        "review_choices": true  // Whether to pause for user review
     }
+
+    Returns immediately with run_id. Client polls /orchestration/status/<run_id> for progress.
 
     Returns:
     {
         "success": true,
         "run_id": "uuid-here",
         "status": "analyzing",
-        "current_stage": "analyzing",
-        "message": "Orchestration started"
+        "message": "Orchestration started in background"
     }
     """
     try:
@@ -302,11 +337,27 @@ def start_llm_orchestration(experiment_id):
                 'error': 'Experiment not found'
             }), 404
 
+        # Mark any existing in-progress runs for this experiment as failed
+        # This ensures we always start fresh (no resume logic)
+        existing_runs = ExperimentOrchestrationRun.query.filter_by(
+            experiment_id=experiment_id
+        ).filter(
+            ExperimentOrchestrationRun.status.in_(['analyzing', 'recommending', 'reviewing', 'executing', 'synthesizing'])
+        ).all()
+
+        for existing_run in existing_runs:
+            existing_run.status = 'failed'
+            existing_run.error_message = 'Interrupted by new orchestration run'
+            existing_run.completed_at = datetime.utcnow()
+            logger.info(f"Marked existing run {existing_run.id} as failed (interrupted)")
+
+        db.session.commit()
+
         # Get user preferences
         data = request.get_json() or {}
         review_choices = data.get('review_choices', True)
 
-        # Create orchestration run
+        # Create new orchestration run
         run = ExperimentOrchestrationRun(
             experiment_id=experiment_id,
             user_id=current_user.id,
@@ -318,27 +369,23 @@ def start_llm_orchestration(experiment_id):
 
         logger.info(f"Created orchestration run {run.id} for experiment {experiment_id}")
 
-        # Execute recommendation phase in background
-        try:
-            result = workflow_executor.execute_recommendation_phase(
-                run_id=run.id,
-                review_choices=review_choices
-            )
+        # Start orchestration in background thread
+        thread = threading.Thread(
+            target=_run_orchestration_in_background,
+            args=(run.id, review_choices),
+            daemon=True
+        )
+        thread.start()
 
-            return jsonify({
-                'success': True,
-                'run_id': str(run.id),
-                'status': result['status'],
-                'current_stage': result['status'],
-                'message': 'Orchestration completed - awaiting review' if review_choices else 'Orchestration completed'
-            }), 200
+        logger.info(f"Started background thread for run {run.id}")
 
-        except Exception as e:
-            logger.error(f"Error executing recommendation phase: {e}", exc_info=True)
-            return jsonify({
-                'success': False,
-                'error': f'Orchestration failed: {str(e)}'
-            }), 500
+        return jsonify({
+            'success': True,
+            'run_id': str(run.id),
+            'status': 'analyzing',
+            'current_stage': 'analyzing',
+            'message': 'Orchestration started in background. Poll /orchestration/status/<run_id> for progress.'
+        }), 200
 
     except Exception as e:
         logger.error(f"Error starting orchestration for experiment {experiment_id}: {e}", exc_info=True)
@@ -433,6 +480,59 @@ def check_experiment_processing_status(experiment_id):
         return jsonify({'error': str(e)}), 500
 
 
+@experiments_bp.route('/<int:experiment_id>/orchestration/latest-run', methods=['GET'])
+def get_latest_orchestration_run(experiment_id):
+    """
+    Get the latest orchestration run for an experiment (if any in progress).
+
+    Used to resume existing runs instead of creating duplicates.
+
+    Only returns runs that:
+    1. Are not completed/failed
+    2. Started within the last 30 minutes (prevents resuming stuck/old runs)
+
+    Returns:
+    {
+        "run_id": "uuid",
+        "status": "reviewing|executing|etc",
+        "started_at": "timestamp"
+    }
+    """
+    try:
+        from datetime import datetime, timedelta
+
+        # Only resume runs that started within the last 30 minutes
+        # This prevents picking up stuck/old runs from previous crashes
+        time_threshold = datetime.utcnow() - timedelta(minutes=30)
+
+        # Get the most recent non-completed/failed run for this experiment
+        latest_run = ExperimentOrchestrationRun.query.filter_by(
+            experiment_id=experiment_id
+        ).filter(
+            ExperimentOrchestrationRun.status.in_(['analyzing', 'recommending', 'reviewing', 'executing', 'synthesizing']),
+            ExperimentOrchestrationRun.started_at >= time_threshold
+        ).order_by(
+            ExperimentOrchestrationRun.started_at.desc()
+        ).first()
+
+        if latest_run:
+            return jsonify({
+                'run_id': str(latest_run.id),
+                'status': latest_run.status,
+                'current_stage': latest_run.current_stage,
+                'started_at': latest_run.started_at.isoformat() if latest_run.started_at else None
+            }), 200
+        else:
+            return jsonify({
+                'run_id': None,
+                'status': None
+            }), 404
+
+    except Exception as e:
+        logger.error(f"Error getting latest run for experiment {experiment_id}: {e}", exc_info=True)
+        return jsonify({'error': str(e)}), 500
+
+
 @experiments_bp.route('/orchestration/status/<uuid:run_id>', methods=['GET'])
 def get_orchestration_status(run_id):
     """
@@ -463,6 +563,7 @@ def get_orchestration_status(run_id):
             'run_id': str(run.id),
             'status': run.status,
             'current_stage': run.current_stage or run.status,
+            'current_operation': run.current_operation,  # Detailed progress: "Processing doc 3 with extract_entities_spacy (5/21 operations)"
             'progress_percentage': progress_percentage,
             'error_message': run.error_message
         }

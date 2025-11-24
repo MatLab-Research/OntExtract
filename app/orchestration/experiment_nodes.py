@@ -25,6 +25,10 @@ from .retry_utils import call_llm_with_retry, LLMTimeoutError, LLMRetryExhausted
 from .config import config
 from .prompts import get_analyze_prompt, get_recommend_strategy_prompt, get_synthesis_prompt
 
+# Database imports for progress tracking
+from app import db
+from app.models.experiment_orchestration_run import ExperimentOrchestrationRun
+
 logger = logging.getLogger(__name__)
 
 
@@ -227,6 +231,23 @@ async def human_review_node(state: ExperimentOrchestrationState) -> Dict[str, An
     }
 
 
+def update_current_operation(run_id: str, operation_text: str):
+    """
+    Update current_operation field in database for progress tracking.
+
+    Minimal overhead - just one UPDATE query.
+    """
+    try:
+        run = ExperimentOrchestrationRun.query.filter_by(id=run_id).first()
+        if run:
+            run.current_operation = operation_text
+            db.session.commit()
+    except Exception as e:
+        logger.error(f"Error updating current_operation: {e}")
+        # Don't fail execution if progress update fails
+        db.session.rollback()
+
+
 async def execute_strategy_node(state: ExperimentOrchestrationState) -> Dict[str, Any]:
     """
     Stage 4: Execute the approved processing strategy.
@@ -249,8 +270,14 @@ async def execute_strategy_node(state: ExperimentOrchestrationState) -> Dict[str
     # Get tool registry
     tool_registry = get_tool_registry()
 
+    # Calculate total operations for progress tracking
+    total_tools = sum(len(tools) for tools in strategy.values())
+    completed_tools = 0
+
     async def process_document(doc: Dict[str, Any]) -> tuple[str, Dict[str, Any]]:
         """Process a single document with its recommended tools."""
+        nonlocal completed_tools
+
         doc_id = doc['id']
         tool_names = strategy.get(doc_id, [])
         doc_content = doc.get('content', '')
@@ -261,9 +288,25 @@ async def execute_strategy_node(state: ExperimentOrchestrationState) -> Dict[str
             tool = tool_registry.get(tool_name)
             if tool:
                 try:
-                    # Execute tool
-                    result = await tool.execute(doc_content)
+                    # Update progress in database
+                    update_current_operation(
+                        run_id,
+                        f"Processing document {doc_id} with {tool_name} ({completed_tools + 1}/{total_tools} operations)"
+                    )
+
+                    logger.info(f"[Run {run_id}] Processing doc {doc_id} with tool {tool_name}")
+
+                    # Execute tool with 60 second timeout
+                    result = await asyncio.wait_for(
+                        tool.execute(doc_content),
+                        timeout=60.0
+                    )
                     results[tool_name] = result
+
+                    logger.info(f"[Run {run_id}] Successfully executed {tool_name} on doc {doc_id}")
+
+                    # Increment completed counter
+                    completed_tools += 1
 
                     # Track execution
                     execution_trace.append({
@@ -274,8 +317,26 @@ async def execute_strategy_node(state: ExperimentOrchestrationState) -> Dict[str
                         "status": "success"
                     })
 
+                except asyncio.TimeoutError:
+                    # Tool execution timed out
+                    logger.warning(f"[Run {run_id}] Timeout executing {tool_name} on doc {doc_id}")
+                    execution_trace.append({
+                        "run_id": run_id,
+                        "document_id": doc_id,
+                        "tool": tool_name,
+                        "timestamp": datetime.utcnow().isoformat(),
+                        "status": "timeout",
+                        "error": "Tool execution exceeded 60 second timeout"
+                    })
+                    results[tool_name] = {
+                        "status": "error",
+                        "error": "Execution timeout",
+                        "tool": tool_name
+                    }
+
                 except Exception as e:
                     # Log failure
+                    logger.error(f"[Run {run_id}] Error executing {tool_name} on doc {doc_id}: {e}", exc_info=True)
                     execution_trace.append({
                         "run_id": run_id,
                         "document_id": doc_id,

@@ -36,6 +36,7 @@ class ExperimentOrchestrationRun(db.Model):
     # Workflow status
     status = db.Column(db.String(50), nullable=False)  # analyzing, recommending, reviewing, executing, synthesizing, completed, failed
     current_stage = db.Column(db.String(50), nullable=True)
+    current_operation = db.Column(db.Text, nullable=True)  # Detailed status: "Processing doc 3/7 with extract_entities_spacy"
     error_message = db.Column(db.Text, nullable=True)
 
     # Stage 1: Experiment Understanding
