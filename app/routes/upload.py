@@ -3,7 +3,7 @@ Unified upload route for all content types.
 """
 
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, current_app
-from flask_login import current_user
+from flask_login import current_user, login_required
 from app.utils.auth_decorators import require_login_for_write, api_require_login_for_write
 from werkzeug.utils import secure_filename
 from datetime import datetime
@@ -410,12 +410,12 @@ def extract_metadata():
 
                 pub_year = request.form.get('publication_year', '').strip()
                 if pub_year:
-                    user_metadata['publication_year'] = int(pub_year)
+                    user_metadata['publication_year'] = pub_year  # Keep as string for flexible date parsing
                     user_provenance['publication_year'] = {
                         'source': 'user',
                         'confidence': 1.0,
                         'timestamp': datetime.utcnow().isoformat(),
-                        'raw_value': int(pub_year)
+                        'raw_value': pub_year
                     }
 
                 authors_str = request.form.get('authors', '').strip()
@@ -642,14 +642,11 @@ def save_document():
         if error:
             return jsonify({'error': error}), 400
 
-        # Parse publication date if provided
+        # Parse publication date if provided (supports year, year-month, or full date)
         publication_date = None
         if metadata.get('publication_year'):
-            try:
-                year = int(metadata.get('publication_year'))
-                publication_date = datetime(year, 1, 1).date()
-            except (ValueError, TypeError):
-                pass
+            from app.utils.date_parser import parse_flexible_date
+            publication_date = parse_flexible_date(metadata.get('publication_year'))
 
         # Convert authors list to comma-separated string if needed
         authors = metadata.get('authors')
@@ -783,3 +780,48 @@ def save_document():
         db.session.rollback()
         current_app.logger.error(f"Error saving document: {str(e)}")
         return jsonify({'error': str(e)}), 500
+
+
+@upload_bp.route('/create_reference', methods=['POST'])
+@login_required
+def create_reference():
+    """
+    Create a reference document from dictionary definition
+    Quick add feature for experiment creation
+    """
+    try:
+        data = request.get_json()
+
+        title = data.get('title')
+        content = data.get('content')
+        source = data.get('source')  # MW or OED
+        source_type = data.get('source_type', 'dictionary')
+
+        if not title or not content:
+            return jsonify({'success': False, 'error': 'Title and content are required'}), 400
+
+        # Create reference document
+        document = Document(
+            title=title,
+            content=content,
+            document_type='reference',
+            source=source,
+            user_id=current_user.id,
+            content_type='text/plain',
+            word_count=len(content.split()),
+            created_at=datetime.utcnow()
+        )
+
+        db.session.add(document)
+        db.session.commit()
+
+        return jsonify({
+            'success': True,
+            'document_id': document.id,
+            'document_uuid': str(document.uuid)
+        })
+
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"Error creating reference: {str(e)}")
+        return jsonify({'success': False, 'error': str(e)}), 500

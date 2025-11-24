@@ -1,0 +1,483 @@
+{% extends "base.html" %}
+
+{% block title %}Edit {{ experiment.name }} - OntExtract{% endblock %}
+
+{% block content %}
+<!-- Store configuration data for JavaScript -->
+{% if experiment.configuration %}
+<div id="experiment-config-data" data-config="{{ experiment.configuration }}" style="display: none;"></div>
+{% endif %}
+
+<div class="container-fluid px-4">
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="mb-0">Edit Experiment</h3>
+                </div>
+                <div class="card-body">
+                    <form id="edit-experiment-form">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="experiment-name" class="form-label">Experiment Name *</label>
+                                    <input type="text" class="form-control" id="experiment-name" 
+                                           value="{{ experiment.name }}" required>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="experiment-type" class="form-label">Experiment Type *</label>
+                                    <select class="form-select" id="experiment-type" required>
+                                        <option value="temporal_evolution" {% if experiment.experiment_type == 'temporal_evolution' %}selected{% endif %}>
+                                            Temporal Evolution
+                                        </option>
+                                        <option value="domain_comparison" {% if experiment.experiment_type == 'domain_comparison' %}selected{% endif %}>
+                                            Domain Comparison
+                                        </option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="experiment-description" class="form-label">Description</label>
+                            <textarea class="form-control" id="experiment-description" rows="3">{{ experiment.description or '' }}</textarea>
+                        </div>
+                        
+                        <div class="mb-4">
+                            <label class="form-label">Select Documents *</label>
+                            <div class="alert alert-info">
+                                <i class="fas fa-info-circle"></i> 
+                                Update the documents included in this experiment.
+                                <span id="type-description"></span>
+                            </div>
+                            
+                            {% if documents %}
+                            <div class="document-selection">
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <input type="text" class="form-control mb-3" id="document-search" 
+                                               placeholder="Search documents...">
+                                    </div>
+                                    <div class="col-md-6 text-end">
+                                        <button type="button" class="btn btn-sm btn-outline-primary" id="select-all">
+                                            Select All
+                                        </button>
+                                        <button type="button" class="btn btn-sm btn-outline-secondary" id="deselect-all">
+                                            Deselect All
+                                        </button>
+                                    </div>
+                                </div>
+                                
+                                <div class="document-list border rounded p-3" style="max-height: 400px; overflow-y: auto;">
+                                    {% for document in documents %}
+                                    <div class="form-check document-item mb-2">
+                                        <input class="form-check-input document-checkbox" type="checkbox" 
+                                               value="{{ document.id }}" id="doc-{{ document.id }}"
+                                               data-title="{{ document.get_display_name() }}"
+                                               data-words="{{ document.word_count or 0 }}"
+                                               {% if document.id in selected_doc_ids %}checked{% endif %}>
+                                        <label class="form-check-label" for="doc-{{ document.id }}">
+                                            <strong>{{ document.get_display_name() }}</strong>
+                                            <span class="text-muted">
+                                                ({{ document.word_count or 0 }} words)
+                                            </span>
+                                            {% if document.created_at %}
+                                            <small class="text-muted d-block">
+                                                Uploaded: {{ document.created_at.strftime('%Y-%m-%d %H:%M') }}
+                                            </small>
+                                            {% endif %}
+                                            {% if document.content_preview %}
+                                            <small class="text-muted d-block">
+                                                {{ document.content_preview[:100] }}...
+                                            </small>
+                                            {% endif %}
+                                        </label>
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                            
+                            <div class="mt-3">
+                                <strong>Selected: </strong>
+                                <span id="selected-count">0</span> documents
+                                (<span id="total-words">0</span> total words)
+                            </div>
+                            {% else %}
+                            <div class="alert alert-warning">
+                                <i class="fas fa-exclamation-triangle"></i> 
+                                No documents available. Please 
+                                <a href="{{ url_for('text_input.upload_form') }}">upload some documents</a> first.
+                            </div>
+                            {% endif %}
+                        </div>
+                        
+                        <!-- Configuration options based on experiment type -->
+                        <div id="configuration-options" class="mb-4">
+                            <h5>Configuration Options</h5>
+                            <div id="temporal-config" style="display: none;">
+                                <div class="mb-3">
+                                    <label for="focus-term" class="form-label">Focus Term *</label>
+                                    <input type="text" class="form-control" id="focus-term"
+                                           placeholder="e.g., agent, knowledge, responsibility">
+                                    <div class="form-text">The term whose semantic evolution you want to track</div>
+                                </div>
+
+                                <div class="mb-3">
+                                    <label for="start-year" class="form-label">Start Year</label>
+                                    <input type="number" class="form-control" id="start-year"
+                                           placeholder="e.g., 1850" min="1000" max="2026">
+                                </div>
+
+                                <div class="mb-3">
+                                    <label for="end-year" class="form-label">End Year</label>
+                                    <input type="number" class="form-control" id="end-year"
+                                           placeholder="e.g., 2024" min="1000" max="2026">
+                                </div>
+
+                                <div class="mb-3">
+                                    <label for="focus-disciplines" class="form-label">Focus Disciplines (comma-separated)</label>
+                                    <input type="text" class="form-control" id="focus-disciplines"
+                                           placeholder="e.g., philosophy, law, economics, AI">
+                                </div>
+
+                                <div class="mb-4">
+                                    <label class="form-label">Semantic Features *</label>
+                                    <div class="alert alert-info">
+                                        <i class="fas fa-info-circle"></i>
+                                        Define the semantic features that will be analyzed for each document.
+                                        These create a "semantic fingerprint" to track meaning evolution.
+                                    </div>
+
+                                    <div id="semantic-features-list" class="mb-3">
+                                        <!-- Features will be added here dynamically -->
+                                    </div>
+
+                                    <button type="button" class="btn btn-sm btn-outline-primary" id="add-feature-btn">
+                                        <i class="fas fa-plus"></i> Add Semantic Feature
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <div id="domain-config" style="display: none;">
+                                <div class="mb-3">
+                                    <label for="domain-focus" class="form-label">Domain Focus</label>
+                                    <input type="text" class="form-control" id="domain-focus" 
+                                           placeholder="e.g., Engineering, Biology, Philosophy">
+                                </div>
+                                <div class="mb-3">
+                                    <label for="target-terms" class="form-label">Target Terms (comma-separated)</label>
+                                    <input type="text" class="form-control" id="target-terms" value="ontology, agent">
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="extract-terminology">
+                                    <label class="form-check-label" for="extract-terminology">
+                                        Extract domain-specific terminology
+                                    </label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="compare-ontologies">
+                                    <label class="form-check-label" for="compare-ontologies">
+                                        Compare against existing ontologies
+                                    </label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="use-references">
+                                    <label class="form-check-label" for="use-references">
+                                        Use linked references (ignore selected documents)
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="d-flex justify-content-between">
+                            <a href="{{ url_for('experiments.view', experiment_id=experiment.id) }}" class="btn btn-secondary">
+                                <i class="fas fa-arrow-left"></i> Cancel
+                            </a>
+                            <button type="submit" class="btn btn-primary" id="update-btn">
+                                <i class="fas fa-save"></i> Save Changes
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.getElementById('edit-experiment-form');
+    const typeSelect = document.getElementById('experiment-type');
+    const temporalConfig = document.getElementById('temporal-config');
+    const domainConfig = document.getElementById('domain-config');
+    const typeDescription = document.getElementById('type-description');
+    const searchInput = document.getElementById('document-search');
+    const selectedCount = document.getElementById('selected-count');
+    const totalWords = document.getElementById('total-words');
+    
+    // Parse existing configuration
+    let existingConfig = {};
+    const configData = document.getElementById('experiment-config-data');
+    if (configData && configData.dataset.config) {
+        try {
+            existingConfig = JSON.parse(configData.dataset.config);
+        } catch (e) {
+            console.error('Failed to parse configuration:', e);
+        }
+    }
+    
+    // Semantic features management
+    let featureCounter = 0;
+
+    function addSemanticFeature(name = '', description = '') {
+        const featureId = `feature-${featureCounter++}`;
+        const featureHtml = `
+            <div class="card mb-2" id="${featureId}">
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-4">
+                            <input type="text" class="form-control feature-name" placeholder="Feature name (e.g., intentionality)" value="${name}">
+                        </div>
+                        <div class="col-md-7">
+                            <input type="text" class="form-control feature-description" placeholder="Description (e.g., Does it involve intention?)" value="${description}">
+                        </div>
+                        <div class="col-md-1">
+                            <button type="button" class="btn btn-sm btn-danger remove-feature-btn" data-feature-id="${featureId}">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+        document.getElementById('semantic-features-list').insertAdjacentHTML('beforeend', featureHtml);
+
+        // Add remove handler
+        document.querySelector(`#${featureId} .remove-feature-btn`).addEventListener('click', function() {
+            document.getElementById(featureId).remove();
+        });
+    }
+
+    // Initialize configuration display
+    function initializeConfig() {
+        const type = typeSelect.value;
+
+        if (type === 'temporal_evolution') {
+            temporalConfig.style.display = 'block';
+            domainConfig.style.display = 'none';
+            typeDescription.textContent = 'For temporal evolution, select documents from different time periods to analyze how concepts evolve over time.';
+
+            // Load existing temporal config
+            if (existingConfig.focus_term_id) {
+                const focusTermInput = document.getElementById('focus-term');
+                if (focusTermInput) focusTermInput.value = existingConfig.focus_term_id;
+            }
+
+            if (existingConfig.temporal_scope) {
+                const scope = existingConfig.temporal_scope;
+                if (scope.start_year) {
+                    document.getElementById('start-year').value = scope.start_year;
+                }
+                if (scope.end_year) {
+                    document.getElementById('end-year').value = scope.end_year;
+                }
+                if (scope.focus_disciplines) {
+                    document.getElementById('focus-disciplines').value = scope.focus_disciplines.join(', ');
+                }
+            }
+
+            // Load semantic features
+            document.getElementById('semantic-features-list').innerHTML = '';
+            if (existingConfig.semantic_features) {
+                Object.entries(existingConfig.semantic_features).forEach(([name, desc]) => {
+                    addSemanticFeature(name, desc);
+                });
+            }
+        } else if (type === 'domain_comparison') {
+            temporalConfig.style.display = 'none';
+            domainConfig.style.display = 'block';
+            typeDescription.textContent = 'For domain comparison, select documents from different domains to identify domain-specific terminology and concepts.';
+            
+            // Load existing domain config
+            if (existingConfig.domain_focus) {
+                document.getElementById('domain-focus').value = existingConfig.domain_focus;
+            }
+            if (existingConfig.target_terms) {
+                document.getElementById('target-terms').value = existingConfig.target_terms.join(', ');
+            }
+            if (existingConfig.extract_terminology !== undefined) {
+                document.getElementById('extract-terminology').checked = existingConfig.extract_terminology;
+            }
+            if (existingConfig.compare_ontologies !== undefined) {
+                document.getElementById('compare-ontologies').checked = existingConfig.compare_ontologies;
+            }
+            if (existingConfig.use_references !== undefined) {
+                document.getElementById('use-references').checked = existingConfig.use_references;
+            }
+        }
+    }
+    
+    // Initialize on load
+    initializeConfig();
+    updateSelectedCount();
+
+    // Update configuration options based on experiment type
+    typeSelect.addEventListener('change', initializeConfig);
+
+    // Add semantic feature button
+    document.getElementById('add-feature-btn')?.addEventListener('click', function() {
+        addSemanticFeature();
+    });
+    
+    // Document search
+    if (searchInput) {
+        searchInput.addEventListener('input', function() {
+            const searchTerm = this.value.toLowerCase();
+            const documentItems = document.querySelectorAll('.document-item');
+            
+            documentItems.forEach(item => {
+                const title = item.querySelector('.document-checkbox').dataset.title.toLowerCase();
+                const label = item.querySelector('label').textContent.toLowerCase();
+                
+                if (title.includes(searchTerm) || label.includes(searchTerm)) {
+                    item.style.display = 'block';
+                } else {
+                    item.style.display = 'none';
+                }
+            });
+        });
+    }
+    
+    // Select/Deselect all
+    document.getElementById('select-all')?.addEventListener('click', function() {
+        document.querySelectorAll('.document-checkbox:not([style*="display: none"])').forEach(cb => {
+            if (cb.closest('.document-item').style.display !== 'none') {
+                cb.checked = true;
+            }
+        });
+        updateSelectedCount();
+    });
+    
+    document.getElementById('deselect-all')?.addEventListener('click', function() {
+        document.querySelectorAll('.document-checkbox').forEach(cb => cb.checked = false);
+        updateSelectedCount();
+    });
+    
+    // Update selected count
+    function updateSelectedCount() {
+        const selected = document.querySelectorAll('.document-checkbox:checked');
+        let totalWordCount = 0;
+        
+        selected.forEach(cb => {
+            totalWordCount += parseInt(cb.dataset.words) || 0;
+        });
+        
+        selectedCount.textContent = selected.length;
+        totalWords.textContent = totalWordCount.toLocaleString();
+    }
+    
+    // Listen for checkbox changes
+    document.querySelectorAll('.document-checkbox').forEach(cb => {
+        cb.addEventListener('change', updateSelectedCount);
+    });
+    
+    // Form submission
+    form.addEventListener('submit', async function(e) {
+        e.preventDefault();
+        
+        const name = document.getElementById('experiment-name').value.trim();
+        const type = document.getElementById('experiment-type').value;
+        const description = document.getElementById('experiment-description').value.trim();
+        
+        const selectedDocs = Array.from(document.querySelectorAll('.document-checkbox:checked'))
+            .map(cb => parseInt(cb.value));
+        
+        if (!name) {
+            alert('Please enter an experiment name');
+            return;
+        }
+        
+        if (!type) {
+            alert('Please select an experiment type');
+            return;
+        }
+        
+        if (selectedDocs.length === 0) {
+            alert('Please select at least one document');
+            return;
+        }
+        
+        // Build configuration based on type
+        const configuration = {};
+        if (type === 'temporal_evolution') {
+            const focusTerm = document.getElementById('focus-term').value.trim();
+            const startYear = parseInt(document.getElementById('start-year').value) || null;
+            const endYear = parseInt(document.getElementById('end-year').value) || null;
+            const disciplinesStr = document.getElementById('focus-disciplines').value.trim();
+
+            if (!focusTerm) {
+                alert('Please enter a focus term for the temporal evolution experiment');
+                return;
+            }
+
+            // Collect semantic features
+            const semanticFeatures = {};
+            document.querySelectorAll('#semantic-features-list .card').forEach(card => {
+                const name = card.querySelector('.feature-name').value.trim();
+                const desc = card.querySelector('.feature-description').value.trim();
+                if (name && desc) {
+                    semanticFeatures[name] = desc;
+                }
+            });
+
+            if (Object.keys(semanticFeatures).length === 0) {
+                alert('Please add at least one semantic feature');
+                return;
+            }
+
+            configuration.focus_term_id = focusTerm;
+            configuration.temporal_scope = {
+                start_year: startYear,
+                end_year: endYear,
+                focus_disciplines: disciplinesStr ? disciplinesStr.split(',').map(d => d.trim()).filter(Boolean) : []
+            };
+            configuration.semantic_features = semanticFeatures;
+        } else if (type === 'domain_comparison') {
+            configuration.domain_focus = document.getElementById('domain-focus').value;
+            configuration.extract_terminology = document.getElementById('extract-terminology').checked;
+            configuration.compare_ontologies = document.getElementById('compare-ontologies').checked;
+            const targetTermsVal = document.getElementById('target-terms').value || '';
+            configuration.target_terms = targetTermsVal.split(',').map(t => t.trim()).filter(Boolean);
+            configuration.use_references = document.getElementById('use-references').checked;
+        }
+        
+        try {
+            const response = await fetch(`/experiments/{{ experiment.id }}/update`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    name: name,
+                    description: description,
+                    experiment_type: type,
+                    document_ids: selectedDocs,
+                    configuration: configuration
+                })
+            });
+            
+            const data = await response.json();
+            if (data.success) {
+                window.location.href = `/experiments/{{ experiment.id }}`;
+            } else {
+                alert('Error: ' + data.error);
+            }
+        } catch (error) {
+            alert('Error updating experiment: ' + error.message);
+        }
+    });
+});
+</script>
+{% endblock %}

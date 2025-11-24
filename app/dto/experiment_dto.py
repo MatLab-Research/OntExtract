@@ -26,6 +26,7 @@ class CreateExperimentDTO(BaseDTO):
         pattern="^(entity_extraction|temporal_evolution|domain_comparison)$",
         description="Type of experiment to run"
     )
+    term_id: Optional[str] = Field(None, description="Term ID (UUID) for temporal evolution experiments")
     document_ids: List[int] = Field(default_factory=list, description="List of document IDs")
     reference_ids: List[int] = Field(default_factory=list, description="List of reference IDs")
     configuration: Dict[str, Any] = Field(default_factory=dict, description="Experiment configuration")
@@ -60,6 +61,7 @@ class UpdateExperimentDTO(BaseDTO):
 
     name: Optional[str] = Field(None, min_length=1, max_length=200)
     description: Optional[str] = Field(None, max_length=2000)
+    term_id: Optional[str] = Field(None, description="Term ID (UUID) for temporal evolution experiments")
     configuration: Optional[Dict[str, Any]] = None
     document_ids: Optional[List[int]] = None
     reference_ids: Optional[List[int]] = None

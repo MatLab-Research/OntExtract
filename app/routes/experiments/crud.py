@@ -240,6 +240,8 @@ def view(experiment_id):
 @write_login_required
 def edit(experiment_id):
     """Edit experiment"""
+    from app.models import Term
+
     experiment = Experiment.query.filter_by(id=experiment_id).first_or_404()
 
     # Can only edit experiments that are not running
@@ -247,16 +249,30 @@ def edit(experiment_id):
         flash('Cannot edit an experiment that is currently running', 'error')
         return redirect(url_for('experiments.view', experiment_id=experiment_id))
 
-    # Get all documents for all users
-    documents = Document.query.order_by(Document.created_at.desc()).all()
+    # Get documents and references separately (matching new route structure)
+    documents = Document.query.filter_by(document_type='document').order_by(Document.created_at.desc()).all()
+    references = Document.query.filter_by(document_type='reference').order_by(Document.created_at.desc()).all()
 
-    # Get IDs of documents already in the experiment
-    selected_doc_ids = [doc.id for doc in experiment.documents]
+    # Get all terms for the focus term dropdown
+    terms = Term.query.order_by(Term.term_text).all()
+
+    # Get IDs of documents and references already in the experiment
+    selected_doc_ids = [doc.id for doc in experiment.documents if doc.document_type == 'document']
+    selected_ref_ids = [doc.id for doc in experiment.documents if doc.document_type == 'reference']
+
+    # Get focus term ID from proper term_id foreign key column
+    selected_term_ids = []
+    if experiment.term_id:
+        selected_term_ids = [str(experiment.term_id)]
 
     return render_template('experiments/edit.html',
                          experiment=experiment,
                          documents=documents,
-                         selected_doc_ids=selected_doc_ids)
+                         references=references,
+                         terms=terms,
+                         selected_doc_ids=selected_doc_ids,
+                         selected_ref_ids=selected_ref_ids,
+                         selected_term_ids=selected_term_ids)
 
 
 @experiments_bp.route('/<int:experiment_id>/update', methods=['POST'])

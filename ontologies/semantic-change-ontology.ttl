@@ -1,0 +1,203 @@
+@prefix sco: <http://ontextract.org/sco#> .
+@prefix bfo: <http://purl.obolibrary.org/obo/> .
+@prefix time: <http://www.w3.org/2006/time#> .
+@prefix skos: <http://www.w3.org/2004/02/skos/core#> .
+@prefix prov: <http://www.w3.org/ns/prov#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+@prefix dcterms: <http://purl.org/dc/terms/> .
+
+# Ontology metadata
+sco: a owl:Ontology ;
+    rdfs:label "Semantic Change Ontology" ;
+    rdfs:comment "Ontology for modeling semantic change phenomena in terminology research using BFO" ;
+    dcterms:creator "OntExtract Project" ;
+    dcterms:created "2025-11-21"^^xsd:date ;
+    dcterms:description "Models semantic change events (inflection points, stable polysemy, etc.) as BFO processes with PROV-O provenance tracking for research annotations." ;
+    owl:versionInfo "1.0.0" ;
+    owl:imports <http://purl.obolibrary.org/obo/bfo.owl> ,
+                <http://www.w3.org/2006/time> ,
+                <http://www.w3.org/2004/02/skos/core> ,
+                <http://www.w3.org/ns/prov#> .
+
+# === Core Semantic Change Event Classes ===
+
+sco:SemanticChangeEvent a owl:Class ;
+    rdfs:subClassOf bfo:BFO_0000015 ;  # bfo:Process
+    rdfs:label "Semantic Change Event" ;
+    rdfs:comment "A process by which the meaning of a term changes over time. This is the top-level class for all semantic change phenomena." ;
+    skos:definition "A temporal process wherein a linguistic term undergoes modification in its semantic content, usage patterns, or conceptual associations within a discourse community." .
+
+# Specific Event Types (based on research literature)
+
+sco:InflectionPoint a owl:Class ;
+    rdfs:subClassOf sco:SemanticChangeEvent ;
+    rdfs:label "Inflection Point" ;
+    rdfs:comment "Rapid semantic transition marking shift between distinct meanings. Characterized by abrupt change in term usage patterns." ;
+    skos:definition "A semantic change event characterized by an abrupt, concentrated shift in meaning occurring within a relatively short temporal window." ;
+    skos:example "The term 'agent' in 1995: transition from primarily human actor to computational system in AI discourse." ;
+    skos:example "The term 'ontology' in 1993: shift from philosophical metaphysics to information science knowledge representation." .
+
+sco:StablePolysemy a owl:Class ;
+    rdfs:subClassOf sco:SemanticChangeEvent ;
+    rdfs:label "Stable Polysemy" ;
+    rdfs:comment "Multiple distinct meanings coexist without conflict across disciplines. No single dominant sense emerges." ;
+    skos:definition "A semantic state wherein a term maintains multiple distinct, stable meanings across different discourse communities without one meaning dominating or replacing others." ;
+    skos:example "The term 'agent' in 2024: simultaneously refers to legal person (law), autonomous system (AI), and chemical catalyst (chemistry)." .
+
+sco:DomainNetwork a owl:Class ;
+    rdfs:subClassOf sco:SemanticChangeEvent ;
+    rdfs:label "Domain Network" ;
+    rdfs:comment "Development of discipline-specific semantic network with specialized terminology." ;
+    skos:definition "The emergence of a domain-specific constellation of meanings and related terms forming a coherent semantic network within a particular field." ;
+    skos:example "In AI discourse, 'agent' develops associations with: percept-action loop, rationality, autonomy, multi-agent systems." .
+
+sco:ConceptualBridge a owl:Class ;
+    rdfs:subClassOf sco:SemanticChangeEvent ;
+    rdfs:label "Conceptual Bridge" ;
+    rdfs:comment "Work or publication that mediates between different disciplinary meanings, facilitating semantic transfer." ;
+    skos:definition "A scholarly contribution that explicitly connects or transfers meaning between different disciplinary contexts, enabling cross-domain semantic evolution." ;
+    skos:example "Anscombe's 'Intention' (1957): bridges legal concept of agency to philosophical analysis of action." .
+
+sco:SemanticDrift a owl:Class ;
+    rdfs:subClassOf sco:SemanticChangeEvent ;
+    rdfs:label "Semantic Drift" ;
+    rdfs:comment "Gradual, incremental meaning change over extended period without distinct inflection point." ;
+    skos:definition "A semantic change process characterized by slow, continuous modification of meaning over an extended temporal interval." ;
+    skos:example "The gradual shift in 'computer' from human occupation (1920s-1940s) to electronic machine (1950s onwards)." .
+
+sco:Emergence a owl:Class ;
+    rdfs:subClassOf sco:SemanticChangeEvent ;
+    rdfs:label "Emergence" ;
+    rdfs:comment "New meaning appears in discourse, often through neologism or semantic extension." ;
+    skos:definition "The introduction of a previously non-existent meaning or sense for a term within a discourse community." ;
+    skos:example "Emergence of 'cloud' as distributed computing infrastructure in late 2000s." .
+
+sco:Decline a owl:Class ;
+    rdfs:subClassOf sco:SemanticChangeEvent ;
+    rdfs:label "Decline" ;
+    rdfs:comment "Meaning becomes obsolete, archaic, or significantly less frequent in usage." ;
+    skos:definition "The process by which a particular sense or meaning of a term becomes progressively less common, eventually reaching obsolescence." ;
+    skos:example "Decline of 'computer' as human occupation after widespread adoption of electronic computers." .
+
+# === Properties for Semantic Change ===
+
+sco:affectsConcept a owl:ObjectProperty ;
+    rdfs:label "affects concept" ;
+    rdfs:comment "Links a semantic change event to the term/concept undergoing change." ;
+    rdfs:domain sco:SemanticChangeEvent ;
+    rdfs:range skos:Concept ;
+    skos:definition "Relates a semantic change event to the linguistic concept or term that is the subject of the change." .
+
+sco:occursDuringInterval a owl:ObjectProperty ;
+    rdfs:label "occurs during interval" ;
+    rdfs:comment "Links semantic change event to the temporal interval when it occurred." ;
+    rdfs:domain sco:SemanticChangeEvent ;
+    rdfs:range time:Interval ;
+    skos:definition "Specifies the temporal region during which a semantic change event took place." .
+
+sco:hasFromMeaning a owl:ObjectProperty ;
+    rdfs:label "has from meaning" ;
+    rdfs:comment "The original or source meaning before the semantic change." ;
+    rdfs:domain sco:SemanticChangeEvent ;
+    rdfs:range skos:Concept ;
+    skos:definition "Indicates the semantic content or meaning that served as the starting point for a semantic change event." .
+
+sco:hasToMeaning a owl:ObjectProperty ;
+    rdfs:label "has to meaning" ;
+    rdfs:comment "The new or target meaning after the semantic change." ;
+    rdfs:domain sco:SemanticChangeEvent ;
+    rdfs:range skos:Concept ;
+    skos:definition "Indicates the semantic content or meaning that resulted from a semantic change event." .
+
+sco:evidencedBy a owl:ObjectProperty ;
+    rdfs:label "evidenced by" ;
+    rdfs:comment "Links semantic change event to documentary evidence supporting its identification." ;
+    rdfs:domain sco:SemanticChangeEvent ;
+    rdfs:range bfo:BFO_0000016 ;  # bfo:InformationContentEntity (documents)
+    skos:definition "Associates a semantic change event with a document or information artifact that provides evidence for the change." .
+
+sco:hasTextualEvidence a owl:ObjectProperty ;
+    rdfs:label "has textual evidence" ;
+    rdfs:comment "Links to specific text segment providing evidence for semantic change." ;
+    rdfs:domain sco:SemanticChangeEvent ;
+    rdfs:subPropertyOf sco:evidencedBy ;
+    skos:definition "Relates a semantic change event to a specific textual passage that exemplifies or evidences the change." .
+
+sco:occursInDomain a owl:ObjectProperty ;
+    rdfs:label "occurs in domain" ;
+    rdfs:comment "The disciplinary or discourse domain where semantic change occurs." ;
+    rdfs:domain sco:SemanticChangeEvent ;
+    rdfs:range skos:Concept ;
+    skos:definition "Specifies the academic discipline, professional field, or discourse community within which a semantic change event manifests." .
+
+# === Datatype Properties ===
+
+sco:hasConfidence a owl:DatatypeProperty ;
+    rdfs:label "has confidence" ;
+    rdfs:comment "Researcher's confidence in the semantic change annotation (0.0-1.0)." ;
+    rdfs:domain sco:SemanticChangeEvent ;
+    rdfs:range xsd:float ;
+    skos:definition "A numerical value between 0.0 and 1.0 indicating the annotator's confidence in the identification and classification of a semantic change event." .
+
+sco:hasStartYear a owl:DatatypeProperty ;
+    rdfs:label "has start year" ;
+    rdfs:comment "Calendar year when semantic change began (for query convenience)." ;
+    rdfs:domain sco:SemanticChangeEvent ;
+    rdfs:range xsd:integer ;
+    skos:definition "The calendar year marking the beginning of a semantic change event, cached from temporal interval for efficient querying." .
+
+sco:hasEndYear a owl:DatatypeProperty ;
+    rdfs:label "has end year" ;
+    rdfs:comment "Calendar year when semantic change completed or stabilized (for query convenience)." ;
+    rdfs:domain sco:SemanticChangeEvent ;
+    rdfs:range xsd:integer ;
+    skos:definition "The calendar year marking the conclusion or stabilization of a semantic change event, cached from temporal interval for efficient querying." .
+
+sco:hasDescription a owl:DatatypeProperty ;
+    rdfs:label "has description" ;
+    rdfs:comment "Human-readable description of the semantic change event." ;
+    rdfs:domain sco:SemanticChangeEvent ;
+    rdfs:range xsd:string ;
+    skos:definition "A natural language description explaining the nature, context, and significance of a semantic change event." .
+
+# === Integration with PROV-O ===
+# Note: PROV-O classes and properties are imported, not redefined
+# Semantic change events can be linked to PROV-O provenance:
+# - prov:wasAttributedTo -> links event to researcher who identified it
+# - prov:wasGeneratedBy -> links event to annotation activity
+# - prov:wasDerivedFrom -> links event to source document analysis
+# - prov:used -> links annotation activity to source documents
+
+# === Annotation Guidelines (as OWL annotations) ===
+
+sco: rdfs:seeAlso <https://github.com/MatLab-Research/OntExtract/docs/semantic-change-annotation-guidelines> ;
+    rdfs:comment """
+    Annotation Guidelines:
+
+    1. Event Type Selection:
+       - InflectionPoint: Use when change occurs rapidly (< 5 years typically)
+       - StablePolysemy: Use when multiple meanings coexist without conflict
+       - DomainNetwork: Use when term develops field-specific semantic cluster
+       - ConceptualBridge: Use for works that explicitly connect disciplines
+       - SemanticDrift: Use for gradual change over extended period (> 10 years)
+       - Emergence: Use when entirely new meaning appears
+       - Decline: Use when existing meaning becomes obsolete
+
+    2. Evidence Requirements:
+       - Minimum: 2 documents from different time periods
+       - Preferred: Explicit discussion of term usage in scholarly work
+       - Ideal: Quantitative frequency data + qualitative analysis
+
+    3. Confidence Scores:
+       - 0.9-1.0: Strong textual evidence, clear temporal boundaries
+       - 0.7-0.9: Good evidence, approximate temporal boundaries
+       - 0.5-0.7: Suggestive evidence, uncertain boundaries
+       - < 0.5: Speculative, requires further investigation
+
+    4. Temporal Precision:
+       - Use OWL-Time intervals when possible
+       - For approximate dating, use decade-level granularity
+       - Document uncertainty in description field
+    """ .

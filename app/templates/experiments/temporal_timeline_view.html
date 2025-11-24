@@ -1,0 +1,286 @@
+{% extends "base.html" %}
+
+{% block title %}Timeline - {{ experiment.name }} - OntExtract{% endblock %}
+
+{% block content %}
+<style>
+    /* Full-width timeline styles */
+    body {
+        overflow-x: auto;
+    }
+
+    .timeline-header {
+        background: white;
+        border-bottom: 1px solid #dee2e6;
+        padding: 20px 0;
+        position: sticky;
+        top: 0;
+        z-index: 100;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    }
+
+    .timeline-content {
+        padding: 40px 60px;
+        min-height: calc(100vh - 140px);
+        background: #f8f9fa;
+    }
+
+    /* Horizontal Timeline Layout */
+    .horizontal-timeline-container {
+        padding: 20px 0;
+        min-height: 500px;
+    }
+
+    .periods-row {
+        display: flex;
+        margin-bottom: 60px;
+        gap: 4px;
+        position: relative;
+        min-width: max-content;
+    }
+
+    .period-segment {
+        flex: 1;
+        min-width: 250px;
+        padding: 30px 24px;
+        border-radius: 12px;
+        text-align: center;
+        position: relative;
+        transition: all 0.3s ease;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+
+    .period-segment:hover {
+        opacity: 1 !important;
+        transform: translateY(-6px);
+        box-shadow: 0 8px 20px rgba(0,0,0,0.15);
+    }
+
+    .period-label {
+        font-size: 1.3rem;
+        font-weight: 700;
+        color: #212529;
+        margin-bottom: 12px;
+        line-height: 1.3;
+    }
+
+    .period-years {
+        font-size: 1.1rem;
+        color: #495057;
+        font-weight: 600;
+    }
+
+    /* Events Section */
+    .events-section {
+        margin-top: 20px;
+    }
+
+    .events-section-title {
+        font-size: 1.4rem;
+        font-weight: 700;
+        color: #212529;
+        margin-bottom: 30px;
+        padding-bottom: 10px;
+        border-bottom: 3px solid #6f42c1;
+    }
+
+    .events-row {
+        display: flex;
+        flex-direction: column;
+        gap: 24px;
+        position: relative;
+        min-width: max-content;
+    }
+
+    .timeline-event-card {
+        display: flex;
+        align-items: flex-start;
+        gap: 20px;
+        padding: 24px 28px;
+        background: white;
+        border: 1px solid #dee2e6;
+        border-left: 5px solid #6f42c1;
+        border-radius: 10px;
+        box-shadow: 0 3px 10px rgba(0,0,0,0.08);
+        transition: all 0.3s ease;
+        min-width: 700px;
+        max-width: 1200px;
+    }
+
+    .timeline-event-card:hover {
+        box-shadow: 0 6px 18px rgba(0,0,0,0.15);
+        transform: translateX(12px);
+        border-left-color: #563d7c;
+    }
+
+    .event-arrow {
+        font-size: 2rem;
+        color: #6f42c1;
+        padding-top: 6px;
+        font-weight: bold;
+    }
+
+    .event-arrow::before {
+        content: "→";
+    }
+
+    .event-content {
+        flex: 1;
+    }
+
+    .event-type-badge {
+        display: inline-block;
+        padding: 6px 16px;
+        background: linear-gradient(135deg, #6f42c1 0%, #563d7c 100%);
+        color: white;
+        border-radius: 6px;
+        font-size: 0.95rem;
+        font-weight: 600;
+        margin-bottom: 12px;
+        box-shadow: 0 2px 4px rgba(111, 66, 193, 0.3);
+    }
+
+    .event-description {
+        font-size: 1.05rem;
+        color: #495057;
+        line-height: 1.7;
+        margin-bottom: 12px;
+    }
+
+    .event-citation {
+        font-size: 0.9rem;
+        color: #6c757d;
+        font-style: italic;
+        padding-top: 8px;
+        border-top: 1px dashed #dee2e6;
+    }
+
+    .event-citation i {
+        margin-right: 6px;
+        color: #6f42c1;
+    }
+
+    /* Empty state */
+    .empty-timeline {
+        text-align: center;
+        padding: 80px 40px;
+        color: #6c757d;
+    }
+
+    .empty-timeline i {
+        font-size: 4rem;
+        color: #dee2e6;
+        margin-bottom: 20px;
+    }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+        .timeline-content {
+            padding: 20px;
+        }
+
+        .period-segment {
+            min-width: 200px;
+            padding: 20px 16px;
+        }
+
+        .period-label {
+            font-size: 1.1rem;
+        }
+
+        .period-years {
+            font-size: 0.95rem;
+        }
+
+        .timeline-event-card {
+            min-width: 500px;
+            padding: 16px 20px;
+        }
+
+        .event-type-badge {
+            font-size: 0.85rem;
+        }
+
+        .event-description {
+            font-size: 0.95rem;
+        }
+    }
+</style>
+
+<div class="timeline-header">
+    <div class="container-fluid px-4">
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <h2 class="mb-1">{{ experiment.name }}</h2>
+                <p class="text-muted mb-0">
+                    <i class="fas fa-stream"></i> Temporal Timeline Visualization
+                </p>
+            </div>
+            <div>
+                <a href="{{ url_for('experiments.manage_temporal_terms', experiment_id=experiment.id) }}"
+                   class="btn btn-outline-secondary">
+                    <i class="fas fa-arrow-left"></i> Back to Management
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="timeline-content">
+    {% if periods and periods|length > 0 %}
+    <div class="horizontal-timeline-container">
+        <!-- Periods Row -->
+        <div class="periods-row">
+            {% for period in periods %}
+            <div class="period-segment"
+                 data-period-id="{{ period.id }}"
+                 data-start="{{ period.start_year }}"
+                 data-end="{{ period.end_year }}"
+                 style="background: linear-gradient(135deg, {{ period.color }} 0%, {{ period.color }}dd 100%); opacity: 0.9;">
+                <div class="period-label">{{ period.label }}</div>
+                <div class="period-years">{{ period.start_year }}–{{ period.end_year }}</div>
+            </div>
+            {% endfor %}
+        </div>
+
+        <!-- Events Section -->
+        {% if semantic_events and semantic_events|length > 0 %}
+        <div class="events-section">
+            <div class="events-section-title">
+                <i class="fas fa-bolt"></i> Semantic Change Events
+            </div>
+            <div class="events-row">
+                {% for event in semantic_events %}
+                <div class="timeline-event-card"
+                     data-event-id="{{ event.id }}"
+                     data-from-period="{{ event.from_period }}"
+                     data-to-period="{{ event.to_period }}">
+                    <div class="event-arrow"></div>
+                    <div class="event-content">
+                        <div class="event-type-badge">{{ event.type_label }}</div>
+                        <div class="event-description">{{ event.description }}</div>
+                        {% if event.citation %}
+                        <div class="event-citation">
+                            <i class="bi bi-book"></i> {{ event.citation }}
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+    {% else %}
+    <div class="empty-timeline">
+        <i class="fas fa-stream"></i>
+        <h3>No Timeline Data</h3>
+        <p class="text-muted">
+            Return to <a href="{{ url_for('experiments.manage_temporal_terms', experiment_id=experiment.id) }}">Temporal Term Manager</a>
+            to configure periods and semantic events.
+        </p>
+    </div>
+    {% endif %}
+</div>
+
+{% endblock %}

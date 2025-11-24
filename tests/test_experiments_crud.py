@@ -55,14 +55,14 @@ class TestExperimentsList:
 class TestExperimentCreate:
     """Test experiment creation endpoints."""
 
-    def test_new_experiment_form_renders(self, client):
+    def test_new_experiment_form_renders(self, auth_client):
         """Test that the new experiment form renders."""
-        response = client.get('/experiments/new')
+        response = auth_client.get('/experiments/new')
         assert response.status_code == 200
 
-    def test_wizard_renders(self, client):
+    def test_wizard_renders(self, auth_client):
         """Test that the wizard page renders."""
-        response = client.get('/experiments/wizard')
+        response = auth_client.get('/experiments/wizard')
         assert response.status_code == 200
 
     def test_create_experiment_requires_login(self, client):
@@ -100,7 +100,9 @@ class TestExperimentCreate:
             content_type='application/json'
         )
         assert response.status_code == 400
-        assert b'name is required' in response.data.lower()
+        # Pydantic validation error includes "name" in loc and "field required" in msg
+        assert b'name' in response.data.lower()
+        assert b'field required' in response.data.lower()
 
     def test_create_experiment_missing_type(self, auth_client):
         """Test that creating experiment without type fails."""
@@ -114,10 +116,12 @@ class TestExperimentCreate:
             content_type='application/json'
         )
         assert response.status_code == 400
-        assert b'type is required' in response.data.lower()
+        # Pydantic validation error for experiment_type
+        assert b'experiment_type' in response.data.lower()
+        assert b'field required' in response.data.lower()
 
     def test_create_experiment_missing_documents(self, auth_client):
-        """Test that creating experiment without documents fails."""
+        """Test that creating experiment without documents succeeds (document_ids is optional)."""
         data = {
             'name': 'Test Experiment',
             'experiment_type': 'domain_comparison'
@@ -127,7 +131,8 @@ class TestExperimentCreate:
             data=json.dumps(data),
             content_type='application/json'
         )
-        assert response.status_code == 400
+        # document_ids is optional, should succeed
+        assert response.status_code in [200, 201, 302]
 
     def test_create_sample_experiment(self, auth_client):
         """Test creating a sample experiment."""

@@ -30,6 +30,10 @@ class DocumentTemporalMetadata(db.Model):
     temporal_period = db.Column(db.String(100))
     temporal_start_year = db.Column(db.Integer)
     temporal_end_year = db.Column(db.Integer)
+
+    # DEPRECATED: Use Document.publication_date instead
+    # This field is kept for backward compatibility but new code should use
+    # the Document.publication_date field which supports flexible formats (year, year-month, full date)
     publication_year = db.Column(db.Integer)
 
     # Disciplinary classification

@@ -46,7 +46,8 @@ def sample_experiment_with_documents(db_session, test_user):
     db_session.add(experiment)
     db_session.flush()
 
-    # Create documents
+    # Create documents and add them to experiment
+    documents = []
     for i in range(3):
         doc = Document(
             title=f'Test Document {i+1}',
@@ -60,6 +61,15 @@ def sample_experiment_with_documents(db_session, test_user):
             word_count=200
         )
         db_session.add(doc)
+        documents.append(doc)
+
+    # Flush to get document IDs
+    db_session.flush()
+
+    # Add documents to experiment's documents relationship
+    # Note: experiment.documents is a dynamic relationship, use append()
+    for doc in documents:
+        experiment.documents.append(doc)
 
     db_session.commit()
     return experiment
@@ -272,8 +282,10 @@ class TestBuildProcessingState:
     ):
         """Test state building with user-modified strategy."""
         # Add modified strategy
+        # Note: documents is a dynamic relationship, must call .all() first
+        docs = completed_recommendation_run.experiment.documents.all()
         modified_strategy = {
-            str(completed_recommendation_run.experiment.documents[0].id): ['extract_entities_spacy', 'extract_temporal', 'extract_definitions']
+            str(docs[0].id): ['extract_entities_spacy', 'extract_temporal', 'extract_definitions']
         }
         completed_recommendation_run.modified_strategy = modified_strategy
         db_session.commit()
