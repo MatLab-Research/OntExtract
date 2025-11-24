@@ -10,12 +10,17 @@ from app.models.experiment_orchestration_run import ExperimentOrchestrationRun
 from app.services.workflow_executor import get_workflow_executor
 import logging
 from datetime import datetime
+import os
 
 logger = logging.getLogger(__name__)
 
 # Get Celery instance (lazy initialization)
 celery = get_celery()
 workflow_executor = get_workflow_executor()
+
+# Debug: Log API key status at module load
+api_key = os.environ.get('ANTHROPIC_API_KEY', 'NOT_FOUND')
+logger.info(f"[Task Module Init] ANTHROPIC_API_KEY present: {api_key != 'NOT_FOUND'}, length: {len(api_key) if api_key != 'NOT_FOUND' else 0}")
 
 
 @celery.task(bind=True, name='app.tasks.orchestration.run_orchestration')
@@ -36,6 +41,10 @@ def run_orchestration_task(self, run_id: str, review_choices: bool):
     Raises:
         Exception: Any unhandled errors are caught, logged, and marked in database
     """
+    # Debug: Log API key status at task start
+    task_api_key = os.environ.get('ANTHROPIC_API_KEY', 'NOT_FOUND')
+    logger.info(f"[Celery Task {self.request.id}] ANTHROPIC_API_KEY at task start: present={task_api_key != 'NOT_FOUND'}, length={len(task_api_key) if task_api_key != 'NOT_FOUND' else 0}")
+
     logger.info(f"[Celery Task {self.request.id}] Starting orchestration for run {run_id}")
 
     try:
