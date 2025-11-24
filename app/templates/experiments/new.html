@@ -125,6 +125,14 @@
 
                                     {# Existing References List #}
                                     {% if references %}
+                                    <div class="mb-2 text-end">
+                                        <button type="button" class="btn btn-sm btn-outline-success" id="select-all-refs">
+                                            Select All
+                                        </button>
+                                        <button type="button" class="btn btn-sm btn-outline-secondary" id="deselect-all-refs">
+                                            Deselect All
+                                        </button>
+                                    </div>
                                     <div class="reference-list border rounded p-3" style="max-height: 300px; overflow-y: auto;">
                                         {% for reference in references %}
                                         <div class="form-check reference-item mb-2">
@@ -215,6 +223,54 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
+    // Document search functionality
+    const documentSearch = document.getElementById('document-search');
+    if (documentSearch) {
+        documentSearch.addEventListener('input', function() {
+            const searchTerm = this.value.toLowerCase();
+            const documentItems = document.querySelectorAll('.document-item');
+
+            documentItems.forEach(item => {
+                const title = item.querySelector('[data-title]')?.getAttribute('data-title')?.toLowerCase() || '';
+                const label = item.querySelector('label')?.textContent?.toLowerCase() || '';
+
+                if (title.includes(searchTerm) || label.includes(searchTerm)) {
+                    item.style.display = '';
+                } else {
+                    item.style.display = 'none';
+                }
+            });
+        });
+    }
+
+    // Select All / Deselect All for documents
+    document.getElementById('select-all-docs')?.addEventListener('click', function() {
+        document.querySelectorAll('.document-checkbox').forEach(cb => {
+            if (cb.closest('.document-item').style.display !== 'none') {
+                cb.checked = true;
+            }
+        });
+    });
+
+    document.getElementById('deselect-all-docs')?.addEventListener('click', function() {
+        document.querySelectorAll('.document-checkbox').forEach(cb => {
+            cb.checked = false;
+        });
+    });
+
+    // Select All / Deselect All for references
+    document.getElementById('select-all-refs')?.addEventListener('click', function() {
+        document.querySelectorAll('.reference-checkbox').forEach(cb => {
+            cb.checked = true;
+        });
+    });
+
+    document.getElementById('deselect-all-refs')?.addEventListener('click', function() {
+        document.querySelectorAll('.reference-checkbox').forEach(cb => {
+            cb.checked = false;
+        });
+    });
+
     // Form submission
     form.addEventListener('submit', async function(e) {
         e.preventDefault();
@@ -252,32 +308,42 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
 
-        // Build configuration
-        const configuration = {};
+        // Get term_id for temporal evolution (send as top-level field, not in configuration)
+        let termId = null;
         if (type === 'temporal_evolution') {
-            const termId = document.getElementById('focus-term')?.value;
+            termId = document.getElementById('focus-term')?.value;
             if (!termId) {
                 alert('Please select a focus term for temporal evolution experiments');
                 return;
             }
-            configuration.focus_term_id = termId;
-        } else if (type === 'domain_comparison') {
+        }
+
+        // Build configuration (for experiment-specific settings, not term_id)
+        const configuration = {};
+        if (type === 'domain_comparison') {
             const domains = document.getElementById('domain-focus')?.value;
             if (domains) configuration.domain_focus = domains;
         }
 
         try {
+            const requestBody = {
+                name: name,
+                description: description,
+                experiment_type: type,
+                document_ids: documentIds,
+                reference_ids: referenceIds,
+                configuration: configuration
+            };
+
+            // Add term_id as top-level field for temporal evolution
+            if (termId) {
+                requestBody.term_id = termId;
+            }
+
             const response = await fetch('/experiments/create', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({
-                    name: name,
-                    description: description,
-                    experiment_type: type,
-                    document_ids: documentIds,
-                    reference_ids: referenceIds,
-                    configuration: configuration
-                })
+                body: JSON.stringify(requestBody)
             });
 
             const data = await response.json();

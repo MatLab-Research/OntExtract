@@ -1,11 +1,20 @@
 {# Component for multi-document selection mode #}
 {# Shows full document selection UI with search and checkboxes #}
 
-<input type="text" class="form-control mb-3" id="document-search"
-       placeholder="🔍 Filter documents by name or content...">
-<small class="text-muted d-block mb-2">
-    <i class="fas fa-info-circle"></i> Type to filter the list of documents below
-</small>
+<div class="row mb-3">
+    <div class="col-md-7">
+        <input type="text" class="form-control" id="document-search"
+               placeholder="🔍 Filter documents by name or content...">
+    </div>
+    <div class="col-md-5 text-end">
+        <button type="button" class="btn btn-sm btn-outline-primary" id="select-all-docs">
+            Select All
+        </button>
+        <button type="button" class="btn btn-sm btn-outline-secondary" id="deselect-all-docs">
+            Deselect All
+        </button>
+    </div>
+</div>
 
 <div class="document-list border rounded p-3" style="max-height: 300px; overflow-y: auto;">
     {% for document in documents %}
