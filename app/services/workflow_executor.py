@@ -372,15 +372,30 @@ class WorkflowExecutor:
 
     async def _execute_graph(self, state: Dict[str, Any]) -> Dict[str, Any]:
         """
-        Execute the LangGraph (Stages 1-2 only).
+        Execute the LangGraph (Stages 1-2 only) with checkpointing.
+
+        Uses the run_id as thread_id for checkpoint persistence. This allows:
+        - Background execution without blocking
+        - State persistence across app restarts
+        - Ability to resume from any checkpoint
 
         Args:
-            state: Initial state
+            state: Initial state with run_id
 
         Returns:
             Updated state after execution
         """
-        result = await self.graph.ainvoke(state)
+        # Use run_id as thread_id for checkpointing
+        # This creates a unique checkpoint namespace per orchestration run
+        thread_id = str(state.get('run_id'))
+
+        config = {
+            "configurable": {
+                "thread_id": thread_id
+            }
+        }
+
+        result = await self.graph.ainvoke(state, config=config)
         return result
 
     async def _execute_processing(self, state: Dict[str, Any]) -> Dict[str, Any]:

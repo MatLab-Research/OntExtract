@@ -22,7 +22,9 @@ Workflow:
 """
 
 from langgraph.graph import StateGraph, END
+from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
 from typing import Literal
+import os
 
 from .experiment_state import ExperimentOrchestrationState
 from .experiment_nodes import (
@@ -36,10 +38,13 @@ from .experiment_nodes import (
 
 def create_experiment_orchestration_graph():
     """
-    Create the experiment-level orchestration LangGraph.
+    Create the experiment-level orchestration LangGraph with PostgreSQL persistence.
+
+    Uses PostgreSQL checkpointer for background execution and state persistence.
+    This allows workflows to run asynchronously and survive app restarts.
 
     Returns:
-        Compiled StateGraph ready for execution
+        Compiled StateGraph with PostgreSQL checkpointer
     """
 
     # Initialize graph with state schema
@@ -61,8 +66,16 @@ def create_experiment_orchestration_graph():
     # Processing (Stages 4-5) will happen separately after approval
     workflow.add_edge("recommend_strategy", END)
 
-    # Compile graph
-    return workflow.compile()
+    # Create async PostgreSQL checkpointer for persistence
+    # Uses connection pooling and async operations for better performance
+    db_uri = os.environ.get('DATABASE_URL', 'postgresql://localhost/ontextract_db')
+
+    # Create async checkpointer (recommended for production in 2025)
+    checkpointer = AsyncPostgresSaver.from_conn_string(db_uri)
+
+    # Compile graph with async checkpointer
+    # The checkpointer will create tables automatically on first use
+    return workflow.compile(checkpointer=checkpointer)
 
 
 # Singleton graph instance (lazy initialization)
