@@ -1,8 +1,8 @@
 # OntExtract Progress Tracker
 
 **Branch:** `development`
-**Last Session:** 2025-11-23 (Session 24)
-**Status:** DEMO-READY - Data Model Improvements & UI Polish Complete
+**Last Session:** 2025-11-23 (Session 25)
+**Status:** DEMO-READY - Settings Simplified & Admin Controls Implemented
 
 ---
 
@@ -20,12 +20,12 @@
 **Demo URL:** http://localhost:8765/experiments/83/manage_temporal_terms
 
 **JCDL Documentation:**
-- [JCDL_STANDALONE_IMPLEMENTATION.md](JCDL_STANDALONE_IMPLEMENTATION.md) - Overall implementation plan
-- [JCDL_TESTING_CHECKLIST.md](JCDL_TESTING_CHECKLIST.md) - 30+ test cases for browser testing
-- [DEMO_EXPERIMENT_SUMMARY.md](DEMO_EXPERIMENT_SUMMARY.md) - Complete demo data documentation
-- [SESSION_20_SUMMARY.md](SESSION_20_SUMMARY.md) - Phase 2 completion details
-- [SESSION_20_BUGFIXES.md](SESSION_20_BUGFIXES.md) - Provenance and timeline sorting fixes
-- [SESSION_20_TIMELINE_VIEW_FINAL.md](SESSION_20_TIMELINE_VIEW_FINAL.md) - Full-page timeline implementation
+- [JCDL_STANDALONE_IMPLEMENTATION.md](docs/JCDL_STANDALONE_IMPLEMENTATION.md) - Overall implementation plan
+- [JCDL_TESTING_CHECKLIST.md](docs/JCDL_TESTING_CHECKLIST.md) - 30+ test cases for browser testing
+- [DEMO_EXPERIMENT_SUMMARY.md](docs/DEMO_EXPERIMENT_SUMMARY.md) - Complete demo data documentation
+- [SESSION_20_SUMMARY.md](docs/archive/session_notes/SESSION_20_SUMMARY.md) - Phase 2 completion details
+- [SESSION_20_BUGFIXES.md](docs/archive/session_notes/SESSION_20_BUGFIXES.md) - Provenance and timeline sorting fixes
+- [SESSION_20_TIMELINE_VIEW_FINAL.md](docs/archive/session_notes/SESSION_20_TIMELINE_VIEW_FINAL.md) - Full-page timeline implementation
 
 ### Completed Major Features
 
@@ -56,7 +56,7 @@
 5. **Comprehensive Test Suite** (Sessions 10, 17)
    - 95.3% pass rate (120/134 tests passing)
    - Transaction isolation, mock patterns documented
-   - TEST_FIX_GUIDE.md with 8 reusable patterns
+   - [TEST_FIX_GUIDE.md](docs/TEST_FIX_GUIDE.md) with 8 reusable patterns
 
 ---
 
@@ -144,6 +144,60 @@
 - Consistent UI between create and edit forms
 - Reproducible document upload workflow
 - No more legacy data patterns
+
+### Session 25 (2025-11-23) - Settings Simplification (Phase 1) ✅
+
+**Goal:** Simplify settings interface, clarify access controls, reduce UI complexity
+
+**Accomplished:**
+
+1. **Admin-Only Access Control:**
+   - Settings page now requires admin privileges (is_admin = True)
+   - Non-admin users redirected with flash message
+   - Navigation menu shows "Settings (Admin)" only to admins
+   - Files: [app/routes/settings.py](app/routes/settings.py:26-56), [app/templates/base.html](app/templates/base.html:283-294)
+
+2. **Simplified LLM Integration UI:**
+   - **Removed**: Provider dropdown (Anthropic/OpenAI), Model dropdown (various Claude/GPT options)
+   - **Added**: Visual API key status banner (green success / yellow warning)
+   - **Added**: Read-only provider display "Anthropic Claude (claude-sonnet-4-5-20250929)"
+   - **Added**: Auto-disable toggle when API key not available
+   - **Added**: Conditional Test Connection button (only shown when API key exists)
+   - **Kept**: Enable/Disable LLM Enhancement toggle, Max Tokens setting (100-4000, default 500)
+   - Files: [app/templates/settings/index.html](app/templates/settings/index.html:58-143)
+
+3. **API Key Detection:**
+   - Runtime check for ANTHROPIC_API_KEY environment variable
+   - Status displayed to admin users with visual feedback
+   - Controls disabled when API key not found
+   - Files: [app/routes/settings.py](app/routes/settings.py:48-50)
+
+4. **JavaScript Updates:**
+   - Hardcoded provider to 'anthropic' in test connection function
+   - Removed dynamic provider selection (unused)
+   - Files: [app/templates/settings/index.html](app/templates/settings/index.html:541-561)
+
+**Files Created:**
+- [docs/SETTINGS_SIMPLIFICATION_PHASE1.md](docs/SETTINGS_SIMPLIFICATION_PHASE1.md) - Complete documentation
+
+**Files Modified:**
+- [app/routes/settings.py](app/routes/settings.py) - Admin check, API key detection
+- [app/templates/settings/index.html](app/templates/settings/index.html) - Simplified LLM UI
+- [app/templates/base.html](app/templates/base.html) - Admin-only navigation
+
+**Rationale:**
+- OntExtract only uses Claude (not OpenAI or other providers)
+- Model selection controlled in code (config/llm_config.py)
+- Two operational modes: LLM-enhanced vs manual (simple on/off toggle)
+- Removed unnecessary complexity while preserving backend flexibility
+
+**Impact:**
+- Clearer security boundary (admin vs regular users)
+- Simpler user experience (on/off toggle vs multiple dropdowns)
+- Better feedback (API key status immediately visible)
+- Future-proof (backend retains flexibility for provider/model changes)
+
+**Admin Users:** chris, wook, methods_tester (from database: 2025-11-23)
 
 ### Session 23 (2025-11-23) - Timeline UI Enhancements ✅
 
@@ -276,7 +330,7 @@
 **Files Modified:**
 - [app/templates/experiments/new.html](app/templates/experiments/new.html) - Quick Add UI, term selection, auto-fill logic
 - [app/routes/upload.py](app/routes/upload.py) - Added `create_reference` endpoint, fixed import
-- [JCDL_STANDALONE_IMPLEMENTATION.md](JCDL_STANDALONE_IMPLEMENTATION.md) - Updated Session 21 status
+- [JCDL_STANDALONE_IMPLEMENTATION.md](docs/JCDL_STANDALONE_IMPLEMENTATION.md) - Updated Session 21 status
 
 **Impact:**
 - Faster experiment creation workflow for JCDL demo
@@ -315,10 +369,10 @@
    - Top-aligned card body content
 
 **Files Created:**
-- [SESSION_20_SUMMARY.md](SESSION_20_SUMMARY.md) - Complete session documentation
-- [SESSION_20_BUGFIXES.md](SESSION_20_BUGFIXES.md) - Two bug fixes documented
-- [SESSION_20_TIMELINE_VIEW_FINAL.md](SESSION_20_TIMELINE_VIEW_FINAL.md) - Timeline implementation details
-- [DEMO_EXPERIMENT_SUMMARY.md](DEMO_EXPERIMENT_SUMMARY.md) - Demo data reference
+- [SESSION_20_SUMMARY.md](docs/archive/session_notes/SESSION_20_SUMMARY.md) - Complete session documentation
+- [SESSION_20_BUGFIXES.md](docs/archive/session_notes/SESSION_20_BUGFIXES.md) - Two bug fixes documented
+- [SESSION_20_TIMELINE_VIEW_FINAL.md](docs/archive/session_notes/SESSION_20_TIMELINE_VIEW_FINAL.md) - Timeline implementation details
+- [DEMO_EXPERIMENT_SUMMARY.md](docs/DEMO_EXPERIMENT_SUMMARY.md) - Demo data reference
 - [scripts/create_demo_experiment.py](scripts/create_demo_experiment.py) - Automated demo creation
 
 **Files Modified:**
@@ -379,7 +433,7 @@
 
 **Accomplished:**
 - Fixed 14+ tests (85.1% → 95.3% pass rate)
-- Documented 8 reusable fix patterns in [TEST_FIX_GUIDE.md](TEST_FIX_GUIDE.md)
+- Documented 8 reusable fix patterns in [TEST_FIX_GUIDE.md](docs/TEST_FIX_GUIDE.md)
 - All LLM orchestration tests passing (100%)
 - Relationship loading, authentication, validation errors all fixed
 
@@ -398,8 +452,8 @@
 - Enhanced ontology from 8 → 34 classes (+325% growth)
 - Added 33 academic citations directly in ontology
 - Pellet reasoner validation PASSED
-- Created [LITERATURE_REVIEW_SUMMARY.md](LITERATURE_REVIEW_SUMMARY.md)
-- Created [ONTOLOGY_ENHANCEMENTS_V2.md](ONTOLOGY_ENHANCEMENTS_V2.md)
+- Created [LITERATURE_REVIEW_SUMMARY.md](docs/LITERATURE_REVIEW_SUMMARY.md)
+- Created [ONTOLOGY_ENHANCEMENTS_V2.md](docs/ONTOLOGY_ENHANCEMENTS_V2.md)
 - Created [scripts/validate_semantic_change_ontology.py](scripts/validate_semantic_change_ontology.py)
 
 ---
@@ -433,7 +487,7 @@
 ### Immediate (Next Session)
 
 **Option A: Browser Testing** (Recommended)
-- Execute [JCDL_TESTING_CHECKLIST.md](JCDL_TESTING_CHECKLIST.md) (30+ test cases)
+- Execute [JCDL_TESTING_CHECKLIST.md](docs/JCDL_TESTING_CHECKLIST.md) (30+ test cases)
 - Verify all features work in browser
 - Test complete workflow: Create experiment → Add documents → Generate periods → Create events → View timeline
 - Test Quick Add Reference feature (MW/OED lookup)
@@ -469,18 +523,31 @@
 
 ### Medium Term (Post-JCDL)
 
-4. **Full OntServe Integration:**
+4. **Settings Simplification - Phase 2 (User Preferences):**
+   - Create user preferences page (`/profile` or `/preferences`)
+   - Move user-specific settings out of admin settings
+   - Add `user_id` column to `PromptTemplate` for personal templates
+   - Allow users to copy and customize global templates
+   - Reference: [docs/SETTINGS_SIMPLIFICATION_PHASE1.md](docs/SETTINGS_SIMPLIFICATION_PHASE1.md)
+
+5. **Settings Simplification - Phase 3 (Future Extensibility):**
+   - If local models needed: Re-add provider selection (admin-only)
+   - If multiple Claude models: Re-add model dropdown (admin-only)
+   - Keep user experience simple: "Use LLM Enhancement: Yes/No"
+   - Advanced configuration remains in admin settings
+
+6. **Full OntServe Integration:**
    - Implement MCP client layer
    - Database schema migration (add ontology URI fields)
    - SPARQL query interface
    - Dynamic event type loading from OntServe
 
-5. **BFO + PROV-O Architecture:**
+7. **BFO + PROV-O Architecture:**
    - Implement D-PROV workflow structure
    - Add ProvenanceAgent and ProvenanceActivity tables
    - Align with BFO upper ontology
 
-6. **Publication:**
+8. **Publication:**
    - JCDL paper leveraging validated ontology
    - Document scholarly workflow
    - Academic contribution statement
@@ -507,27 +574,27 @@
 ## Key Documentation
 
 ### JCDL Conference
-- [JCDL_STANDALONE_IMPLEMENTATION.md](JCDL_STANDALONE_IMPLEMENTATION.md) - Implementation plan (Phases 1-3)
-- [JCDL_TESTING_CHECKLIST.md](JCDL_TESTING_CHECKLIST.md) - Browser testing (30+ tests)
-- [DEMO_EXPERIMENT_SUMMARY.md](DEMO_EXPERIMENT_SUMMARY.md) - Demo data reference
-- [SESSION_20_SUMMARY.md](SESSION_20_SUMMARY.md) - Phase 2 completion details
+- [JCDL_STANDALONE_IMPLEMENTATION.md](docs/JCDL_STANDALONE_IMPLEMENTATION.md) - Implementation plan (Phases 1-3)
+- [JCDL_TESTING_CHECKLIST.md](docs/JCDL_TESTING_CHECKLIST.md) - Browser testing (30+ tests)
+- [DEMO_EXPERIMENT_SUMMARY.md](docs/DEMO_EXPERIMENT_SUMMARY.md) - Demo data reference
+- [SESSION_20_SUMMARY.md](docs/archive/session_notes/SESSION_20_SUMMARY.md) - Phase 2 completion details
 
 ### Ontology & Literature
-- [LITERATURE_REVIEW_SUMMARY.md](LITERATURE_REVIEW_SUMMARY.md) - 12 papers, key findings
-- [ONTOLOGY_ENHANCEMENTS_V2.md](ONTOLOGY_ENHANCEMENTS_V2.md) - v2.0 enhancements
-- [VALIDATION_GUIDE.md](VALIDATION_GUIDE.md) - Ontology validation guide
+- [LITERATURE_REVIEW_SUMMARY.md](docs/LITERATURE_REVIEW_SUMMARY.md) - 12 papers, key findings
+- [ONTOLOGY_ENHANCEMENTS_V2.md](docs/ONTOLOGY_ENHANCEMENTS_V2.md) - v2.0 enhancements
+- [VALIDATION_GUIDE.md](docs/VALIDATION_GUIDE.md) - Ontology validation guide
 - [ontologies/semantic-change-ontology-v2.ttl](ontologies/semantic-change-ontology-v2.ttl) - Validated ontology
 
 ### Architecture & Development
-- [QUICK_REFERENCE.md](QUICK_REFERENCE.md) - Commands, API endpoints, troubleshooting
-- [LLM_WORKFLOW_REFERENCE.md](LLM_WORKFLOW_REFERENCE.md) - LLM orchestration architecture
-- [TEST_FIX_GUIDE.md](TEST_FIX_GUIDE.md) - 8 reusable test fix patterns
+- [QUICK_REFERENCE.md](docs/QUICK_REFERENCE.md) - Commands, API endpoints, troubleshooting
+- [LLM_WORKFLOW_REFERENCE.md](docs/LLM_WORKFLOW_REFERENCE.md) - LLM orchestration architecture
+- [TEST_FIX_GUIDE.md](docs/TEST_FIX_GUIDE.md) - 8 reusable test fix patterns
 - [PROGRESS.md](PROGRESS.md) - This file (session history)
 
 ### Session Documentation
-- [SESSION_20_SUMMARY.md](SESSION_20_SUMMARY.md) - Demo preparation complete
-- [SESSION_20_BUGFIXES.md](SESSION_20_BUGFIXES.md) - Two bug fixes
-- [SESSION_20_TIMELINE_VIEW_FINAL.md](SESSION_20_TIMELINE_VIEW_FINAL.md) - Timeline implementation
+- [SESSION_20_SUMMARY.md](docs/archive/session_notes/SESSION_20_SUMMARY.md) - Demo preparation complete
+- [SESSION_20_BUGFIXES.md](docs/archive/session_notes/SESSION_20_BUGFIXES.md) - Two bug fixes
+- [SESSION_20_TIMELINE_VIEW_FINAL.md](docs/archive/session_notes/SESSION_20_TIMELINE_VIEW_FINAL.md) - Timeline implementation
 
 ---
 
@@ -546,9 +613,9 @@
 
 ---
 
-**Last Updated:** 2025-11-23 (Session 24)
+**Last Updated:** 2025-11-23 (Session 25)
 
-**Conference Readiness:** HIGH (Phase 2 Complete, Data Model Clean, UI Polish Complete)
+**Conference Readiness:** HIGH (Settings Simplified, Admin Controls Implemented)
 
 **Estimated Time to Demo-Ready:** 1-2 hours (testing + verification)
 

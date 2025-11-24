@@ -282,8 +282,10 @@
                         </a>
                         <ul class="dropdown-menu">
                             <li><a class="dropdown-item" href="#"><i class="fas fa-user me-2"></i>Profile</a></li>
+                            {% if current_user.is_admin %}
                             <li><a class="dropdown-item" href="{{ url_for('settings.index') }}"><i
-                                        class="fas fa-cog me-2"></i>Settings</a></li>
+                                        class="fas fa-cog me-2"></i>Settings (Admin)</a></li>
+                            {% endif %}
                             <li>
                                 <hr class="dropdown-divider">
                             </li>
