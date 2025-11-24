@@ -298,10 +298,11 @@ async def execute_strategy_node(state: ExperimentOrchestrationState) -> Dict[str
 
                     # Execute tool with 60 second timeout
                     # Pass document_id and orchestration_run_id for artifact group creation
+                    # Convert doc_id from string to int (it's stored as string in state)
                     result = await asyncio.wait_for(
                         tool.execute(
                             doc_content,
-                            document_id=doc_id,
+                            document_id=int(doc_id),
                             orchestration_run_id=str(run_id)
                         ),
                         timeout=60.0
