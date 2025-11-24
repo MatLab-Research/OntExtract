@@ -307,6 +307,12 @@ async def execute_strategy_node(state: ExperimentOrchestrationState) -> Dict[str
                         ),
                         timeout=60.0
                     )
+
+                    # Normalize status to "executed" for UI compatibility
+                    # The UI checks for status == "executed" to display processing results
+                    if result.get('status') == 'success':
+                        result['status'] = 'executed'
+
                     results[tool_name] = result
 
                     logger.info(f"[Run {run_id}] Successfully executed {tool_name} on doc {doc_id}")
