@@ -67,6 +67,7 @@ def create_app(config_name=None):
     from app.routes.settings import settings_bp
     from app.routes.orchestration import orchestration_bp
     from app.routes.linked_data import linked_data_bp
+    from app.routes.docs import docs_bp
 
     app.register_blueprint(auth_bp, url_prefix='/auth')
     app.register_blueprint(admin_bp)
@@ -86,6 +87,7 @@ def create_app(config_name=None):
     app.register_blueprint(settings_bp)
     app.register_blueprint(orchestration_bp)
     app.register_blueprint(linked_data_bp, url_prefix='/linked-data')
+    app.register_blueprint(docs_bp)
 
     # Composite documents removed - using inheritance-based versioning
     
