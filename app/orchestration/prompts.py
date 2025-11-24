@@ -194,7 +194,7 @@ Focus on:
 **Experiment Type: Entity Extraction**
 
 Focus on:
-1. Key entities, concepts, and relationships in the documents
+1. Entities, concepts, and relationships in the documents
 2. How entities relate to the focus term (if present)
 3. Patterns in entity usage and co-occurrence
 4. Hierarchical or categorical relationships
@@ -206,7 +206,7 @@ Focus on:
 
 Focus on:
 1. Main themes and topics across documents
-2. Key concepts and terminology
+2. Primary concepts and terminology
 3. Document characteristics and content patterns
 """)
 
@@ -224,7 +224,7 @@ Based on the term definition, context anchors, and documents above, provide a cl
 
 1. **Experiment Goal**: What is the researcher trying to discover or understand?
 2. **Term Context**: Why does the focus term matter for this analysis? How might it be used differently across documents?
-3. **Key Considerations**: What aspects of the term's meaning or usage are most important to track?
+3. **Considerations**: What aspects of the term's meaning or usage should be tracked?
 
 Return your analysis as a JSON object with these fields:
 - experiment_goal: String describing the research objective
@@ -276,7 +276,7 @@ def get_recommend_strategy_prompt(
         },
         'entity_extraction': {
             'high': ['extract_entities_spacy', 'llm_extract_concepts'],
-            'rationale': 'Entity extraction experiments need comprehensive NER and concept extraction.'
+            'rationale': 'Entity extraction experiments need NER and concept extraction tools.'
         }
     }
 
@@ -420,7 +420,7 @@ For each time period found in temporal extraction results, create a card with:
 - **definition**: Most common co-occurring terms from entity extraction (just list the data with counts)
 - **frequency**: Relative frequency from tool counts (normalize to 0.0-1.0 across all periods)
 - **context_changes**: New semantic anchors that appear in this period vs. previous ones (just list new terms, no interpretation)
-- **narrative**: 2-3 factual sentences presenting key data points (counts, entities, frequencies). Use neutral language: "found", "observed", "present", "absent". Include document sources [Doc IDs]. NO interpretation or value judgments.
+- **narrative**: 2-3 factual sentences presenting primary data points (counts, entities, frequencies). Use neutral language: "found", "observed", "present", "absent". Include document sources [Doc IDs]. NO interpretation or value judgments.
 
 Return JSON with:
 {{
@@ -461,7 +461,7 @@ Return JSON with:
 
 1. **Cross-Document Insights**: Common entities, patterns, and relationships
 2. **Entity Categories**: How entities cluster or relate hierarchically
-3. **Key Findings**: Most significant entities and their relationships
+3. **Findings**: Most frequent entities and their relationships
 
 Return JSON with:
 {{
@@ -505,7 +505,7 @@ Your task is to ORGANIZE these tool findings into a clear structure that enables
 
 **Organization Guidelines**:
 1. **Group by time/domain**: Organize tool findings into clear periods or domains
-2. **Present key data points**: Surface the most relevant counts, entities, and frequencies
+2. **Present primary data points**: Surface the most relevant counts, entities, and frequencies
 3. **Highlight contrasts**: Show where tool results differ across documents (without interpreting why)
 4. **Structure for analysis**: Format data so patterns are easily visible to the researcher
 5. **Preserve specificity**: Include exact numbers, entity names, and dates from tool outputs
@@ -516,10 +516,14 @@ Example organization: "**1960-1980 Period** (2 documents): Entity extraction fou
 **CRITICAL TONE REQUIREMENTS**:
 - Maintain a neutral, objective, academic tone throughout
 - NEVER use enthusiastic or emphatic language ("remarkable", "striking", "dramatic", "revolutionary", "significant breakthrough")
-- Use measured, factual language ("observed", "found", "identified", "present", "absent")
-- Avoid superlatives and value judgments
-- Present data objectively without interpretation beyond direct observations
+- NEVER use superlatives or emphasis words: "crucial", "essential", "key", "critical", "vital", "paramount", "fundamental"
+- NEVER use evaluative adjectives: "powerful", "robust", "comprehensive", "systematic", "nuanced", "sophisticated", "elegant", "seamless", "intriguing"
+- NEVER use marketing language: "cutting-edge", "state-of-the-art", "innovative", "groundbreaking", "transformative"
+- Use measured, factual language: "observed", "found", "identified", "present", "absent", "noted", "recorded"
+- Use neutral descriptors: "frequent/infrequent", "common/uncommon", "primary/secondary" (instead of "important/significant")
+- Avoid value judgments - present data objectively without interpretation beyond direct observations
 - When patterns emerge, describe them neutrally: "X co-occurs with Y in 15 of 20 instances" not "X shows strong association with Y"
+- Replace emphasis with specificity: Instead of "key findings", write "most frequent findings" or "primary observations"
 
 **Note**: Your role is to organize data, not interpret it. The researcher will draw their own conclusions from the structured presentation. Users will be concerned about potential hallucination, so ground every statement in specific tool outputs with clear source citations.
 """

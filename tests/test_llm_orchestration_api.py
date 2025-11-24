@@ -123,23 +123,19 @@ def completed_run(db_session, experiment_with_docs, test_user):
 class TestStartOrchestration:
     """Test POST /experiments/<id>/orchestration/analyze"""
 
-    @patch('app.routes.experiments.orchestration.workflow_executor')
+    @patch('app.routes.experiments.orchestration.get_orchestration_task')
     def test_start_orchestration_success(
         self,
-        mock_executor,
+        mock_get_task,
         auth_client,
         experiment_with_docs,
         db_session
     ):
-        """Test starting orchestration successfully."""
-        # Mock workflow execution
-        mock_executor.execute_recommendation_phase.return_value = {
-            'status': 'reviewing',
-            'run_id': str(uuid4()),
-            'experiment_goal': 'Test goal',
-            'recommended_strategy': {},
-            'confidence': 0.85
-        }
+        """Test starting orchestration successfully via Celery."""
+        # Mock Celery task
+        mock_task = Mock()
+        mock_task.apply_async.return_value = Mock(id='test-task-id-success')
+        mock_get_task.return_value = (mock_task, True)
 
         response = auth_client.post(
             f'/experiments/{experiment_with_docs.id}/orchestration/analyze',
@@ -151,7 +147,8 @@ class TestStartOrchestration:
         data = json.loads(response.data)
         assert data['success'] is True
         assert 'run_id' in data
-        assert data['status'] == 'reviewing'
+        assert data['status'] == 'analyzing'  # Initial status when task enqueued
+        assert data['task_id'] == 'test-task-id-success'
 
     def test_start_orchestration_requires_auth(
         self,
@@ -182,15 +179,18 @@ class TestStartOrchestration:
         data = json.loads(response.data)
         assert data['success'] is False
 
-    @patch('app.routes.experiments.orchestration.workflow_executor')
+    @patch('app.routes.experiments.orchestration.get_orchestration_task')
     def test_start_orchestration_workflow_error(
         self,
-        mock_executor,
+        mock_get_task,
         auth_client,
         experiment_with_docs
     ):
-        """Test error handling when workflow execution fails."""
-        mock_executor.execute_recommendation_phase.side_effect = Exception('LLM API error')
+        """Test error handling when Celery task enqueueing fails."""
+        # Mock Celery task that raises error when enqueued
+        mock_task = Mock()
+        mock_task.apply_async.side_effect = Exception('Redis connection error')
+        mock_get_task.return_value = (mock_task, True)
 
         response = auth_client.post(
             f'/experiments/{experiment_with_docs.id}/orchestration/analyze',
@@ -203,21 +203,18 @@ class TestStartOrchestration:
         assert data['success'] is False
         assert 'error' in data
 
-    @patch('app.routes.experiments.orchestration.workflow_executor')
+    @patch('app.routes.experiments.orchestration.get_orchestration_task')
     def test_start_orchestration_auto_approve(
         self,
-        mock_executor,
+        mock_get_task,
         auth_client,
         experiment_with_docs
     ):
-        """Test orchestration with auto-approval (no review)."""
-        mock_executor.execute_recommendation_phase.return_value = {
-            'status': 'executing',
-            'run_id': str(uuid4()),
-            'experiment_goal': 'Test goal',
-            'recommended_strategy': {},
-            'confidence': 0.95
-        }
+        """Test orchestration with auto-approval (no review) via Celery."""
+        # Mock Celery task
+        mock_task = Mock()
+        mock_task.apply_async.return_value = Mock(id='test-celery-task-id')
+        mock_get_task.return_value = (mock_task, True)
 
         response = auth_client.post(
             f'/experiments/{experiment_with_docs.id}/orchestration/analyze',
@@ -227,12 +224,14 @@ class TestStartOrchestration:
 
         assert response.status_code == 200
         data = json.loads(response.data)
-        assert data['status'] == 'executing'
+        assert data['status'] == 'analyzing'  # Initial status when task enqueued
+        assert data['task_id'] == 'test-celery-task-id'
+        assert 'run_id' in data
 
-        # Verify review_choices=False was passed
-        mock_executor.execute_recommendation_phase.assert_called_once()
-        call_args = mock_executor.execute_recommendation_phase.call_args
-        assert call_args[1]['review_choices'] is False
+        # Verify Celery task was enqueued with review_choices=False
+        mock_task.apply_async.assert_called_once()
+        call_args = mock_task.apply_async.call_args
+        assert call_args[1]['args'][1] is False  # review_choices=False
 
 
 # ==============================================================================

@@ -37,6 +37,7 @@ class ExperimentOrchestrationRun(db.Model):
     status = db.Column(db.String(50), nullable=False)  # analyzing, recommending, reviewing, executing, synthesizing, completed, failed
     current_stage = db.Column(db.String(50), nullable=True)
     current_operation = db.Column(db.Text, nullable=True)  # Detailed status: "Processing doc 3/7 with extract_entities_spacy"
+    celery_task_id = db.Column(db.String(255), nullable=True, index=True)  # Celery task ID for background tracking
     error_message = db.Column(db.Text, nullable=True)
 
     # Stage 1: Experiment Understanding

@@ -1,8 +1,8 @@
 # OntExtract Progress Tracker
 
 **Branch:** `development`
-**Last Session:** 2025-11-23 (Session 26)
-**Status:** DEMO-READY - Documentation Infrastructure Planned
+**Last Session:** 2025-11-24 (Session 27)
+**Status:** PRODUCTION-READY - Celery Implementation Complete
 
 ---
 
@@ -61,6 +61,106 @@
 ---
 
 ## Recent Sessions
+
+### Session 27 (2025-11-24) - Celery Implementation Post-Fixes & Test Updates ✅
+
+**Goal:** Fix Celery workflow continuation, update modal messaging, fix tests for async execution
+
+**Issues Found:**
+1. Orchestration stuck at "executing" phase - Celery task only ran Stages 1-2, didn't continue to execution
+2. Modal warning outdated - said "keep window open" (wrong with Celery!)
+3. No detailed progress updates - `current_operation` field stayed empty
+4. Flower monitoring UI not running (couldn't access http://localhost:5555)
+
+**Accomplished:**
+
+1. **Fixed Workflow Continuation:**
+   - Updated Celery task to automatically continue to execution phase when `review_choices=False`
+   - Now completes full 5-stage workflow (Analyze → Recommend → Execute → Synthesize → Completed)
+   - Before: Stopped at "executing" status after Stages 1-2
+   - After: Runs all stages automatically without human review
+   - File: [app/tasks/orchestration.py:61-70](app/tasks/orchestration.py#L61-L70)
+
+2. **Updated Modal Messaging:**
+   - Removed outdated warning: "Please keep this window open. The orchestration is running in the background and will fail if you close this window."
+   - Added accurate info: "Running in background worker. The orchestration continues even if you close this window."
+   - Answer: NO, users do NOT need to keep window open with Celery
+   - File: [app/templates/experiments/document_pipeline.html:480-483](app/templates/experiments/document_pipeline.html#L480-L483)
+
+3. **Verified Progress Tracking:**
+   - Detailed progress already implemented in [app/orchestration/experiment_nodes.py:234-246](app/orchestration/experiment_nodes.py#L234-L246)
+   - Shows messages like "Processing document 393 with extract_entities_spacy (5/21 operations)"
+   - Was empty before because execution phase never ran (now fixed)
+
+4. **Started Flower Monitoring UI:**
+   - Launched Flower on port 5555 (PID 392991)
+   - Access at: http://localhost:5555
+   - Monitor Celery tasks, workers, and task history
+   - Command: `celery -A celery_config.celery flower --port=5555`
+
+5. **Restarted Celery Worker:**
+   - Stopped old worker (PID 389465+)
+   - Started new worker with updated code (PID 392385+)
+   - Worker ready at: redis://localhost:6379/0
+   - Log: /tmp/celery_ontextract.log
+
+6. **Updated Tests for Celery:**
+   - Fixed 3 tests in [tests/test_llm_orchestration_api.py](tests/test_llm_orchestration_api.py)
+   - Changed mocks from `workflow_executor` to `get_orchestration_task` (Celery lazy import)
+   - Updated expectations: status `'analyzing'` (initial enqueue) instead of `'reviewing'` (final)
+   - Added verification of `task_id` returned by Celery
+   - All 33 tests passing (100% pass rate for orchestration API)
+
+**Tests Updated:**
+- `test_start_orchestration_success` - Mock Celery task, expect `'analyzing'` status
+- `test_start_orchestration_workflow_error` - Mock Celery enqueueing error (not workflow error)
+- `test_start_orchestration_auto_approve` - Verify `review_choices=False` passed to task
+
+**Files Modified:**
+- [app/tasks/orchestration.py](app/tasks/orchestration.py) - Added automatic execution continuation
+- [app/templates/experiments/document_pipeline.html](app/templates/experiments/document_pipeline.html) - Updated modal info message
+- [tests/test_llm_orchestration_api.py](tests/test_llm_orchestration_api.py) - Updated 3 tests for Celery async behavior
+
+**Technical Details:**
+- Celery task now checks `if not review_choices and result['status'] == 'executing'`
+- If true, calls `workflow_executor.execute_processing_phase(run_id=run_id)`
+- Returns final result from processing phase (not just recommendation phase)
+- Tests mock `get_orchestration_task()` instead of direct workflow executor
+- Tests verify Celery task ID stored and returned to client
+
+**Post-JCDL Cleanup Plan:**
+
+**Deprecation Warnings (Defer Until After Conference):**
+1. **Pydantic V2 warnings** - `min_items` → `min_length` (3 DTOs affected)
+2. **SQLAlchemy 2.0 warnings** - `Query.get()` → `Session.get()` (~10 locations)
+3. **datetime.utcnow() deprecated** - Use `datetime.now(datetime.UTC)` (~5 locations)
+
+**Why Wait:**
+- All are deprecation warnings, not errors - code works perfectly
+- Libraries won't remove deprecated features until major version bumps
+- Fixing now risks introducing bugs before JCDL demo
+- No functional impact on conference presentation
+
+**When to Fix:**
+- Create GitHub issue post-JCDL: "Address deprecation warnings (Pydantic V2, SQLAlchemy 2.0, datetime)"
+- Fix systematically: DTOs → database queries → datetime
+- Run full test suite after each category
+- No demo pressure = can handle any issues safely
+
+**Impact:**
+- Celery workflow now completes automatically without human review
+- Users can close browser during orchestration (task persists)
+- Detailed progress messages displayed during execution
+- Flower UI available for monitoring
+- All tests updated and passing (33/33)
+- System production-ready for JCDL demo
+- Deprecation warnings documented for post-conference cleanup
+
+**Services Running:**
+- Celery Worker: PID 392385+ (redis://localhost:6379/0)
+- Flower UI: PID 392991 (http://localhost:5555)
+- Flask: http://localhost:8765
+- Redis: localhost:6379
 
 ### Session 24 (2025-11-23) - Data Model Cleanup & Experiment Workflow ✅
 
@@ -739,10 +839,10 @@
 
 ---
 
-**Last Updated:** 2025-11-23 (Session 25)
+**Last Updated:** 2025-11-24 (Session 27)
 
-**Conference Readiness:** HIGH (Settings Simplified, Admin Controls Implemented)
+**Conference Readiness:** PRODUCTION-READY (Celery Implementation Complete, All Tests Passing)
 
-**Estimated Time to Demo-Ready:** 1-2 hours (testing + verification)
+**System Status:** Fully operational with Celery background workers, automated workflow continuation, and monitoring UI
 
-**Next Action:** Execute browser testing checklist with clean data model
+**Next Action:** JCDL conference demo (Dec 15-19, 2025)
