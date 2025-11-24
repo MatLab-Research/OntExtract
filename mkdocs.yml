@@ -13,14 +13,14 @@ theme:
   palette:
     # Dark mode (matches OntExtract Darkly theme)
     - scheme: slate
-      primary: blue
+      primary: indigo
       accent: teal
       toggle:
         icon: material/brightness-4
         name: Switch to light mode
     # Light mode
     - scheme: default
-      primary: blue
+      primary: indigo
       accent: teal
       toggle:
         icon: material/brightness-7
@@ -40,6 +40,10 @@ theme:
   icon:
     logo: material/brain
     repo: fontawesome/brands/github
+
+  font:
+    text: Segoe UI
+    code: Roboto Mono
 
 plugins:
   - search:
@@ -67,6 +71,10 @@ nav:
   - How-To Guides:
       - Create Temporal Experiment: how-to/create-temporal-experiment.md
   - FAQ: faq.md
+  - "↗ Back to OntExtract": "http://localhost:8765/"
+
+extra_css:
+  - assets/css/custom.css
 
 extra:
   social:
