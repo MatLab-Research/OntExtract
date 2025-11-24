@@ -91,3 +91,5 @@ langextract
 pyzotero==1.5.18
 pydantic>=2.0.0
 semanticscholar==0.11.0
+mkdocs-material>=9.0.0
+mkdocs-minify-plugin>=0.6.0

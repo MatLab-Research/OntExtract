@@ -1,8 +1,8 @@
 # OntExtract Progress Tracker
 
 **Branch:** `development`
-**Last Session:** 2025-11-23 (Session 25)
-**Status:** DEMO-READY - Settings Simplified & Admin Controls Implemented
+**Last Session:** 2025-11-23 (Session 26)
+**Status:** DEMO-READY - Documentation Infrastructure Planned
 
 ---
 
@@ -198,6 +198,132 @@
 - Future-proof (backend retains flexibility for provider/model changes)
 
 **Admin Users:** chris, wook, methods_tester (from database: 2025-11-23)
+
+### Session 26 (2025-11-23) - Documentation Planning & Agent Creation ✅
+
+**Goal:** Plan documentation infrastructure with MkDocs Material and create maintainable agent workflow
+
+**Accomplished:**
+
+1. **Documentation Strategy Planning:**
+   - Created [docs/DOCUMENTATION_PLAN.md](docs/DOCUMENTATION_PLAN.md) (12,000+ words)
+   - Complete documentation strategy with MkDocs Material setup
+   - 3-phase content rollout plan (Core Manual → Advanced Features → Developer Docs)
+   - Flask integration blueprint and navigation menu placement
+   - GitHub Pages migration plan (4 phases: Local → Repository Setup → Dual Deployment → Full Migration)
+   - Maintenance workflow and version control guidelines
+
+2. **Quick Start Implementation Guide:**
+   - Created [docs/DOCUMENTATION_QUICK_START.md](docs/DOCUMENTATION_QUICK_START.md) (2,500+ words)
+   - Infrastructure setup in under 1 hour (MkDocs install, Flask blueprint, menu item)
+   - Flameshot screenshot workflow for WSL/Linux
+   - First 3 priority pages to write (Installation, Workflow, Timeline View)
+   - Development workflow with parallel MkDocs server and Flask app
+
+3. **Content Templates & Academic Writing Style Guide:**
+   - Created [docs/CONTENT_TEMPLATES.md](docs/CONTENT_TEMPLATES.md) (8,000+ words)
+   - 5 page templates (Getting Started, How-To, Reference, Concept, Troubleshooting)
+   - Complete outlines for 3 priority pages with 15-20 screenshots each
+   - Academic Writing Style Guide (3,000+ words)
+     - 7 prohibited constructions with before/after examples
+     - Vocabulary substitution table (30+ terms to avoid)
+     - Section-specific guidelines (Getting Started, Features, Troubleshooting)
+     - Example transformation (marketing → academic tone)
+   - Enhanced writing checklist with style compliance items
+   - Screenshot standards and organization
+
+4. **Academic Writing Standards Documentation:**
+   - Created [docs/WRITING_STYLE_CHECKLIST.md](docs/WRITING_STYLE_CHECKLIST.md) (printable reference)
+   - Quick reference for 7 core rules with examples
+   - Self-check questions before submitting docs
+   - Vocabulary substitution quick lookup
+   - Before/after transformation example
+   - Printable format for writers to keep visible
+
+5. **Documentation Summary:**
+   - Created [docs/DOCUMENTATION_SUMMARY.md](docs/DOCUMENTATION_SUMMARY.md) (quick overview)
+   - Single-page reference for entire documentation plan
+   - Implementation checklist with time estimates
+   - Screenshot standards and tool setup
+   - Academic style principles summary
+   - Success metrics
+
+6. **Documentation Writer Agent:**
+   - Created [.claude/agents/documentation-writer.md](.claude/agents/documentation-writer.md) (7,000+ words)
+   - Repeatable workflow for creating/updating documentation
+   - 7-phase process: Assessment → Content Creation → Screenshot Capture → Build & Test → Navigation Update → Review → Commit
+   - References all planning documents and style guides
+   - Common tasks section (new feature, updates, troubleshooting entries, quarterly review)
+   - Quality standards validation at each phase
+   - Troubleshooting section for build errors and style violations
+
+7. **Agent Directory Documentation:**
+   - Created [.claude/agents/README.md](.claude/agents/README.md)
+   - Overview of all available agents (documentation-writer, temporal-evolution-experiment, upload-agent-documents)
+   - Agent invocation patterns and examples
+   - Tips for working with agents (context, scope, outputs)
+   - Agent maintenance guidelines
+   - Template for creating new agents
+
+**Files Created:**
+- [docs/DOCUMENTATION_PLAN.md](docs/DOCUMENTATION_PLAN.md) - Complete strategy (12,000+ words)
+- [docs/DOCUMENTATION_QUICK_START.md](docs/DOCUMENTATION_QUICK_START.md) - Implementation guide (2,500+ words)
+- [docs/CONTENT_TEMPLATES.md](docs/CONTENT_TEMPLATES.md) - Templates & style guide (8,000+ words)
+- [docs/WRITING_STYLE_CHECKLIST.md](docs/WRITING_STYLE_CHECKLIST.md) - Printable reference
+- [docs/DOCUMENTATION_SUMMARY.md](docs/DOCUMENTATION_SUMMARY.md) - Quick overview
+- [.claude/agents/documentation-writer.md](.claude/agents/documentation-writer.md) - Reusable agent (7,000+ words)
+- [.claude/agents/README.md](.claude/agents/README.md) - Agent directory guide
+
+**Configuration Confirmed:**
+- GitHub repository: https://github.com/MatLab-Research/OntExtract (public)
+- Documentation tool: MkDocs Material
+- Visual content: Static screenshots using Flameshot (no videos)
+- Target audience: Digital humanities researchers with NLP knowledge, minimal coding
+- Contribution model: Open to community contributions eventually
+- Version support: Single version (no version selector needed)
+
+**Academic Writing Style Requirements:**
+
+**The 7 Prohibited Constructions:**
+1. No em dashes or colons in body text (use periods and separate sentences)
+2. No possessive forms for inanimate objects (the system's → of the system)
+   - Exception: People's names use possessive (McLaren's analysis, Davis's approach)
+3. No front-loaded subordinate clauses (put main clause first)
+4. No sentences starting with -ing words
+5. No overused adjectives (seamless, robust, nuanced, comprehensive, systematic, intriguing)
+6. No marketing language (powerful, cutting-edge, intuitive, effortless, unlock, empower, leverage)
+7. Direct affirmative statements (avoid "rather than", "instead of" unless essential)
+
+**Always Use:**
+- Active voice and present tense
+- Specific, concrete language
+- Neutral academic tone without enthusiasm
+- Main clause before subordinate context
+
+**Technical Details:**
+- Documentation structure: 3-phase rollout (25-30 pages in Phase 1, 40-50 total)
+- MkDocs Material with dark mode (slate scheme matching OntExtract Darkly theme)
+- Flask blueprint serves static site at /docs route
+- Navigation menu item with book icon
+- Screenshot organization: docs/assets/screenshots/[feature]/[descriptive-name].png
+- Build command: `mkdocs build` (outputs to site/ directory, gitignored)
+- Preview server: `mkdocs serve --dev-addr=127.0.0.1:8001`
+
+**Impact:**
+- Complete documentation infrastructure ready for implementation
+- Reusable agent for ongoing documentation maintenance
+- Academic writing standards enforced through templates and checklists
+- Clear path from local development to GitHub Pages deployment
+- Estimated 4-6 hours to set up infrastructure, 20-30 hours for Phase 1 content
+- Documentation can be updated regularly with agent workflow
+- Professional, scholarly tone maintained across all pages
+
+**Next Steps:**
+- Phase 1 infrastructure setup (MkDocs install, Flask blueprint, menu item)
+- Write first 3 priority pages (Installation, Temporal Evolution Workflow, Timeline View)
+- Capture 30-40 screenshots with Flameshot
+- Test documentation locally and in Flask app
+- Eventual GitHub Pages deployment for public access
 
 ### Session 23 (2025-11-23) - Timeline UI Enhancements ✅
 
