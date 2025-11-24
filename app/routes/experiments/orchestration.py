@@ -44,33 +44,8 @@ logger = logging.getLogger(__name__)
 orchestration_service = get_orchestration_service()
 workflow_executor = get_workflow_executor()
 
-# Celery task - imported lazily to avoid blueprint registration issues
-_run_orchestration_task = None
-_celery_import_attempted = False
-
-
-def get_orchestration_task():
-    """
-    Lazy import of Celery orchestration task.
-
-    This prevents importing the task module (which creates Flask app) until actually needed.
-
-    Returns:
-        tuple: (task_function, available_bool)
-    """
-    global _run_orchestration_task, _celery_import_attempted
-
-    if not _celery_import_attempted:
-        _celery_import_attempted = True
-        try:
-            from app.tasks.orchestration import run_orchestration_task
-            _run_orchestration_task = run_orchestration_task
-            logger.info("Celery task queue available for LLM orchestration")
-        except ImportError as e:
-            logger.warning(f"Celery not available - LLM orchestration disabled: {e}")
-            _run_orchestration_task = None
-
-    return _run_orchestration_task, _run_orchestration_task is not None
+# Background execution handled by LangGraph AsyncPostgresSaver
+# No Celery or external workers needed
 
 
 @experiments_bp.route('/<int:experiment_id>/orchestrated_analysis')
@@ -303,9 +278,10 @@ def orchestration_provenance_json(experiment_id):
 @api_require_login_for_write
 def start_llm_orchestration(experiment_id):
     """
-    Start LLM orchestration workflow using Celery.
+    Start LLM orchestration workflow using LangGraph with PostgreSQL checkpointing.
 
-    CELERY: Task runs in background worker, survives Flask restarts.
+    Background execution with AsyncPostgresSaver - no Celery worker needed.
+    State persists in PostgreSQL, survives Flask restarts.
     Always starts fresh - any in-progress runs are marked as failed.
 
     POST Body:
@@ -313,28 +289,17 @@ def start_llm_orchestration(experiment_id):
         "review_choices": true  // Whether to pause for user review
     }
 
-    Returns immediately with run_id and task_id. Client polls /orchestration/status/<run_id> for progress.
+    Returns immediately with run_id. Client polls /orchestration/status/<run_id> for progress.
 
     Returns:
     {
         "success": true,
         "run_id": "uuid-here",
-        "task_id": "celery-task-id",
         "status": "analyzing",
-        "message": "Orchestration started in Celery worker"
+        "message": "Orchestration started with LangGraph checkpointing"
     }
     """
     try:
-        # Lazy import Celery task
-        run_orchestration_task, celery_available = get_orchestration_task()
-
-        # Check if Celery is available
-        if not celery_available:
-            return jsonify({
-                'success': False,
-                'error': 'LLM orchestration requires Celery task queue. Install with: pip install celery redis flower'
-            }), 503
-
         # Verify experiment exists
         experiment = Experiment.query.get(experiment_id)
         if not experiment:
@@ -374,21 +339,29 @@ def start_llm_orchestration(experiment_id):
 
         logger.info(f"Created orchestration run {run.id} for experiment {experiment_id}")
 
-        # Enqueue Celery task
-        task = run_orchestration_task.apply_async(
-            args=[str(run.id), review_choices],
-            task_id=f"orchestration_{run.id}"
-        )
+        # Execute in background thread (LangGraph checkpointer handles persistence)
+        import threading
 
-        logger.info(f"Enqueued Celery task {task.id} for run {run.id}")
+        def run_workflow():
+            try:
+                workflow_executor.execute_recommendation_phase(
+                    run_id=run.id,
+                    review_choices=review_choices
+                )
+            except Exception as e:
+                logger.error(f"Workflow execution failed for run {run.id}: {e}", exc_info=True)
+
+        thread = threading.Thread(target=run_workflow, daemon=True)
+        thread.start()
+
+        logger.info(f"Started background thread for orchestration run {run.id}")
 
         return jsonify({
             'success': True,
             'run_id': str(run.id),
-            'task_id': task.id,
             'status': 'analyzing',
             'current_stage': 'analyzing',
-            'message': 'Orchestration started in Celery background worker. Task survives Flask restarts.'
+            'message': 'Orchestration started with LangGraph checkpointing. State persists in PostgreSQL.'
         }), 200
 
     except Exception as e:
