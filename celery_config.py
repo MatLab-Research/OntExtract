@@ -9,6 +9,14 @@ not when running the Flask app. This prevents blueprint registration issues.
 """
 from celery import Celery
 import logging
+from pathlib import Path
+from dotenv import load_dotenv
+
+# Load .env file before anything else (critical for API keys)
+env_path = Path(__file__).parent / '.env'
+if env_path.exists():
+    load_dotenv(env_path)
+    logging.info(f"Loaded environment from {env_path}")
 
 logger = logging.getLogger(__name__)
 
