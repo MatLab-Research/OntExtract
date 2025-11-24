@@ -62,15 +62,17 @@
 
 ## Recent Sessions
 
-### Session 27 (2025-11-24) - Celery Implementation Post-Fixes & Test Updates ✅
+### Session 27 (2025-11-24) - Celery Implementation, Academic Tone & UI Reorganization ✅
 
-**Goal:** Fix Celery workflow continuation, update modal messaging, fix tests for async execution
+**Goal:** Fix Celery workflow continuation, update modal messaging, fix tests for async execution, enforce academic tone, reorganize results UI
 
 **Issues Found:**
 1. Orchestration stuck at "executing" phase - Celery task only ran Stages 1-2, didn't continue to execution
 2. Modal warning outdated - said "keep window open" (wrong with Celery!)
 3. No detailed progress updates - `current_operation` field stayed empty
 4. Flower monitoring UI not running (couldn't access http://localhost:5555)
+5. LLM output using superlative/emphasis language - not neutral academic tone
+6. Results page giving equal visual weight to factual data and LLM interpretation
 
 **Accomplished:**
 
@@ -111,6 +113,24 @@
    - Added verification of `task_id` returned by Celery
    - All 33 tests passing (100% pass rate for orchestration API)
 
+7. **Academic Tone Enforcement (Prompt Engineering):**
+   - Added comprehensive superlative restrictions to synthesis prompts
+   - Prohibited terms: "crucial", "essential", "key", "critical", "vital", "paramount", "fundamental"
+   - Prohibited evaluative adjectives: "powerful", "robust", "comprehensive", "sophisticated", "elegant"
+   - Prohibited marketing language: "cutting-edge", "state-of-the-art", "innovative", "groundbreaking"
+   - Replaced with neutral descriptors: "frequent/infrequent", "common/uncommon", "primary/secondary"
+   - Updated 7 instances of "key" in prompts to neutral alternatives
+   - File: [app/orchestration/prompts.py:516-527](app/orchestration/prompts.py#L516-L527)
+
+8. **Results Page UI Reorganization:**
+   - Separated factual data from LLM interpretation with distinct visual treatments
+   - "Term Usage Patterns" section: Prominent card, neutral header, always visible (factual data)
+   - "LLM Analysis" section: Minimal collapsed section, muted styling, de-emphasized (AI interpretation)
+   - LLM section uses: borderless design, light background, small fonts (0.85rem), muted colors
+   - LLM section collapsed by default with small robot icon (0.7rem, 60% opacity)
+   - Removed bold headers and large icons from LLM sections
+   - File: [app/templates/experiments/llm_orchestration_results.html:77-124](app/templates/experiments/llm_orchestration_results.html#L77-L124)
+
 **Tests Updated:**
 - `test_start_orchestration_success` - Mock Celery task, expect `'analyzing'` status
 - `test_start_orchestration_workflow_error` - Mock Celery enqueueing error (not workflow error)
@@ -120,6 +140,8 @@
 - [app/tasks/orchestration.py](app/tasks/orchestration.py) - Added automatic execution continuation
 - [app/templates/experiments/document_pipeline.html](app/templates/experiments/document_pipeline.html) - Updated modal info message
 - [tests/test_llm_orchestration_api.py](tests/test_llm_orchestration_api.py) - Updated 3 tests for Celery async behavior
+- [app/orchestration/prompts.py](app/orchestration/prompts.py) - Added comprehensive superlative restrictions, replaced 7 instances of "key"
+- [app/templates/experiments/llm_orchestration_results.html](app/templates/experiments/llm_orchestration_results.html) - Reorganized UI to separate factual data from LLM interpretation
 
 **Technical Details:**
 - Celery task now checks `if not review_choices and result['status'] == 'executing'`
@@ -153,6 +175,9 @@
 - Detailed progress messages displayed during execution
 - Flower UI available for monitoring
 - All tests updated and passing (33/33)
+- LLM output now uses neutral, academic tone without superlatives
+- Results page clearly separates factual data (prominent) from AI interpretation (de-emphasized)
+- Users can easily distinguish tool-extracted facts from LLM-generated analysis
 - System production-ready for JCDL demo
 - Deprecation warnings documented for post-conference cleanup
 
