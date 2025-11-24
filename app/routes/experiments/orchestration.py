@@ -37,13 +37,40 @@ from pydantic import ValidationError as PydanticValidationError
 import logging
 from uuid import UUID
 from datetime import datetime
-import threading
 
 from . import experiments_bp
 
 logger = logging.getLogger(__name__)
 orchestration_service = get_orchestration_service()
 workflow_executor = get_workflow_executor()
+
+# Celery task - imported lazily to avoid blueprint registration issues
+_run_orchestration_task = None
+_celery_import_attempted = False
+
+
+def get_orchestration_task():
+    """
+    Lazy import of Celery orchestration task.
+
+    This prevents importing the task module (which creates Flask app) until actually needed.
+
+    Returns:
+        tuple: (task_function, available_bool)
+    """
+    global _run_orchestration_task, _celery_import_attempted
+
+    if not _celery_import_attempted:
+        _celery_import_attempted = True
+        try:
+            from app.tasks.orchestration import run_orchestration_task
+            _run_orchestration_task = run_orchestration_task
+            logger.info("Celery task queue available for LLM orchestration")
+        except ImportError as e:
+            logger.warning(f"Celery not available - LLM orchestration disabled: {e}")
+            _run_orchestration_task = None
+
+    return _run_orchestration_task, _run_orchestration_task is not None
 
 
 @experiments_bp.route('/<int:experiment_id>/orchestrated_analysis')
@@ -272,63 +299,42 @@ def orchestration_provenance_json(experiment_id):
 # NEW: LLM Analyze Workflow Routes
 # ============================================================================
 
-def _run_orchestration_in_background(run_id, review_choices):
-    """
-    Background thread function to execute orchestration workflow.
-
-    This runs in a separate thread to avoid blocking Flask.
-    """
-    from app import create_app
-
-    # Create new Flask app context for this thread
-    app = create_app()
-    with app.app_context():
-        try:
-            logger.info(f"[Background Thread] Starting orchestration for run {run_id}")
-            result = workflow_executor.execute_recommendation_phase(
-                run_id=run_id,
-                review_choices=review_choices
-            )
-            logger.info(f"[Background Thread] Orchestration completed for run {run_id}: {result['status']}")
-        except Exception as e:
-            logger.error(f"[Background Thread] Orchestration failed for run {run_id}: {e}", exc_info=True)
-            # Mark run as failed
-            try:
-                run = ExperimentOrchestrationRun.query.get(run_id)
-                if run:
-                    run.status = 'failed'
-                    run.error_message = str(e)
-                    run.completed_at = datetime.utcnow()
-                    db.session.commit()
-            except Exception as db_error:
-                logger.error(f"Failed to mark run as failed: {db_error}", exc_info=True)
-
-
 @experiments_bp.route('/<int:experiment_id>/orchestration/analyze', methods=['POST'])
 @api_require_login_for_write
 def start_llm_orchestration(experiment_id):
     """
-    Start LLM orchestration workflow (Stages 1-5: Full pipeline)
+    Start LLM orchestration workflow using Celery.
 
-    SIMPLIFIED: No resume logic - always starts fresh.
-    If previous runs were interrupted, they are marked as failed.
+    CELERY: Task runs in background worker, survives Flask restarts.
+    Always starts fresh - any in-progress runs are marked as failed.
 
     POST Body:
     {
         "review_choices": true  // Whether to pause for user review
     }
 
-    Returns immediately with run_id. Client polls /orchestration/status/<run_id> for progress.
+    Returns immediately with run_id and task_id. Client polls /orchestration/status/<run_id> for progress.
 
     Returns:
     {
         "success": true,
         "run_id": "uuid-here",
+        "task_id": "celery-task-id",
         "status": "analyzing",
-        "message": "Orchestration started in background"
+        "message": "Orchestration started in Celery worker"
     }
     """
     try:
+        # Lazy import Celery task
+        run_orchestration_task, celery_available = get_orchestration_task()
+
+        # Check if Celery is available
+        if not celery_available:
+            return jsonify({
+                'success': False,
+                'error': 'LLM orchestration requires Celery task queue. Install with: pip install celery redis flower'
+            }), 503
+
         # Verify experiment exists
         experiment = Experiment.query.get(experiment_id)
         if not experiment:
@@ -338,7 +344,6 @@ def start_llm_orchestration(experiment_id):
             }), 404
 
         # Mark any existing in-progress runs for this experiment as failed
-        # This ensures we always start fresh (no resume logic)
         existing_runs = ExperimentOrchestrationRun.query.filter_by(
             experiment_id=experiment_id
         ).filter(
@@ -369,22 +374,21 @@ def start_llm_orchestration(experiment_id):
 
         logger.info(f"Created orchestration run {run.id} for experiment {experiment_id}")
 
-        # Start orchestration in background thread
-        thread = threading.Thread(
-            target=_run_orchestration_in_background,
-            args=(run.id, review_choices),
-            daemon=True
+        # Enqueue Celery task
+        task = run_orchestration_task.apply_async(
+            args=[str(run.id), review_choices],
+            task_id=f"orchestration_{run.id}"
         )
-        thread.start()
 
-        logger.info(f"Started background thread for run {run.id}")
+        logger.info(f"Enqueued Celery task {task.id} for run {run.id}")
 
         return jsonify({
             'success': True,
             'run_id': str(run.id),
+            'task_id': task.id,
             'status': 'analyzing',
             'current_stage': 'analyzing',
-            'message': 'Orchestration started in background. Poll /orchestration/status/<run_id> for progress.'
+            'message': 'Orchestration started in Celery background worker. Task survives Flask restarts.'
         }), 200
 
     except Exception as e:
