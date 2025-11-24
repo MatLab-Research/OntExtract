@@ -22,7 +22,7 @@ Workflow:
 """
 
 from langgraph.graph import StateGraph, END
-from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
+from langgraph.checkpoint.postgres import PostgresSaver
 from typing import Literal
 import os
 
@@ -66,15 +66,20 @@ def create_experiment_orchestration_graph():
     # Processing (Stages 4-5) will happen separately after approval
     workflow.add_edge("recommend_strategy", END)
 
-    # Create async PostgreSQL checkpointer for persistence
-    # Uses connection pooling and async operations for better performance
+    # Create PostgreSQL checkpointer for persistence
+    # Uses sync saver which works better with our threading approach
     db_uri = os.environ.get('DATABASE_URL', 'postgresql://localhost/ontextract_db')
 
-    # Create async checkpointer (recommended for production in 2025)
-    checkpointer = AsyncPostgresSaver.from_conn_string(db_uri)
+    # Initialize checkpointer with proper context manager
+    with PostgresSaver.from_conn_string(db_uri) as checkpointer:
+        # Setup creates checkpoint tables if they don't exist
+        checkpointer.setup()
 
-    # Compile graph with async checkpointer
-    # The checkpointer will create tables automatically on first use
+    # Create new checkpointer instance for the graph
+    # (context manager is for setup only, graph gets fresh instance)
+    checkpointer = PostgresSaver.from_conn_string(db_uri)
+
+    # Compile graph with checkpointer
     return workflow.compile(checkpointer=checkpointer)
 
 
