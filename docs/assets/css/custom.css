@@ -1,0 +1,104 @@
+/* Custom CSS to match OntExtract color scheme */
+
+:root {
+  /* OntExtract color variables */
+  --ontextract-primary: #375a7f;
+  --ontextract-secondary: #444;
+  --ontextract-accent: #00bc8c;
+  --ontextract-warning: #f39c12;
+  --ontextract-danger: #e74c3c;
+}
+
+/* Override Material theme colors to match OntExtract */
+[data-md-color-scheme="slate"] {
+  /* Primary color (header, links) */
+  --md-primary-fg-color: #375a7f;
+  --md-primary-fg-color--light: #4e73df;
+  --md-primary-fg-color--dark: #2a4a68;
+
+  /* Accent color (buttons, highlights) */
+  --md-accent-fg-color: #00bc8c;
+  --md-accent-fg-color--transparent: rgba(0, 188, 140, 0.1);
+
+  /* Typography */
+  --md-typeset-color: #dee2e6;
+  --md-typeset-a-color: #00bc8c;
+}
+
+[data-md-color-scheme="default"] {
+  /* Light mode - keep similar colors but lighter variants */
+  --md-primary-fg-color: #375a7f;
+  --md-primary-fg-color--light: #4e73df;
+  --md-primary-fg-color--dark: #2a4a68;
+
+  --md-accent-fg-color: #00bc8c;
+  --md-accent-fg-color--transparent: rgba(0, 188, 140, 0.1);
+}
+
+/* Header styling to match OntExtract navbar */
+.md-header {
+  background-color: var(--ontextract-primary);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+/* Search box styling */
+.md-search__input {
+  background-color: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.md-search__input:hover {
+  background-color: rgba(255, 255, 255, 0.15);
+}
+
+/* Navigation tabs */
+.md-tabs {
+  background-color: var(--ontextract-primary);
+}
+
+/* Code blocks */
+.md-typeset code {
+  background-color: var(--ontextract-secondary);
+  color: #f8f9fa;
+}
+
+/* Buttons and call-to-action elements */
+.md-button--primary {
+  background-color: var(--ontextract-primary);
+  border-color: var(--ontextract-primary);
+}
+
+.md-button--primary:hover {
+  background-color: #4e73df;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
+
+/* Admonitions matching OntExtract style */
+.md-typeset .admonition.tip,
+.md-typeset .admonition.note {
+  border-left-color: var(--ontextract-accent);
+}
+
+.md-typeset .admonition.warning {
+  border-left-color: var(--ontextract-warning);
+}
+
+.md-typeset .admonition.danger {
+  border-left-color: var(--ontextract-danger);
+}
+
+/* Table of contents */
+.md-nav__link--active {
+  color: var(--ontextract-accent);
+}
+
+/* Footer */
+.md-footer {
+  background-color: var(--ontextract-secondary);
+}
+
+/* Ensure consistent font rendering */
+body {
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
