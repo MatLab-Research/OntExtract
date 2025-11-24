@@ -38,12 +38,19 @@
         gap: 10px;
     }
     
-    .timeline-container {
-        display: flex;
-        overflow-x: auto;
+    /* 4-column grid layout for timeline */
+    #timeline-container {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
         gap: 15px;
-        padding: 10px 0;
         margin-top: 15px;
+    }
+
+    /* Force all grid items to fill their cells */
+    #timeline-container > .period-card,
+    #timeline-container > .semantic-event-card {
+        width: 100%;
+        min-width: 0;
     }
     
     .time-period-column {
@@ -135,91 +142,6 @@
         margin-bottom: 5px;
     }
     
-    .add-term-card {
-        border: 2px dashed #dee2e6;
-        border-radius: 8px;
-        padding: 40px;
-        text-align: center;
-        cursor: pointer;
-        transition: all 0.3s ease;
-        background: #fafafa;
-    }
-    
-    .add-term-card:hover {
-        border-color: #007bff;
-        background: #f0f8ff;
-    }
-    
-    .term-input-group {
-        display: none;
-        margin-top: 20px;
-    }
-    
-    .term-input-group.active {
-        display: block;
-    }
-    
-    .progress-indicator {
-        background: #f8f9fa;
-        border-radius: 8px;
-        padding: 15px;
-        margin-bottom: 20px;
-    }
-    
-    .progress-steps {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-    }
-    
-    .progress-step {
-        flex: 1;
-        text-align: center;
-        position: relative;
-    }
-    
-    .progress-step:not(:last-child)::after {
-        content: '';
-        position: absolute;
-        top: 20px;
-        right: -50%;
-        width: 100%;
-        height: 2px;
-        background: #dee2e6;
-    }
-    
-    .progress-step.completed::after {
-        background: #28a745;
-    }
-    
-    .progress-step.active .step-circle {
-        background: #007bff;
-        color: white;
-    }
-    
-    .progress-step.completed .step-circle {
-        background: #28a745;
-        color: white;
-    }
-    
-    .step-circle {
-        width: 40px;
-        height: 40px;
-        border-radius: 50%;
-        background: #dee2e6;
-        color: #6c757d;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        font-weight: 600;
-        margin-bottom: 5px;
-    }
-    
-    .step-label {
-        font-size: 0.9rem;
-        color: #495057;
-    }
-    
     .definition-placeholder {
         padding: 10px;
         background: white;
@@ -266,158 +188,768 @@
     .evolution-changed { background: #fff3cd; color: #856404; }
     .evolution-stable { background: #d1ecf1; color: #0c5460; }
     .evolution-declining { background: #f8d7da; color: #721c24; }
+
+    /* Period Cards - Bootstrap Card Design */
+    .period-card {
+        background: white;
+        border: 1px solid #dee2e6;
+        border-left: 4px solid;
+        border-radius: 0.375rem;
+        padding: 0;
+        min-height: 200px;
+        transition: all 0.2s ease;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        display: flex;
+        flex-direction: column;
+    }
+
+    .period-card:hover {
+        box-shadow: 0 4px 6px rgba(0,0,0,0.15);
+        transform: translateY(-2px);
+    }
+
+    .period-card.auto-generated {
+        border-left-color: #0d6efd;
+    }
+
+    .period-card.manual {
+        border-left-color: #6c757d;
+    }
+
+    .period-card.oed {
+        border-left-color: #198754;
+    }
+
+    /* Period boundary markers - special styling */
+    .period-card[data-boundary="start"] {
+        border-left-color: #28a745;  /* Green for START */
+        border-left-width: 6px;
+        position: relative;
+    }
+
+    .period-card[data-boundary="end"] {
+        border-left: 1px solid #dee2e6;  /* Reset left border to default */
+        border-right: 6px solid #dc3545;  /* Red highlight on RIGHT for END */
+        position: relative;
+    }
+
+    /* Period color accent - applied to header background */
+    .period-card[data-boundary][data-period-id] {
+        --period-color: #6c757d; /* fallback color */
+    }
+
+    .period-card[data-boundary][data-period-id] .period-card-header {
+        position: relative;
+    }
+
+    .period-card[data-boundary][data-period-id] .period-card-header::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 4px;
+        background-color: var(--period-color);
+        opacity: 0.7;
+        transition: opacity 0.2s ease;
+    }
+
+    .period-card[data-boundary]:hover .period-card-header::before {
+        opacity: 1;
+    }
+
+    /* Add subtle glow effect on hover to help identify paired boundaries */
+    .period-card[data-boundary][data-period-id]:hover {
+        box-shadow: 0 4px 12px rgba(0,0,0,0.2), 0 0 0 2px var(--period-color);
+    }
+
+    /* Highlight paired boundaries when hovering over one of them */
+    .period-card.period-pair-highlighted {
+        box-shadow: 0 4px 12px rgba(0,0,0,0.2), 0 0 0 2px var(--period-color);
+        transform: translateY(-2px);
+    }
+
+    .period-card.period-pair-highlighted .period-card-header::before {
+        opacity: 1;
+        height: 6px;
+    }
+
+    .period-card[data-boundary="start"]::after {
+        content: "▶";
+        position: absolute;
+        right: -12px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: #28a745;
+        font-size: 1.2rem;
+        z-index: 1;
+    }
+
+    .period-card[data-boundary="end"]::before {
+        content: "◀";
+        position: absolute;
+        left: -12px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: #dc3545;
+        font-size: 1.2rem;
+        z-index: 1;
+    }
+
+    .period-card-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 12px 16px;
+        background-color: #f8f9fa;
+        border-bottom: 1px solid #dee2e6;
+    }
+
+    .period-year {
+        font-size: 1.25rem;
+        font-weight: 700;
+        color: #212529;
+    }
+
+    .period-source-badge {
+        font-size: 0.7rem;
+        padding: 4px 8px;
+        border-radius: 0.25rem;
+        font-weight: 600;
+        text-transform: uppercase;
+    }
+
+    .period-source-badge.auto-generated {
+        background: #0d6efd;
+        color: white;
+    }
+
+    .period-source-badge.manual {
+        background: #6c757d;
+        color: white;
+    }
+
+    .period-source-badge.oed {
+        background: #198754;
+        color: white;
+    }
+
+    .period-documents {
+        padding: 12px 16px;
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        justify-content: flex-start;
+    }
+
+    .period-documents-title {
+        font-size: 0.75rem;
+        color: #6c757d;
+        margin-bottom: 8px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .period-document-item {
+        font-size: 0.875rem;
+        color: #495057;
+        padding: 6px 0;
+        display: flex;
+        align-items: flex-start;
+        gap: 8px;
+        line-height: 1.4;
+    }
+
+    .period-document-item i {
+        color: #adb5bd;
+        font-size: 0.5rem;
+        margin-top: 6px;
+    }
+
+    .period-document-link {
+        color: #495057;
+        text-decoration: none;
+        transition: color 0.2s ease;
+    }
+
+    .period-document-link:hover {
+        color: #0d6efd;
+        text-decoration: underline;
+    }
+
+    .period-card-footer {
+        display: flex;
+        justify-content: flex-end;
+        padding: 12px 16px;
+        background-color: #f8f9fa;
+        border-top: 1px solid #dee2e6;
+        margin-top: auto;  /* Push footer to bottom of flex container */
+    }
+
+    .period-remove {
+        background: transparent;
+        border: none;
+        color: #dc3545;
+        cursor: pointer;
+        padding: 4px 8px;
+        font-size: 0.875rem;
+        border-radius: 0.25rem;
+        transition: all 0.2s ease;
+        font-weight: 500;
+    }
+
+    .period-remove:hover {
+        background: #dc3545;
+        color: white;
+    }
+
+    /* Semantic Event Cards - For tracking temporal transitions */
+    .semantic-event-card {
+        background: white;
+        border: 1px solid #dee2e6;
+        border-left: 4px solid;
+        border-radius: 0.375rem;
+        padding: 0;
+        min-height: 220px;
+        transition: all 0.2s ease;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        display: flex;
+        flex-direction: column;
+    }
+
+    .semantic-event-card:hover {
+        box-shadow: 0 4px 6px rgba(0,0,0,0.15);
+        transform: translateY(-2px);
+    }
+
+    /* Event boundary markers - special styling for start/end of span events */
+    .semantic-event-card[data-boundary="start"] {
+        border-left-color: #28a745 !important;  /* Green for START - override event type color */
+        border-left-width: 6px;
+        position: relative;
+    }
+
+    .semantic-event-card[data-boundary="end"] {
+        border-left: 1px solid #dee2e6;  /* Reset left border to default */
+        border-right: 6px solid #dc3545 !important;  /* Red highlight on RIGHT for END */
+        position: relative;
+    }
+
+    .semantic-event-card[data-boundary="start"]::after {
+        content: "▶";
+        position: absolute;
+        right: -12px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: #28a745;  /* Green for start */
+        font-size: 1.2rem;
+        z-index: 1;
+    }
+
+    .semantic-event-card[data-boundary="end"]::before {
+        content: "◀";
+        position: absolute;
+        left: -12px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: #dc3545;  /* Red for end */
+        font-size: 1.2rem;
+        z-index: 1;
+    }
+
+    /* Discrete event marker - for single-date events */
+    .semantic-event-card[data-discrete="true"] {
+        position: relative;
+    }
+
+    .semantic-event-card[data-discrete="true"]::after {
+        content: "●";
+        position: absolute;
+        right: 16px;
+        top: 16px;
+        font-size: 1rem;
+        z-index: 1;
+        opacity: 0.6;
+    }
+
+    /* Event type colors */
+    .semantic-event-card.inflection_point {
+        border-left-color: #6f42c1;  /* Purple - major semantic shift */
+    }
+
+    .semantic-event-card.stable_polysemy {
+        border-left-color: #20c997;  /* Teal - multiple stable meanings */
+    }
+
+    .semantic-event-card.domain_network {
+        border-left-color: #fd7e14;  /* Orange - domain-specific usage */
+    }
+
+    .semantic-event-card.semantic_shift {
+        border-left-color: #d63384;  /* Pink - gradual meaning change */
+    }
+
+    .semantic-event-card.emergence {
+        border-left-color: #198754;  /* Green - new meaning emerging */
+    }
+
+    .semantic-event-card.decline {
+        border-left-color: #dc3545;  /* Red - meaning fading */
+    }
+
+    .semantic-event-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 12px 16px;
+        background-color: #f8f9fa;
+        border-bottom: 1px solid #dee2e6;
+    }
+
+    .semantic-event-year {
+        font-size: 1.25rem;
+        font-weight: 700;
+        color: #2c3e50;
+    }
+
+    .semantic-event-type-badge {
+        font-size: 0.7rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        padding: 4px 10px;
+        border-radius: 0.25rem;
+        background-color: rgba(0, 0, 0, 0.05);
+        color: #495057;
+    }
+
+    .semantic-event-body {
+        padding: 12px 16px;
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        justify-content: flex-start;
+    }
+
+    .semantic-event-description {
+        font-size: 0.875rem;
+        color: #495057;
+        line-height: 1.5;
+        margin-bottom: 10px;
+    }
+
+    .semantic-event-related-docs {
+        margin-top: 10px;
+        padding-top: 10px;
+        border-top: 1px dashed #dee2e6;
+    }
+
+    .semantic-event-related-docs-title {
+        font-size: 0.7rem;
+        color: #6c757d;
+        margin-bottom: 6px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .semantic-event-doc-item {
+        font-size: 0.8rem;
+        color: #495057;
+        padding: 4px 0;
+        display: flex;
+        align-items: flex-start;
+        gap: 6px;
+    }
+
+    .semantic-event-doc-item i {
+        color: #adb5bd;
+        font-size: 0.4rem;
+        margin-top: 5px;
+    }
+
+    .semantic-event-footer {
+        display: flex;
+        justify-content: flex-end;
+        gap: 8px;
+        padding: 12px 16px;
+        background-color: #f8f9fa;
+        border-top: 1px solid #dee2e6;
+        margin-top: auto;  /* Push footer to bottom of flex container */
+    }
+
+    .semantic-event-edit,
+    .semantic-event-remove {
+        background: transparent;
+        border: none;
+        cursor: pointer;
+        padding: 4px 8px;
+        font-size: 0.875rem;
+        border-radius: 0.25rem;
+        transition: all 0.2s ease;
+        font-weight: 500;
+    }
+
+    .semantic-event-edit {
+        color: #0d6efd;
+    }
+
+    .semantic-event-edit:hover {
+        background: #0d6efd;
+        color: white;
+    }
+
+    .semantic-event-remove {
+        color: #dc3545;
+    }
+
+    .semantic-event-remove:hover {
+        background: #dc3545;
+        color: white;
+    }
+
+    /* Expanded timeline view */
+    .timeline-expanded {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        z-index: 1050;
+        background: white;
+        overflow-y: auto;
+        padding: 20px;
+    }
+
+    .timeline-expanded .card {
+        margin: 0;
+        border: none;
+        box-shadow: none;
+    }
+
+    .timeline-expand-btn {
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+
+    .timeline-expand-btn:hover {
+        color: #0d6efd;
+    }
 </style>
 
 <div class="container-fluid px-4">
-    <!-- Progress Indicator -->
-    <div class="progress-indicator">
-        <div class="progress-steps">
-            <div class="progress-step completed">
-                <div class="step-circle">1</div>
-                <div class="step-label">Create Experiment</div>
-            </div>
-            <div class="progress-step active">
-                <div class="step-circle">2</div>
-                <div class="step-label">Track Terms</div>
-            </div>
-            <div class="progress-step">
-                <div class="step-circle">3</div>
-                <div class="step-label">Run Analysis</div>
-            </div>
-            <div class="progress-step">
-                <div class="step-circle">4</div>
-                <div class="step-label">View Results</div>
-            </div>
-        </div>
-    </div>
-
     <!-- Header -->
     <div class="row mt-4">
         <div class="col-12">
-            <div class="d-flex justify-content-between align-items-center mb-4">
-                <div>
-                    <h2>{{ experiment.name }}</h2>
-                    <p class="text-muted mb-0">
-                        <i class="fas fa-clock"></i> Temporal Evolution Experiment
-                        <span class="ms-3">
-                            <i class="fas fa-calendar-alt"></i> 
-                            {{ start_year }} - {{ end_year }}
-                            <span class="badge bg-secondary ms-1">{{ time_periods|length }} periods</span>
-                        </span>
-                        <span class="ms-3">
-                            <i class="fas fa-tags"></i> 
-                            <span id="term-count">{{ terms|length }}</span> Terms
-                        </span>
-                    </p>
-                </div>
-                <div>
-                    <button class="btn btn-outline-secondary me-2" onclick="saveTerms()">
-                        <i class="fas fa-save"></i> Save Progress
-                    </button>
-                    <a href="{{ url_for('experiments.orchestrated_analysis', experiment_id=experiment.id) }}" 
-                       class="btn btn-success me-2">
-                        <i class="fas fa-robot"></i> Human-in-the-Loop Analysis
-                    </a>
-                    <button class="btn btn-primary" onclick="proceedToAnalysis()">
-                        Continue to Traditional Analysis <i class="fas fa-arrow-right"></i>
-                    </button>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Time Period Information -->
-    <div class="row mb-3">
-        <div class="col-12">
-            {% if use_oed_periods and oed_period_data %}
-            <div class="alert alert-info mb-3">
-                <i class="fas fa-book"></i> <strong>OED-Generated Periods</strong>
-                <p class="mb-2">Time periods automatically generated from Oxford English Dictionary historical data.</p>
-                
-                {% if oed_period_data %}
-                <div class="mb-2">
-                    <strong>Term Coverage:</strong>
-                    <ul class="mb-0">
-                    {% for term, data in oed_period_data.items() %}
-                        <li><strong>{{ term }}</strong>: {{ data.min_year }}-{{ data.max_year }} ({{ data.quotation_years|length }} quotations)</li>
-                    {% endfor %}
-                    </ul>
-                </div>
-                {% endif %}
-            </div>
-            {% endif %}
-            
-            <div class="alert alert-info">
-                <i class="fas fa-info-circle"></i> 
-                <strong>Time Periods:</strong> 
-                {% for period in time_periods %}
-                    <span class="badge bg-primary ms-2">{{ period }}</span>
-                    {% if not loop.last %}→{% endif %}
-                {% endfor %}
-                <button class="btn btn-sm btn-outline-primary float-end" onclick="editTimePeriods()">
-                    <i class="fas fa-edit"></i> Edit Periods
+            <!-- Row 1: Buttons -->
+            <div class="d-flex justify-content-start align-items-center mb-3">
+                <a href="{{ url_for('experiments.view', experiment_id=experiment.id) }}"
+                   class="btn btn-outline-secondary me-2">
+                    <i class="fas fa-arrow-left"></i> Back to Experiment
+                </a>
+                {% if terms and terms|length > 0 %}
+                <button class="btn btn-outline-primary me-2" onclick="saveTerms()">
+                    <i class="fas fa-save"></i> Save Configuration
                 </button>
+                {% endif %}
+                {% if semantic_events and semantic_events|length > 0 %}
+                <a href="{{ url_for('experiments.timeline_view', experiment_id=experiment.id) }}"
+                   class="btn btn-outline-secondary me-2">
+                    <i class="fas fa-stream"></i> View Timeline
+                </a>
+                {% endif %}
+                <a href="{{ url_for('experiments.document_pipeline', experiment_id=experiment.id) }}"
+                   class="btn btn-success">
+                    <i class="fas fa-robot"></i> LLM Analyze
+                </a>
+            </div>
+
+            <!-- Row 2: Title -->
+            <div class="mb-2">
+                <h2>{{ experiment.name }}</h2>
+            </div>
+
+            <!-- Row 3: Metadata -->
+            <div class="mb-4">
+                <p class="text-muted mb-0">
+                    <i class="fas fa-clock"></i> Temporal Evolution Experiment
+                    <span class="ms-3">
+                        <i class="fas fa-calendar-alt"></i>
+                        {{ start_year }} - {{ end_year }}
+                        <span class="badge bg-secondary ms-1">{{ time_periods|length }} periods</span>
+                    </span>
+                    <span class="ms-3">
+                        <i class="fas fa-tags"></i>
+                        <span id="term-display">
+                            {% if terms|length > 0 %}
+                                {{ terms|join(', ') }}
+                            {% else %}
+                                No terms selected
+                            {% endif %}
+                        </span>
+                    </span>
+                </p>
             </div>
         </div>
     </div>
 
-    <!-- Orchestration Decisions (Step 2 Preview) -->
-    {% if orchestration_decisions %}
-    <div class="row mb-4">
+    <!-- Timeline: Periods & Semantic Events -->
+    <div class="row mb-3" id="timeline-section">
         <div class="col-12">
             <div class="card">
                 <div class="card-header d-flex justify-content-between align-items-center">
-                    <h5 class="mb-0">
-                        <span class="badge bg-success">Step 2</span> Recent Orchestration Decisions
-                    </h5>
-                    <a href="{{ url_for('experiments.orchestrated_analysis', experiment_id=experiment.id) }}" 
-                       class="btn btn-sm btn-outline-primary">
-                        View Full Analysis Interface
-                    </a>
+                    <h5 class="mb-0"><i class="fas fa-layer-group"></i> Temporal Elements</h5>
+                    <div class="d-flex align-items-center gap-2">
+                        <span class="badge bg-secondary">{{ semantic_events|length if semantic_events else 0 }} events</span>
+                        <span class="timeline-expand-btn" onclick="toggleTimelineExpanded()" title="Expand to full screen">
+                            <i class="fas fa-expand" id="timeline-expand-icon"></i>
+                        </span>
+                    </div>
                 </div>
                 <div class="card-body">
-                    <p class="text-muted mb-3">
-                        LLM orchestration decisions for intelligent tool selection and analysis configuration.
-                    </p>
-                    
-                    <div class="row">
-                        {% for decision in orchestration_decisions[:3] %}
-                        <div class="col-md-4 mb-3">
-                            <div class="card h-100 border-left-success">
-                                <div class="card-body">
-                                    <h6 class="card-title">{{ decision.term_text }}</h6>
-                                    <div class="mb-2">
-                                        {% if decision.selected_tools %}
-                                            {% for tool in decision.selected_tools %}
-                                                <span class="badge bg-secondary me-1">{{ tool }}</span>
-                                            {% endfor %}
-                                        {% endif %}
-                                    </div>
-                                    <div class="mb-2">
-                                        <small class="text-muted">Model: <code>{{ decision.embedding_model or 'N/A' }}</code></small>
-                                    </div>
-                                    <div class="d-flex justify-content-between align-items-center">
-                                        <span class="badge bg-{{ 'success' if decision.decision_confidence > 0.8 else 'warning' if decision.decision_confidence > 0.6 else 'danger' }}">
-                                            {{ "%.0f" | format(decision.decision_confidence * 100) }}% confident
-                                        </span>
-                                        <small class="text-muted">{{ decision.created_at.strftime('%m/%d') if decision.created_at else 'N/A' }}</small>
-                                    </div>
-                                </div>
-                            </div>
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <button class="btn btn-outline-primary w-100" onclick="generatePeriodsFromDocuments()">
+                                <i class="fas fa-file-alt"></i> Auto-generate from document dates
+                            </button>
+                            <small class="text-muted d-block">
+                                Creates artifact markers for each document's publication year
+                                {% if document_count %}
+                                <br>
+                                <span class="badge bg-{{ 'success' if docs_with_pub_dates > 0 else 'warning' }} mt-1">
+                                    {{ docs_with_pub_dates }}/{{ document_count }} with publication dates
+                                </span>
+                                {% if docs_with_any_dates > docs_with_pub_dates %}
+                                <span class="badge bg-info mt-1">
+                                    {{ docs_with_any_dates - docs_with_pub_dates }} will use upload dates
+                                </span>
+                                {% endif %}
+                                {% endif %}
+                            </small>
                         </div>
-                        {% endfor %}
+                        <div class="col-md-6">
+                            <button class="btn btn-outline-success w-100" onclick="showManualPeriodEditor()">
+                                <i class="fas fa-edit"></i> Manual Entry
+                            </button>
+                            <small class="text-muted">Manually specify time periods</small>
+                        </div>
                     </div>
-                    
-                    {% if orchestration_decisions|length > 3 %}
-                    <div class="text-center mt-3">
-                        <small class="text-muted">Showing 3 of {{ orchestration_decisions|length }} decisions</small>
+
+                    {% if use_oed_periods and oed_period_data %}
+                    <div class="alert alert-info mb-3">
+                        <i class="fas fa-book"></i> <strong>OED-Generated Periods</strong>
+                        <p class="mb-2">Time periods automatically generated from Oxford English Dictionary historical data.</p>
+
+                        {% if oed_period_data %}
+                        <div class="mb-2">
+                            <strong>Term Coverage:</strong>
+                            <ul class="mb-0">
+                            {% for term, data in oed_period_data.items() %}
+                                <li><strong>{{ term }}</strong>: {{ data.min_year }}-{{ data.max_year }} ({{ data.quotation_years|length }} quotations)</li>
+                            {% endfor %}
+                            </ul>
+                        </div>
+                        {% endif %}
                     </div>
                     {% endif %}
+
+                    {# List View (default) - vertical cards #}
+                    <div id="list-view" class="mb-3">
+                        <div class="mb-3 d-flex justify-content-between align-items-center">
+                            <strong><i class="fas fa-calendar-alt"></i> Periods & Events</strong>
+                            <div>
+                                <button class="btn btn-sm btn-outline-primary me-2" onclick="showAddPeriodDialog()" title="Add period manually">
+                                    <i class="fas fa-plus"></i> Add Period
+                                </button>
+                                <button class="btn btn-sm btn-outline-secondary" onclick="showAddSemanticEventDialog()" title="Add semantic event">
+                                    <i class="fas fa-plus-circle"></i> Add Event
+                                </button>
+                            </div>
+                        </div>
+                        {% if time_periods|length > 0 or (semantic_events and semantic_events|length > 0) %}
+                        <div id="timeline-container">
+                            {# Build a merged timeline of periods and events #}
+                            {% set timeline_items = [] %}
+
+                            {# Add periods to timeline #}
+                            {% for period in time_periods %}
+                                {% set period_meta = period_metadata.get(period|string, {}) %}
+                                {% set period_docs = period_documents.get(period|string, []) %}
+                                {% set source_type = period_meta.get('source', 'manual') %}
+                                {# Sort order: START=0, ARTIFACT/EVENT=1, END=2 #}
+                                {% set boundary_type = period_meta.get('boundary_type', '') %}
+                                {% set sort_order = 0 if boundary_type == 'start' else (2 if boundary_type == 'end' else 1) %}
+                                {% set _ = timeline_items.append({
+                                    'type': 'period',
+                                    'year': period,
+                                    'sort_key': (period * 10) + sort_order,
+                                    'meta': period_meta,
+                                    'docs': period_docs,
+                                    'source_type': source_type
+                                }) %}
+                            {% endfor %}
+
+                            {# Add semantic events to timeline - create START/END for span events #}
+                            {% if semantic_events %}
+                                {% for event in semantic_events %}
+                                    {% if event.to_period and event.to_period != event.from_period %}
+                                        {# Span event: create START entry #}
+                                        {% set _ = timeline_items.append({
+                                            'type': 'event_start',
+                                            'year': event.from_period,
+                                            'sort_key': (event.from_period * 10) + 0,
+                                            'event': event,
+                                            'boundary_type': 'start'
+                                        }) %}
+                                        {# Span event: create END entry #}
+                                        {% set _ = timeline_items.append({
+                                            'type': 'event_end',
+                                            'year': event.to_period,
+                                            'sort_key': (event.to_period * 10) + 2,
+                                            'event': event,
+                                            'boundary_type': 'end'
+                                        }) %}
+                                    {% else %}
+                                        {# Discrete event: single entry #}
+                                        {% set _ = timeline_items.append({
+                                            'type': 'event_discrete',
+                                            'year': event.from_period,
+                                            'sort_key': (event.from_period * 10) + 1,
+                                            'event': event
+                                        }) %}
+                                    {% endif %}
+                                {% endfor %}
+                            {% endif %}
+
+                            {# Sort timeline by year #}
+                            {% set sorted_timeline = timeline_items|sort(attribute='sort_key') %}
+
+                            {# Display merged timeline #}
+                            {% for item in sorted_timeline %}
+                                {% if item.type == 'period' %}
+                                    {# Period card #}
+                                    <div class="period-card {{ item.source_type }}" data-year="{{ item.year }}" data-source="{{ item.source_type }}"
+                                         {% if item.meta.get('boundary_type') %}data-boundary="{{ item.meta.get('boundary_type') }}" data-period-id="{{ item.meta.get('period_id') }}"{% endif %}>
+                                        <div class="period-card-header">
+                                            <div>
+                                                <span class="period-year">{{ item.year }}</span>
+                                                {% if item.meta.get('period_name') %}
+                                                <div style="font-size: 0.75rem; color: #6c757d; margin-top: 2px;">{{ item.meta.get('period_name') }}</div>
+                                                {% endif %}
+                                            </div>
+                                            {% if item.meta.get('boundary_type') %}
+                                            <span class="period-source-badge manual">
+                                                {% if item.meta.get('boundary_type') == 'start' %}START{% else %}END{% endif %}
+                                            </span>
+                                            {% else %}
+                                            <span class="period-source-badge {{ item.source_type }}">
+                                                {% if item.source_type == 'auto-generated' %}ARTIFACT{% else %}{{ item.source_type|upper }}{% endif %}
+                                            </span>
+                                            {% endif %}
+                                        </div>
+
+                                        {% if item.meta.get('period_description') %}
+                                        <div class="period-card-body" style="padding: 12px 16px; font-size: 0.875rem; color: #495057; font-style: italic;">
+                                            {{ item.meta.get('period_description') }}
+                                        </div>
+                                        {% endif %}
+
+                                        {% if item.docs|length > 0 %}
+                                        <div class="period-documents">
+                                            <div class="period-documents-title">
+                                                <i class="fas fa-file-alt"></i> {{ item.docs|length }} Document{{ 's' if item.docs|length != 1 else '' }}
+                                            </div>
+                                            {% for doc in item.docs %}
+                                            <div class="period-document-item">
+                                                <i class="fas fa-circle"></i>
+                                                <a href="{{ url_for('text_input.document_detail', document_uuid=doc.uuid) }}" class="period-document-link">{{ doc.title }}</a>
+                                            </div>
+                                            {% endfor %}
+                                        </div>
+                                        {% endif %}
+
+                                        <div class="period-card-footer">
+                                            {% if item.meta.get('boundary_type') %}
+                                                {# Boundary entry ID: boundary_type + year + period_id #}
+                                                {% set entry_id = item.meta.get('boundary_type') ~ '_' ~ item.year ~ '_' ~ item.meta.get('period_id', 'period_' ~ item.year) %}
+                                            {% else %}
+                                                {# Artifact entry ID: artifact + year #}
+                                                {% set entry_id = 'artifact_' ~ item.year %}
+                                            {% endif %}
+                                            <button class="period-remove" onclick="removeEntry('{{ entry_id }}')" title="Remove {{ 'period' if item.meta.get('boundary_type') else 'artifact' }}">
+                                                <i class="fas fa-trash"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+                                {% elif item.type in ['event_start', 'event_end', 'event_discrete'] %}
+                                    {# Semantic event card - simplified design like period cards #}
+                                    {% set event_type_name = item.event.event_type|replace('_', ' ')|title %}
+                                    {% set badge_text = 'START' if item.type == 'event_start' else ('END' if item.type == 'event_end' else event_type_name) %}
+                                    {% set is_discrete = item.type == 'event_discrete' %}
+                                    {% set boundary_attr = item.get('boundary_type', '') %}
+
+                                    <div class="semantic-event-card {{ item.event.event_type }}"
+                                         data-event-id="{{ item.event.id }}"
+                                         {% if boundary_attr %}data-boundary="{{ boundary_attr }}"{% endif %}
+                                         {% if is_discrete %}data-discrete="true"{% endif %}>
+                                        <div class="semantic-event-header">
+                                            <div>
+                                                <span class="semantic-event-year">{{ item.year }}</span>
+                                            </div>
+                                            <span class="semantic-event-type-badge">{{ badge_text }}</span>
+                                        </div>
+
+                                        <div class="semantic-event-body">
+                                            <div style="font-size: 0.875rem; font-weight: 600; color: #495057; margin-bottom: 8px;">
+                                                {{ event_type_name }}
+                                            </div>
+                                            <div class="semantic-event-description">
+                                                {{ item.event.description }}
+                                            </div>
+
+                                            {% if item.event.related_documents and item.event.related_documents|length > 0 %}
+                                            <div class="semantic-event-related-docs">
+                                                <div class="semantic-event-related-docs-title">
+                                                    <i class="fas fa-file-alt"></i> Evidence
+                                                </div>
+                                                {% for doc in item.event.related_documents %}
+                                                <div class="semantic-event-doc-item">
+                                                    <i class="fas fa-circle"></i>
+                                                    <a href="{{ url_for('text_input.document_detail', document_uuid=doc.uuid) }}" class="period-document-link">{{ doc.title }}</a>
+                                                </div>
+                                                {% endfor %}
+                                            </div>
+                                            {% endif %}
+                                        </div>
+
+                                        <div class="semantic-event-footer">
+                                            <button class="semantic-event-edit" onclick="editSemanticEvent('{{ item.event.id }}')" title="Edit event">
+                                                <i class="fas fa-edit"></i> Edit
+                                            </button>
+                                            {# Construct entry ID based on event type: event_start/event_end/event_discrete + year + event_id #}
+                                            {% set entry_id = item.type ~ '_' ~ item.year ~ '_' ~ item.event.id %}
+                                            <button class="semantic-event-remove" onclick="removeEntry('{{ entry_id }}')" title="Remove event">
+                                                <i class="fas fa-trash"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+                                {% endif %}
+                            {% endfor %}
+                        </div>
+                        {% else %}
+                        <div id="timeline-container" class="alert alert-info mb-0">
+                            <i class="fas fa-info-circle"></i>
+                            <strong>No timeline items yet.</strong>
+                            <p class="mb-0 mt-2">Use <strong>Auto-generate from document dates</strong> to create periods, or <strong>Manual Entry</strong> to add periods and events manually.</p>
+                        </div>
+                        {% endif %}
+                    </div>
+                    {# End of List View #}
                 </div>
             </div>
         </div>
     </div>
-    {% endif %}
 
     <!-- Term Cards -->
     <div id="terms-container">
@@ -441,8 +973,8 @@
                     <button class="btn btn-sm btn-outline-secondary" onclick="editTerm('{{ term }}')">
                         <i class="fas fa-edit"></i> Edit
                     </button>
-                    <button class="btn btn-sm btn-outline-danger" onclick="removeTerm('{{ term }}')">
-                        <i class="fas fa-trash"></i> Remove
+                    <button class="btn btn-sm btn-outline-danger" onclick="removeTerm('{{ term }}')" title="Remove term">
+                        <i class="fas fa-trash"></i>
                     </button>
                 </div>
             </div>
@@ -484,34 +1016,179 @@
             </div>
         </div>
         {% endfor %}
-        
-        <!-- Add New Term Card -->
-        <div class="add-term-card" onclick="showAddTermForm()">
-            <i class="fas fa-plus-circle fa-3x text-primary mb-3"></i>
-            <h5>Add New Term to Track</h5>
-            <p class="text-muted mb-0">Click to add another term for temporal analysis</p>
-        </div>
-        
-        <!-- Add Term Form (Hidden by default) -->
-        <div class="term-input-group" id="add-term-form">
-            <div class="card">
-                <div class="card-body">
-                    <h5 class="card-title">Add New Term</h5>
-                    <div class="row">
-                        <div class="col-md-8">
-                            <input type="text" class="form-control" id="new-term-input" 
-                                   placeholder="Enter term to track (e.g., 'algorithm', 'artificial intelligence')">
-                        </div>
-                        <div class="col-md-4">
-                            <button class="btn btn-primary" onclick="addNewTerm()">
-                                <i class="fas fa-plus"></i> Add Term
-                            </button>
-                            <button class="btn btn-secondary" onclick="hideAddTermForm()">
-                                Cancel
-                            </button>
-                        </div>
+    </div>
+</div>
+
+<!-- Manual Period Entry Modal -->
+<div class="modal fade" id="manualPeriodModal" tabindex="-1" aria-labelledby="manualPeriodModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="manualPeriodModalLabel">Manual Period Entry</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <div class="form-check form-switch">
+                        <input class="form-check-input" type="checkbox" id="useRangeMode" onchange="togglePeriodEntryMode()">
+                        <label class="form-check-label" for="useRangeMode">
+                            Generate from range (start year → end year with intervals)
+                        </label>
                     </div>
                 </div>
+
+                <!-- Manual List Mode (default) -->
+                <div id="manualListMode">
+                    <div class="mb-3">
+                        <label for="periodsInput" class="form-label">Time Periods (comma-separated years)</label>
+                        <input type="text" class="form-control" id="periodsInput"
+                               placeholder="e.g., 1910, 1956, 1995, 2019">
+                        <small class="text-muted">Enter years separated by commas</small>
+                    </div>
+                </div>
+
+                <!-- Range Mode (hidden by default) -->
+                <div id="rangeMode" style="display: none;">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="startYear" class="form-label">Start Year</label>
+                            <input type="number" class="form-control" id="startYear"
+                                   placeholder="1900" value="">
+                            <small class="text-muted">First document year or 1900</small>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="endYear" class="form-label">End Year</label>
+                            <input type="number" class="form-control" id="endYear"
+                                   placeholder="2025" value="">
+                            <small class="text-muted">Current year by default</small>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="periodInterval" class="form-label">Period Interval (years)</label>
+                        <input type="number" class="form-control" id="periodInterval"
+                               value="5" min="1">
+                        <small class="text-muted">Years between each period</small>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="applyManualPeriods()">Apply</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Add Period Modal -->
+<div class="modal fade" id="addPeriodModal" tabindex="-1" aria-labelledby="addPeriodModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="addPeriodModalLabel">Add Temporal Period</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label for="periodType" class="form-label">Period Type <span class="text-danger">*</span></label>
+                    <select class="form-select" id="periodType" required>
+                        <option value="">Select period type...</option>
+                    </select>
+                    <small class="text-muted">Ontology-defined temporal period classification</small>
+                </div>
+                <div class="mb-3">
+                    <label for="periodName" class="form-label">Period Name</label>
+                    <input type="text" class="form-control" id="periodName"
+                           placeholder="e.g., Early AI Era, Classical Period">
+                    <small class="text-muted">Optional: Give this period a descriptive name</small>
+                </div>
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label for="periodStartYear" class="form-label">Start Year <span class="text-danger">*</span></label>
+                        <input type="number" class="form-control" id="periodStartYear"
+                               placeholder="e.g., 1950" required>
+                        <small class="text-muted">Beginning of period</small>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label for="periodEndYear" class="form-label">End Year <span class="text-danger">*</span></label>
+                        <input type="number" class="form-control" id="periodEndYear"
+                               placeholder="e.g., 1970" required>
+                        <small class="text-muted">End of period</small>
+                    </div>
+                </div>
+                <div class="mb-3">
+                    <label for="periodDescription" class="form-label">Description</label>
+                    <textarea class="form-control" id="periodDescription" rows="2"
+                              placeholder="Optional description of what defines this period..."></textarea>
+                    <small class="text-muted">Optional: Describe the historical context</small>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="savePeriod()">Add Period</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Semantic Event Modal -->
+<div class="modal fade" id="semanticEventModal" tabindex="-1" aria-labelledby="semanticEventModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="semanticEventModalLabel">Add Semantic Event</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="eventEditId" value="">
+
+                <div class="mb-3">
+                    <label for="eventType" class="form-label">
+                        Event Type <span class="text-danger">*</span>
+                        <span class="badge bg-success ms-2" title="Event types from validated ontology"><i class="bi bi-shield-check"></i></span>
+                    </label>
+                    <select class="form-control" id="eventType" required onchange="showEventTypeMetadata(this)">
+                        <option value="">Loading from ontology...</option>
+                    </select>
+                    <small class="text-muted">Type of semantic transition or event</small>
+
+                    <!-- Metadata display area -->
+                    <div id="event-type-metadata" class="mt-2"></div>
+                </div>
+
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label for="eventFromPeriod" class="form-label">From Period <span class="text-danger">*</span></label>
+                        <input type="number" class="form-control" id="eventFromPeriod"
+                               placeholder="e.g., 1910" required>
+                        <small class="text-muted">Start year of event</small>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label for="eventToPeriod" class="form-label">To Period</label>
+                        <input type="number" class="form-control" id="eventToPeriod"
+                               placeholder="e.g., 1950 (optional)">
+                        <small class="text-muted">End year (leave blank for point event)</small>
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <label for="eventDescription" class="form-label">Description <span class="text-danger">*</span></label>
+                    <textarea class="form-control" id="eventDescription" rows="4"
+                              placeholder="Describe the semantic event, transition, or shift..."
+                              required></textarea>
+                    <small class="text-muted">What changed? Why is this event significant?</small>
+                </div>
+
+                <div class="mb-3">
+                    <label for="eventDocuments" class="form-label">Related Documents (Evidence)</label>
+                    <select class="form-control" id="eventDocuments" multiple size="5">
+                        <!-- Will be populated dynamically with experiment documents -->
+                    </select>
+                    <small class="text-muted">Select documents that provide evidence for this event</small>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="saveSemanticEvent()">Save Event</button>
             </div>
         </div>
     </div>
@@ -521,7 +1198,6 @@
 // Global variables
 let experimentId = {{ experiment.id }};
 let currentTerms = {{ terms|tojson|safe }};
-let timePeriods = {{ time_periods|tojson|safe }};
 {% if term_periods %}
 let termPeriods = {{ term_periods|tojson|safe }};  // Term-specific periods from OED
 {% else %}
@@ -529,128 +1205,342 @@ let termPeriods = {};  // Term-specific periods from OED
 {% endif %}
 let termData = {};
 
+// NEW DATA STRUCTURE: Array of timeline entries (supports multiple entries per year)
+let timelineEntries = [];  // Each entry: { id, year, type, ... }
+let periodDocuments = {};  // Documents keyed by year (shared by all entries for that year)
+
+// Semantic events
+let semanticEvents = {{ semantic_events|default([])|tojson|safe }};  // Semantic transition events
+let experimentDocuments = [];  // Will be populated for document selection
+
+// Period types from ontology
+let periodTypes = [];  // Will be populated from backend
+
+// Initialize from backend data (convert old format to new)
+(function() {
+    const backendPeriods = {{ time_periods|tojson|safe }};
+    const backendMetadata = {{ period_metadata|tojson|safe }};
+    const backendDocuments = {{ period_documents|tojson|safe }};
+
+    periodDocuments = backendDocuments;
+
+    // Convert backend metadata to timeline entries (periods and artifacts)
+    backendPeriods.forEach(year => {
+        const yearStr = year.toString();
+        const meta = backendMetadata[yearStr] || {};
+        const hasDocs = (backendDocuments[yearStr] || []).length > 0;
+
+        if (meta.boundary_type) {
+            // This is a period boundary (START or END)
+            const periodId = meta.period_id || `period_${Date.now()}_${Math.random()}`;
+            const entryId = `${meta.boundary_type}_${yearStr}_${periodId}`;
+
+            timelineEntries.push({
+                id: entryId,
+                year: year,
+                type: 'boundary',
+                boundary_type: meta.boundary_type,
+                period_id: periodId,
+                period_name: meta.period_name || '',
+                period_description: meta.period_description || '',
+                paired_with_year: meta.paired_with,
+                source: 'manual'
+            });
+
+            // If this boundary year ALSO has documents, create an artifact entry too
+            if (hasDocs) {
+                const artifactId = `artifact_${yearStr}`;
+                timelineEntries.push({
+                    id: artifactId,
+                    year: year,
+                    type: 'artifact',
+                    source: 'auto-generated'
+                });
+            }
+        } else {
+            // This is an artifact (auto-generated or manual)
+            const entryId = `artifact_${yearStr}`;
+
+            timelineEntries.push({
+                id: entryId,
+                year: year,
+                type: 'artifact',
+                source: meta.source || 'auto-generated'
+            });
+        }
+    });
+
+    // Convert semantic events to timeline entries
+    semanticEvents.forEach(event => {
+        if (event.to_period && event.to_period !== event.from_period) {
+            // Span event: create START and END entries
+            const eventId = event.id || `event_${Date.now()}_${Math.random()}`;
+
+            // START entry
+            const startEntryId = `event_start_${event.from_period}_${eventId}`;
+            timelineEntries.push({
+                id: startEntryId,
+                year: event.from_period,
+                type: 'event',
+                boundary_type: 'start',
+                event_id: eventId,
+                event_type: event.event_type,
+                event_description: event.description,
+                event_documents: event.related_documents || [],
+                paired_with_year: event.to_period,
+                paired_with_id: `event_end_${event.to_period}_${eventId}`,
+                backend_event_id: event.id  // Link to backend event record
+            });
+
+            // END entry
+            const endEntryId = `event_end_${event.to_period}_${eventId}`;
+            timelineEntries.push({
+                id: endEntryId,
+                year: event.to_period,
+                type: 'event',
+                boundary_type: 'end',
+                event_id: eventId,
+                event_type: event.event_type,
+                event_description: event.description,
+                event_documents: event.related_documents || [],
+                paired_with_year: event.from_period,
+                paired_with_id: startEntryId,
+                backend_event_id: event.id  // Link to backend event record
+            });
+        } else {
+            // Discrete event: single entry
+            const eventId = event.id || `event_${Date.now()}_${Math.random()}`;
+            const entryId = `event_discrete_${event.from_period}_${eventId}`;
+
+            timelineEntries.push({
+                id: entryId,
+                year: event.from_period,
+                type: 'event',
+                discrete: true,
+                event_id: eventId,
+                event_type: event.event_type,
+                event_description: event.description,
+                event_documents: event.related_documents || [],
+                backend_event_id: event.id  // Link to backend event record
+            });
+        }
+    });
+})();
+
+// Toggle timeline expanded view
+function toggleTimelineExpanded() {
+    const section = document.getElementById('timeline-section');
+    const icon = document.getElementById('timeline-expand-icon');
+
+    if (section.classList.contains('timeline-expanded')) {
+        // Collapse
+        section.classList.remove('timeline-expanded');
+        icon.classList.remove('fa-compress');
+        icon.classList.add('fa-expand');
+        document.body.style.overflow = '';
+    } else {
+        // Expand
+        section.classList.add('timeline-expanded');
+        icon.classList.remove('fa-expand');
+        icon.classList.add('fa-compress');
+        document.body.style.overflow = 'hidden';
+    }
+}
+
+// Close expanded view on ESC key
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+        const section = document.getElementById('timeline-section');
+        if (section && section.classList.contains('timeline-expanded')) {
+            toggleTimelineExpanded();
+        }
+    }
+});
+
+// Fetch period types from ontology
+async function fetchPeriodTypes() {
+    try {
+        const response = await fetch('/experiments/period_types');
+        const data = await response.json();
+
+        if (data.success && data.period_types) {
+            periodTypes = data.period_types;
+
+            // Populate period type dropdown
+            const select = document.getElementById('periodType');
+            if (select) {
+                // Clear existing options except the first (placeholder)
+                while (select.options.length > 1) {
+                    select.remove(1);
+                }
+
+                // Add period types
+                periodTypes.forEach(type => {
+                    const option = document.createElement('option');
+                    option.value = type.value;
+                    option.textContent = type.label;
+                    option.setAttribute('data-description', type.description || '');
+                    option.setAttribute('data-uri', type.uri || '');
+                    select.appendChild(option);
+                });
+            }
+
+            console.log(`Loaded ${periodTypes.length} period types from ${data.source}`);
+        } else {
+            console.error('Failed to fetch period types:', data.error || 'Unknown error');
+        }
+    } catch (error) {
+        console.error('Error fetching period types:', error);
+    }
+}
+
+// Generate consistent color from period_id hash
+function generatePeriodColor(periodId) {
+    if (!periodId) return null;
+
+    // Simple string hash function
+    let hash = 0;
+    for (let i = 0; i < periodId.length; i++) {
+        hash = ((hash << 5) - hash) + periodId.charCodeAt(i);
+        hash = hash & hash; // Convert to 32bit integer
+    }
+
+    // Use hash to generate HSL color
+    // Hue: 0-360, use hash modulo to get consistent hue
+    const hue = Math.abs(hash % 360);
+    // Saturation: 60-80% for vibrant but not overwhelming colors
+    const saturation = 60 + (Math.abs(hash >> 8) % 20);
+    // Lightness: 50-65% for good visibility
+    const lightness = 50 + (Math.abs(hash >> 16) % 15);
+
+    return `hsl(${hue}, ${saturation}%, ${lightness}%)`;
+}
+
+// Apply period colors to all boundary cards
+function applyPeriodColors() {
+    const boundaryCards = document.querySelectorAll('.period-card[data-boundary][data-period-id]');
+
+    boundaryCards.forEach(card => {
+        const periodId = card.getAttribute('data-period-id');
+        if (periodId) {
+            const color = generatePeriodColor(periodId);
+            if (color) {
+                // Set CSS custom property on the card (used by ::before pseudo-element and hover effect)
+                card.style.setProperty('--period-color', color);
+            }
+        }
+    });
+
+    // Add hover listeners to highlight paired boundaries
+    boundaryCards.forEach(card => {
+        card.addEventListener('mouseenter', function() {
+            const periodId = this.getAttribute('data-period-id');
+            if (periodId) {
+                // Find and highlight all cards with the same period_id
+                const pairedCards = document.querySelectorAll(`.period-card[data-period-id="${periodId}"]`);
+                pairedCards.forEach(paired => {
+                    paired.classList.add('period-pair-highlighted');
+                });
+            }
+        });
+
+        card.addEventListener('mouseleave', function() {
+            const periodId = this.getAttribute('data-period-id');
+            if (periodId) {
+                // Remove highlight from all cards with the same period_id
+                const pairedCards = document.querySelectorAll(`.period-card[data-period-id="${periodId}"]`);
+                pairedCards.forEach(paired => {
+                    paired.classList.remove('period-pair-highlighted');
+                });
+            }
+        });
+    });
+}
+
 // Initialize
 document.addEventListener('DOMContentLoaded', function() {
     // Load any saved temporal data
     loadSavedTemporalData();
+
+    // Fetch experiment documents for event modal
+    fetchExperimentDocuments();
+
+    // Fetch period types from ontology
+    fetchPeriodTypes();
+
+    // Load event types from ontology
+    loadEventTypes();
+
+    // Apply period colors to boundary markers
+    applyPeriodColors();
 });
 
-// Show/hide add term form
-function showAddTermForm() {
-    document.getElementById('add-term-form').classList.add('active');
-    document.getElementById('new-term-input').focus();
+// Load event types from ontology
+async function loadEventTypes() {
+    try {
+        const response = await fetch(`/experiments/${experimentId}/semantic_event_types`);
+        const data = await response.json();
+
+        if (!data.success) {
+            console.error('Failed to load event types:', data.error);
+            return;
+        }
+
+        console.log(`Loaded ${data.count} event types from ${data.source}`);
+
+        // Populate dropdown
+        const select = document.getElementById('eventType');
+        select.innerHTML = '<option value="">-- Select semantic change type --</option>';
+
+        data.event_types.forEach(type => {
+            const option = document.createElement('option');
+            option.value = type.value;
+            option.textContent = type.label;
+
+            // Store metadata as data attributes
+            option.dataset.definition = type.definition || '';
+            option.dataset.citation = type.citation || '';
+            option.dataset.example = type.example || '';
+            option.dataset.uri = type.uri || '';
+
+            select.appendChild(option);
+        });
+
+    } catch (error) {
+        console.error('Error loading event types:', error);
+        // Keep fallback "Loading..." option
+    }
 }
 
-function hideAddTermForm() {
-    document.getElementById('add-term-form').classList.remove('active');
-    document.getElementById('new-term-input').value = '';
-}
+// Show event type metadata when user selects an event type
+function showEventTypeMetadata(selectElement) {
+    const selectedOption = selectElement.options[selectElement.selectedIndex];
 
-// Add new term
-function addNewTerm() {
-    const input = document.getElementById('new-term-input');
-    const term = input.value.trim();
-    
-    if (!term) {
-        alert('Please enter a term');
+    if (!selectedOption || !selectedOption.value) {
+        document.getElementById('event-type-metadata').innerHTML = '';
         return;
     }
-    
-    if (currentTerms.includes(term)) {
-        alert('This term already exists');
-        return;
-    }
-    
-    // Add term to list
-    currentTerms.push(term);
-    
-    // Create new term card
-    createTermCard(term);
-    
-    // Update count
-    document.getElementById('term-count').textContent = currentTerms.length;
-    
-    // Hide form
-    hideAddTermForm();
-    
-    // Save to backend
-    saveTerms();
-}
 
-// Create term card dynamically
-function createTermCard(term) {
-    const container = document.getElementById('terms-container');
-    const addCard = container.querySelector('.add-term-card');
-    
-    const termCard = document.createElement('div');
-    termCard.className = 'term-card';
-    termCard.dataset.term = term;
-    
-    // Use term-specific periods if available, otherwise use global periods
-    const periodsToUse = (termPeriods[term] && termPeriods[term].length > 0) ? termPeriods[term] : timePeriods;
-    
-    let timelineColumns = '';
-    periodsToUse.forEach((period, index) => {
-        timelineColumns += `
-            <div class="time-period-column" data-period="${period}">
-                <div class="period-label">
-                    <i class="fas fa-calendar"></i>
-                    <span class="period-year">${period}</span>
-                </div>
-                
-                <div class="definition-content" id="def-${term}-${period}">
-                    <div class="definition-placeholder">
-                        Click "Fetch Historical Data" to load definitions from this period
-                    </div>
-                </div>
-                
-                <div class="frequency-indicator" id="freq-${term}-${period}" style="display: none;">
-                    <small class="text-muted">Term Frequency:</small>
-                    <div class="frequency-bar" style="width: 0%"></div>
-                    <small class="frequency-value">0 occurrences</small>
-                </div>
-                
-                <div class="context-changes">
-                    <small class="text-muted">Context & Usage:</small>
-                    <div class="context-badges" id="context-${term}-${period}">
-                        <!-- Context badges will be loaded here -->
-                    </div>
-                </div>
-                
-                ${index < periodsToUse.length - 1 ? '<span class="timeline-arrow">→</span>' : ''}
-            </div>
-        `;
-    });
-    
-    termCard.innerHTML = `
-        <div class="term-header">
-            <div class="term-title">
-                <i class="fas fa-tag text-primary"></i> ${term}
-            </div>
-            <div class="term-actions">
-                <button class="btn btn-sm btn-outline-primary" onclick="fetchTemporalData('${term}')">
-                    <i class="fas fa-sync"></i> Fetch Historical Data
-                </button>
-                <button class="btn btn-sm btn-outline-success" onclick="fetchTemporalData('${term}', true)" title="Fetch OED data and suggest time periods">
-                    <i class="fas fa-book"></i> Use OED Periods
-                </button>
-                <button class="btn btn-sm btn-outline-info" onclick="analyzeEvolution('${term}')">
-                    <i class="fas fa-chart-line"></i> Analyze Evolution
-                </button>
-                <button class="btn btn-sm btn-outline-secondary" onclick="editTerm('${term}')">
-                    <i class="fas fa-edit"></i> Edit
-                </button>
-                <button class="btn btn-sm btn-outline-danger" onclick="removeTerm('${term}')">
-                    <i class="fas fa-trash"></i> Remove
-                </button>
-            </div>
-        </div>
-        <div class="timeline-container">
-            ${timelineColumns}
-        </div>
+    const definition = selectedOption.dataset.definition;
+    const citation = selectedOption.dataset.citation;
+    const example = selectedOption.dataset.example;
+
+    let html = `
+        <div class="alert alert-info">
+            <strong>Definition:</strong> ${definition}
     `;
-    
-    container.insertBefore(termCard, addCard);
+
+    if (citation) {
+        html += `<br><small><strong>Citation:</strong> ${citation}</small>`;
+    }
+
+    if (example) {
+        html += `<br><small><strong>Example:</strong> ${example}</small>`;
+    }
+
+    html += '</div>';
+
+    document.getElementById('event-type-metadata').innerHTML = html;
 }
 
 // Remove term
@@ -669,7 +1559,11 @@ function removeTerm(term) {
     }
     
     // Update count
-    document.getElementById('term-count').textContent = currentTerms.length;
+    // Update term display to show actual term names
+    const termDisplay = document.getElementById('term-display');
+    if (termDisplay) {
+        termDisplay.textContent = currentTerms.length > 0 ? currentTerms.join(', ') : 'No terms selected';
+    }
     
     // Save to backend
     saveTerms();
@@ -780,39 +1674,12 @@ async function fetchTemporalData(term, useOED = false) {
     }
 }
 
-// Refresh the UI with new time periods
-async function refreshTimePeriodsUI() {
-    // Update the period badges in the header
-    const periodBadges = document.querySelector('.alert.alert-info');
-    if (periodBadges) {
-        let badgeHTML = '<i class="fas fa-info-circle"></i> <strong>Time Periods:</strong> ';
-        timePeriods.forEach((period, index) => {
-            badgeHTML += `<span class="badge bg-primary ms-2">${period}</span>`;
-            if (index < timePeriods.length - 1) badgeHTML += '→';
-        });
-        badgeHTML += `<button class="btn btn-sm btn-outline-primary float-end" onclick="editTimePeriods()">
-                        <i class="fas fa-edit"></i> Edit Periods
-                      </button>`;
-        periodBadges.innerHTML = badgeHTML;
-    }
-    
-    // Recreate all term cards with new periods
-    const container = document.getElementById('terms-container');
-    const termCards = container.querySelectorAll('.term-card');
-    
-    termCards.forEach(card => {
-        const term = card.dataset.term;
-        card.remove();
-        createTermCard(term);
-    });
-    
-    // Save the new periods
-    await saveTerms();
-}
-
 // Display temporal data
 function displayTemporalData(term, temporalData) {
-    timePeriods.forEach(period => {
+    // Get unique years from timeline entries
+    const uniqueYears = [...new Set(timelineEntries.map(e => e.year))].sort((a, b) => a - b);
+
+    uniqueYears.forEach(period => {
         const contentDiv = document.getElementById(`def-${term}-${period}`);
         
         if (contentDiv) {
@@ -887,13 +1754,560 @@ async function analyzeEvolution(term) {
     }
 }
 
-// Edit time periods
-function editTimePeriods() {
-    alert('Time period editing would require reconfiguring the experiment. Please create a new experiment with different time periods.');
+// Generate periods from documents
+async function generatePeriodsFromDocuments() {
+    if (!confirm('Generate time periods from document dates?\n\nThis will create one period for each unique publication year in your documents.')) {
+        return;
+    }
+
+    try {
+        const response = await fetch(`/experiments/${experimentId}/generate_periods_from_documents`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            }
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            // Update periods
+            timePeriods = data.periods;
+
+            // Reload page to get updated period_documents and period_metadata
+            location.reload();
+        } else {
+            alert('Error generating periods: ' + data.error);
+        }
+    } catch (error) {
+        alert('Error generating periods: ' + error.message);
+    }
+}
+
+// Show manual period editor
+function showManualPeriodEditor() {
+    // Populate current periods
+    document.getElementById('periodsInput').value = timePeriods.join(', ');
+
+    // Set smart defaults for range mode
+    const startDefault = timePeriods.length > 0 ? Math.min(...timePeriods) : 1900;
+    const endDefault = new Date().getFullYear();
+
+    document.getElementById('startYear').value = startDefault;
+    document.getElementById('endYear').value = endDefault;
+
+    // Show modal
+    const modal = new bootstrap.Modal(document.getElementById('manualPeriodModal'));
+    modal.show();
+}
+
+// Toggle between manual list and range mode
+function togglePeriodEntryMode() {
+    const useRange = document.getElementById('useRangeMode').checked;
+    document.getElementById('manualListMode').style.display = useRange ? 'none' : 'block';
+    document.getElementById('rangeMode').style.display = useRange ? 'block' : 'none';
+}
+
+// Apply manual periods
+function applyManualPeriods() {
+    const useRange = document.getElementById('useRangeMode').checked;
+    let newPeriods = [];
+
+    if (useRange) {
+        // Range mode: generate periods from start to end with interval
+        const startYear = parseInt(document.getElementById('startYear').value);
+        const endYear = parseInt(document.getElementById('endYear').value);
+        const interval = parseInt(document.getElementById('periodInterval').value);
+
+        if (isNaN(startYear) || isNaN(endYear) || isNaN(interval)) {
+            alert('Please enter valid numbers for start year, end year, and interval');
+            return;
+        }
+
+        if (startYear >= endYear) {
+            alert('Start year must be less than end year');
+            return;
+        }
+
+        if (interval < 1) {
+            alert('Interval must be at least 1 year');
+            return;
+        }
+
+        // Generate periods
+        let current = startYear;
+        while (current <= endYear) {
+            newPeriods.push(current);
+            current += interval;
+        }
+
+        // Ensure end year is included if not already
+        if (newPeriods[newPeriods.length - 1] < endYear) {
+            newPeriods.push(endYear);
+        }
+    } else {
+        // Manual list mode
+        const periodsStr = document.getElementById('periodsInput').value;
+
+        if (!periodsStr.trim()) {
+            alert('Please enter at least one period');
+            return;
+        }
+
+        newPeriods = periodsStr.split(',')
+            .map(p => parseInt(p.trim()))
+            .filter(p => !isNaN(p))
+            .sort((a, b) => a - b);
+
+        if (newPeriods.length === 0) {
+            alert('No valid periods entered');
+            return;
+        }
+    }
+
+    // Update periods
+    timePeriods = newPeriods;
+
+    // Close modal
+    const modal = bootstrap.Modal.getInstance(document.getElementById('manualPeriodModal'));
+    modal.hide();
+
+    // Refresh UI
+    refreshTimePeriodsUI();
+}
+
+// Show add period dialog
+function showAddPeriodDialog() {
+    // Reset form
+    document.getElementById('periodType').value = '';
+    document.getElementById('periodName').value = '';
+    document.getElementById('periodStartYear').value = '';
+    document.getElementById('periodEndYear').value = '';
+    document.getElementById('periodDescription').value = '';
+
+    // Show modal
+    const modal = new bootstrap.Modal(document.getElementById('addPeriodModal'));
+    modal.show();
+}
+
+// Save period (creates two boundary markers)
+async function savePeriod() {
+    const periodType = document.getElementById('periodType').value;
+    const name = document.getElementById('periodName').value.trim();
+    const startYear = parseInt(document.getElementById('periodStartYear').value);
+    const endYear = parseInt(document.getElementById('periodEndYear').value);
+    const description = document.getElementById('periodDescription').value.trim();
+
+    // Validation
+    if (!periodType) {
+        alert('Please select a period type');
+        return;
+    }
+
+    if (isNaN(startYear) || isNaN(endYear)) {
+        alert('Please enter valid start and end years');
+        return;
+    }
+
+    if (startYear >= endYear) {
+        alert('Start year must be before end year');
+        return;
+    }
+
+    // Check if these years already exist as PERIOD BOUNDARIES (not artifacts)
+    // Multiple entries can exist for same year, but only one START and one END boundary
+    const hasStartBoundary = timelineEntries.some(e => e.year === startYear && e.boundary_type === 'start');
+    const hasEndBoundary = timelineEntries.some(e => e.year === endYear && e.boundary_type === 'end');
+
+    if (hasStartBoundary) {
+        alert(`Year ${startYear} already has a START boundary marker. Remove it first or choose a different year.`);
+        return;
+    }
+
+    if (hasEndBoundary) {
+        alert(`Year ${endYear} already has an END boundary marker. Remove it first or choose a different year.`);
+        return;
+    }
+
+    // Generate unique period ID
+    const periodId = `period_${Date.now()}`;
+
+    // Create START boundary entry
+    const startEntryId = `start_${startYear}_${periodId}`;
+    timelineEntries.push({
+        id: startEntryId,
+        year: startYear,
+        type: 'boundary',
+        boundary_type: 'start',
+        period_id: periodId,
+        period_name: name,
+        period_description: description,
+        paired_with_year: endYear,
+        paired_with_id: `end_${endYear}_${periodId}`,
+        source: 'manual'
+    });
+
+    // Create END boundary entry
+    const endEntryId = `end_${endYear}_${periodId}`;
+    timelineEntries.push({
+        id: endEntryId,
+        year: endYear,
+        type: 'boundary',
+        boundary_type: 'end',
+        period_id: periodId,
+        period_name: name,
+        period_description: description,
+        paired_with_year: startYear,
+        paired_with_id: startEntryId,
+        source: 'manual'
+    });
+
+    // Close modal
+    const modal = bootstrap.Modal.getInstance(document.getElementById('addPeriodModal'));
+    modal.hide();
+
+    // Save to backend
+    await saveTerms(() => {
+        // Refresh UI after save completes
+        refreshTimelineUI();
+    });
+}
+
+// Remove a timeline entry by ID
+async function removeEntry(entryId) {
+    const entry = timelineEntries.find(e => e.id === entryId);
+    if (!entry) {
+        console.error('Entry not found:', entryId);
+        return;
+    }
+
+    // Determine what to remove
+    if (entry.type === 'boundary') {
+        // Removing a period boundary - remove both START and END
+        const periodName = entry.period_name || `Period ${entry.year}`;
+        const pairedId = entry.paired_with_id;
+
+        if (!confirm(`Remove entire period "${periodName}"?\n\nThis will remove both boundary markers (START and END).`)) {
+            return;
+        }
+
+        // Remove both entries
+        timelineEntries = timelineEntries.filter(e => e.id !== entryId && e.id !== pairedId);
+    } else if (entry.type === 'event') {
+        // Removing an event - check if span or discrete
+        const eventTypeName = entry.event_type.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+
+        if (entry.paired_with_id) {
+            // Span event - remove both START and END
+            if (!confirm(`Remove entire ${eventTypeName} event (${entry.year} → ${entry.paired_with_year})?\n\nThis will remove both START and END markers.`)) {
+                return;
+            }
+
+            // Remove both entries from timeline
+            const pairedId = entry.paired_with_id;
+            timelineEntries = timelineEntries.filter(e => e.id !== entryId && e.id !== pairedId);
+        } else {
+            // Discrete event - remove single entry
+            if (!confirm(`Remove ${eventTypeName} event at ${entry.year}?`)) {
+                return;
+            }
+
+            // Remove entry from timeline
+            timelineEntries = timelineEntries.filter(e => e.id !== entryId);
+        }
+
+        // Also remove from backend semantic events if it exists
+        if (entry.backend_event_id) {
+            // Find and remove from semanticEvents array
+            semanticEvents = semanticEvents.filter(e => e.id !== entry.backend_event_id);
+
+            // Call backend to remove event
+            try {
+                const response = await fetch(`/experiments/${experimentId}/remove_semantic_event/${entry.backend_event_id}`, {
+                    method: 'DELETE'
+                });
+                const data = await response.json();
+                if (!data.success) {
+                    console.error('Failed to remove event from backend:', data.error);
+                }
+            } catch (error) {
+                console.error('Error removing event from backend:', error);
+            }
+        }
+    } else {
+        // Removing an artifact
+        if (!confirm(`Remove artifact marker for ${entry.year}?`)) {
+            return;
+        }
+
+        // Remove entry
+        timelineEntries = timelineEntries.filter(e => e.id !== entryId);
+
+        // Also remove documents for this year if no other entries reference it
+        const yearStillUsed = timelineEntries.some(e => e.year === entry.year);
+        if (!yearStillUsed) {
+            delete periodDocuments[entry.year.toString()];
+        }
+    }
+
+    // Save to backend
+    await saveTerms(() => {
+        // Refresh UI after save completes
+        refreshTimelineUI();
+    });
+}
+
+// Refresh the periods UI
+// Unified timeline refresh (periods + semantic events)
+function refreshTimelineUI() {
+    const container = document.getElementById('timeline-container');
+    container.innerHTML = '';
+
+    // Build merged timeline from new data structure
+    const timelineItems = [];
+
+    // Add ALL timeline entries (artifacts, boundaries, and events)
+    // Events are now already in timelineEntries array from initialization
+    timelineEntries.forEach(entry => {
+        // Sort order: START=0, ARTIFACT/EVENT=1, END=2
+        let sortOrder = 1;  // Default for artifacts and discrete events
+        if (entry.type === 'boundary' || entry.boundary_type) {
+            sortOrder = entry.boundary_type === 'start' ? 0 : 2;
+        }
+
+        timelineItems.push({
+            type: entry.type,  // 'boundary', 'artifact', or 'event'
+            sortKey: (entry.year * 10) + sortOrder,
+            data: entry
+        });
+    });
+
+    // Sort by sortKey
+    timelineItems.sort((a, b) => a.sortKey - b.sortKey);
+
+    if (timelineItems.length === 0) {
+        container.className = 'alert alert-info mb-0';
+        container.innerHTML = `
+            <i class="fas fa-info-circle"></i>
+            <strong>No timeline items yet.</strong>
+            <p class="mb-0 mt-2">Use <strong>Auto-generate from document dates</strong> to create periods, or <strong>Manual Entry</strong> to add periods and events manually.</p>
+        `;
+    } else {
+        // Reset to default (grid layout via CSS)
+        container.className = '';
+
+        // Render timeline items
+        timelineItems.forEach(item => {
+            if (item.type === 'boundary' || item.type === 'artifact') {
+                // Period entry (artifact or boundary)
+                const entry = item.data;
+                const docs = periodDocuments[entry.year.toString()] || [];
+                const card = document.createElement('div');
+
+                const sourceClass = entry.type === 'boundary' ? 'manual' : (entry.source || 'auto-generated');
+                card.className = `period-card ${sourceClass}`;
+                card.setAttribute('data-year', entry.year);
+                card.setAttribute('data-source', sourceClass);
+                card.setAttribute('data-entry-id', entry.id);
+
+                if (entry.boundary_type) {
+                    card.setAttribute('data-boundary', entry.boundary_type);
+                    if (entry.period_id) {
+                        card.setAttribute('data-period-id', entry.period_id);
+                    }
+                }
+
+                // Determine badge text and class
+                let badgeText, badgeClass;
+                if (entry.type === 'boundary') {
+                    badgeText = entry.boundary_type === 'start' ? 'START' : 'END';
+                    badgeClass = 'manual';
+                } else {
+                    badgeText = 'ARTIFACT';
+                    badgeClass = entry.source || 'auto-generated';
+                }
+
+                let cardHTML = `
+                    <div class="period-card-header">
+                        <div>
+                            <span class="period-year">${entry.year}</span>
+                            ${entry.period_name ? `<div style="font-size: 0.75rem; color: #6c757d; margin-top: 2px;">${entry.period_name}</div>` : ''}
+                        </div>
+                        <span class="period-source-badge ${badgeClass}">${badgeText}</span>
+                    </div>
+                `;
+
+                // Add period description if it exists
+                if (entry.period_description) {
+                    cardHTML += `
+                        <div class="period-card-body" style="padding: 12px 16px; font-size: 0.875rem; color: #495057; font-style: italic;">
+                            ${entry.period_description}
+                        </div>
+                    `;
+                }
+
+                // Show documents ONLY on artifact cards (not on boundary cards)
+                // Boundaries and artifacts can coexist for the same year, so documents appear on artifacts
+                if (entry.type === 'artifact' && docs.length > 0) {
+                    cardHTML += `
+                        <div class="period-documents">
+                            <div class="period-documents-title">
+                                <i class="fas fa-file-alt"></i> ${docs.length} Document${docs.length !== 1 ? 's' : ''}
+                            </div>
+                            ${docs.map(doc => `
+                                <div class="period-document-item">
+                                    <i class="fas fa-circle"></i>
+                                    <a href="/document/${doc.uuid}" class="period-document-link">${doc.title}</a>
+                                </div>
+                            `).join('')}
+                        </div>
+                    `;
+                }
+
+                cardHTML += `
+                    <div class="period-card-footer">
+                        <button class="period-remove" onclick="removeEntry('${entry.id}')" title="Remove ${entry.type === 'boundary' ? 'period' : 'artifact'}">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                `;
+
+                card.innerHTML = cardHTML;
+                container.appendChild(card);
+            } else if (item.type === 'event') {
+                // Semantic event (boundary or discrete)
+                const entry = item.data;
+                const card = document.createElement('div');
+
+                // Card class includes event type for color
+                card.className = `semantic-event-card ${entry.event_type}`;
+                card.setAttribute('data-event-id', entry.backend_event_id || entry.event_id);
+                card.setAttribute('data-entry-id', entry.id);
+
+                // Set boundary or discrete attributes
+                if (entry.boundary_type) {
+                    card.setAttribute('data-boundary', entry.boundary_type);
+                } else if (entry.discrete) {
+                    card.setAttribute('data-discrete', 'true');
+                }
+
+                // Format event type name (convert underscores to spaces, capitalize)
+                const eventTypeName = entry.event_type.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+
+                // Determine badge text
+                let badgeText;
+                if (entry.boundary_type === 'start') {
+                    badgeText = 'START';
+                } else if (entry.boundary_type === 'end') {
+                    badgeText = 'END';
+                } else {
+                    badgeText = eventTypeName;
+                }
+
+                let cardHTML = `
+                    <div class="semantic-event-header">
+                        <div>
+                            <span class="semantic-event-year">${entry.year}</span>
+                        </div>
+                        <span class="semantic-event-type-badge">${badgeText}</span>
+                    </div>
+                    <div class="semantic-event-body">
+                        <div style="font-size: 0.875rem; font-weight: 600; color: #495057; margin-bottom: 8px;">
+                            ${eventTypeName}
+                        </div>
+                        <div class="semantic-event-description">${entry.event_description}</div>
+                `;
+
+                // Show related documents if any
+                if (entry.event_documents && entry.event_documents.length > 0) {
+                    cardHTML += `
+                        <div class="semantic-event-related-docs">
+                            <div class="semantic-event-related-docs-title">
+                                <i class="fas fa-file-alt"></i> Evidence
+                            </div>
+                            ${entry.event_documents.map(doc => `
+                                <div class="semantic-event-doc-item">
+                                    <i class="fas fa-circle"></i>
+                                    <a href="/document/${doc.uuid}" class="period-document-link">${doc.title}</a>
+                                </div>
+                            `).join('')}
+                        </div>
+                    `;
+                }
+
+                cardHTML += `
+                    </div>
+                    <div class="semantic-event-footer">
+                        <button class="semantic-event-edit" onclick="editSemanticEvent('${entry.backend_event_id}')" title="Edit event">
+                            <i class="fas fa-edit"></i> Edit
+                        </button>
+                        <button class="semantic-event-remove" onclick="removeEntry('${entry.id}')" title="Remove event">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                `;
+
+                card.innerHTML = cardHTML;
+                container.appendChild(card);
+            }
+        });
+    }
+
+    // Apply period colors after rendering
+    applyPeriodColors();
+}
+
+// Alias for backwards compatibility
+function refreshTimePeriodsUI() {
+    refreshTimelineUI();
 }
 
 // Save terms to backend
 async function saveTerms(callback) {
+    // Convert new data structure (timelineEntries) to backend format (timePeriods + periodMetadata)
+    const backendPeriods = [];
+    const backendMetadata = {};
+
+    // Extract unique years and build metadata
+    // Priority: boundaries override artifacts if both exist for same year
+    timelineEntries.forEach(entry => {
+        const yearStr = entry.year.toString();
+
+        // Add year if not already present
+        if (!backendPeriods.includes(entry.year)) {
+            backendPeriods.push(entry.year);
+        }
+
+        // Build metadata for this entry
+        // If year already has metadata and it's a boundary, don't overwrite with artifact
+        const existingMeta = backendMetadata[yearStr];
+        const isBoundary = entry.type === 'boundary';
+        const shouldUpdate = !existingMeta || isBoundary || !existingMeta.boundary_type;
+
+        if (shouldUpdate) {
+            if (isBoundary) {
+                backendMetadata[yearStr] = {
+                    source: 'manual',
+                    document_count: (periodDocuments[yearStr] || []).length,
+                    boundary_type: entry.boundary_type,
+                    period_id: entry.period_id,
+                    period_name: entry.period_name || '',
+                    period_description: entry.period_description || '',
+                    paired_with: entry.paired_with_year
+                };
+            } else {
+                // Artifact - only set if no boundary exists
+                backendMetadata[yearStr] = {
+                    source: entry.source || 'auto-generated',
+                    document_count: (periodDocuments[yearStr] || []).length
+                };
+            }
+        }
+    });
+
+    // Sort periods
+    backendPeriods.sort((a, b) => a - b);
+
     try {
         const response = await fetch(`/experiments/${experimentId}/update_temporal_terms`, {
             method: 'POST',
@@ -902,13 +2316,17 @@ async function saveTerms(callback) {
             },
             body: JSON.stringify({
                 terms: currentTerms,
-                periods: timePeriods,
-                temporal_data: termData
+                periods: backendPeriods,
+                temporal_data: {
+                    ...termData,
+                    period_metadata: backendMetadata,
+                    period_documents: periodDocuments
+                }
             })
         });
-        
+
         const data = await response.json();
-        
+
         if (data.success) {
             if (callback) callback();
         } else {
@@ -940,17 +2358,184 @@ async function loadSavedTemporalData() {
     }
 }
 
-// Proceed to analysis
-function proceedToAnalysis() {
-    if (currentTerms.length === 0) {
-        alert('Please add at least one term before proceeding');
-        return;
+// ========== Semantic Events Functions ==========
+
+// Fetch experiment documents for selection dropdown
+async function fetchExperimentDocuments() {
+    try {
+        const response = await fetch(`/experiments/${experimentId}/documents`);
+        const data = await response.json();
+
+        if (data.success) {
+            experimentDocuments = data.documents;
+            populateDocumentSelect();
+        }
+    } catch (error) {
+        console.error('Error fetching experiment documents:', error);
     }
-    
-    // Save and redirect to run analysis
-    saveTerms(() => {
-        window.location.href = `/experiments/${experimentId}`;
+}
+
+// Populate document select dropdown in modal
+function populateDocumentSelect() {
+    const select = document.getElementById('eventDocuments');
+    select.innerHTML = '';
+
+    experimentDocuments.forEach(doc => {
+        const option = document.createElement('option');
+        option.value = doc.id;
+        option.textContent = doc.title || 'Untitled Document';
+        select.appendChild(option);
     });
 }
+
+// Show add semantic event dialog
+function showAddSemanticEventDialog() {
+    // Reset form
+    document.getElementById('eventEditId').value = '';
+    document.getElementById('eventType').value = '';
+    document.getElementById('eventFromPeriod').value = '';
+    document.getElementById('eventToPeriod').value = '';
+    document.getElementById('eventDescription').value = '';
+    document.getElementById('eventDocuments').selectedIndex = -1;
+
+    // Update modal title
+    document.getElementById('semanticEventModalLabel').textContent = 'Add Semantic Event';
+
+    // Show modal
+    const modal = new bootstrap.Modal(document.getElementById('semanticEventModal'));
+    modal.show();
+}
+
+// Edit semantic event
+function editSemanticEvent(eventId) {
+    const event = semanticEvents.find(e => e.id === eventId);
+    if (!event) return;
+
+    // Populate form
+    document.getElementById('eventEditId').value = eventId;
+    document.getElementById('eventType').value = event.event_type;
+    document.getElementById('eventFromPeriod').value = event.from_period;
+    document.getElementById('eventToPeriod').value = event.to_period || '';
+    document.getElementById('eventDescription').value = event.description;
+
+    // Select related documents
+    const select = document.getElementById('eventDocuments');
+    Array.from(select.options).forEach(option => {
+        option.selected = event.related_documents?.some(doc => doc.id == option.value) || false;
+    });
+
+    // Update modal title
+    document.getElementById('semanticEventModalLabel').textContent = 'Edit Semantic Event';
+
+    // Show modal
+    const modal = new bootstrap.Modal(document.getElementById('semanticEventModal'));
+    modal.show();
+}
+
+// Save semantic event
+async function saveSemanticEvent() {
+    const eventId = document.getElementById('eventEditId').value;
+    const eventType = document.getElementById('eventType').value;
+    const fromPeriod = document.getElementById('eventFromPeriod').value;
+    const toPeriod = document.getElementById('eventToPeriod').value;
+    const description = document.getElementById('eventDescription').value;
+    const select = document.getElementById('eventDocuments');
+    const relatedDocIds = Array.from(select.selectedOptions).map(opt => parseInt(opt.value));
+
+    // Validation
+    if (!eventType) {
+        alert('Please select an event type');
+        return;
+    }
+
+    if (!fromPeriod) {
+        alert('Please enter a start period');
+        return;
+    }
+
+    if (!description.trim()) {
+        alert('Please enter a description');
+        return;
+    }
+
+    const eventData = {
+        id: eventId || Date.now().toString(),
+        event_type: eventType,
+        from_period: parseInt(fromPeriod),
+        to_period: toPeriod ? parseInt(toPeriod) : null,
+        description: description.trim(),
+        related_document_ids: relatedDocIds
+    };
+
+    try {
+        const response = await fetch(`/experiments/${experimentId}/save_semantic_event`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(eventData)
+        });
+
+        // Check if response is JSON before parsing
+        const contentType = response.headers.get('content-type');
+        if (!contentType || !contentType.includes('application/json')) {
+            const text = await response.text();
+            console.error('Server returned non-JSON response:', text.substring(0, 500));
+            alert('Server error: Expected JSON but got ' + contentType + '. Check browser console for details.');
+            return;
+        }
+
+        const data = await response.json();
+
+        if (data.success) {
+            // Update local state
+            semanticEvents = data.semantic_events;
+
+            // Close modal
+            const modal = bootstrap.Modal.getInstance(document.getElementById('semanticEventModal'));
+            modal.hide();
+
+            // Refresh UI
+            refreshTimelineUI();
+        } else {
+            alert('Error saving semantic event: ' + data.error);
+        }
+    } catch (error) {
+        console.error('Error saving semantic event:', error);
+        alert('Error saving semantic event: ' + error.message);
+    }
+}
+
+// Remove semantic event
+async function removeSemanticEvent(eventId) {
+    const event = semanticEvents.find(e => e.id === eventId);
+    if (!event) return;
+
+    if (!confirm(`Remove semantic event "${event.event_type.replace('_', ' ')}" from ${event.from_period}?`)) {
+        return;
+    }
+
+    try {
+        const response = await fetch(`/experiments/${experimentId}/remove_semantic_event`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ event_id: eventId })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            semanticEvents = data.semantic_events;
+            refreshTimelineUI();
+        } else {
+            alert('Error removing semantic event: ' + data.error);
+        }
+    } catch (error) {
+        alert('Error removing semantic event: ' + error.message);
+    }
+}
+
 </script>
 {% endblock %}

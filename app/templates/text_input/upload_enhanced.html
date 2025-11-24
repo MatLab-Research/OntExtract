@@ -240,8 +240,9 @@
                         <input type="text" class="form-control" id="file-title" placeholder="Leave blank for automatic extraction">
                     </div>
                     <div class="col-md-6 mb-3">
-                        <label for="file-year" class="form-label">Publication Year (optional)</label>
-                        <input type="number" class="form-control" id="file-year" placeholder="e.g., 1957" min="1800" max="2026">
+                        <label for="file-date" class="form-label">Date (optional)</label>
+                        <input type="text" class="form-control" id="file-date" placeholder="e.g., 2020 or 2020-05 or 2020-05-15">
+                        <small class="form-text text-muted">Enter year, year-month, or full date</small>
                     </div>
                 </div>
 
@@ -389,12 +390,13 @@
                             <div class="form-text">Comma-separated list of authors</div>
                         </div>
                         <div class="col-md-4 metadata-field">
-                            <label for="review-year" class="metadata-label">
-                                Publication Year
-                                <span id="year-source-badge" class="metadata-source-badge"></span>
+                            <label for="review-date" class="metadata-label">
+                                Date
+                                <span id="date-source-badge" class="metadata-source-badge"></span>
                             </label>
-                            <input type="number" class="form-control" id="review-year"
-                                   min="1800" max="2026">
+                            <input type="text" class="form-control" id="review-date"
+                                   placeholder="e.g., 2020 or 2020-05">
+                            <small class="form-text text-muted">Year, year-month, or full date</small>
                         </div>
                     </div>
 
@@ -557,9 +559,9 @@ function updateFileName(file) {
 function updateFieldRequirements() {
     const enableCrossref = document.getElementById('enable-crossref').checked;
     const titleInput = document.getElementById('file-title');
-    const yearInput = document.getElementById('file-year');
+    const dateInput = document.getElementById('file-date');
     const titleLabel = titleInput.previousElementSibling;
-    const yearLabel = yearInput.previousElementSibling;
+    const dateLabel = dateInput.previousElementSibling;
     const tip = document.getElementById('metadata-tip');
     const submitBtn = document.getElementById('submit-btn');
 
@@ -568,9 +570,9 @@ function updateFieldRequirements() {
     if (enableCrossref) {
         // CrossRef enabled: fields are optional, hide additional fields
         titleInput.required = false;
-        yearInput.required = false;
+        dateInput.required = false;
         titleLabel.innerHTML = 'Title (optional)';
-        yearLabel.innerHTML = 'Publication Year (optional)';
+        dateLabel.innerHTML = 'Date (optional)';
         titleInput.placeholder = 'Leave blank for automatic extraction';
         tip.style.display = 'block';
         submitBtn.innerHTML = '<i class="fas fa-upload"></i> Upload and Extract Metadata';
@@ -578,9 +580,9 @@ function updateFieldRequirements() {
     } else {
         // CrossRef disabled: require at least title, show additional fields
         titleInput.required = true;
-        yearInput.required = true;
+        dateInput.required = true;
         titleLabel.innerHTML = 'Title <span class="text-danger">*</span>';
-        yearLabel.innerHTML = 'Publication Year <span class="text-danger">*</span>';
+        dateLabel.innerHTML = 'Date <span class="text-danger">*</span>';
         titleInput.placeholder = 'Enter document title';
         tip.style.display = 'none';
         submitBtn.innerHTML = '<i class="fas fa-upload"></i> Upload';
@@ -684,7 +686,7 @@ function populateMetadataForm(metadata, provenance) {
     // Populate fields
     setField('review-title', 'title-source-badge', metadata.title, provenance.title?.source);
     setField('review-authors', 'authors-source-badge', metadata.authors, provenance.authors?.source);
-    setField('review-year', 'year-source-badge', metadata.publication_year, provenance.publication_year?.source);
+    setField('review-date', 'date-source-badge', metadata.publication_year, provenance.publication_year?.source);
     setField('review-journal', 'journal-source-badge', metadata.journal, provenance.journal?.source);
     setField('review-doi', 'doi-source-badge', metadata.doi, provenance.doi?.source);
     setField('review-abstract', 'abstract-source-badge', metadata.abstract, provenance.abstract?.source);
@@ -755,7 +757,7 @@ document.getElementById('file-form').addEventListener('submit', async function(e
     formData.append('document_file', file);
     formData.append('source_type', 'file');
     formData.append('title', document.getElementById('file-title').value);
-    formData.append('publication_year', document.getElementById('file-year').value);
+    formData.append('publication_year', document.getElementById('file-date').value);
     formData.append('authors', document.getElementById('file-authors').value);
     formData.append('enable_crossref', enableCrossref ? 'true' : 'false');
 
@@ -907,7 +909,7 @@ document.getElementById('file-form').addEventListener('submit', async function(e
                             <strong>Suggested match from CrossRef:</strong><br>
                             <strong>Title:</strong> ${suggestion.title || 'N/A'}<br>
                             ${suggestion.authors ? `<strong>Authors:</strong> ${suggestion.authors}<br>` : ''}
-                            ${suggestion.publication_year ? `<strong>Year:</strong> ${suggestion.publication_year}<br>` : ''}
+                            ${suggestion.publication_year ? `<strong>Date:</strong> ${suggestion.publication_year}<br>` : ''}
                             ${suggestion.journal ? `<strong>Journal:</strong> ${suggestion.journal}<br>` : ''}
                             <small class="text-warning">Match score: ${result.match_score || 'N/A'}</small>
                         </div>
@@ -988,7 +990,7 @@ document.getElementById('metadata-form').addEventListener('submit', async functi
     const updatedMetadata = {
         title: document.getElementById('review-title').value,
         authors: document.getElementById('review-authors').value.split(',').map(a => a.trim()).filter(Boolean),
-        publication_year: parseInt(document.getElementById('review-year').value) || null,
+        publication_year: document.getElementById('review-date').value || null,
         journal: document.getElementById('review-journal').value,
         doi: document.getElementById('review-doi').value,
         abstract: document.getElementById('review-abstract').value,
@@ -1101,7 +1103,7 @@ function clearAllMetadata() {
     // Clear all metadata fields
     document.getElementById('review-title').value = '';
     document.getElementById('review-authors').value = '';
-    document.getElementById('review-year').value = '';
+    document.getElementById('review-date').value = '';
     document.getElementById('review-journal').value = '';
     document.getElementById('review-doi').value = '';
     document.getElementById('review-abstract').value = '';

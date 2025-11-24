@@ -25,7 +25,14 @@ class Document(db.Model):
 
     # Bibliographic metadata (normalized columns for standard fields)
     authors = db.Column(db.Text)  # Comma-separated author names
-    publication_date = db.Column(db.Date)  # Publication date
+
+    # PRIMARY SOURCE for publication date - supports flexible formats:
+    # - Year only: 2020 → stored as 2020-01-01
+    # - Year-Month: 2020-05 → stored as 2020-05-01
+    # - Full date: 2020-05-15 → stored as 2020-05-15
+    # Use app.utils.date_parser.parse_flexible_date() to convert input
+    publication_date = db.Column(db.Date)
+
     journal = db.Column(db.String(200))  # Journal or conference name
     publisher = db.Column(db.String(200))  # Publisher name
     doi = db.Column(db.String(100), unique=True)  # Digital Object Identifier

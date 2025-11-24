@@ -67,11 +67,43 @@
                             </p>
 
                             <form id="llm-settings-form">
+                                <!-- API Key Status -->
+                                <div class="alert {% if api_key_available %}alert-success{% else %}alert-warning{% endif %} mb-4">
+                                    <div class="d-flex align-items-center">
+                                        <i class="fas {% if api_key_available %}fa-check-circle{% else %}fa-exclamation-triangle{% endif %} fa-2x me-3"></i>
+                                        <div>
+                                            <strong>API Key Status:</strong>
+                                            {% if api_key_available %}
+                                                <span class="badge bg-success ms-2">Available</span>
+                                                <p class="mb-0 mt-1 small">ANTHROPIC_API_KEY is configured. LLM features can be enabled.</p>
+                                            {% else %}
+                                                <span class="badge bg-warning text-dark ms-2">Not Found</span>
+                                                <p class="mb-0 mt-1 small">Set ANTHROPIC_API_KEY environment variable to enable LLM features.</p>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- LLM Provider Info (Read-only) -->
+                                <div class="mb-3">
+                                    <label class="form-label">LLM Provider</label>
+                                    <div class="form-control-plaintext">
+                                        <i class="fas fa-robot me-2"></i>
+                                        <strong>Anthropic Claude</strong>
+                                        <small class="text-muted ms-2">(Model: claude-sonnet-4-5-20250929)</small>
+                                    </div>
+                                    <small class="text-muted">Provider and model are configured in system settings.</small>
+                                </div>
+
+                                <hr class="my-4">
+
+                                <!-- Enable/Disable Toggle -->
                                 <div class="mb-3">
                                     <div class="form-check form-switch">
                                         <input class="form-check-input" type="checkbox"
                                                id="enable_llm_enhancement"
-                                               {% if settings.llm.enable_llm_enhancement %}checked{% endif %}>
+                                               {% if settings.llm.enable_llm_enhancement %}checked{% endif %}
+                                               {% if not api_key_available %}disabled{% endif %}>
                                         <label class="form-check-label" for="enable_llm_enhancement">
                                             <strong>Enable LLM Processing Suggestions</strong>
                                             <small class="d-block text-muted">
@@ -79,61 +111,32 @@
                                             </small>
                                         </label>
                                     </div>
+                                    {% if not api_key_available %}
+                                    <small class="text-warning">
+                                        <i class="fas fa-info-circle me-1"></i>
+                                        Disabled: API key not found
+                                    </small>
+                                    {% endif %}
                                 </div>
 
-                                <div class="mb-3">
-                                    <label for="default_llm_provider" class="form-label">LLM Provider</label>
-                                    <select class="form-select" id="default_llm_provider">
-                                        <option value="anthropic" {% if settings.llm.default_llm_provider == 'anthropic' %}selected{% endif %}>
-                                            Anthropic (Claude)
-                                        </option>
-                                        <option value="openai" {% if settings.llm.default_llm_provider == 'openai' %}selected{% endif %}>
-                                            OpenAI (GPT)
-                                        </option>
-                                    </select>
-                                </div>
-
-                                <div class="mb-3">
-                                    <label for="llm_model" class="form-label">Model</label>
-                                    <select class="form-select" id="llm_model">
-                                        <option value="claude-sonnet-4-5-20250929"
-                                                {% if settings.llm.llm_model == 'claude-sonnet-4-5-20250929' %}selected{% endif %}>
-                                            Claude Sonnet 4.5 (Latest)
-                                        </option>
-                                        <option value="claude-3-5-sonnet-20241022"
-                                                {% if settings.llm.llm_model == 'claude-3-5-sonnet-20241022' %}selected{% endif %}>
-                                            Claude 3.5 Sonnet (Legacy)
-                                        </option>
-                                        <option value="gpt-4"
-                                                {% if settings.llm.llm_model == 'gpt-4' %}selected{% endif %}>
-                                            GPT-4
-                                        </option>
-                                        <option value="gpt-3.5-turbo"
-                                                {% if settings.llm.llm_model == 'gpt-3.5-turbo' %}selected{% endif %}>
-                                            GPT-3.5 Turbo
-                                        </option>
-                                    </select>
-                                </div>
-
+                                <!-- Max Tokens -->
                                 <div class="mb-3">
                                     <label for="llm_max_tokens" class="form-label">Max Tokens</label>
                                     <input type="number" class="form-control" id="llm_max_tokens"
-                                           value="{{ settings.llm.llm_max_tokens }}" min="100" max="4000">
-                                    <small class="text-muted">Maximum response length (100-4000)</small>
+                                           value="{{ settings.llm.llm_max_tokens or 500 }}" min="100" max="4000">
+                                    <small class="text-muted">Maximum response length (100-4000). Default: 500</small>
                                 </div>
 
-                                <div class="alert alert-info">
-                                    <i class="fas fa-info-circle me-2"></i>
-                                    <strong>Note:</strong> API keys are read from environment variables
-                                    (ANTHROPIC_API_KEY or OPENAI_API_KEY). Set these before enabling LLM features.
+                                <div class="d-flex gap-2">
+                                    {% if api_key_available %}
+                                    <button type="button" class="btn btn-outline-primary" onclick="testLLMConnection()">
+                                        <i class="fas fa-plug me-2"></i>Test Connection
+                                    </button>
+                                    {% endif %}
+                                    <button type="submit" class="btn btn-primary">
+                                        <i class="fas fa-save me-2"></i>Save Changes
+                                    </button>
                                 </div>
-
-                                <button type="button" class="btn btn-outline-primary" onclick="testLLMConnection()">
-                                    <i class="fas fa-plug me-2"></i>Test Connection
-                                </button>
-                                <button type="submit" class="btn btn-primary">
-                                    <i class="fas fa-save me-2"></i>Save Changes
-                                </button>
                             </form>
                         </div>
                     </div>
@@ -536,7 +539,8 @@ function updateConfidenceDisplay(value) {
 });
 
 function testLLMConnection() {
-    const provider = document.getElementById('default_llm_provider').value;
+    // Always use Anthropic (Claude) as provider
+    const provider = 'anthropic';
 
     fetch('/settings/test-llm-connection', {
         method: 'POST',

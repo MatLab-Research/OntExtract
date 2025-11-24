@@ -399,8 +399,10 @@ class TestStrategyModification:
         assert approve_response.status_code == 200
 
         # Verify modified strategy was used
+        # _execute_processing receives state as first positional arg
         call_args = mock_processing.call_args
-        assert call_args[1]['modified_strategy'] == modified_strategy
+        state_arg = call_args[0][0]  # First positional argument is the state dict
+        assert state_arg.get('modified_strategy') == modified_strategy
 
     @patch('app.services.workflow_executor.WorkflowExecutor._execute_graph')
     def test_modify_strategy_remove_tools(
@@ -511,17 +513,18 @@ class TestConcurrentRuns:
         db_session.add_all([run1, run2])
         db_session.commit()
 
-        # Check run1 status
+        # Check run1 status (reviewing includes confidence)
         response1 = client.get(f'/experiments/orchestration/status/{run1.id}')
         data1 = json.loads(response1.data)
         assert data1['status'] == 'reviewing'
         assert data1['confidence'] == 0.92
 
-        # Check run2 status
+        # Check run2 status (completed doesn't include confidence in response)
         response2 = client.get(f'/experiments/orchestration/status/{run2.id}')
         data2 = json.loads(response2.data)
         assert data2['status'] == 'completed'
-        assert data2['confidence'] == 0.88
+        # confidence is only included for 'reviewing' status
+        assert 'confidence' not in data2
 
 
 # ==============================================================================
@@ -573,6 +576,7 @@ class TestEdgeCases:
         doc = Document(
             title='Empty Document',
             content='',
+            content_type='text/plain',
             document_type='document',
             user_id=test_user.id,
             experiment_id=experiment.id

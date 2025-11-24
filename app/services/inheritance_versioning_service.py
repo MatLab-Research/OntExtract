@@ -54,6 +54,8 @@ class InheritanceVersioningService:
                 content_preview=source_document.content_preview,
                 detected_language=source_document.detected_language,
                 language_confidence=source_document.language_confidence,
+                authors=source_document.authors,  # Copy authors
+                publication_date=source_document.publication_date,  # Copy publication date for temporal analysis
                 status='active',
                 word_count=source_document.word_count,
                 character_count=source_document.character_count,
@@ -276,6 +278,8 @@ class InheritanceVersioningService:
                 content_preview=root_document.content_preview,
                 detected_language=root_document.detected_language,
                 language_confidence=root_document.language_confidence,
+                authors=root_document.authors,  # Copy authors
+                publication_date=root_document.publication_date,  # Copy publication date for temporal analysis
                 status='active',
                 word_count=root_document.word_count,
                 character_count=root_document.character_count,

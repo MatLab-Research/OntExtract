@@ -717,6 +717,15 @@ class TestFullOrchestrationWorkflow:
         start_data = json.loads(start_response.data)
         run_id = start_data['run_id']
 
+        # Simulate what the real execute_recommendation_phase does - update run status in DB
+        run = ExperimentOrchestrationRun.query.get(run_id)
+        run.status = 'reviewing'
+        run.experiment_goal = 'Test goal'
+        run.recommended_strategy = {'1': ['extract_entities_spacy']}
+        run.strategy_reasoning = 'Test reasoning'
+        run.confidence = 0.88
+        db_session.commit()
+
         # Step 2: Poll status
         status_response = client.get(f'/experiments/orchestration/status/{run_id}')
         assert status_response.status_code == 200

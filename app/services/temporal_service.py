@@ -11,7 +11,7 @@ import logging
 import re
 
 from app import db
-from app.models import Experiment
+from app.models import Experiment, Document
 from app.models.orchestration_logs import OrchestrationDecision
 from app.services.base_service import BaseService, ServiceError, NotFoundError, ValidationError
 
@@ -106,19 +106,42 @@ class TemporalService(BaseService):
 
                     logger.info(f"Generated OED time periods for {oed_result['terms_with_data']} term(s): {start_year} to {end_year}")
                 else:
-                    logger.warning("Unable to fetch OED data for any terms. Using default periods.")
-                    time_periods = [2000, 2005, 2010, 2015, 2020]
+                    logger.warning("Unable to fetch OED data for any terms. No time periods set.")
+                    time_periods = []
 
-            # If no time periods specified and not using OED, generate default
+            # If no time periods specified, leave empty - user must explicitly generate them
             elif not time_periods or len(time_periods) == 0:
-                time_periods = self.generate_time_periods(start_year, end_year)
-                if not time_periods:
-                    time_periods = [2000, 2005, 2010, 2015, 2020]
+                time_periods = []
 
             # Get orchestration decisions for this experiment
             orchestration_decisions = OrchestrationDecision.query.filter_by(
                 experiment_id=experiment.id
             ).order_by(OrchestrationDecision.created_at.desc()).limit(10).all()
+
+            # Hydrate period_documents with serialized Document data
+            # The config stores {id, title, date_source}, but template needs full data with UUID
+            period_documents_config = config.get('period_documents', {})
+            period_documents_hydrated = {}
+
+            for period_key, doc_list in period_documents_config.items():
+                hydrated_docs = []
+                for doc_info in doc_list:
+                    doc_id = doc_info.get('id')
+                    if doc_id:
+                        doc = Document.query.get(doc_id)
+                        if doc:
+                            # Serialize Document to dict for JSON compatibility
+                            hydrated_docs.append({
+                                'id': doc.id,
+                                'uuid': str(doc.uuid),
+                                'title': doc.title or 'Untitled Document',
+                                'publication_date': doc.publication_date.isoformat() if doc.publication_date else None,
+                                'date_source': doc_info.get('date_source', 'publication_date')
+                            })
+                        else:
+                            # Document no longer exists, skip it
+                            logger.warning(f"Document {doc_id} referenced in period {period_key} not found")
+                period_documents_hydrated[period_key] = hydrated_docs
 
             return {
                 'experiment': experiment,
@@ -129,7 +152,11 @@ class TemporalService(BaseService):
                 'use_oed_periods': use_oed_periods,
                 'oed_period_data': config.get('oed_period_data', {}),
                 'term_periods': config.get('term_periods', {}),
-                'orchestration_decisions': orchestration_decisions
+                'orchestration_decisions': orchestration_decisions,
+                'period_documents': period_documents_hydrated,
+                'period_metadata': config.get('period_metadata', {}),
+                'semantic_events': config.get('semantic_events', []),
+                'periods': config.get('periods', [])  # Full period objects for timeline view
             }
 
         except (NotFoundError, ValidationError):
@@ -259,6 +286,12 @@ class TemporalService(BaseService):
             config['time_periods'] = periods
             config['temporal_data'] = temporal_data
 
+            # Extract period_metadata and period_documents if present in temporal_data
+            if 'period_metadata' in temporal_data:
+                config['period_metadata'] = temporal_data['period_metadata']
+            if 'period_documents' in temporal_data:
+                config['period_documents'] = temporal_data['period_documents']
+
             experiment.configuration = json.dumps(config)
             experiment.updated_at = datetime.utcnow()
             db.session.commit()
@@ -306,6 +339,123 @@ class TemporalService(BaseService):
         except Exception as e:
             logger.error(f"Error getting temporal configuration for experiment {experiment_id}: {e}", exc_info=True)
             raise ServiceError(f"Failed to get temporal configuration: {str(e)}")
+
+    def generate_periods_from_documents(self, experiment_id: int) -> Dict[str, Any]:
+        """
+        Generate time periods based on document publication dates
+
+        Args:
+            experiment_id: ID of the experiment
+
+        Returns:
+            Dictionary with generated periods and metadata
+
+        Raises:
+            NotFoundError: If experiment not found
+            ValidationError: If no documents have publication dates
+            ServiceError: On other errors
+        """
+        try:
+            experiment = Experiment.query.filter_by(id=experiment_id).first()
+            if not experiment:
+                raise NotFoundError(f"Experiment {experiment_id} not found")
+
+            # Get all documents with publication dates
+            from app.models import Document
+            from app.models.temporal_experiment import DocumentTemporalMetadata
+            documents = Document.query.filter_by(experiment_id=experiment_id).all()
+
+            if not documents:
+                raise ValidationError("No documents found in experiment")
+
+            # Extract years from publication_date (single source of truth)
+            # Note: Document.publication_date accepts flexible formats (year-only, year-month, full date)
+            years = []
+            using_fallback = False
+            period_documents = {}  # Map periods to documents {year: [{id, title, date}, ...]}
+
+            for doc in documents:
+                year = None
+                date_source = None
+
+                # 1. Try Document.publication_date (primary source)
+                if doc.publication_date:
+                    try:
+                        year = doc.publication_date.year if hasattr(doc.publication_date, 'year') else None
+                        date_source = 'publication_date'
+                    except:
+                        pass
+
+                # 2. Fallback to created_at (upload date) if no publication date set
+                if year is None and doc.created_at:
+                    try:
+                        year = doc.created_at.year if hasattr(doc.created_at, 'year') else None
+                        using_fallback = True
+                        date_source = 'upload_date'
+                    except:
+                        pass
+
+                if year:
+                    years.append(year)
+
+                    # Track which documents belong to this period
+                    if year not in period_documents:
+                        period_documents[year] = []
+
+                    period_documents[year].append({
+                        'id': doc.id,
+                        'uuid': str(doc.uuid),
+                        'title': doc.title[:50] + '...' if doc.title and len(doc.title) > 50 else doc.title or 'Untitled',
+                        'date_source': date_source
+                    })
+
+            if not years:
+                raise ValidationError("No documents have usable dates. Please add publication dates to your documents or ensure documents have been uploaded.")
+
+            # Use unique years from documents as periods (one period per document)
+            periods = sorted(list(set(years)))
+            min_year = min(years)
+            max_year = max(years)
+
+            # Update experiment configuration
+            import json
+            config = json.loads(experiment.configuration) if experiment.configuration else {}
+            config['time_periods'] = periods
+            config['start_year'] = min_year
+            config['end_year'] = max_year
+            config['periods_source'] = 'documents'
+            config['period_documents'] = period_documents  # Store document mapping
+            config['period_metadata'] = {
+                str(year): {
+                    'source': 'auto-generated',
+                    'document_count': len(period_documents[year])
+                } for year in periods
+            }
+
+            experiment.configuration = json.dumps(config)
+            db.session.commit()
+
+            source_type = 'upload dates' if using_fallback else 'publication dates'
+            logger.info(f"Generated {len(periods)} periods from {len(documents)} documents for experiment {experiment_id}: {min_year}-{max_year} (using {source_type})")
+
+            return {
+                'periods': periods,
+                'document_count': len(documents),
+                'documents_with_dates': len(years),
+                'date_range': {
+                    'min_year': min_year,
+                    'max_year': max_year
+                },
+                'source_type': source_type,
+                'using_fallback': using_fallback
+            }
+
+        except (NotFoundError, ValidationError):
+            raise
+        except Exception as e:
+            db.session.rollback()
+            logger.error(f"Error generating periods from documents for experiment {experiment_id}: {e}", exc_info=True)
+            raise ServiceError(f"Failed to generate periods from documents: {str(e)}")
 
     def fetch_temporal_analysis(
         self,
