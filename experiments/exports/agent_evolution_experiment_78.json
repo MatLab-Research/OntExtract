@@ -1,0 +1,273 @@
+{
+  "experiment": {
+    "id": 78,
+    "name": "Agent Semantic Evolution (1910-2024)",
+    "description": "Temporal evolution experiment tracking the semantic change of \"agent\" across four major domains:\n\n1. Legal Domain (Black's Law Dictionary): 1910, 2019, 2024\n2. Philosophical Domain (Anscombe): 1956\n3. Computer Science/AI Domain (Wooldridge & Jennings, Russell & Norvig): 1995, 2022\n4. Lexical Domain (Oxford English Dictionary): Contemporary\n\nThis experiment demonstrates cross-disciplinary semantic drift, specialization, and emergence of new meanings over 114 years.",
+    "type": "temporal_evolution",
+    "status": "created",
+    "created_at": "2025-11-23 05:38:11.021034",
+    "term_id": "0d3e87d1-b3f3-4da1-bcaa-6737c6b42bb5"
+  },
+  "metadata": {
+    "document_count": 7,
+    "temporal_periods": 6,
+    "semantic_shifts": 5,
+    "time_span": "1910-2024",
+    "domains": [
+      "Legal",
+      "Philosophy",
+      "Computer Science",
+      "Lexicography"
+    ],
+    "export_date": "2025-11-23T05:43:40.671243"
+  },
+  "documents": [
+    {
+      "id": 362,
+      "title": "Black's Law Dictionary - Agent (1910)",
+      "authors": "Henry Campbell Black",
+      "publication_date": "1910-01-01",
+      "domain": "Legal",
+      "type": "reference",
+      "subtype": "dictionary_entry",
+      "file_path": "experiments/documents/source_documents/Henry Campbell Black - 1910 - Blacks Law Agent 1910.pdf"
+    },
+    {
+      "id": 365,
+      "title": "Intention (Excerpt)",
+      "authors": "G.E.M. Anscombe",
+      "publication_date": "1956-01-01",
+      "domain": "Philosophy",
+      "type": "reference",
+      "subtype": "dictionary_entry",
+      "file_path": "experiments/documents/source_documents/Anscombe - 1956 - Intention.pdf"
+    },
+    {
+      "id": 366,
+      "title": "Intelligent Agents: Theory and Practice",
+      "authors": "Michael Wooldridge, Nicholas R. Jennings",
+      "publication_date": "1995-01-01",
+      "domain": "Computer Science",
+      "type": "reference",
+      "subtype": "dictionary_entry",
+      "file_path": "experiments/documents/source_documents/Wooldridge and Jennings - 1995 - Intelligent agents theory and practice.pdf"
+    },
+    {
+      "id": 363,
+      "title": "Black's Law Dictionary - Agent (2019)",
+      "authors": "Bryan A. Garner (Editor)",
+      "publication_date": "2019-01-01",
+      "domain": "Legal",
+      "type": "reference",
+      "subtype": "dictionary_entry",
+      "file_path": "experiments/documents/source_documents/Blacks Law 2019 Agent.pdf"
+    },
+    {
+      "id": 367,
+      "title": "Intelligent Agents (AIMA Ch. 2)",
+      "authors": "Stuart Russell, Peter Norvig",
+      "publication_date": "2022-01-01",
+      "domain": "Computer Science",
+      "type": "reference",
+      "subtype": "dictionary_entry",
+      "file_path": "experiments/documents/source_documents/Russell and Norvig - 2022 - Intelligent Agents.pdf"
+    },
+    {
+      "id": 364,
+      "title": "Black's Law Dictionary - Agent (2024)",
+      "authors": "Bryan A. Garner",
+      "publication_date": "2024-01-01",
+      "domain": "Legal",
+      "type": "reference",
+      "subtype": "dictionary_entry",
+      "file_path": "experiments/documents/source_documents/Brian A. Garner - 2024 - Blacks Law Agent 2024.pdf"
+    },
+    {
+      "id": 368,
+      "title": "Oxford English Dictionary - Agent",
+      "authors": "Oxford English Dictionary",
+      "publication_date": "2024-10-09",
+      "domain": "Lexicography",
+      "type": "reference",
+      "subtype": "dictionary_entry",
+      "file_path": "experiments/documents/source_documents/agent, n.\u00b9 & adj..pdf"
+    }
+  ],
+  "timeline": [
+    {
+      "position": 1,
+      "year": 1910,
+      "period": "Legal Foundation (1910s)",
+      "period_span": "1910-1920",
+      "discipline": "Law",
+      "subdiscipline": "Contract Law",
+      "track": "legal",
+      "color": "#1E88E5",
+      "document_id": 362
+    },
+    {
+      "position": 2,
+      "year": 1956,
+      "period": "Philosophical Turn (1950s)",
+      "period_span": "1950-1960",
+      "discipline": "Philosophy",
+      "subdiscipline": "Philosophy of Action",
+      "track": "philosophy",
+      "color": "#43A047",
+      "document_id": 365
+    },
+    {
+      "position": 3,
+      "year": 1995,
+      "period": "AI Emergence (1990s)",
+      "period_span": "1990-2000",
+      "discipline": "Computer Science",
+      "subdiscipline": "Artificial Intelligence",
+      "track": "computer_science",
+      "color": "#E53935",
+      "document_id": 366
+    },
+    {
+      "position": 4,
+      "year": 2019,
+      "period": "Legal-AI Convergence (2010s)",
+      "period_span": "2010-2025",
+      "discipline": "Law",
+      "subdiscipline": "Technology Law",
+      "track": "legal",
+      "color": "#1E88E5",
+      "document_id": 363
+    },
+    {
+      "position": 5,
+      "year": 2022,
+      "period": "Legal-AI Convergence (2020s)",
+      "period_span": "2010-2025",
+      "discipline": "Computer Science",
+      "subdiscipline": "Artificial Intelligence",
+      "track": "computer_science",
+      "color": "#E53935",
+      "document_id": 367
+    },
+    {
+      "position": 6,
+      "year": 2024,
+      "period": "Contemporary Synthesis (2020s)",
+      "period_span": "2020-2025",
+      "discipline": "Law",
+      "subdiscipline": "General Law",
+      "track": "legal",
+      "color": "#1E88E5",
+      "document_id": 364
+    },
+    {
+      "position": 7,
+      "year": 2024,
+      "period": "Contemporary Synthesis (2020s)",
+      "period_span": "2020-2025",
+      "discipline": "Lexicography",
+      "subdiscipline": "English Language",
+      "track": "lexical",
+      "color": "#FB8C00",
+      "document_id": 368
+    }
+  ],
+  "semantic_changes": [
+    {
+      "id": "bde47519-9466-4fba-8c48-a4a04e8f894b",
+      "type": "extensional_drift",
+      "from_period": "Legal Foundation (1910s)",
+      "to_period": "Philosophical Turn (1950s)",
+      "from_discipline": "Law",
+      "to_discipline": "Philosophy",
+      "description": "Extensional drift from legal entities to philosophical subjects",
+      "evidence": "Legal definition focuses on authorized representatives in contractual relationships. Philosophical treatment extends to any subject capable of intentional action, including moral agents beyond legal contexts.",
+      "edge_type": "cross-domain-drift",
+      "edge_label": "Legal \u2192 Philosophical agency",
+      "from_document_id": 362,
+      "to_document_id": 365,
+      "confidence": 0.95,
+      "detected_by": "manual_expert"
+    },
+    {
+      "id": "eba4dac1-3736-49ea-8050-dc8b5341036d",
+      "type": "specialization",
+      "from_period": "Philosophical Turn (1950s)",
+      "to_period": "AI Emergence (1990s)",
+      "from_discipline": "Philosophy",
+      "to_discipline": "Computer Science",
+      "description": "Specialization to computational entities with specific properties",
+      "evidence": "Philosophical agents are rational beings with intentions. AI agents are specialized to computational entities exhibiting autonomy, reactivity, pro-activeness, and social ability (Wooldridge & Jennings, 1995).",
+      "edge_type": "domain-specialization",
+      "edge_label": "Philosophical \u2192 Computational specialization",
+      "from_document_id": 365,
+      "to_document_id": 366,
+      "confidence": 0.95,
+      "detected_by": "manual_expert"
+    },
+    {
+      "id": "f1c99f08-55f3-4d5a-b784-627d04e33218",
+      "type": "parallel_evolution",
+      "from_period": "AI Emergence (1990s)",
+      "to_period": "Legal-AI Convergence (2010s)",
+      "from_discipline": "Computer Science",
+      "to_discipline": "Law",
+      "description": "Parallel evolution: legal terminology absorbs AI concepts",
+      "evidence": "Black's Law 2019 edition begins incorporating software agents and algorithmic actors, showing legal domain's recognition of computational agency alongside traditional human agents.",
+      "edge_type": "convergent-evolution",
+      "edge_label": "AI \u2192 Legal absorption",
+      "from_document_id": 366,
+      "to_document_id": 363,
+      "confidence": 0.95,
+      "detected_by": "manual_expert"
+    },
+    {
+      "id": "92864355-8f36-44f6-8144-e581c27877ac",
+      "type": "consolidation",
+      "from_period": "Legal-AI Convergence (2010s)",
+      "to_period": "Contemporary Synthesis (2020s)",
+      "from_discipline": "Law",
+      "to_discipline": "Lexicography",
+      "description": "Contemporary consolidation of legal, AI, and general usage",
+      "evidence": "OED entry (2024) documents all senses: legal agents, philosophical agents, AI agents, chemical agents, showing full integration of computational meaning into general English lexicon.",
+      "edge_type": "cross-domain-synthesis",
+      "edge_label": "Multi-domain consolidation",
+      "from_document_id": 363,
+      "to_document_id": 368,
+      "confidence": 0.95,
+      "detected_by": "manual_expert"
+    },
+    {
+      "id": "2a3aad22-b367-4b8d-970f-8b611d340714",
+      "type": "reinforcement",
+      "from_period": "AI Emergence (1990s)",
+      "to_period": "Legal-AI Convergence (2020s)",
+      "from_discipline": "Computer Science",
+      "to_discipline": "Computer Science",
+      "description": "Reinforcement of AI agent definition across 27 years",
+      "evidence": "Russell & Norvig (2022) reinforces and refines Wooldridge & Jennings (1995) core definition, showing stability of \"agent\" in AI discourse while expanding applications.",
+      "edge_type": "intra-domain-reinforcement",
+      "edge_label": "AI definition stability",
+      "from_document_id": 366,
+      "to_document_id": 367,
+      "confidence": 0.95,
+      "detected_by": "manual_expert"
+    }
+  ],
+  "provenance": {
+    "creation_method": "agent_orchestrated",
+    "created_by": "Temporal Evolution Experiment Agent",
+    "phases_completed": [
+      "Document Collection Analysis",
+      "Focus Term Validation",
+      "Experiment Structure Creation",
+      "Document Upload (7 documents)",
+      "Temporal Period Design (4 periods)",
+      "Semantic Event Creation (5 events)",
+      "Timeline Verification",
+      "Export Generation"
+    ],
+    "ontology_compliance": "Semantic Change Ontology (SCO)",
+    "w3c_prov_o": "Manual workflow - PROV entities not auto-generated"
+  }
+}
