@@ -30,7 +30,7 @@
 
 **Understand the project:**
 - Architecture overview: [README.md](README.md)
-- Session history: [PROGRESS.md](PROGRESS.md) (870+ lines, Sessions 1-27)
+- Session history: [docs/PROGRESS.md](docs/PROGRESS.md) (Sessions 1-29)
 - Current focus: JCDL 2025 Conference Demo (Dec 15-19)
 
 **Deploy to production:**
@@ -314,9 +314,9 @@ All LLM outputs use neutral academic tone:
 - [docs/TEST_FIX_GUIDE.md](docs/TEST_FIX_GUIDE.md) - 8 reusable test patterns
 
 ### Session Notes
-- [PROGRESS.md](PROGRESS.md) - Complete session history (Sessions 1-27)
-- [SESSION_28_SUMMARY.md](SESSION_28_SUMMARY.md) - Celery removal attempt (reverted)
-- [docs/archive/session_notes/](docs/archive/session_notes/) - Archived session documentation
+- [docs/PROGRESS.md](docs/PROGRESS.md) - Complete session history (Sessions 1-29)
+- [docs/archive/SESSION_28_SUMMARY.md](docs/archive/SESSION_28_SUMMARY.md) - Celery removal attempt (reverted)
+- Tests: [tests/](tests/) - All test files including root-level test_*.py files
 
 ## Known Issues
 
@@ -394,9 +394,9 @@ git checkout development
 ## Next Steps
 
 ### Immediate (Post-Session 29)
-- Test UI displays ProcessingArtifactGroups correctly
-- Verify production deployment completed successfully
-- Update PROGRESS.md with Session 29 details
+- ✅ Test UI displays ProcessingArtifactGroups correctly
+- ✅ Production deployment completed successfully
+- ✅ Updated docs/PROGRESS.md with Session 29 details
 
 ### Short Term (Pre-JCDL)
 - Browser testing: [docs/JCDL_TESTING_CHECKLIST.md](docs/JCDL_TESTING_CHECKLIST.md)
