@@ -370,6 +370,170 @@ class OntServeClient:
         }
         return icons.get(event_name, "fas fa-circle")
 
+    @lru_cache(maxsize=1)
+    def get_period_types(self) -> List[Dict[str, Any]]:
+        """
+        Fetch temporal period types from SCO ontology.
+
+        Returns synchronous result by running async code.
+        Cached for application lifetime.
+
+        Returns:
+            List of period types with:
+            - uri: Full ontology URI
+            - name: Class name (e.g., "EarlyModernPeriod")
+            - label: Human-readable label
+            - description: Period type description
+            - color: UI color code
+            - icon: FontAwesome icon class
+
+        Raises:
+            MCPClientError: If ontology query fails
+        """
+        import asyncio
+
+        # Run async query synchronously
+        try:
+            loop = asyncio.get_event_loop()
+        except RuntimeError:
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+
+        return loop.run_until_complete(self._fetch_period_types())
+
+    async def _fetch_period_types(self) -> List[Dict[str, Any]]:
+        """
+        Async implementation of period type fetching.
+
+        Returns:
+            List of period type dictionaries
+        """
+        # SPARQL query to get all temporal period types
+        sparql = f"""
+        PREFIX sco: <{self.namespace}>
+        PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+
+        SELECT ?periodType ?label ?comment
+        WHERE {{
+            ?periodType rdfs:subClassOf* sco:TemporalPeriod .
+            ?periodType rdfs:label ?label .
+            OPTIONAL {{ ?periodType rdfs:comment ?comment }}
+            FILTER(?periodType != sco:TemporalPeriod)
+        }}
+        ORDER BY ?label
+        """
+
+        try:
+            result = await self.mcp_client.call_mcp("sparql_query", {
+                "ontology": self.ontology_name,
+                "query": sparql
+            })
+
+            # Transform SPARQL results to UI format
+            period_types = []
+            bindings = result.get("results", {}).get("bindings", [])
+
+            for binding in bindings:
+                uri = binding["periodType"]["value"]
+                period_name = uri.split("#")[-1]
+
+                period_types.append({
+                    "uri": uri,
+                    "name": period_name,
+                    "label": binding["label"]["value"],
+                    "description": binding.get("comment", {}).get("value", ""),
+                    "color": self._get_color_for_period(period_name),
+                    "icon": self._get_icon_for_period(period_name)
+                })
+
+            logger.info(f"Fetched {len(period_types)} temporal period types from ontology")
+            return period_types
+
+        except MCPClientError as e:
+            logger.error(f"Failed to fetch period types: {e}")
+            # Return hardcoded fallback
+            return self._get_fallback_period_types()
+
+    def _get_fallback_period_types(self) -> List[Dict[str, Any]]:
+        """
+        Fallback period types if ontology query fails.
+
+        Returns:
+            Hardcoded list of period types
+        """
+        logger.warning("Using fallback period types (ontology unavailable)")
+
+        return [
+            {
+                "uri": f"{self.namespace}HistoricalPeriod",
+                "name": "HistoricalPeriod",
+                "label": "Historical Period",
+                "description": "Historically-defined temporal span",
+                "color": "#6f42c1",
+                "icon": "fas fa-landmark"
+            },
+            {
+                "uri": f"{self.namespace}DisciplinaryEra",
+                "name": "DisciplinaryEra",
+                "label": "Disciplinary Era",
+                "description": "Era defined by disciplinary conventions",
+                "color": "#0d6efd",
+                "icon": "fas fa-graduation-cap"
+            },
+            {
+                "uri": f"{self.namespace}TechnologicalEpoch",
+                "name": "TechnologicalEpoch",
+                "label": "Technological Epoch",
+                "description": "Period marked by technological developments",
+                "color": "#198754",
+                "icon": "fas fa-microchip"
+            },
+            {
+                "uri": f"{self.namespace}CulturalMovement",
+                "name": "CulturalMovement",
+                "label": "Cultural Movement",
+                "description": "Period defined by cultural or intellectual movement",
+                "color": "#d63384",
+                "icon": "fas fa-palette"
+            }
+        ]
+
+    def _get_color_for_period(self, period_name: str) -> str:
+        """
+        Map period type to UI color.
+
+        Args:
+            period_name: Period class name
+
+        Returns:
+            Hex color code
+        """
+        colors = {
+            "HistoricalPeriod": "#6f42c1",
+            "DisciplinaryEra": "#0d6efd",
+            "TechnologicalEpoch": "#198754",
+            "CulturalMovement": "#d63384"
+        }
+        return colors.get(period_name, "#6c757d")
+
+    def _get_icon_for_period(self, period_name: str) -> str:
+        """
+        Map period type to FontAwesome icon.
+
+        Args:
+            period_name: Period class name
+
+        Returns:
+            FontAwesome class string
+        """
+        icons = {
+            "HistoricalPeriod": "fas fa-landmark",
+            "DisciplinaryEra": "fas fa-graduation-cap",
+            "TechnologicalEpoch": "fas fa-microchip",
+            "CulturalMovement": "fas fa-palette"
+        }
+        return icons.get(period_name, "fas fa-clock")
+
 
 # Global OntServe client instance
 _global_ontserve_client: Optional[OntServeClient] = None

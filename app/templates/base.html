@@ -7,9 +7,11 @@
     <title>{% block title %}OntExtract - Ontology-based Text Analysis{% endblock %}</title>
 
     <!-- Favicon -->
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='0.9em' font-size='90'>🧠</text></svg>">
+    <link rel="icon"
+        href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='0.9em' font-size='90'>🧠</text></svg>">
 
-    <script defer src="https://cloud.umami.is/script.js" data-website-id="82cf1306-1f17-4ee6-bebb-0ae56c2e2972"></script>
+    <script defer src="https://cloud.umami.is/script.js"
+        data-website-id="82cf1306-1f17-4ee6-bebb-0ae56c2e2972"></script>
 
     <!-- Bootstrap CSS (Darkly theme from Bootswatch) -->
     <link href="https://cdn.jsdelivr.net/npm/bootswatch@5.3.0/dist/darkly/bootstrap.min.css" rel="stylesheet">
@@ -92,8 +94,10 @@
 
         /* Brighter outline-primary buttons for better readability */
         .btn-outline-primary {
-            color: #6ea8fe !important;  /* Brighter blue text */
-            border-color: #6ea8fe !important;  /* Brighter blue border */
+            color: #6ea8fe !important;
+            /* Brighter blue text */
+            border-color: #6ea8fe !important;
+            /* Brighter blue border */
         }
 
         .btn-outline-primary:hover {
@@ -278,7 +282,8 @@
                         </a>
                         <ul class="dropdown-menu">
                             <li><a class="dropdown-item" href="#"><i class="fas fa-user me-2"></i>Profile</a></li>
-                            <li><a class="dropdown-item" href="{{ url_for('settings.index') }}"><i class="fas fa-cog me-2"></i>Settings</a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('settings.index') }}"><i
+                                        class="fas fa-cog me-2"></i>Settings</a></li>
                             <li>
                                 <hr class="dropdown-divider">
                             </li>
@@ -348,11 +353,46 @@
 
     <!-- Footer -->
     <footer class="footer bg-dark">
-        <div class="container text-center">
+        <div class="container">
+            <!-- Links Row -->
+            <div class="row text-center mb-3">
+                <div class="col-md-4 mb-2">
+                    <a href="https://github.com/MatLab-Research/OntExtract/issues" target="_blank"
+                        class="text-light text-decoration-none">
+                        <i class="fas fa-comment-dots"></i> Feedback
+                    </a>
+                </div>
+                <div class="col-md-4 mb-2">
+                    <a href="https://github.com/MatLab-Research/OntExtract" target="_blank"
+                        class="text-light text-decoration-none">
+                        <i class="fab fa-github"></i> Source Code
+                    </a>
+                </div>
+                <div class="col-md-4 mb-2">
+                    <a href="{{ url_for('static', filename='papers/OntExtract_JCDL2025.pdf') }}" target="_blank"
+                        class="text-light text-decoration-none">
+                        <i class="fas fa-file-alt"></i> JCDL 2025 Paper
+                    </a>
+                </div>
+            </div>
+
+            <!-- Privacy Notice -->
             <div class="row">
-                <div class="col-12">
-                    <h5>OntExtract</h5>
-                    <p class="text-muted">Ontology-based Text Analysis and Entity Extraction</p>
+                <div class="col-12 text-center">
+                    <small class="text-muted">
+                        <strong>Research Prototype:</strong> Email addresses used only for password reset.
+                        Privacy-focused analytics via Umami. Data may be reset during development. Download your results
+                        regularly.
+                    </small>
+                </div>
+            </div>
+
+            <!-- Copyright -->
+            <div class="row mt-2">
+                <div class="col-12 text-center">
+                    <small class="text-muted">
+                        © 2025 | Open Source (MIT License)
+                    </small>
                 </div>
             </div>
         </div>

@@ -1,8 +1,8 @@
 # OntExtract Progress Tracker
 
 **Branch:** `development`
-**Last Session:** 2025-11-22 (Session 22)
-**Status:** DEMO-READY - JCDL Conference Preparation Complete
+**Last Session:** 2025-11-23 (Session 24)
+**Status:** DEMO-READY - Data Model Improvements & UI Polish Complete
 
 ---
 
@@ -10,14 +10,14 @@
 
 ### Active Focus: JCDL 2025 Conference Demo
 
-**Demo Experiment:** Experiment ID 75 - Professional Ethics Evolution (1867-1947)
-- 7 historical documents spanning 80 years
-- 4 temporal periods with semantic events
+**Demo Experiment:** Experiment ID 83 - Agent Temporal Evolution (1910-2024)
+- 7 historical documents spanning 114 years
+- Multiple temporal periods (auto-generated from document dates)
 - Ontology-backed event types with academic citations
 - Full-page timeline visualization
 - Demo credentials: demo/demo123
 
-**Demo URL:** http://localhost:8765/experiments/75/timeline
+**Demo URL:** http://localhost:8765/experiments/83/manage_temporal_terms
 
 **JCDL Documentation:**
 - [JCDL_STANDALONE_IMPLEMENTATION.md](JCDL_STANDALONE_IMPLEMENTATION.md) - Overall implementation plan
@@ -61,6 +61,130 @@
 ---
 
 ## Recent Sessions
+
+### Session 24 (2025-11-23) - Data Model Cleanup & Experiment Workflow ✅
+
+**Goal:** Clean up legacy data patterns, fix document versioning, and polish experiment creation/editing UI
+
+**Accomplished:**
+
+1. **Document Upload Agent:**
+   - Created [.claude/agents/upload-agent-documents.md](.claude/agents/upload-agent-documents.md) (reproducible workflow)
+   - Uploaded 7 source documents for "agent" temporal evolution (1910-2024)
+   - Documents: Black's Law (1910, 2019, 2024), Anscombe (1956), Wooldridge (1995), Russell & Norvig (2022), OED (2024)
+   - Full metadata: titles, authors, publication dates, chapter info for book chapters
+   - Script: [scripts/upload_agent_documents.py](scripts/upload_agent_documents.py)
+
+2. **Data Model Normalization:**
+   - **Removed legacy focus_term_id from configuration JSON** - now uses proper `term_id` foreign key
+   - Migrated experiment 82 term association from config to `experiments.term_id` column
+   - Updated DTOs: Added `term_id` field to CreateExperimentDTO and UpdateExperimentDTO
+   - Updated experiment service to handle `term_id` in creation
+   - Cleaned configuration JSON - removed duplicate term storage
+   - Files: [app/dto/experiment_dto.py](app/dto/experiment_dto.py:29,63), [app/services/experiment_service.py](app/services/experiment_service.py:68)
+
+3. **Document Versioning Fix:**
+   - **Fixed publication_date and authors not copying to experimental versions**
+   - Updated InheritanceVersioningService to copy metadata from root documents
+   - Affects both `experimental` and `processed` version types
+   - Ensures temporal analysis uses correct document dates (not upload dates)
+   - Files: [app/services/inheritance_versioning_service.py](app/services/inheritance_versioning_service.py:57-58,279-280)
+
+4. **Document Type Classification:**
+   - Fixed documents incorrectly classified as `reference` type
+   - Changed to `document` type for experiment source documents
+   - Updated upload agent to use correct classification
+   - References are bibliographic entries; documents are source content
+
+5. **Edit Experiment Form Overhaul:**
+   - **Edit form now matches create form exactly** (same layout, features, functionality)
+   - Two-column layout: Source Documents | References
+   - Focus term selection with auto-fill
+   - Quick Add Reference (MW/OED dictionary lookup)
+   - Select All/Deselect All buttons
+   - Document search/filter
+   - Files: [app/templates/experiments/edit.html](app/templates/experiments/edit.html), [app/routes/experiments/crud.py](app/routes/experiments/crud.py:239-275)
+
+6. **New Experiment Form Enhancements:**
+   - Added Select All/Deselect All buttons for Source Documents
+   - Added Select All/Deselect All buttons for References
+   - Fixed document search/filter functionality (was broken)
+   - Updated to send `term_id` as top-level field (not in configuration)
+   - Files: [app/templates/experiments/new.html](app/templates/experiments/new.html:218-264,311-341), [app/templates/experiments/components/multi_document_selection.html](app/templates/experiments/components/multi_document_selection.html:4-17)
+
+7. **UI Polish:**
+   - Removed "Remove" text from trash icon buttons (icon-only design)
+   - Kept tooltips for accessibility
+   - White borders for edit buttons on experiments list
+   - Cleaner, more modern interface
+   - Files: [app/templates/experiments/temporal_term_manager.html](app/templates/experiments/temporal_term_manager.html:833,883,927), [app/templates/experiments/index.html](app/templates/experiments/index.html:6-14)
+
+**Files Created:**
+- [.claude/agents/upload-agent-documents.md](.claude/agents/upload-agent-documents.md) - Reusable document upload workflow
+- [scripts/upload_agent_documents.py](scripts/upload_agent_documents.py) - Automated upload script
+
+**Files Modified:**
+- [app/dto/experiment_dto.py](app/dto/experiment_dto.py) - Added term_id to DTOs
+- [app/services/experiment_service.py](app/services/experiment_service.py) - Uses term_id foreign key
+- [app/services/inheritance_versioning_service.py](app/services/inheritance_versioning_service.py) - Copies publication_date/authors
+- [app/routes/experiments/crud.py](app/routes/experiments/crud.py) - Edit route matches new route
+- [app/templates/experiments/edit.html](app/templates/experiments/edit.html) - Complete redesign
+- [app/templates/experiments/new.html](app/templates/experiments/new.html) - Select All buttons, search fixes
+- [app/templates/experiments/temporal_term_manager.html](app/templates/experiments/temporal_term_manager.html) - Icon-only remove buttons
+
+**Technical Details:**
+- **Database normalization**: experiments.term_id → terms.id (proper FK with index)
+- **Configuration cleanup**: Removed focus_term_id from JSON (no duplicate storage)
+- **Version inheritance**: publication_date and authors now propagate through version chain
+- **Document classification**: document_type='document' for sources, 'reference' for bibliography
+
+**Impact:**
+- Cleaner data model with proper foreign key relationships
+- Temporal analysis uses correct publication dates (not upload dates)
+- Consistent UI between create and edit forms
+- Reproducible document upload workflow
+- No more legacy data patterns
+
+### Session 23 (2025-11-23) - Timeline UI Enhancements ✅
+
+**Goal:** Improve visual clarity of timeline boundary markers and term display
+
+**Accomplished:**
+
+1. **START/END Color Scheme Implementation:**
+   - START cards: Green highlight (6px) on LEFT side (#28a745)
+   - END cards: Red highlight (6px) on RIGHT side (#dc3545)
+   - Applied to both period boundary cards and semantic event span cards
+   - Used `!important` flag to override event-type-specific colors for semantic events
+   - CSS updates: [app/templates/experiments/temporal_term_manager.html](app/templates/experiments/temporal_term_manager.html:220-230, 386-396)
+
+2. **Term Display Enhancement:**
+   - Changed from showing "0 Terms" to displaying actual term names
+   - Multi-term support: Shows comma-separated list (e.g., "agent, intelligence")
+   - Empty state: Shows "No terms selected" when no terms exist
+   - Server-side: Jinja2 template logic for initial render
+   - Client-side: JavaScript updates when terms added/removed
+   - Files: [app/templates/experiments/temporal_term_manager.html](app/templates/experiments/temporal_term_manager.html:641-650, 1446-1450)
+
+3. **Visual Improvements:**
+   - Clear visual distinction between START (green left) and END (red right)
+   - Boundary markers override event type colors for consistency
+   - Border positioning: LEFT for START, RIGHT for END
+   - Maintains card-based Bootstrap design with flexbox layout
+
+**Files Modified:**
+- [app/templates/experiments/temporal_term_manager.html](app/templates/experiments/temporal_term_manager.html) - CSS for boundary colors, term display HTML and JavaScript
+
+**Technical Details:**
+- CSS: `border-left-color` (START), `border-right` (END), `border-left: 1px solid #dee2e6` (reset default)
+- JavaScript: Updated `term-display` element with `textContent` using `currentTerms.join(', ')`
+- Jinja2: Used `{{ terms|join(', ') }}` filter for server-side rendering
+
+**Impact:**
+- Improved timeline readability with intuitive color coding
+- Better user feedback showing actual term names instead of counts
+- Consistent visual language across timeline (green = start, red = end)
+- Enhanced JCDL demo presentation quality
 
 ### Session 22 (2025-11-22) - Temporal Evolution Experiment Creation Agent ✅
 
@@ -415,16 +539,17 @@
 - Databases: ai_ethical_dm, ai_ethical_dm_test, ontserve_db, ontextract_db
 
 **Demo Experiment:**
-- Experiment ID: 75
+- Experiment ID: 83
 - Database: ontextract_db
 - User: demo (username: demo, password: demo123)
+- Term: agent (UUID: 0d3e87d1-b3f3-4da1-bcaa-6737c6b42bb5)
 
 ---
 
-**Last Updated:** 2025-11-22 (Session 20)
+**Last Updated:** 2025-11-23 (Session 24)
 
-**Conference Readiness:** HIGH (Phase 2 Complete, Testing Pending)
+**Conference Readiness:** HIGH (Phase 2 Complete, Data Model Clean, UI Polish Complete)
 
-**Estimated Time to Demo-Ready:** 2-4 hours (testing + presentation prep)
+**Estimated Time to Demo-Ready:** 1-2 hours (testing + verification)
 
-**Next Action:** Execute browser testing checklist (JCDL_TESTING_CHECKLIST.md)
+**Next Action:** Execute browser testing checklist with clean data model

@@ -65,6 +65,7 @@ class ExperimentService(BaseService):
                 description=data.description or '',
                 experiment_type=data.experiment_type,
                 user_id=user_id,
+                term_id=data.term_id if data.term_id else None,
                 configuration=json.dumps(data.configuration)
             )
 

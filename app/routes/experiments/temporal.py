@@ -16,6 +16,7 @@ from flask import render_template, request, jsonify, flash, redirect, url_for
 from flask_login import current_user
 from app.utils.auth_decorators import api_require_login_for_write
 from app.services.temporal_service import get_temporal_service
+from app.services.ontserve_client import get_ontserve_client
 from app.services.base_service import ServiceError, ValidationError, NotFoundError
 from app.dto.temporal_dto import (
     UpdateTemporalTermsDTO,
@@ -31,6 +32,7 @@ from . import experiments_bp
 
 logger = logging.getLogger(__name__)
 temporal_service = get_temporal_service()
+ontserve_client = get_ontserve_client()
 
 
 @experiments_bp.route('/<int:experiment_id>/manage_temporal_terms')
@@ -675,6 +677,90 @@ def get_semantic_event_types(experiment_id):
         return jsonify({
             'success': True,
             'event_types': fallback_types,
+            'count': len(fallback_types),
+            'source': 'fallback (ontology load failed)',
+            'error': str(e)
+        }), 200
+
+
+@experiments_bp.route('/period_types', methods=['GET'])
+def get_period_types():
+    """
+    Get list of temporal period types from SCO ontology
+
+    Returns:
+        JSON with period types array containing:
+        - uri: Ontology URI
+        - name: Class name
+        - label: Human-readable label
+        - description: Period type description
+        - color: UI color code
+        - icon: FontAwesome icon class
+    """
+    try:
+        period_types = ontserve_client.get_period_types()
+
+        # Transform to frontend format
+        transformed_types = []
+        for period_type in period_types:
+            transformed_types.append({
+                'value': period_type['name'],
+                'label': period_type['label'],
+                'description': period_type['description'],
+                'uri': period_type['uri'],
+                'color': period_type['color'],
+                'icon': period_type['icon']
+            })
+
+        return jsonify({
+            'success': True,
+            'period_types': transformed_types,
+            'count': len(transformed_types),
+            'source': 'ontology'
+        }), 200
+
+    except Exception as e:
+        logger.error(f"Error fetching period types: {e}", exc_info=True)
+
+        # Return hardcoded fallback
+        fallback_types = [
+            {
+                'value': 'HistoricalPeriod',
+                'label': 'Historical Period',
+                'description': 'Historically-defined temporal span',
+                'color': '#6f42c1',
+                'icon': 'fas fa-landmark',
+                'uri': None
+            },
+            {
+                'value': 'DisciplinaryEra',
+                'label': 'Disciplinary Era',
+                'description': 'Era defined by disciplinary conventions',
+                'color': '#0d6efd',
+                'icon': 'fas fa-graduation-cap',
+                'uri': None
+            },
+            {
+                'value': 'TechnologicalEpoch',
+                'label': 'Technological Epoch',
+                'description': 'Period marked by technological developments',
+                'color': '#198754',
+                'icon': 'fas fa-microchip',
+                'uri': None
+            },
+            {
+                'value': 'CulturalMovement',
+                'label': 'Cultural Movement',
+                'description': 'Period defined by cultural or intellectual movement',
+                'color': '#d63384',
+                'icon': 'fas fa-palette',
+                'uri': None
+            }
+        ]
+
+        return jsonify({
+            'success': True,
+            'period_types': fallback_types,
             'count': len(fallback_types),
             'source': 'fallback (ontology load failed)',
             'error': str(e)
