@@ -8,15 +8,16 @@ This script starts the OntExtract Flask application with shared services enabled
 import os
 from dotenv import load_dotenv
 
+# Load environment variables from .env BEFORE any app imports
+# This ensures API keys are available when services are initialized
+load_dotenv()
+
 # Fix for libblis/SpaCy threading crash - must be set before importing any NLP libraries
 os.environ.setdefault('OPENBLAS_NUM_THREADS', '1')
 os.environ.setdefault('OMP_NUM_THREADS', '1')
 os.environ.setdefault('MKL_NUM_THREADS', '1')
 
 from app import create_app
-
-# Load environment variables from .env only (do not auto-overlay .env.local)
-load_dotenv()
 
 # Expose a module-level Flask app for Gunicorn (run:app)
 app = create_app()
