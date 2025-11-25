@@ -28,12 +28,21 @@ from . import text_input_bp
 @text_input_bp.route('/documents')
 @public_with_auth_context
 def document_list():
-    """List all documents grouped by base document with version stacking - public access"""
+    """List all sources (documents and references) with optional type filtering - public access"""
     page = request.args.get('page', 1, type=int)
     per_page = 10
+    source_type = request.args.get('type', 'all')  # all, document, reference
 
-    # Get all documents ordered by creation date (newest first)
-    all_documents = Document.query.order_by(Document.created_at.desc()).all()
+    # Build query with optional type filter
+    query = Document.query
+    if source_type == 'document':
+        query = query.filter_by(document_type='document')
+    elif source_type == 'reference':
+        query = query.filter_by(document_type='reference')
+    # 'all' shows everything
+
+    # Get documents ordered by creation date (newest first)
+    all_documents = query.order_by(Document.created_at.desc()).all()
 
     # Group documents by base document
     document_groups = {}
@@ -96,7 +105,7 @@ def document_list():
         'iter_pages': lambda *args: range(1, total_pages + 1)
     })()
 
-    return render_template('text_input/document_list.html', documents=pagination)
+    return render_template('text_input/document_list.html', documents=pagination, source_type=source_type)
 
 
 @text_input_bp.route('/document/<uuid:document_uuid>')

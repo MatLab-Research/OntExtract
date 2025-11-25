@@ -1,19 +1,45 @@
 {% extends "base.html" %}
 
-{% block title %}Documents - OntExtract{% endblock %}
+{% block title %}Sources - OntExtract{% endblock %}
 
 {% block content %}
 <div class="container">
     <div class="row mb-4">
         <div class="col">
-            <h2>Documents</h2>
+            <h2>Sources</h2>
             {% if not current_user.is_authenticated %}
             <div class="alert alert-info" role="alert">
                 <i class="fas fa-info-circle"></i>
-                <strong>Demo Mode:</strong> You're viewing sample documents.
-                <a href="{{ url_for('auth.login') }}">Sign in</a> to upload and process your own documents.
+                <strong>Demo Mode:</strong> You're viewing sample sources.
+                <a href="{{ url_for('auth.login') }}">Sign in</a> to upload and process your own sources.
             </div>
             {% endif %}
+        </div>
+    </div>
+
+    <!-- Type Filter Tabs -->
+    <div class="row mb-3">
+        <div class="col">
+            <ul class="nav nav-pills">
+                <li class="nav-item">
+                    <a class="nav-link {% if source_type == 'all' %}active{% endif %}"
+                       href="{{ url_for('text_input.document_list', type='all') }}">
+                        All
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link {% if source_type == 'document' %}active{% endif %}"
+                       href="{{ url_for('text_input.document_list', type='document') }}">
+                        <i class="fas fa-file-alt me-1"></i>Documents
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link {% if source_type == 'reference' %}active{% endif %}"
+                       href="{{ url_for('text_input.document_list', type='reference') }}">
+                        <i class="fas fa-book me-1"></i>References
+                    </a>
+                </li>
+            </ul>
         </div>
     </div>
 
@@ -95,9 +121,14 @@
                         {% if group.latest_version.is_demo %}
                         <span class="badge bg-info ms-2">Demo</span>
                         {% endif %}
+                        {% if group.latest_version.document_type == 'reference' %}
+                        <span class="badge bg-success ms-2"><i class="fas fa-book me-1"></i>Reference</span>
+                        {% else %}
+                        <span class="badge bg-primary ms-2"><i class="fas fa-file-alt me-1"></i>Document</span>
+                        {% endif %}
                     </div>
                     <div>
-                        <span class="badge bg-success">v{{ group.latest_version.version_number }} (Latest)</span>
+                        <span class="badge bg-secondary">v{{ group.latest_version.version_number }}</span>
                         {% if group.versions|length > 1 %}
                         <button class="btn btn-sm btn-outline-secondary ms-2"
                                 type="button"
@@ -210,7 +241,7 @@
                 <ul class="pagination justify-content-center">
                     {% if documents.has_prev %}
                     <li class="page-item">
-                        <a class="page-link" href="?page={{ documents.prev_num }}">Previous</a>
+                        <a class="page-link" href="?page={{ documents.prev_num }}&type={{ source_type }}">Previous</a>
                     </li>
                     {% endif %}
 
@@ -222,7 +253,7 @@
                     </li>
                     {% else %}
                     <li class="page-item">
-                        <a class="page-link" href="?page={{ page_num }}">{{ page_num }}</a>
+                        <a class="page-link" href="?page={{ page_num }}&type={{ source_type }}">{{ page_num }}</a>
                     </li>
                     {% endif %}
                     {% endif %}
@@ -230,7 +261,7 @@
 
                     {% if documents.has_next %}
                     <li class="page-item">
-                        <a class="page-link" href="?page={{ documents.next_num }}">Next</a>
+                        <a class="page-link" href="?page={{ documents.next_num }}&type={{ source_type }}">Next</a>
                     </li>
                     {% endif %}
                 </ul>
@@ -238,10 +269,14 @@
             {% endif %}
             {% else %}
             <div class="alert alert-secondary" role="alert">
-                {% if not current_user.is_authenticated %}
-                <p>No demo documents available. Please check back later.</p>
+                {% if source_type == 'document' %}
+                <p class="mb-0">No documents found. <a href="{{ url_for('upload.unified') }}">Upload a document</a> to get started.</p>
+                {% elif source_type == 'reference' %}
+                <p class="mb-0">No references found. References can be added when creating experiments via Quick Add.</p>
+                {% elif not current_user.is_authenticated %}
+                <p class="mb-0">No demo sources available. Please check back later.</p>
                 {% else %}
-                <p>No documents yet. Start by uploading a document or pasting text.</p>
+                <p class="mb-0">No sources yet. Start by uploading a document or pasting text.</p>
                 {% endif %}
             </div>
             {% endif %}
