@@ -281,6 +281,21 @@ WHERE conrelid = 'processing_artifact_groups'::regclass
 
 ## Important Notes
 
+### OED API Integration
+
+The OED Quick Add feature (on experiments/new page) must use the `/references/api/oed/suggest` endpoint - the same one used by the terms/add page. This endpoint calls `OEDService.suggest_ids()` which:
+1. First tries the OED search API (`/words/`)
+2. Falls back to guessing common entry_id patterns (e.g., `agent_nn01`, `agent_vb01`)
+3. Returns entries with headword, entry_id, and first definition
+
+**Do NOT use** `/references/api/oed/entry` - it returns "Headword search not supported".
+
+**Working code pattern** (experiments/new.html):
+```javascript
+url = `/references/api/oed/suggest?q=${encodeURIComponent(term)}`;
+// Returns: { success: true, suggestions: [{entry_id, headword, definition, sense_count}, ...] }
+```
+
 ### Academic Tone Enforcement
 
 All LLM outputs use neutral academic tone:

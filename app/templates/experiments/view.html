@@ -165,8 +165,8 @@
                     {% endif %}
                     
                     
-                    {% set source_documents = experiment.documents | selectattr('document_type', 'equalto', 'document') | list %}
-                    {% set references = experiment.documents | selectattr('document_type', 'equalto', 'reference') | list %}
+                    {% set source_documents = experiment.documents | list %}
+                    {% set references = experiment.references | list %}
 
                     <div class="mb-4">
                         <h5><i class="fas fa-file-alt text-primary me-2"></i>Source Documents ({{ source_documents | length }})</h5>
