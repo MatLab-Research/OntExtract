@@ -386,10 +386,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
 
                 let html = '<div class="list-group list-group-flush">';
+                let senseNumber = 0;
                 results.forEach((result, resultIndex) => {
                     const definitions = result.definitions || [];
                     definitions.forEach((definition, defIndex) => {
-                        const senseNumber = resultIndex * 10 + defIndex + 1;
+                        senseNumber++;
                         html += `
                             <div class="list-group-item p-2">
                                 <div class="d-flex justify-content-between align-items-start">
@@ -456,7 +457,7 @@ document.addEventListener('DOMContentLoaded', function() {
             // Add click handlers for create buttons
             document.querySelectorAll('.create-ref-btn').forEach(btn => {
                 btn.addEventListener('click', async function() {
-                    await createReference(this.dataset);
+                    await createReference(this.dataset, this);
                 });
             });
 
@@ -465,7 +466,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    async function createReference(data) {
+    async function createReference(data, btn) {
         try {
             const title = `${data.term} (${data.source.toUpperCase()}) - Sense ${data.senseNumber}`;
             const response = await fetch('/upload/create_reference', {
@@ -481,8 +482,53 @@ document.addEventListener('DOMContentLoaded', function() {
 
             const result = await response.json();
             if (result.success) {
-                // Reload page to show new reference
-                window.location.reload();
+                // Add new reference to the list and auto-select it
+                let refList = document.querySelector('.reference-list');
+                const wordCount = data.definition.split(/\s+/).length;
+                const newRefHtml = `
+                    <div class="form-check reference-item mb-2">
+                        <input class="form-check-input reference-checkbox" type="checkbox"
+                               value="${result.document_id}" id="ref-${result.document_id}" checked>
+                        <label class="form-check-label" for="ref-${result.document_id}">
+                            <strong>${title}</strong>
+                            <span class="text-muted">(${wordCount} words)</span>
+                            <span class="badge bg-success ms-1">New</span>
+                        </label>
+                    </div>
+                `;
+
+                if (!refList) {
+                    // No reference list yet - create one and replace the warning
+                    const refColumn = document.querySelector('.reference-checkbox')?.closest('.col-md-6')
+                                   || document.querySelector('#quick-add-reference')?.closest('.col-md-6');
+                    if (refColumn) {
+                        const warning = refColumn.querySelector('.alert-warning');
+                        if (warning) {
+                            // Create the reference list container
+                            const newList = document.createElement('div');
+                            newList.className = 'reference-list border rounded p-3';
+                            newList.style.maxHeight = '300px';
+                            newList.style.overflowY = 'auto';
+                            warning.replaceWith(newList);
+                            refList = newList;
+                        }
+                    }
+                }
+
+                if (refList) {
+                    refList.insertAdjacentHTML('afterbegin', newRefHtml);
+
+                    // Show success feedback on the clicked button
+                    if (btn) {
+                        btn.classList.remove('btn-outline-success');
+                        btn.classList.add('btn-success');
+                        btn.innerHTML = '<i class="fas fa-check"></i>';
+                        btn.disabled = true;
+                    }
+                } else {
+                    // Fallback: reload page
+                    window.location.reload();
+                }
             } else {
                 alert('Error creating reference: ' + (result.error || 'Unknown error'));
             }
