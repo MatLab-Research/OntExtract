@@ -165,8 +165,12 @@
                     {% endif %}
                     
                     
+                    {% set source_documents = experiment.documents | selectattr('document_type', 'equalto', 'document') | list %}
+                    {% set references = experiment.documents | selectattr('document_type', 'equalto', 'reference') | list %}
+
                     <div class="mb-4">
-                        <h5>Documents ({{ experiment.get_document_count() }})</h5>
+                        <h5><i class="fas fa-file-alt text-primary me-2"></i>Source Documents ({{ source_documents | length }})</h5>
+                        {% if source_documents %}
                         <div class="table-responsive">
                             <table class="table table-sm table-hover">
                                 <thead>
@@ -179,7 +183,7 @@
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {% for document in experiment.documents %}
+                                    {% for document in source_documents %}
                                     <tr>
                                         <td>{{ document.get_display_name() }}</td>
                                         <td>
@@ -202,7 +206,51 @@
                                 </tbody>
                             </table>
                         </div>
+                        {% else %}
+                        <p class="text-muted">No source documents in this experiment.</p>
+                        {% endif %}
                     </div>
+
+                    {% if references %}
+                    <div class="mb-4">
+                        <h5><i class="fas fa-book text-success me-2"></i>References ({{ references | length }})</h5>
+                        <div class="table-responsive">
+                            <table class="table table-sm table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>Reference</th>
+                                        <th>Source</th>
+                                        <th>Words</th>
+                                        <th>Added</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for ref in references %}
+                                    <tr>
+                                        <td>{{ ref.get_display_name() }}</td>
+                                        <td>
+                                            {% if ref.source_metadata and ref.source_metadata.get('source') %}
+                                                <span class="badge bg-info">{{ ref.source_metadata.get('source') }}</span>
+                                            {% else %}
+                                                <span class="badge bg-secondary">Reference</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>{{ ref.word_count or 0 }}</td>
+                                        <td>{{ ref.created_at.strftime('%Y-%m-%d') }}</td>
+                                        <td>
+                                            <a href="{{ url_for('experiments.process_document', experiment_id=experiment.id, document_uuid=ref.uuid) }}"
+                                               class="btn btn-sm btn-outline-success">
+                                                <i class="fas fa-eye"></i> View
+                                            </a>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    {% endif %}
 
                     
                     {% if experiment.results_summary %}

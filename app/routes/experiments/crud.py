@@ -81,8 +81,9 @@ def new():
         if document_uuid:
             selected_document = Document.query.filter_by(uuid=document_uuid).first()
             if selected_document:
-                # Generate a description based on the document
-                generated_description = f"Document analysis of '{selected_document.get_display_name()}'"
+                # Use document title (from metadata), fall back to display name
+                title = selected_document.title or selected_document.get_display_name()
+                generated_description = f"Document analysis of {title}"
 
     return render_template('experiments/new.html',
                          documents=documents,
