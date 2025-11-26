@@ -85,16 +85,16 @@
                 </div>
             </div>
 
-            <!-- Processing Tools (Manual Mode) -->
+            <!-- Processing Operations (Manual Mode) -->
             <div class="card mb-4">
                 <div class="card-header">
                     <h6 class="mb-0">
-                        <i class="fas fa-toolbox me-2"></i>Available Processing Tools
+                        <i class="fas fa-cogs me-2"></i>Processing Operations
                     </h6>
                 </div>
                 <div class="card-body">
                     <p class="text-muted mb-3">
-                        Select tools to run on this document. Use the action buttons in the sidebar to execute.
+                        Select operations to run on this document. Use the action buttons in the sidebar to execute.
                     </p>
 
                     <div class="alert alert-info mb-3" role="alert">
@@ -145,11 +145,25 @@
                                 <div class="form-check mb-2">
                                     <input class="form-check-input tool-checkbox" type="checkbox"
                                            value="embeddings_local" id="tool-embeddings-local"
-                                           {% if processing_operations|selectattr('processing_type', 'equalto', 'embeddings')|selectattr('processing_method', 'equalto', 'local')|selectattr('status', 'equalto', 'completed')|list %}disabled{% endif %}>
+                                           {% if processing_operations|selectattr('processing_type', 'equalto', 'embeddings')|selectattr('processing_method', 'in', ['local', 'period_aware'])|selectattr('status', 'equalto', 'completed')|list %}disabled{% endif %}>
                                     <label class="form-check-label" for="tool-embeddings-local">
                                         <strong>Local Embeddings</strong>
                                         <br><small class="text-muted">sentence-transformers (384 dims)</small>
                                         {% if processing_operations|selectattr('processing_type', 'equalto', 'embeddings')|selectattr('processing_method', 'equalto', 'local')|selectattr('status', 'equalto', 'completed')|list %}
+                                        <br><small class="text-success"><i class="fas fa-check-circle me-1"></i>Already applied</small>
+                                        {% elif processing_operations|selectattr('processing_type', 'equalto', 'embeddings')|selectattr('processing_method', 'equalto', 'period_aware')|selectattr('status', 'equalto', 'completed')|list %}
+                                        <br><small class="text-success"><i class="fas fa-check-circle me-1"></i>Period-aware applied (LLM)</small>
+                                        {% endif %}
+                                    </label>
+                                </div>
+                                <div class="form-check mb-2">
+                                    <input class="form-check-input tool-checkbox" type="checkbox"
+                                           value="embeddings_period_aware" id="tool-embeddings-period-aware"
+                                           {% if processing_operations|selectattr('processing_type', 'equalto', 'embeddings')|selectattr('processing_method', 'equalto', 'period_aware')|selectattr('status', 'equalto', 'completed')|list %}disabled{% endif %}>
+                                    <label class="form-check-label" for="tool-embeddings-period-aware">
+                                        <strong>Period-Aware Embeddings</strong>
+                                        <br><small class="text-muted">Historical/contemporary model selection</small>
+                                        {% if processing_operations|selectattr('processing_type', 'equalto', 'embeddings')|selectattr('processing_method', 'equalto', 'period_aware')|selectattr('status', 'equalto', 'completed')|list %}
                                         <br><small class="text-success"><i class="fas fa-check-circle me-1"></i>Already applied</small>
                                         {% endif %}
                                     </label>
@@ -176,27 +190,29 @@
                                 <h6 class="mb-3">
                                     <i class="fas fa-tags text-success me-2"></i>Entity & Concept Extraction
                                 </h6>
+                                {% set has_entities = processing_operations|selectattr('processing_type', 'equalto', 'entities')|selectattr('status', 'equalto', 'completed')|list %}
                                 <div class="form-check mb-2">
                                     <input class="form-check-input tool-checkbox" type="checkbox"
                                            value="entities_spacy" id="tool-entities-spacy"
-                                           {% if processing_operations|selectattr('processing_type', 'equalto', 'entities')|selectattr('status', 'equalto', 'completed')|list %}disabled{% endif %}>
+                                           {% if has_entities %}disabled{% endif %}>
                                     <label class="form-check-label" for="tool-entities-spacy">
                                         <strong>Named Entities + Concepts</strong>
                                         <br><small class="text-muted">spaCy NER + noun phrase extraction</small>
-                                        {% if processing_operations|selectattr('processing_type', 'equalto', 'entities')|selectattr('status', 'equalto', 'completed')|list %}
-                                        <br><small class="text-success"><i class="fas fa-check-circle me-1"></i>Already applied</small>
+                                        {% if has_entities %}
+                                        <br><small class="text-success"><i class="fas fa-check-circle me-1"></i>Already applied{% if processing_operations|selectattr('processing_type', 'equalto', 'entities')|selectattr('processing_method', 'equalto', 'spacy_ner')|list %} (LLM){% endif %}</small>
                                         {% endif %}
                                     </label>
                                 </div>
+                                {% set has_definitions = processing_operations|selectattr('processing_type', 'equalto', 'definitions')|selectattr('status', 'equalto', 'completed')|list %}
                                 <div class="form-check mb-2">
                                     <input class="form-check-input tool-checkbox" type="checkbox"
                                            value="definitions_spacy" id="tool-definitions"
-                                           {% if processing_operations|selectattr('processing_type', 'equalto', 'definitions')|selectattr('status', 'equalto', 'completed')|list %}disabled{% endif %}>
+                                           {% if has_definitions %}disabled{% endif %}>
                                     <label class="form-check-label" for="tool-definitions">
                                         <strong>Definition Extraction</strong>
                                         <br><small class="text-muted">spaCy pattern matching + dependency parsing</small>
-                                        {% if processing_operations|selectattr('processing_type', 'equalto', 'definitions')|selectattr('status', 'equalto', 'completed')|list %}
-                                        <br><small class="text-success"><i class="fas fa-check-circle me-1"></i>Already applied</small>
+                                        {% if has_definitions %}
+                                        <br><small class="text-success"><i class="fas fa-check-circle me-1"></i>Already applied{% if processing_operations|selectattr('processing_type', 'equalto', 'definitions')|selectattr('processing_method', 'equalto', 'definition_extraction')|list %} (LLM){% endif %}</small>
                                         {% endif %}
                                     </label>
                                 </div>
@@ -207,15 +223,16 @@
                                 <h6 class="mb-3">
                                     <i class="fas fa-clock text-secondary me-2"></i>Temporal Analysis
                                 </h6>
+                                {% set has_temporal = processing_operations|selectattr('processing_type', 'equalto', 'temporal')|selectattr('status', 'equalto', 'completed')|list %}
                                 <div class="form-check mb-2">
                                     <input class="form-check-input tool-checkbox" type="checkbox"
                                            value="temporal_spacy" id="tool-temporal"
-                                           {% if processing_operations|selectattr('processing_type', 'equalto', 'temporal')|selectattr('status', 'equalto', 'completed')|list %}disabled{% endif %}>
+                                           {% if has_temporal %}disabled{% endif %}>
                                     <label class="form-check-label" for="tool-temporal">
                                         <strong>Temporal Extraction</strong>
                                         <br><small class="text-muted">spaCy + date parsing (dates, periods, markers)</small>
-                                        {% if processing_operations|selectattr('processing_type', 'equalto', 'temporal')|selectattr('status', 'equalto', 'completed')|list %}
-                                        <br><small class="text-success"><i class="fas fa-check-circle me-1"></i>Already applied</small>
+                                        {% if has_temporal %}
+                                        <br><small class="text-success"><i class="fas fa-check-circle me-1"></i>Already applied{% if processing_operations|selectattr('processing_type', 'equalto', 'temporal')|selectattr('processing_method', 'equalto', 'temporal_extraction')|list %} (LLM){% endif %}</small>
                                         {% endif %}
                                     </label>
                                 </div>
@@ -361,15 +378,17 @@ document.addEventListener('DOMContentLoaded', function() {
     const completedOperations = {{ processing_operations_serialized|tojson }};
 
     // Helper function to check if a tool has already been completed
+    // Supports both manual processing methods and LLM orchestration method keys
     function isToolCompleted(toolName) {
         const toolMap = {
-            'segment_paragraph': { type: 'segmentation', method: 'paragraph' },
-            'segment_sentence': { type: 'segmentation', method: 'sentence' },
-            'embeddings_local': { type: 'embeddings', method: 'local' },
-            'embeddings_openai': { type: 'embeddings', method: 'openai' },
-            'entities_spacy': { type: 'entities', method: 'spacy' },
-            'definitions_spacy': { type: 'definitions', method: 'spacy' },
-            'temporal_spacy': { type: 'temporal', method: 'spacy' }
+            'segment_paragraph': { type: 'segmentation', methods: ['paragraph', 'semantic'] },
+            'segment_sentence': { type: 'segmentation', methods: ['sentence'] },
+            'embeddings_local': { type: 'embeddings', methods: ['local', 'period_aware'] },
+            'embeddings_openai': { type: 'embeddings', methods: ['openai'] },
+            'embeddings_period_aware': { type: 'embeddings', methods: ['period_aware'] },
+            'entities_spacy': { type: 'entities', methods: ['spacy', 'spacy_ner'] },
+            'definitions_spacy': { type: 'definitions', methods: ['spacy', 'definition_extraction'] },
+            'temporal_spacy': { type: 'temporal', methods: ['spacy', 'temporal_extraction'] }
         };
 
         const tool = toolMap[toolName];
@@ -377,7 +396,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
         return completedOperations.some(op =>
             op.processing_type === tool.type &&
-            op.processing_method === tool.method &&
+            tool.methods.includes(op.processing_method) &&
             op.status === 'completed'
         );
     }

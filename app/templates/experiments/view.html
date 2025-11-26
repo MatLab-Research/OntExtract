@@ -65,14 +65,14 @@
                         </div>
                         {% if recent_orchestration.status == 'completed' %}
                         <div class="ms-3">
-                            <a href="{{ url_for('orchestration.view_results', run_id=recent_orchestration.id) }}"
+                            <a href="{{ url_for('experiments.llm_orchestration_results', experiment_id=experiment.id, run_id=recent_orchestration.id) }}"
                                class="btn btn-success btn-lg">
                                 <i class="fas fa-chart-line me-2"></i>View Results
                             </a>
                         </div>
                         {% elif recent_orchestration.status == 'executing' %}
                         <div class="ms-3">
-                            <a href="{{ url_for('orchestration.view_results', run_id=recent_orchestration.id) }}"
+                            <a href="{{ url_for('experiments.llm_orchestration_results', experiment_id=experiment.id, run_id=recent_orchestration.id) }}"
                                class="btn btn-info">
                                 <i class="fas fa-sync-alt me-2"></i>Check Status
                             </a>

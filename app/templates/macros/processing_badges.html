@@ -1,0 +1,99 @@
+{# Processing Operation Badge Macros
+   Provides consistent styling for processing operation badges across:
+   - document_pipeline.html
+   - process_document.html
+   - llm_orchestration_results.html
+#}
+
+{# Get icon class for operation type #}
+{% macro get_op_icon(op_type) %}
+{%- if 'segment' in op_type -%}fa-cut
+{%- elif 'embedding' in op_type -%}fa-vector-square
+{%- elif 'entit' in op_type -%}fa-tags
+{%- elif 'temporal' in op_type -%}fa-clock
+{%- elif 'definition' in op_type -%}fa-book
+{%- elif 'cleanup' in op_type -%}fa-broom
+{%- else -%}fa-cog
+{%- endif -%}
+{% endmacro %}
+
+{# Get badge color for operation type #}
+{% macro get_op_color(op_type) %}
+{%- if 'segment' in op_type -%}warning
+{%- elif 'embedding' in op_type -%}info
+{%- elif 'entit' in op_type -%}success
+{%- elif 'temporal' in op_type -%}secondary
+{%- elif 'definition' in op_type -%}primary
+{%- elif 'cleanup' in op_type -%}primary
+{%- else -%}secondary
+{%- endif -%}
+{% endmacro %}
+
+{# Render a single processing operation badge
+   op_type: The operation type (e.g., 'segmentation', 'embeddings', 'entities')
+   op_method: The method used (e.g., 'spacy', 'openai', 'paragraph')
+   op_source: Optional source (e.g., 'manual', 'llm_orchestration')
+   show_method: Whether to show the method name (default true)
+#}
+{% macro operation_badge(op_type, op_method=None, op_source=None, show_method=true) %}
+{% set icon = get_op_icon(op_type) %}
+{% set color = get_op_color(op_type) %}
+{% set title = (op_source|title ~ ' Processing') if op_source else 'Processing Operation' %}
+<span class="badge bg-{{ color }}" title="{{ title }}">
+    <i class="fas {{ icon }} me-1"></i>
+    {%- if show_method and op_method -%}
+    {{ op_type }}: {{ op_method }}
+    {%- else -%}
+    {{ op_type | replace('_', ' ') | title }}
+    {%- endif -%}
+</span>
+{% endmacro %}
+
+{# Render a simple badge from tool name (for LLM orchestration results)
+   tool_name: The tool name (e.g., 'extract_definitions', 'entities_spacy')
+   status: The status ('success' or other)
+#}
+{% macro tool_badge(tool_name, status='success') %}
+{% set op_type = '' %}
+{% set op_method = '' %}
+{# Parse tool name to extract type and method #}
+{%- if 'segment' in tool_name -%}
+    {% set op_type = 'segmentation' %}
+    {%- if 'paragraph' in tool_name -%}{% set op_method = 'paragraph' %}
+    {%- elif 'sentence' in tool_name -%}{% set op_method = 'sentence' %}
+    {%- else -%}{% set op_method = 'semantic' %}{% endif -%}
+{%- elif 'embedding' in tool_name -%}
+    {% set op_type = 'embeddings' %}
+    {%- if 'local' in tool_name -%}{% set op_method = 'local' %}
+    {%- elif 'openai' in tool_name -%}{% set op_method = 'openai' %}
+    {%- elif 'period' in tool_name -%}{% set op_method = 'period_aware' %}
+    {%- else -%}{% set op_method = 'default' %}{% endif -%}
+{%- elif 'entit' in tool_name -%}
+    {% set op_type = 'entities' %}
+    {% set op_method = 'spacy' %}
+{%- elif 'definition' in tool_name -%}
+    {% set op_type = 'definitions' %}
+    {% set op_method = 'spacy' %}
+{%- elif 'temporal' in tool_name -%}
+    {% set op_type = 'temporal' %}
+    {% set op_method = 'spacy' %}
+{%- else -%}
+    {% set op_type = tool_name | replace('_', ' ') %}
+    {% set op_method = '' %}
+{%- endif -%}
+{% set icon = get_op_icon(op_type) %}
+{# Accept both 'success' and 'executed' as success states #}
+{% set color = get_op_color(op_type) if status in ['success', 'executed'] else 'danger' %}
+<span class="badge bg-{{ color }}">
+    <i class="fas {{ icon }} me-1"></i>{{ op_type }}{% if op_method %}: {{ op_method }}{% endif %}
+</span>
+{% endmacro %}
+
+{# Render multiple operation badges in a flex container #}
+{% macro operation_badges(operations) %}
+<div class="d-flex flex-wrap gap-1">
+    {% for op in operations %}
+        {{ operation_badge(op.type, op.method, op.source) }}
+    {% endfor %}
+</div>
+{% endmacro %}

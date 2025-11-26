@@ -729,9 +729,23 @@ def llm_orchestration_results(experiment_id, run_id):
             for doc_results in run.processing_results.values():
                 total_operations += len(doc_results)
 
-        # Get document count
+        # Get document count and build document lookup
         from app.models import Document
-        document_count = Document.query.filter_by(experiment_id=experiment_id).count()
+        experiment_docs = Document.query.filter_by(experiment_id=experiment_id).all()
+        document_count = len(experiment_docs)
+
+        # Build document lookup dict for template (maps string ID to document info)
+        document_lookup = {}
+        for doc in experiment_docs:
+            document_lookup[str(doc.id)] = {
+                'id': doc.id,
+                'uuid': str(doc.uuid),
+                'title': doc.title,
+                'authors': doc.authors,
+                'publication_date': doc.publication_date.strftime('%Y') if doc.publication_date else None,
+                'version_number': doc.version_number,
+                'version_type': doc.version_type,
+            }
 
         # Convert markdown to HTML for insights
         insights_html = None
@@ -755,6 +769,7 @@ def llm_orchestration_results(experiment_id, run_id):
             duration=duration,
             total_operations=total_operations,
             document_count=document_count,
+            document_lookup=document_lookup,
             insights_html=insights_html,
             evolution_html=evolution_html
         )
