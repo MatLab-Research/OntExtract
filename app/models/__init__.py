@@ -14,6 +14,7 @@ from .experiment_document import ExperimentDocument
 
 # Experiment processing models
 from .experiment_processing import ExperimentDocumentProcessing, ProcessingArtifact, DocumentProcessingIndex
+from .processing_artifact_group import ProcessingArtifactGroup
 
 # Experiment orchestration models
 from .experiment_orchestration_run import ExperimentOrchestrationRun
@@ -28,6 +29,9 @@ from .semantic_drift import SemanticDriftActivity, AnalysisAgent, ProvenanceChai
 # Settings and prompt templates
 from .app_settings import AppSetting
 from .prompt_template import PromptTemplate
+
+# Version tracking
+from .version_changelog import VersionChangelog
 
 # Temporal experiment models for semantic change analysis
 from .temporal_experiment import (
@@ -50,6 +54,7 @@ __all__ = [
     'ExperimentDocumentProcessing',
     'ProcessingArtifact',
     'DocumentProcessingIndex',
+    'ProcessingArtifactGroup',
     # Experiment orchestration models
     'ExperimentOrchestrationRun',
     'OrchestrationDecision',
@@ -69,6 +74,8 @@ __all__ = [
     # Settings and templates
     'AppSetting',
     'PromptTemplate',
+    # Version tracking
+    'VersionChangelog',
     # Temporal experiment models
     'DocumentTemporalMetadata',
     'OEDTimelineMarker',
