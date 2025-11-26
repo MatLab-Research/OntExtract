@@ -361,19 +361,48 @@
                         </div>
                         <div class="col-md-6 mb-3">
                             <label for="file-type" class="form-label">Document Type (optional)</label>
-                            <select class="form-select" id="file-type">
-                                <option value="">Select type...</option>
-                                <option value="journal-article">Journal Article</option>
-                                <option value="conference-paper">Conference Paper</option>
-                                <option value="book">Book</option>
-                                <option value="book-chapter">Book Chapter</option>
-                                <option value="thesis">Thesis/Dissertation</option>
-                                <option value="report">Technical Report</option>
-                                <option value="preprint">Preprint (arXiv, etc.)</option>
-                                <option value="dictionary-entry">Dictionary Entry</option>
-                                <option value="encyclopedia-article">Encyclopedia Article</option>
-                                <option value="other">Other</option>
-                            </select>
+                            <div class="input-group">
+                                <input type="text" class="form-control" id="file-type"
+                                       list="file-type-options"
+                                       autocomplete="off"
+                                       placeholder="Select or enter type...">
+                                <button class="btn btn-outline-secondary" type="button"
+                                        data-bs-toggle="tooltip"
+                                        data-bs-placement="top"
+                                        title="Choose from existing types or enter a custom type">
+                                    <i class="fas fa-question-circle"></i>
+                                </button>
+                            </div>
+                            <datalist id="file-type-options">
+                                <option value="Academic Paper">
+                                <option value="Book">
+                                <option value="Book Chapter">
+                                <option value="Conference Paper">
+                                <option value="Dictionary Entry">
+                                <option value="OED Entry">
+                                <option value="Encyclopedia Entry">
+                                <option value="Journal Article">
+                                <option value="Magazine Article">
+                                <option value="Newspaper Article">
+                                <option value="Standard">
+                                <option value="Technical Report">
+                                <option value="Thesis">
+                                <option value="White Paper">
+                                <option value="Patent">
+                                <option value="Website">
+                                <option value="Blog Post">
+                                <option value="Glossary">
+                                <option value="Legal Case">
+                                <option value="Legislation">
+                                <option value="Manuscript">
+                                <option value="Presentation">
+                                <option value="Video">
+                                <option value="Audio">
+                                <option value="Dataset">
+                                <option value="Software">
+                                <option value="Other">
+                            </datalist>
+                            <div class="form-text">Select from list or enter custom type</div>
                         </div>
                     </div>
 
@@ -648,24 +677,49 @@
                                 Document Type
                                 <span id="type-source-badge" class="metadata-source-badge"></span>
                             </label>
-                            <select class="form-select" id="review-type"
-                                    onchange="markAsManual(this, 'type-source-badge')">
-                                <option value="">Select type...</option>
-                                <option value="academic">Academic Paper</option>
-                                <option value="book">Book</option>
-                                <option value="book_section">Book Section/Chapter</option>
-                                <option value="conference">Conference Proceeding</option>
-                                <option value="dictionary_general">Dictionary Entry</option>
-                                <option value="dictionary_oed">OED Dictionary Entry</option>
-                                <option value="encyclopedia">Encyclopedia Entry</option>
-                                <option value="standard">Standard/Specification</option>
-                                <option value="technical">Technical Report</option>
-                                <option value="whitepaper">White Paper</option>
-                                <option value="patent">Patent</option>
-                                <option value="website">Web Resource</option>
-                                <option value="glossary">Glossary/Terminology</option>
-                                <option value="other">Other</option>
-                            </select>
+                            <div class="input-group">
+                                <input type="text" class="form-control" id="review-type"
+                                       list="review-type-options"
+                                       autocomplete="off"
+                                       placeholder="Select or enter type..."
+                                       onchange="markAsManual(this, 'type-source-badge')">
+                                <button class="btn btn-outline-secondary" type="button"
+                                        data-bs-toggle="tooltip"
+                                        data-bs-placement="top"
+                                        title="Choose from existing types or enter a custom type">
+                                    <i class="fas fa-question-circle"></i>
+                                </button>
+                            </div>
+                            <datalist id="review-type-options">
+                                <option value="Academic Paper">
+                                <option value="Book">
+                                <option value="Book Chapter">
+                                <option value="Conference Paper">
+                                <option value="Dictionary Entry">
+                                <option value="OED Entry">
+                                <option value="Encyclopedia Entry">
+                                <option value="Journal Article">
+                                <option value="Magazine Article">
+                                <option value="Newspaper Article">
+                                <option value="Standard">
+                                <option value="Technical Report">
+                                <option value="Thesis">
+                                <option value="White Paper">
+                                <option value="Patent">
+                                <option value="Website">
+                                <option value="Blog Post">
+                                <option value="Glossary">
+                                <option value="Legal Case">
+                                <option value="Legislation">
+                                <option value="Manuscript">
+                                <option value="Presentation">
+                                <option value="Video">
+                                <option value="Audio">
+                                <option value="Dataset">
+                                <option value="Software">
+                                <option value="Other">
+                            </datalist>
+                            <div class="form-text">Select from list or enter custom type</div>
                         </div>
                     </div>
 
