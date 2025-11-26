@@ -448,6 +448,40 @@ class ProvenanceService:
                 )
                 db.session.add(agent)
                 db.session.flush()
+        elif extraction_source == 'semanticscholar':
+            agent = ProvAgent.query.filter_by(foaf_name='semanticscholar_api').first()
+            if not agent:
+                agent = ProvAgent(
+                    agent_type='SoftwareAgent',
+                    foaf_name='semanticscholar_api',
+                    agent_metadata={
+                        'tool_type': 'metadata_api',
+                        'description': 'Semantic Scholar API metadata extraction',
+                        'url': 'https://api.semanticscholar.org'
+                    }
+                )
+                db.session.add(agent)
+                db.session.flush()
+        elif extraction_source == 'pdf_analysis':
+            agent = ProvAgent.query.filter_by(foaf_name='pdf_analyzer').first()
+            if not agent:
+                agent = ProvAgent(
+                    agent_type='SoftwareAgent',
+                    foaf_name='pdf_analyzer',
+                    agent_metadata={
+                        'tool_type': 'text_extraction',
+                        'description': 'PDF metadata extraction from embedded fields',
+                        'methods': ['embedded_metadata', 'text_analysis']
+                    }
+                )
+                db.session.add(agent)
+                db.session.flush()
+        elif extraction_source in ['user', 'manual']:
+            # User-provided data - use person agent
+            agent = cls.get_or_create_user_agent(
+                user_id=getattr(user, 'id', 0),
+                username=getattr(user, 'username', 'unknown')
+            )
         else:
             agent = cls.get_or_create_system_agent()
 

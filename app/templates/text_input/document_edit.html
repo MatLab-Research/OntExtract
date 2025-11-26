@@ -1,0 +1,157 @@
+{% extends "base.html" %}
+{% from 'shared/metadata_fields.html' import metadata_form_fields %}
+
+{% block title %}Edit {{ document.title|truncate(30) }} - OntExtract{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-12">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="{{ url_for('index') }}">Home</a></li>
+                    <li class="breadcrumb-item"><a href="{{ url_for('text_input.document_list') }}">Documents</a></li>
+                    <li class="breadcrumb-item"><a href="{{ url_for('text_input.document_detail', document_uuid=document.uuid) }}">{{ document.title|truncate(30) }}</a></li>
+                    <li class="breadcrumb-item active">Edit</li>
+                </ol>
+            </nav>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-12">
+            <h1>Edit Document</h1>
+        </div>
+    </div>
+
+    <form method="POST">
+        <div class="row mt-3">
+            <div class="col-lg-8">
+                <!-- Basic Information -->
+                <div class="card mb-3">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">Basic Information</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <label for="title" class="form-label">Title <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="title" name="title"
+                                   value="{{ document.title }}" required>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="reference_subtype" class="form-label">Document Type</label>
+                            <select class="form-select" id="reference_subtype" name="reference_subtype">
+                                <option value="">Select type...</option>
+                                <option value="academic" {% if document.reference_subtype == 'academic' %}selected{% endif %}>Academic Paper</option>
+                                <option value="book" {% if document.reference_subtype == 'book' %}selected{% endif %}>Book</option>
+                                <option value="book_section" {% if document.reference_subtype == 'book_section' %}selected{% endif %}>Book Section/Chapter</option>
+                                <option value="conference" {% if document.reference_subtype == 'conference' %}selected{% endif %}>Conference Proceeding</option>
+                                <option value="dictionary_general" {% if document.reference_subtype == 'dictionary_general' %}selected{% endif %}>Dictionary Entry</option>
+                                <option value="dictionary_oed" {% if document.reference_subtype == 'dictionary_oed' %}selected{% endif %}>OED Dictionary Entry</option>
+                                <option value="encyclopedia" {% if document.reference_subtype == 'encyclopedia' %}selected{% endif %}>Encyclopedia Entry</option>
+                                <option value="standard" {% if document.reference_subtype == 'standard' %}selected{% endif %}>Standard/Specification</option>
+                                <option value="technical" {% if document.reference_subtype == 'technical' %}selected{% endif %}>Technical Report</option>
+                                <option value="whitepaper" {% if document.reference_subtype == 'whitepaper' %}selected{% endif %}>White Paper</option>
+                                <option value="patent" {% if document.reference_subtype == 'patent' %}selected{% endif %}>Patent</option>
+                                <option value="website" {% if document.reference_subtype == 'website' %}selected{% endif %}>Web Resource</option>
+                                <option value="glossary" {% if document.reference_subtype == 'glossary' %}selected{% endif %}>Glossary/Terminology</option>
+                                <option value="other" {% if document.reference_subtype == 'other' %}selected{% endif %}>Other</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Shared Metadata Fields -->
+                {{ metadata_form_fields(document=document, mode='edit', collapsed=False) }}
+            </div>
+
+            <div class="col-lg-4">
+                <!-- Document Info Sidebar -->
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">Document Info</h5>
+                    </div>
+                    <div class="card-body">
+                        <p><strong>File:</strong> {{ document.original_filename or 'N/A' }}</p>
+                        <p><strong>Type:</strong> {{ document.file_type|upper if document.file_type else 'Text' }}</p>
+                        <p><strong>Status:</strong>
+                            {% if document.status == 'completed' %}
+                            <span class="badge bg-success">Processed</span>
+                            {% elif document.status == 'processing' %}
+                            <span class="badge bg-info">Processing</span>
+                            {% elif document.status == 'error' %}
+                            <span class="badge bg-danger">Error</span>
+                            {% else %}
+                            <span class="badge bg-secondary">{{ document.status|title }}</span>
+                            {% endif %}
+                        </p>
+                        <p><strong>Word Count:</strong> {{ document.word_count or 'N/A' }}</p>
+                        <p><strong>Uploaded:</strong> {{ document.created_at.strftime('%Y-%m-%d') }}</p>
+                        {% if document.updated_at %}
+                        <p><strong>Last Modified:</strong> {{ document.updated_at.strftime('%Y-%m-%d %H:%M') }}</p>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Version Info (if applicable) -->
+                {% if document.version_number > 1 or document.source_document_id %}
+                <div class="card mt-3">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">Version Info</h5>
+                    </div>
+                    <div class="card-body">
+                        <p><strong>Version:</strong> {{ document.version_number }}</p>
+                        <p><strong>Type:</strong> {{ document.version_type|title }}</p>
+                        {% if document.source_document_id %}
+                        <p><strong>Source:</strong>
+                            <a href="{{ url_for('text_input.document_detail', document_uuid=document.source_document.uuid) }}">
+                                Original Document
+                            </a>
+                        </p>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endif %}
+
+                <!-- Help -->
+                <div class="card mt-3">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">Field Guide</h5>
+                    </div>
+                    <div class="card-body small text-muted">
+                        <p><strong>Journal Articles:</strong> Use Journal, Volume, Issue, Pages</p>
+                        <p><strong>Book Chapters:</strong> Use Container Title (book name), Editor, Pages</p>
+                        <p><strong>Dictionary Entries:</strong> Use Container Title (dictionary name), Entry Term (headword), Edition</p>
+                        <p><strong>Online Sources:</strong> Use URL, Access Date</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row mt-3 mb-4">
+            <div class="col-12">
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-save"></i> Save Changes
+                </button>
+                <a href="{{ url_for('text_input.document_detail', document_uuid=document.uuid) }}" class="btn btn-secondary">
+                    Cancel
+                </a>
+            </div>
+        </div>
+    </form>
+</div>
+
+<script>
+// Auto-format DOI input
+document.getElementById('doi')?.addEventListener('blur', function() {
+    let doi = this.value.trim();
+    if (doi && !doi.startsWith('10.')) {
+        // Remove common prefixes
+        doi = doi.replace(/^(https?:\/\/)?(dx\.)?doi\.org\//i, '');
+        doi = doi.replace(/^doi:/i, '');
+        this.value = doi;
+    }
+});
+</script>
+{% endblock %}

@@ -42,6 +42,20 @@ class Document(db.Model):
     url = db.Column(db.String(500))  # Source URL
     citation = db.Column(db.Text)  # Formatted citation string
 
+    # Extended bibliographic metadata (Zotero-aligned)
+    editor = db.Column(db.Text)  # Editor(s) for reference works, edited volumes
+    edition = db.Column(db.String(50))  # Edition (e.g., "4th", "11th", "Revised")
+    volume = db.Column(db.String(20))  # Volume number
+    issue = db.Column(db.String(20))  # Issue number (journals)
+    pages = db.Column(db.String(50))  # Page range in source (e.g., "115-152")
+    issn = db.Column(db.String(20))  # ISSN for journals
+    container_title = db.Column(db.String(300))  # Title of containing work (book, dictionary)
+    place = db.Column(db.String(100))  # Publication place (e.g., "New York")
+    series = db.Column(db.String(200))  # Series name
+    entry_term = db.Column(db.String(200))  # Headword for dictionary/encyclopedia entries
+    access_date = db.Column(db.Date)  # Date accessed (online sources)
+    notes = db.Column(db.Text)  # General notes
+
     # Flexible metadata for custom/non-standard fields (JSONB for indexing support)
     source_metadata = db.Column(db.JSON)
     # Reserved for custom metadata not covered by standard bibliographic fields above
@@ -279,7 +293,20 @@ class Document(db.Model):
             'type': root_doc.document_subtype,
             'abstract': root_doc.abstract,
             'url': root_doc.url,
-            'citation': root_doc.citation
+            'citation': root_doc.citation,
+            # Extended bibliographic fields (Zotero-aligned)
+            'editor': root_doc.editor,
+            'edition': root_doc.edition,
+            'volume': root_doc.volume,
+            'issue': root_doc.issue,
+            'pages': root_doc.pages,
+            'issn': root_doc.issn,
+            'container_title': root_doc.container_title,
+            'place': root_doc.place,
+            'series': root_doc.series,
+            'entry_term': root_doc.entry_term,
+            'access_date': root_doc.access_date.isoformat() if root_doc.access_date else None,
+            'notes': root_doc.notes
         }
 
         # Add custom fields from source_metadata JSONB (if any)

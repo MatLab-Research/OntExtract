@@ -1,0 +1,272 @@
+Metadata Schema Proposal - Zotero-Aligned
+==========================================
+
+Current Form Fragmentation Analysis
+-----------------------------------
+
+UPLOAD PAGES:
+1. /upload/ (upload/unified.html) - Main unified upload
+   - "Additional Metadata" collapsed by default
+   - Fields: title, authors, publication_date, journal, DOI, ISBN, URL, abstract, citation
+
+2. /input/upload (upload_enhanced.html) - Document upload with CrossRef
+   - "Additional metadata fields" ONLY shown when auto-extraction DISABLED
+   - Fields: title, authors, date, journal, DOI, URL, abstract, type, ISBN, publisher
+
+3. /references/upload (references/upload.html) - Reference upload
+   - Source Metadata section always visible
+   - Fields: title, reference_subtype, authors, publication_date, journal, DOI, ISBN, URL, abstract, citation
+
+EDIT PAGES:
+4. /references/edit/{id} (references/edit.html) - Edit reference
+   - Source Metadata section visible
+   - Fields: title, reference_subtype, authors, publication_date, journal, DOI, ISBN, URL, abstract, citation
+
+5. /input/document/{uuid} - View document (NO EDIT ROUTE for documents!)
+
+PROBLEM: Same fields duplicated across 4+ templates with slight variations.
+         No document edit page exists (only reference edit).
+         Metadata hidden when auto-extraction enabled on /input/upload.
+
+
+Proposed Solution: Shared Metadata Form Macro
+---------------------------------------------
+
+Create: app/templates/shared/metadata_fields.html
+
+Usage:
+  {% from 'shared/metadata_fields.html' import metadata_form %}
+  {{ metadata_form(document=doc, mode='edit', show_all=True) }}
+
+Parameters:
+  - document: Document object (for pre-populating values)
+  - mode: 'create' or 'edit'
+  - collapsed: True/False (whether to collapse by default)
+  - doc_type: Optional hint for which fields to emphasize
+
+This macro would contain ALL metadata fields organized into sections:
+  - Core (always visible): title, authors, publication_date, document_type
+  - Publication Details: journal, container_title, volume, issue, pages, edition
+  - Identifiers: DOI, ISBN, ISSN, URL
+  - Reference Entry: entry_term, editor, access_date
+  - Notes: abstract, notes, citation
+
+
+================================================================================
+
+Current Fields (document.py)
+----------------------------
+- title (String 200)
+- authors (Text, comma-separated)
+- publication_date (Date, flexible format)
+- journal (String 200) - doing double-duty for journal AND publisher name
+- publisher (String 200)
+- doi (String 100)
+- isbn (String 20)
+- document_subtype (String 50) - article, book, conference_paper, etc.
+- abstract (Text)
+- url (String 500)
+- citation (Text)
+- source_metadata (JSON) - custom fields
+- reference_subtype - academic, book, dictionary_oed, dictionary_general, encyclopedia, etc.
+
+
+Proposed New Columns
+--------------------
+
+| Field           | Type         | Description                              | Zotero Field      |
+|-----------------|--------------|------------------------------------------|-------------------|
+| editor          | Text         | Editor(s) of containing work             | editor            |
+| edition         | String(50)   | Edition (e.g., "11th", "2nd Revised")    | edition           |
+| volume          | String(20)   | Volume number                            | volume            |
+| issue           | String(20)   | Issue number (journals)                  | issue             |
+| pages           | String(50)   | Page range in source (e.g., "115-152")   | pages             |
+| container_title | String(300)  | Title of containing work                 | bookTitle         |
+| place           | String(100)  | Publication place (e.g., "New York")     | place             |
+| series          | String(200)  | Series name                              | series            |
+| access_date     | Date         | Date accessed (online sources)           | accessDate        |
+| entry_term      | String(200)  | Headword/term for dictionary entries     | (custom)          |
+| notes           | Text         | General notes                            | extra             |
+| issn            | String(20)   | ISSN for journals                        | ISSN              |
+
+
+Field Usage by Document Type
+----------------------------
+
+JOURNAL ARTICLE (Wooldridge & Jennings 1995, Anscombe 1956):
+  Required: title, authors, journal, publication_date
+  Common:   volume, issue, pages, doi
+  Optional: abstract, url, notes
+
+BOOK SECTION/CHAPTER (Russell & Norvig 2022):
+  Required: title, authors, container_title (book title), publication_date
+  Common:   editor, publisher, place, pages, edition, isbn
+  Optional: series, chapter_number (in notes), abstract
+
+DICTIONARY ENTRY (Black's Law, OED):
+  Required: title (display title), entry_term (headword), container_title (dictionary name)
+  Common:   editor, publisher, edition, publication_date
+  Optional: pages, url, access_date, notes
+
+ENCYCLOPEDIA ENTRY:
+  Same as dictionary entry
+
+
+Example Records with New Fields
+-------------------------------
+
+1. Wooldridge and Jennings - 1995
+   title:            Intelligent Agents: Theory and Practice
+   authors:          Michael Wooldridge, Nicholas R. Jennings
+   journal:          The Knowledge Engineering Review
+   volume:           10
+   issue:            2
+   pages:            115-152
+   publication_date: 1995
+   doi:              10.1017/S0269888900007797
+   document_subtype: article
+
+2. Russell and Norvig - 2022 (Book Chapter)
+   title:            Intelligent Agents
+   authors:          Stuart Russell, Peter Norvig
+   container_title:  Artificial Intelligence: A Modern Approach
+   edition:          4th
+   publisher:        Pearson
+   place:            Hoboken, NJ
+   pages:            36-62
+   publication_date: 2022
+   isbn:             978-0134610993
+   document_subtype: book_section
+   notes:            Chapter 2
+
+3. Black's Law Dictionary - 1910 Entry
+   title:            Agent (Black's Law Dictionary, 1st ed.)
+   entry_term:       agent
+   container_title:  A Law Dictionary
+   authors:          Henry Campbell Black
+   edition:          1st
+   publisher:        West Publishing Co.
+   place:            St. Paul, MN
+   publication_date: 1910
+   document_subtype: dictionary_entry
+   reference_subtype: dictionary_general
+
+4. Black's Law Dictionary - 2024 Entry
+   title:            Agent (Black's Law Dictionary, 12th ed.)
+   entry_term:       agent
+   container_title:  Black's Law Dictionary
+   editor:           Bryan A. Garner
+   edition:          12th
+   publisher:        Thomson Reuters
+   place:            St. Paul, MN
+   publication_date: 2024
+   isbn:             978-1539229759
+   document_subtype: dictionary_entry
+   reference_subtype: dictionary_general
+
+5. OED Entry
+   title:            agent, n.1 & adj.
+   entry_term:       agent
+   container_title:  Oxford English Dictionary
+   publisher:        Oxford University Press
+   url:              https://www.oed.com/view/Entry/3851
+   access_date:      2024-10-09
+   document_subtype: dictionary_entry
+   reference_subtype: dictionary_oed
+
+6. Anscombe - 1956
+   title:            Intention
+   authors:          G.E.M. Anscombe
+   journal:          Proceedings of the Aristotelian Society
+   volume:           57
+   pages:            321-332
+   publication_date: 1956
+   document_subtype: article
+
+
+Migration Plan
+--------------
+
+1. Create migration file: XXX_add_bibliographic_fields.sql
+
+   ALTER TABLE documents ADD COLUMN editor TEXT;
+   ALTER TABLE documents ADD COLUMN edition VARCHAR(50);
+   ALTER TABLE documents ADD COLUMN volume VARCHAR(20);
+   ALTER TABLE documents ADD COLUMN issue VARCHAR(20);
+   ALTER TABLE documents ADD COLUMN pages VARCHAR(50);
+   ALTER TABLE documents ADD COLUMN container_title VARCHAR(300);
+   ALTER TABLE documents ADD COLUMN place VARCHAR(100);
+   ALTER TABLE documents ADD COLUMN series VARCHAR(200);
+   ALTER TABLE documents ADD COLUMN access_date DATE;
+   ALTER TABLE documents ADD COLUMN entry_term VARCHAR(200);
+   ALTER TABLE documents ADD COLUMN notes TEXT;
+   ALTER TABLE documents ADD COLUMN issn VARCHAR(20);
+
+2. Update app/models/document.py with new columns
+
+3. Update upload form (references/upload.html):
+   - Add conditional field groups based on reference_subtype
+   - Show relevant fields for each document type
+
+4. Update edit route/template similarly
+
+
+Form Field Organization (by reference_subtype)
+----------------------------------------------
+
+ALL TYPES:
+  - title (required)
+  - reference_subtype (required)
+  - authors
+  - publication_date
+  - abstract
+  - url
+  - notes
+
+ACADEMIC (journal article):
+  + journal (required)
+  + volume
+  + issue
+  + pages
+  + doi
+
+BOOK:
+  + publisher
+  + place
+  + edition
+  + isbn
+  + series
+
+BOOK SECTION (chapter):
+  + container_title (required) - "Book Title"
+  + editor
+  + publisher
+  + place
+  + edition
+  + pages
+  + isbn
+
+DICTIONARY / ENCYCLOPEDIA:
+  + entry_term (required) - "Headword/Entry Term"
+  + container_title (required) - "Dictionary/Encyclopedia Title"
+  + editor
+  + publisher
+  + place
+  + edition
+  + access_date (for online)
+
+CONFERENCE:
+  + container_title - "Conference Name"
+  + place - "Conference Location"
+  + pages
+  + doi
+
+
+Notes
+-----
+- container_title replaces ambiguous use of "journal" for non-journal sources
+- journal field retained specifically for journal articles
+- entry_term is specific to dictionary/encyclopedia entries (the headword being defined)
+- editor vs authors: editor is for the person who compiled the reference work,
+  authors is for the person who wrote the specific content (often empty for dictionaries)
+- edition is free text to handle "1st", "11th", "2nd Revised", "Online" etc.

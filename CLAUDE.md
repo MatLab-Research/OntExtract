@@ -30,7 +30,7 @@
 
 **Understand the project:**
 - Architecture overview: [README.md](README.md)
-- Session history: [docs/PROGRESS.md](docs/PROGRESS.md) (Sessions 1-29)
+- Session history: [docs-internal/PROGRESS.md](docs-internal/PROGRESS.md) (Sessions 1-29)
 - Current focus: JCDL 2025 Conference Demo (Dec 15-19)
 
 **Deploy to production:**
@@ -329,7 +329,7 @@ All LLM outputs use neutral academic tone:
 - [docs/TEST_FIX_GUIDE.md](docs/TEST_FIX_GUIDE.md) - 8 reusable test patterns
 
 ### Session Notes
-- [docs/PROGRESS.md](docs/PROGRESS.md) - Complete session history (Sessions 1-29)
+- [docs-intermal/PROGRESS.md](docs-internal/PROGRESS.md) - Complete session history (Sessions 1-29)
 - [docs/archive/SESSION_28_SUMMARY.md](docs/archive/SESSION_28_SUMMARY.md) - Celery removal attempt (reverted)
 - Tests: [tests/](tests/) - All test files including root-level test_*.py files
 
@@ -406,6 +406,9 @@ git push origin main
 git checkout development
 ```
 
+**Attribution**
+Do not use created by Claude or Anthropic or any LLM in attribution comments or documentation. All work is authored by the developer, including commit messages.
+
 ## Next Steps
 
 ### Immediate (Post-Session 29)
@@ -414,7 +417,7 @@ git checkout development
 - ✅ Updated docs/PROGRESS.md with Session 29 details
 
 ### Short Term (Pre-JCDL)
-- Browser testing: [docs/JCDL_TESTING_CHECKLIST.md](docs/JCDL_TESTING_CHECKLIST.md)
+- Browser testing: [docs-internal/JCDL_TESTING_CHECKLIST.md](docs-internal/JCDL_TESTING_CHECKLIST.md)
 - Presentation materials preparation
 - Demo workflow practice
 

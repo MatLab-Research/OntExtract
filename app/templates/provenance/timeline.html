@@ -182,6 +182,42 @@
                                             {% if item.activity.parameters.fields_changed %}
                                             <div class="mt-1 text-muted">({{ item.activity.parameters.fields_changed | join(', ') }})</div>
                                             {% endif %}
+                                        {% elif item.activity.type == 'metadata_extraction' %}
+                                            <!-- Special display for metadata extraction events -->
+                                            <div class="d-flex align-items-center mb-2">
+                                                <strong class="me-2">Source:</strong>
+                                                {% set source = item.activity.parameters.extraction_source %}
+                                                {% if source == 'crossref' %}
+                                                    <span class="badge bg-primary me-2"><i class="fas fa-university me-1"></i>CROSSREF</span>
+                                                {% elif source == 'semanticscholar' %}
+                                                    <span class="badge bg-info me-2"><i class="fas fa-brain me-1"></i>SEMANTIC SCHOLAR</span>
+                                                {% elif source == 'zotero' %}
+                                                    <span class="badge bg-success me-2"><i class="fas fa-bookmark me-1"></i>ZOTERO</span>
+                                                {% elif source == 'pdf_analysis' %}
+                                                    <span class="badge bg-secondary me-2"><i class="fas fa-file-pdf me-1"></i>PDF ANALYSIS</span>
+                                                {% elif source == 'user' %}
+                                                    <span class="badge bg-warning text-dark me-2"><i class="fas fa-user me-1"></i>USER</span>
+                                                {% elif source == 'manual' %}
+                                                    <span class="badge bg-dark me-2"><i class="fas fa-keyboard me-1"></i>MANUAL</span>
+                                                {% else %}
+                                                    <span class="badge bg-light text-dark me-2">{{ source|upper }}</span>
+                                                {% endif %}
+                                                <span class="text-muted">(confidence: {{ (item.activity.parameters.confidence * 100)|round|int }}%)</span>
+                                            </div>
+                                            <div>
+                                                <strong>Fields extracted:</strong>
+                                                {% for field in item.activity.parameters.fields_extracted %}
+                                                    <span class="badge bg-light text-dark me-1">{{ field }}</span>
+                                                {% endfor %}
+                                            </div>
+                                        {% elif item.activity.type == 'metadata_update' %}
+                                            <div>
+                                                <i class="fas fa-edit me-1 text-warning"></i>
+                                                <strong>{{ item.activity.parameters.fields_modified|length }} field(s) modified</strong>
+                                            </div>
+                                            <div class="mt-1 text-muted">
+                                                ({{ item.activity.parameters.fields_modified | join(', ') }})
+                                            </div>
                                         {% else %}
                                             <ul class="mb-0">
                                                 {% for key, value in item.activity.parameters.items() %}
@@ -337,9 +373,17 @@ function getActivityColor(activityType) {
         'term_creation': 'primary',
         'term_update': 'primary',
         'document_upload': 'success',
+        'text_extraction': 'success',
+        'metadata_extraction': 'info',
+        'metadata_extraction_pdf': 'secondary',
+        'metadata_update': 'warning',
+        'metadata_field_update': 'warning',
+        'document_save': 'success',
         'experiment_creation': 'info',
         'tool_execution': 'warning',
-        'orchestration_run': 'danger'
+        'orchestration_run': 'danger',
+        'document_segmentation': 'primary',
+        'embedding_generation': 'info'
     };
     return colors[activityType] || 'secondary';
 }
@@ -349,9 +393,17 @@ function getActivityIcon(activityType) {
         'term_creation': 'fa-plus',
         'term_update': 'fa-edit',
         'document_upload': 'fa-upload',
+        'text_extraction': 'fa-file-alt',
+        'metadata_extraction': 'fa-tags',
+        'metadata_extraction_pdf': 'fa-file-pdf',
+        'metadata_update': 'fa-edit',
+        'metadata_field_update': 'fa-pen',
+        'document_save': 'fa-save',
         'experiment_creation': 'fa-flask',
         'tool_execution': 'fa-cog',
-        'orchestration_run': 'fa-brain'
+        'orchestration_run': 'fa-brain',
+        'document_segmentation': 'fa-cut',
+        'embedding_generation': 'fa-vector-square'
     };
     return icons[activityType] || 'fa-circle';
 }

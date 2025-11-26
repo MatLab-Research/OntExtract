@@ -55,15 +55,37 @@ def upload_document():
         temporal_analysis = request.form.get('temporal_analysis') == 'on'
         
         # Optional metadata
-        authors = request.form.get('authors', '').split(',')
-        authors = [a.strip() for a in authors if a.strip()]
-        publication_date = request.form.get('publication_date')
-        journal = request.form.get('journal')
-        doi = request.form.get('doi')
-        isbn = request.form.get('isbn')
-        url = request.form.get('url')
-        abstract = request.form.get('abstract')
-        citation = request.form.get('citation')
+        from app.utils.date_parser import parse_flexible_date
+
+        authors_str = request.form.get('authors', '').strip()
+        authors = authors_str if authors_str else None
+
+        pub_date_str = request.form.get('publication_date', '').strip()
+        publication_date = parse_flexible_date(pub_date_str) if pub_date_str else None
+
+        journal = request.form.get('journal', '').strip() or None
+        doi = request.form.get('doi', '').strip() or None
+        isbn = request.form.get('isbn', '').strip() or None
+        url = request.form.get('url', '').strip() or None
+        abstract = request.form.get('abstract', '').strip() or None
+        citation = request.form.get('citation', '').strip() or None
+
+        # Extended bibliographic fields
+        editor = request.form.get('editor', '').strip() or None
+        edition = request.form.get('edition', '').strip() or None
+        volume = request.form.get('volume', '').strip() or None
+        issue = request.form.get('issue', '').strip() or None
+        pages = request.form.get('pages', '').strip() or None
+        issn = request.form.get('issn', '').strip() or None
+        container_title = request.form.get('container_title', '').strip() or None
+        place = request.form.get('place', '').strip() or None
+        series = request.form.get('series', '').strip() or None
+        entry_term = request.form.get('entry_term', '').strip() or None
+        notes = request.form.get('notes', '').strip() or None
+        publisher = request.form.get('publisher', '').strip() or None
+
+        access_date_str = request.form.get('access_date', '').strip()
+        access_date = parse_flexible_date(access_date_str) if access_date_str else None
         
         # Save file
         file_handler = FileHandler()
@@ -92,22 +114,11 @@ def upload_document():
                 detected_language = 'en'
                 language_confidence = 0.5
         
-        # Create base metadata with PROV-O classification
+        # Create base metadata with PROV-O classification (for custom fields only)
         source_metadata = {
             'prov_type': prov_type,  # PROV-O classification
-            'authors': authors if authors else None,
-            'publication_date': publication_date,
-            'journal': journal,
-            'doi': doi,
-            'isbn': isbn,
-            'url': url,
-            'abstract': abstract,
-            'citation': citation
         }
-        
-        # Remove empty values
-        source_metadata = {k: v for k, v in source_metadata.items() if v}
-        
+
         # Determine document type based on PROV-O classification
         # Map PROV-O types to internal document_type for backward compatibility
         if 'Reference' in prov_type or 'Academic' in prov_type or 'Standard' in prov_type:
@@ -116,8 +127,8 @@ def upload_document():
         else:
             document_type = 'document'
             reference_subtype = None
-        
-        # Create document record
+
+        # Create document record with normalized columns
         document = Document(
             title=title or secure_filename(original_filename),
             content_type='file',
@@ -130,7 +141,31 @@ def upload_document():
             content=content,
             detected_language=detected_language,
             language_confidence=language_confidence,
-            source_metadata=source_metadata if source_metadata else None,
+            # Normalized bibliographic columns
+            authors=authors,
+            publication_date=publication_date,
+            journal=journal,
+            publisher=publisher,
+            doi=doi,
+            isbn=isbn,
+            abstract=abstract,
+            url=url,
+            citation=citation,
+            # Extended bibliographic columns
+            editor=editor,
+            edition=edition,
+            volume=volume,
+            issue=issue,
+            pages=pages,
+            issn=issn,
+            container_title=container_title,
+            place=place,
+            series=series,
+            entry_term=entry_term,
+            access_date=access_date,
+            notes=notes,
+            # Legacy
+            source_metadata=source_metadata,
             user_id=current_user.id,
             status='uploaded'
         )
@@ -502,6 +537,22 @@ def extract_metadata():
                         'raw_value': isbn
                     }
 
+                # Extended bibliographic fields (Zotero-aligned)
+                extended_fields = [
+                    'editor', 'edition', 'volume', 'issue', 'pages', 'series',
+                    'container_title', 'place', 'issn', 'access_date', 'entry_term', 'notes'
+                ]
+                for field in extended_fields:
+                    value = request.form.get(field, '').strip()
+                    if value:
+                        user_metadata[field] = value
+                        user_provenance[field] = {
+                            'source': 'user',
+                            'confidence': 1.0,
+                            'timestamp': datetime.utcnow().isoformat(),
+                            'raw_value': value
+                        }
+
                 # If we have PDF-extracted metadata but no CrossRef, use it with lower confidence
                 pdf_provenance = {}
                 if pdf_extracted_title and not crossref_metadata:
@@ -660,6 +711,12 @@ def save_document():
                 return None
             return value
 
+        # Parse access_date if provided
+        access_date = None
+        if metadata.get('access_date'):
+            from app.utils.date_parser import parse_flexible_date
+            access_date = parse_flexible_date(metadata.get('access_date'))
+
         # Create document record with normalized columns
         document = Document(
             title=metadata.get('title', filename),
@@ -680,6 +737,19 @@ def save_document():
             abstract=clean_metadata_value(metadata.get('abstract')),
             url=clean_metadata_value(metadata.get('url')),
             citation=clean_metadata_value(metadata.get('citation')),
+            # Extended bibliographic columns (Zotero-aligned)
+            editor=clean_metadata_value(metadata.get('editor')),
+            edition=clean_metadata_value(metadata.get('edition')),
+            volume=clean_metadata_value(metadata.get('volume')),
+            issue=clean_metadata_value(metadata.get('issue')),
+            pages=clean_metadata_value(metadata.get('pages')),
+            issn=clean_metadata_value(metadata.get('issn')),
+            container_title=clean_metadata_value(metadata.get('container_title')),
+            place=clean_metadata_value(metadata.get('place')),
+            series=clean_metadata_value(metadata.get('series')),
+            entry_term=clean_metadata_value(metadata.get('entry_term')),
+            access_date=access_date,
+            notes=clean_metadata_value(metadata.get('notes')),
             # Legacy source_metadata for custom fields only
             source_metadata={'extraction_source': 'enhanced_upload'},
             metadata_provenance=provenance,
@@ -734,31 +804,73 @@ def save_document():
                     extracted_identifiers=extracted_identifiers
                 )
 
-            # 4. Track metadata extraction separately if CrossRef/Zotero was used
+            # 4. Track metadata extraction for all sources
             if provenance:
-                # Collect fields that came from automated extraction
-                crossref_fields = {}
-                zotero_fields = {}
+                # Collect fields by source
+                source_fields = {
+                    'crossref': {},
+                    'semanticscholar': {},
+                    'zotero': {},
+                    'pdf_analysis': {},
+                    'user': {},
+                    'manual': {}
+                }
 
                 for field_name, prov_data in provenance.items():
                     if isinstance(prov_data, dict):
                         source = prov_data.get('source', '')
-                        if source in ['crossref', 'crossref_auto']:
-                            crossref_fields[field_name] = prov_data.get('raw_value')
-                        elif source == 'zotero':
-                            zotero_fields[field_name] = prov_data.get('raw_value')
+                        raw_value = prov_data.get('raw_value')
 
-                # Track CrossRef extraction if any fields were extracted
-                if crossref_fields:
+                        # Map source names to our tracking categories
+                        if source in ['crossref', 'crossref_auto']:
+                            source_fields['crossref'][field_name] = raw_value
+                        elif source == 'semanticscholar':
+                            source_fields['semanticscholar'][field_name] = raw_value
+                        elif source == 'zotero':
+                            source_fields['zotero'][field_name] = raw_value
+                        elif source in ['pdf_analysis', 'file']:
+                            source_fields['pdf_analysis'][field_name] = raw_value
+                        elif source == 'user':
+                            source_fields['user'][field_name] = raw_value
+                        elif source == 'manual':
+                            source_fields['manual'][field_name] = raw_value
+
+                # Track CrossRef extraction
+                if source_fields['crossref']:
                     confidence = provenance.get('match_score', {}).get('raw_value', 0.9) if 'match_score' in provenance else 0.9
                     provenance_service.track_metadata_extraction(
-                        document, current_user, 'crossref', crossref_fields, confidence
+                        document, current_user, 'crossref', source_fields['crossref'], confidence
                     )
 
-                # Track Zotero extraction if any fields were extracted
-                if zotero_fields:
+                # Track Semantic Scholar extraction
+                if source_fields['semanticscholar']:
+                    confidence = provenance.get('match_score', {}).get('raw_value', 0.9) if 'match_score' in provenance else 0.9
                     provenance_service.track_metadata_extraction(
-                        document, current_user, 'zotero', zotero_fields, 0.95
+                        document, current_user, 'semanticscholar', source_fields['semanticscholar'], confidence
+                    )
+
+                # Track Zotero extraction
+                if source_fields['zotero']:
+                    provenance_service.track_metadata_extraction(
+                        document, current_user, 'zotero', source_fields['zotero'], 0.95
+                    )
+
+                # Track PDF analysis extraction
+                if source_fields['pdf_analysis']:
+                    provenance_service.track_metadata_extraction(
+                        document, current_user, 'pdf_analysis', source_fields['pdf_analysis'], 0.7
+                    )
+
+                # Track user-provided metadata (entered during initial upload)
+                if source_fields['user']:
+                    provenance_service.track_metadata_extraction(
+                        document, current_user, 'user', source_fields['user'], 1.0
+                    )
+
+                # Track manual entries (added to supplement auto-extracted data)
+                if source_fields['manual']:
+                    provenance_service.track_metadata_extraction(
+                        document, current_user, 'manual', source_fields['manual'], 1.0
                     )
 
             # 5. Track document save to database

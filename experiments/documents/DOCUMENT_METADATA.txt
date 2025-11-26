@@ -1,0 +1,183 @@
+Document Metadata for Upload
+=============================
+All extended bibliographic fields are now implemented (migration 20251125)
+
+================================================================================
+1. Blacks Law 2019 Agent.pdf
+================================================================================
+Title:            Agent (Black's Law Dictionary, 11th ed.)
+Reference Type:   dictionary_general
+Entry Term:      agent
+Container Title: Black's Law Dictionary
+Editor:          Bryan A. Garner
+Edition:         11th
+Publisher:        Thomson Reuters
+Place:           St. Paul, MN
+Year:             2019
+Pages:           4 (excerpt length)
+ISBN:             978-1539229735
+Notes:           Definition entry for "agent" from legal dictionary
+
+--------------------------------------------------------------------------------
+
+================================================================================
+2. Henry Campbell Black - 1910 - Blacks Law Agent 1910.pdf
+================================================================================
+Title:            Agent (Black's Law Dictionary, 1st ed.)
+Reference Type:   dictionary_general
+Entry Term:      agent
+Container Title: A Law Dictionary Containing Definitions of the Terms and
+                  Phrases of American and English Jurisprudence, Ancient and Modern
+Authors:          Henry Campbell Black
+Edition:         1st
+Publisher:        West Publishing Co.
+Place:           St. Paul, MN
+Year:             1910
+Pages:           2 (excerpt length)
+Notes:           Original 1910 definition; Black was author of 1st edition
+
+--------------------------------------------------------------------------------
+
+================================================================================
+3. Russell and Norvig - 2022 - Intelligent Agents.pdf
+================================================================================
+Title:            Intelligent Agents
+Reference Type:   book (book_section)
+Authors:          Stuart Russell, Peter Norvig
+Container Title: Artificial Intelligence: A Modern Approach
+Edition:         4th
+Publisher:        Pearson
+Place:           Hoboken, NJ
+Year:             2022
+Pages:           36-62 (Chapter 2)
+ISBN:             978-0134610993
+Notes:           Chapter 2; foundational AI textbook chapter on agent architecture
+
+--------------------------------------------------------------------------------
+
+================================================================================
+4. Wooldridge and Jennings - 1995 - Intelligent agents theory and practice.pdf
+================================================================================
+Title:            Intelligent Agents: Theory and Practice
+Reference Type:   academic
+Authors:          Michael Wooldridge, Nicholas R. Jennings
+Journal:          The Knowledge Engineering Review
+Volume:          10
+Issue:           2
+Pages:           115-152
+Year:             1995
+DOI:              10.1017/S0269888900007797
+Abstract:         Survey paper establishing foundational taxonomy for intelligent
+                  agents; defines weak and strong notions of agency; reviews
+                  agent architectures and agent-oriented programming
+Notes:           Highly cited foundational paper in multi-agent systems
+
+--------------------------------------------------------------------------------
+
+================================================================================
+5. Anscombe - 1956 - Intention.pdf
+================================================================================
+Title:            Intention
+Reference Type:   academic
+Authors:          G.E.M. Anscombe
+Journal:          Proceedings of the Aristotelian Society
+Volume:          57
+Pages:           321-332
+Year:             1956
+DOI:              10.1093/aristotelian/57.1.321
+Abstract:         Philosophical analysis distinguishing intention from prediction
+                  and examining the concept of intentional action
+Notes:           Foundational paper in philosophy of action; precursor to
+                  Anscombe's 1957 monograph "Intention"
+
+--------------------------------------------------------------------------------
+
+================================================================================
+6. Brian A. Garner - 2024 - Blacks Law Agent 2024.pdf
+================================================================================
+Title:            Agent (Black's Law Dictionary, 12th ed.)
+Reference Type:   dictionary_general
+Entry Term:      agent
+Container Title: Black's Law Dictionary
+Editor:          Bryan A. Garner
+Edition:         12th
+Publisher:        Thomson Reuters
+Place:           St. Paul, MN
+Year:             2024
+Pages:           5 (excerpt length)
+ISBN:             978-1539229759
+Notes:           Most recent edition; compare with 1st (1910) and 11th (2019)
+
+--------------------------------------------------------------------------------
+
+================================================================================
+7. agent, n.1 & adj..pdf
+================================================================================
+Title:            agent, n.1 & adj.
+Reference Type:   dictionary_oed
+Entry Term:      agent
+Container Title: Oxford English Dictionary
+Publisher:        Oxford University Press
+URL:              https://www.oed.com/view/Entry/3851
+Access Date:     2024-10-09
+Year:             2024
+Pages:           21 (printed excerpt)
+Notes:           Complete OED entry with etymological and historical usage data;
+                  includes senses from 15th century to present
+
+
+================================================================================
+QUICK COPY REFERENCE (Current Form Fields Only)
+================================================================================
+
+For immediate use with existing upload form at http://localhost:8765/upload/
+
+1. Blacks Law 2019
+   Title: Agent (Black's Law Dictionary, 11th ed.)
+   Type: Dictionary Entry
+   Authors: Bryan A. Garner
+   Year: 2019
+   ISBN: 978-1539229735
+
+2. Blacks Law 1910
+   Title: Agent (Black's Law Dictionary, 1st ed.)
+   Type: Dictionary Entry
+   Authors: Henry Campbell Black
+   Year: 1910
+
+3. Russell & Norvig
+   Title: Intelligent Agents
+   Type: Book
+   Authors: Stuart Russell, Peter Norvig
+   Year: 2022
+   ISBN: 978-0134610993
+
+4. Wooldridge & Jennings
+   Title: Intelligent Agents: Theory and Practice
+   Type: Academic Paper
+   Authors: Michael Wooldridge, Nicholas R. Jennings
+   Year: 1995
+   Journal: The Knowledge Engineering Review
+   DOI: 10.1017/S0269888900007797
+
+5. Anscombe
+   Title: Intention
+   Type: Academic Paper
+   Authors: G.E.M. Anscombe
+   Year: 1956
+   Journal: Proceedings of the Aristotelian Society
+   DOI: 10.1093/aristotelian/57.1.321
+
+6. Blacks Law 2024
+   Title: Agent (Black's Law Dictionary, 12th ed.)
+   Type: Dictionary Entry
+   Authors: Bryan A. Garner
+   Year: 2024
+   ISBN: 978-1539229759
+
+7. OED
+   Title: agent, n.1 & adj.
+   Type: OED Dictionary Entry
+   Authors: Oxford English Dictionary
+   Year: 2024
+   URL: https://www.oed.com/view/Entry/3851
