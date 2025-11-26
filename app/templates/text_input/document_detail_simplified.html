@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from 'shared/document_type_field.html' import document_type_field, document_type_display %}
 
 {% block title %}{{ document.title }} - OntExtract{% endblock %}
 
@@ -1206,24 +1207,12 @@
                         </div>
 
                         <div class="col-md-6">
-                            <label for="metadataType" class="form-label">Document Type</label>
-                            <select class="form-select" id="metadataType">
-                                <option value="">Select type...</option>
-                                <option value="academic">Academic Paper</option>
-                                <option value="book">Book</option>
-                                <option value="book_section">Book Section/Chapter</option>
-                                <option value="conference">Conference Proceeding</option>
-                                <option value="dictionary_general">Dictionary Entry</option>
-                                <option value="dictionary_oed">OED Dictionary Entry</option>
-                                <option value="encyclopedia">Encyclopedia Entry</option>
-                                <option value="standard">Standard/Specification</option>
-                                <option value="technical">Technical Report</option>
-                                <option value="whitepaper">White Paper</option>
-                                <option value="patent">Patent</option>
-                                <option value="website">Web Resource</option>
-                                <option value="glossary">Glossary/Terminology</option>
-                                <option value="other">Other</option>
-                            </select>
+                            {{ document_type_field(
+                                id='metadataType',
+                                name='type',
+                                value='',
+                                help_text='Select from list or enter custom type'
+                            ) }}
                         </div>
                     </div>
 

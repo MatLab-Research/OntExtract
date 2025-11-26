@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from 'shared/document_type_field.html' import document_type_field %}
 
 {% block title %}Add Source - OntExtract{% endblock %}
 
@@ -127,6 +128,17 @@
                                         <option value="prov:Entity/Other">Other</option>
                                     </select>
                                     <div class="form-text">Using PROV-O ontology for document classification</div>
+                                </div>
+
+                                <!-- Document Subtype (Zotero-aligned) -->
+                                <div class="mb-3">
+                                    {{ document_type_field(
+                                        id='document_subtype',
+                                        name='document_subtype',
+                                        value='',
+                                        label='Document Subtype',
+                                        help_text='Select from list or enter custom type (e.g., journal_article, thesis)'
+                                    ) }}
                                 </div>
 
                                 <!-- Language detection info -->

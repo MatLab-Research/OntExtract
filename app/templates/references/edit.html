@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% from 'shared/metadata_fields.html' import metadata_form_fields %}
+{% from 'shared/document_type_field.html' import document_type_field %}
 
 {% block title %}Edit Reference - OntExtract{% endblock %}
 
@@ -39,23 +40,14 @@
                         </div>
 
                         <div class="mb-3">
-                            <label for="reference_subtype" class="form-label">Reference Type <span class="text-danger">*</span></label>
-                            <select class="form-select" id="reference_subtype" name="reference_subtype" required>
-                                <option value="academic" {% if reference.reference_subtype == 'academic' %}selected{% endif %}>Academic Paper</option>
-                                <option value="standard" {% if reference.reference_subtype == 'standard' %}selected{% endif %}>Standard/Specification</option>
-                                <option value="book" {% if reference.reference_subtype == 'book' %}selected{% endif %}>Book</option>
-                                <option value="book_section" {% if reference.reference_subtype == 'book_section' %}selected{% endif %}>Book Section/Chapter</option>
-                                <option value="patent" {% if reference.reference_subtype == 'patent' %}selected{% endif %}>Patent</option>
-                                <option value="conference" {% if reference.reference_subtype == 'conference' %}selected{% endif %}>Conference Proceeding</option>
-                                <option value="technical" {% if reference.reference_subtype == 'technical' %}selected{% endif %}>Technical Report</option>
-                                <option value="whitepaper" {% if reference.reference_subtype == 'whitepaper' %}selected{% endif %}>White Paper</option>
-                                <option value="website" {% if reference.reference_subtype == 'website' %}selected{% endif %}>Web Resource</option>
-                                <option value="dictionary_oed" {% if reference.reference_subtype == 'dictionary_oed' %}selected{% endif %}>OED Dictionary Entry</option>
-                                <option value="dictionary_general" {% if reference.reference_subtype == 'dictionary_general' %}selected{% endif %}>Dictionary Entry</option>
-                                <option value="glossary" {% if reference.reference_subtype == 'glossary' %}selected{% endif %}>Glossary/Terminology</option>
-                                <option value="encyclopedia" {% if reference.reference_subtype == 'encyclopedia' %}selected{% endif %}>Encyclopedia Entry</option>
-                                <option value="other" {% if reference.reference_subtype == 'other' or not reference.reference_subtype %}selected{% endif %}>Other Reference</option>
-                            </select>
+                            {{ document_type_field(
+                                id='reference_subtype',
+                                name='reference_subtype',
+                                value=reference.reference_subtype,
+                                label='Reference Type',
+                                required=True,
+                                help_text='Select from list or enter custom type'
+                            ) }}
                         </div>
                     </div>
                 </div>
