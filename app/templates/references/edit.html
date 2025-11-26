@@ -1,4 +1,6 @@
 {% extends "base.html" %}
+{% from 'shared/metadata_fields.html' import metadata_form_fields %}
+{% from 'shared/document_type_field.html' import document_type_field %}
 
 {% block title %}Edit Reference - OntExtract{% endblock %}
 
@@ -26,105 +28,32 @@
     <form method="POST">
         <div class="row mt-3">
             <div class="col-lg-8">
-                <div class="card">
+                <div class="card mb-3">
                     <div class="card-header">
                         <h5 class="card-title mb-0">Basic Information</h5>
                     </div>
                     <div class="card-body">
-                <div class="mb-3">
-                    <label for="title" class="form-label">Title <span class="text-danger">*</span></label>
-                    <input type="text" class="form-control" id="title" name="title" 
-                           value="{{ reference.title }}" required>
-                </div>
+                        <div class="mb-3">
+                            <label for="title" class="form-label">Title <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="title" name="title"
+                                   value="{{ reference.title }}" required>
+                        </div>
 
-                <div class="mb-3">
-                    <label for="reference_subtype" class="form-label">Reference Type <span class="text-danger">*</span></label>
-                    <select class="form-select" id="reference_subtype" name="reference_subtype" required>
-                        <option value="academic" {% if reference.reference_subtype == 'academic' %}selected{% endif %}>Academic Paper</option>
-                        <option value="standard" {% if reference.reference_subtype == 'standard' %}selected{% endif %}>Standard/Specification</option>
-                        <option value="book" {% if reference.reference_subtype == 'book' %}selected{% endif %}>Book</option>
-                        <option value="patent" {% if reference.reference_subtype == 'patent' %}selected{% endif %}>Patent</option>
-                        <option value="conference" {% if reference.reference_subtype == 'conference' %}selected{% endif %}>Conference Proceeding</option>
-                        <option value="technical" {% if reference.reference_subtype == 'technical' %}selected{% endif %}>Technical Report</option>
-                        <option value="whitepaper" {% if reference.reference_subtype == 'whitepaper' %}selected{% endif %}>White Paper</option>
-                        <option value="website" {% if reference.reference_subtype == 'website' %}selected{% endif %}>Web Resource</option>
-                        <option value="dictionary_oed" {% if reference.reference_subtype == 'dictionary_oed' %}selected{% endif %}>OED Dictionary Entry</option>
-                        <option value="dictionary_general" {% if reference.reference_subtype == 'dictionary_general' %}selected{% endif %}>Dictionary Entry</option>
-                        <option value="glossary" {% if reference.reference_subtype == 'glossary' %}selected{% endif %}>Glossary/Terminology</option>
-                        <option value="encyclopedia" {% if reference.reference_subtype == 'encyclopedia' %}selected{% endif %}>Encyclopedia Entry</option>
-                        <option value="other" {% if reference.reference_subtype == 'other' or not reference.reference_subtype %}selected{% endif %}>Other Reference</option>
-                    </select>
-                </div>
+                        <div class="mb-3">
+                            {{ document_type_field(
+                                id='reference_subtype',
+                                name='reference_subtype',
+                                value=reference.reference_subtype,
+                                label='Reference Type',
+                                required=True,
+                                help_text='Select from list or enter custom type'
+                            ) }}
+                        </div>
                     </div>
                 </div>
 
-                <div class="card mt-3">
-                    <div class="card-header">
-                        <h5 class="card-title mb-0">Source Metadata</h5>
-                        <small class="text-muted">Update publication information</small>
-                    </div>
-                    <div class="card-body">
-                        <div class="mb-3">
-                            <label for="authors" class="form-label">Authors</label>
-                            <input type="text" class="form-control" id="authors" name="authors"
-                                   value="{{ ', '.join(reference.source_metadata.get('authors', [])) if reference.source_metadata and reference.source_metadata.get('authors') else '' }}"
-                                   placeholder="e.g., Smith, J., Doe, A. (comma-separated)">
-                            <div class="form-text">Separate multiple authors with commas</div>
-                        </div>
-
-                        <div class="row">
-                            <div class="col-md-6 mb-3">
-                                <label for="publication_date" class="form-label">Publication Date</label>
-                                <input type="text" class="form-control" id="publication_date" name="publication_date"
-                                       value="{{ reference.source_metadata.get('publication_date', '') if reference.source_metadata else '' }}"
-                                       placeholder="e.g., 2023, 2023-06, or 2023-06-15">
-                            </div>
-
-                            <div class="col-md-6 mb-3">
-                                <label for="journal" class="form-label">Journal/Publisher</label>
-                                <input type="text" class="form-control" id="journal" name="journal"
-                                       value="{{ reference.source_metadata.get('journal', '') if reference.source_metadata else '' }}"
-                                       placeholder="e.g., Nature, IEEE">
-                            </div>
-                        </div>
-
-                        <div class="row">
-                            <div class="col-md-6 mb-3">
-                                <label for="doi" class="form-label">DOI</label>
-                                <input type="text" class="form-control" id="doi" name="doi"
-                                       value="{{ reference.source_metadata.get('doi', '') if reference.source_metadata else '' }}"
-                                       placeholder="e.g., 10.1234/example.doi">
-                            </div>
-
-                            <div class="col-md-6 mb-3">
-                                <label for="isbn" class="form-label">ISBN</label>
-                                <input type="text" class="form-control" id="isbn" name="isbn"
-                                       value="{{ reference.source_metadata.get('isbn', '') if reference.source_metadata else '' }}"
-                                       placeholder="e.g., 978-3-16-148410-0">
-                            </div>
-                        </div>
-
-                        <div class="mb-3">
-                            <label for="url" class="form-label">Source URL</label>
-                            <input type="url" class="form-control" id="url" name="url"
-                                   value="{{ reference.source_metadata.get('url', '') if reference.source_metadata else '' }}"
-                                   placeholder="https://example.com/paper">
-                        </div>
-
-                        <div class="mb-3">
-                            <label for="abstract" class="form-label">Abstract</label>
-                            <textarea class="form-control" id="abstract" name="abstract" rows="4"
-                                      placeholder="Brief summary of the reference document...">{{ reference.source_metadata.get('abstract', '') if reference.source_metadata else '' }}</textarea>
-                        </div>
-
-                        <div class="mb-3">
-                            <label for="citation" class="form-label">Full Citation</label>
-                            <textarea class="form-control" id="citation" name="citation" rows="2"
-                                      placeholder="Complete citation in your preferred format...">{{ reference.source_metadata.get('citation', '') if reference.source_metadata else '' }}</textarea>
-                            <div class="form-text">If not provided, a basic citation will be generated</div>
-                        </div>
-                    </div>
-                </div>
+                <!-- Shared Metadata Fields -->
+                {{ metadata_form_fields(document=reference, mode='edit', collapsed=False) }}
             </div>
 
             <div class="col-lg-4">
@@ -162,16 +91,29 @@
                     <div class="card-body">
                         <p class="text-muted small">This reference is used in {{ experiments_using|length }} experiment(s).</p>
                         <p class="text-warning small">
-                            <i class="fas fa-exclamation-triangle"></i> 
+                            <i class="fas fa-exclamation-triangle"></i>
                             Changes to this reference will affect all linked experiments.
                         </p>
                     </div>
                 </div>
                 {% endif %}
+
+                <!-- Help -->
+                <div class="card mt-3">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">Field Guide</h5>
+                    </div>
+                    <div class="card-body small text-muted">
+                        <p><strong>Journal Articles:</strong> Use Journal, Volume, Issue, Pages</p>
+                        <p><strong>Book Chapters:</strong> Use Container Title (book name), Editor, Pages</p>
+                        <p><strong>Dictionary Entries:</strong> Use Container Title (dictionary name), Entry Term (headword), Edition</p>
+                        <p><strong>Online Sources:</strong> Use URL, Access Date</p>
+                    </div>
+                </div>
             </div>
         </div>
 
-        <div class="row mt-3">
+        <div class="row mt-3 mb-4">
             <div class="col-12">
                 <button type="submit" class="btn btn-primary">
                     <i class="fas fa-save"></i> Save Changes
@@ -186,7 +128,7 @@
 
 <script>
 // Auto-format DOI input
-document.getElementById('doi').addEventListener('blur', function() {
+document.getElementById('doi')?.addEventListener('blur', function() {
     let doi = this.value.trim();
     if (doi && !doi.startsWith('10.')) {
         // Remove common prefixes

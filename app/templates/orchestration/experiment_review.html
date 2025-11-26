@@ -238,7 +238,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
                 // Redirect to results after a delay
                 setTimeout(() => {
-                    window.location.href = `/orchestration/experiment/${runId}/results`;
+                    window.location.href = `/experiments/${experimentId}/orchestration/llm-results/${runId}`;
                 }, 3000);
             } else {
                 alert(`Error: ${data.error || 'Failed to approve strategy'}`);

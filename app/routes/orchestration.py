@@ -499,65 +499,6 @@ def approve_strategy(run_id: str):
         return jsonify({'error': str(e)}), 500
 
 
-@orchestration_bp.route('/experiment/<run_id>/results')
-def view_results(run_id: str):
-    """
-    Display final orchestration results.
-
-    Shows:
-    - Experiment summary
-    - Cross-document insights (Stage 5)
-    - Term evolution analysis (if focus term)
-    - Per-document processing results
-    - Download options
-    """
-    try:
-        # Parse UUID
-        try:
-            run_uuid = uuid.UUID(run_id)
-        except ValueError:
-            return "Invalid run ID", 400
-
-        # Find orchestration run
-        orchestration_run = ExperimentOrchestrationRun.query.get(run_uuid)
-        if not orchestration_run:
-            return "Orchestration run not found", 404
-
-        # Check status
-        if orchestration_run.status != 'completed':
-            return f"Results not ready (status: {orchestration_run.status})", 400
-
-        # Get experiment
-        experiment = orchestration_run.experiment
-
-        # Convert markdown to HTML for insights
-        insights_html = None
-        if orchestration_run.cross_document_insights:
-            insights_html = markdown.markdown(
-                orchestration_run.cross_document_insights,
-                extensions=['fenced_code', 'tables', 'nl2br']
-            )
-
-        evolution_html = None
-        if orchestration_run.term_evolution_analysis:
-            evolution_html = markdown.markdown(
-                orchestration_run.term_evolution_analysis,
-                extensions=['fenced_code', 'tables', 'nl2br']
-            )
-
-        return render_template(
-            'orchestration/experiment_results.html',
-            orchestration_run=orchestration_run,
-            experiment=experiment,
-            insights_html=insights_html,
-            evolution_html=evolution_html
-        )
-
-    except Exception as e:
-        current_app.logger.error(f"Error loading results page: {str(e)}")
-        return str(e), 500
-
-
 def get_stage_message(stage: str, status: str) -> str:
     """Generate user-friendly stage messages for SSE updates."""
     messages = {

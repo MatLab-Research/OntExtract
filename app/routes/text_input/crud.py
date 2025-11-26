@@ -5,8 +5,9 @@ This module handles document CRUD operations.
 
 Routes:
 - GET  /input/documents                         - List all documents
-- GET  /input/document/<id>                     - View document details (by ID)
 - GET  /input/document/<uuid>                   - View document details (by UUID)
+- GET  /input/document/<uuid>/edit              - Edit document metadata (by UUID)
+- POST /input/document/<uuid>/edit              - Save document metadata (by UUID)
 - POST /input/document/<id>/delete              - Delete document (by ID)
 - POST /input/document/<uuid>/delete            - Delete document (by UUID)
 - POST /input/document/<id>/delete-all-versions - Delete all versions
@@ -28,12 +29,21 @@ from . import text_input_bp
 @text_input_bp.route('/documents')
 @public_with_auth_context
 def document_list():
-    """List all documents grouped by base document with version stacking - public access"""
+    """List all sources (documents and references) with optional type filtering - public access"""
     page = request.args.get('page', 1, type=int)
     per_page = 10
+    source_type = request.args.get('type', 'all')  # all, document, reference
 
-    # Get all documents ordered by creation date (newest first)
-    all_documents = Document.query.order_by(Document.created_at.desc()).all()
+    # Build query with optional type filter
+    query = Document.query
+    if source_type == 'document':
+        query = query.filter_by(document_type='document')
+    elif source_type == 'reference':
+        query = query.filter_by(document_type='reference')
+    # 'all' shows everything
+
+    # Get documents ordered by creation date (newest first)
+    all_documents = query.order_by(Document.created_at.desc()).all()
 
     # Group documents by base document
     document_groups = {}
@@ -96,7 +106,7 @@ def document_list():
         'iter_pages': lambda *args: range(1, total_pages + 1)
     })()
 
-    return render_template('text_input/document_list.html', documents=pagination)
+    return render_template('text_input/document_list.html', documents=pagination, source_type=source_type)
 
 
 @text_input_bp.route('/document/<uuid:document_uuid>')
@@ -118,6 +128,10 @@ def document_detail(document_uuid):
     # Get experiments that include this document with their processing results
     from app.models.experiment_document import ExperimentDocument
     from app.models.experiment_processing import DocumentProcessingIndex
+    from app.models.processing_artifact_group import ProcessingArtifactGroup
+
+    # Get ProcessingArtifactGroup count for this document (includes LLM orchestration results)
+    artifact_group_count = ProcessingArtifactGroup.query.filter_by(document_id=document.id).count()
 
     # Get all experiment-document relationships for THIS VERSION
     this_version_experiments = ExperimentDocument.query.filter_by(document_id=document.id).all()
@@ -156,6 +170,9 @@ def document_detail(document_uuid):
         document_experiments.append(exp_data)
         total_processing_count += len(processing_results)
 
+    # Add ProcessingArtifactGroup count (LLM orchestration results)
+    total_processing_count += artifact_group_count
+
     # Enrich with processing information - ALL VERSIONS
     all_experiments = []
     for exp_doc in all_version_experiments:
@@ -192,6 +209,83 @@ def document_detail(document_uuid):
                          this_version_experiments=document_experiments,
                          all_version_experiments=all_experiments,
                          total_processing_count=total_processing_count)
+
+
+@text_input_bp.route('/document/<uuid:document_uuid>/edit', methods=['GET', 'POST'])
+@write_login_required
+def document_edit(document_uuid):
+    """Edit document metadata"""
+    from app.utils.date_parser import parse_flexible_date
+
+    document = Document.query.filter_by(uuid=document_uuid).first_or_404()
+
+    # Check permissions - only owner or admin can edit
+    if not current_user.can_edit_resource(document):
+        flash('You do not have permission to edit this document', 'error')
+        return redirect(url_for('text_input.document_detail', document_uuid=document_uuid))
+
+    if request.method == 'POST':
+        try:
+            # Update basic fields
+            document.title = request.form.get('title', document.title)
+
+            # Update bibliographic metadata
+            document.authors = request.form.get('authors', '').strip() or None
+            document.editor = request.form.get('editor', '').strip() or None
+            document.edition = request.form.get('edition', '').strip() or None
+
+            # Parse publication date
+            pub_date_str = request.form.get('publication_date', '').strip()
+            if pub_date_str:
+                document.publication_date = parse_flexible_date(pub_date_str)
+            else:
+                document.publication_date = None
+
+            # Publication details
+            document.journal = request.form.get('journal', '').strip() or None
+            document.container_title = request.form.get('container_title', '').strip() or None
+            document.volume = request.form.get('volume', '').strip() or None
+            document.issue = request.form.get('issue', '').strip() or None
+            document.pages = request.form.get('pages', '').strip() or None
+            document.series = request.form.get('series', '').strip() or None
+            document.publisher = request.form.get('publisher', '').strip() or None
+            document.place = request.form.get('place', '').strip() or None
+
+            # Identifiers
+            document.doi = request.form.get('doi', '').strip() or None
+            document.isbn = request.form.get('isbn', '').strip() or None
+            document.issn = request.form.get('issn', '').strip() or None
+            document.url = request.form.get('url', '').strip() or None
+
+            # Parse access date
+            access_date_str = request.form.get('access_date', '').strip()
+            if access_date_str:
+                document.access_date = parse_flexible_date(access_date_str)
+            else:
+                document.access_date = None
+
+            # Dictionary/reference entry
+            document.entry_term = request.form.get('entry_term', '').strip() or None
+
+            # Notes & abstract
+            document.abstract = request.form.get('abstract', '').strip() or None
+            document.notes = request.form.get('notes', '').strip() or None
+            document.citation = request.form.get('citation', '').strip() or None
+
+            # Document type
+            document.reference_subtype = request.form.get('reference_subtype') or document.reference_subtype
+
+            db.session.commit()
+
+            flash('Document updated successfully', 'success')
+            return redirect(url_for('text_input.document_detail', document_uuid=document_uuid))
+
+        except Exception as e:
+            db.session.rollback()
+            current_app.logger.error(f"Error updating document: {str(e)}")
+            flash(f'Error updating document: {str(e)}', 'error')
+
+    return render_template('text_input/document_edit.html', document=document)
 
 
 @text_input_bp.route('/document/<int:document_id>/delete', methods=['POST'])

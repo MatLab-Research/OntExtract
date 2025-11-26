@@ -101,7 +101,20 @@ def get_document_metadata(document_uuid):
             'type': metadata_doc.document_subtype,
             'abstract': metadata_doc.abstract,
             'url': metadata_doc.url,
-            'citation': metadata_doc.citation
+            'citation': metadata_doc.citation,
+            # Extended bibliographic fields
+            'editor': metadata_doc.editor,
+            'edition': metadata_doc.edition,
+            'volume': metadata_doc.volume,
+            'issue': metadata_doc.issue,
+            'pages': metadata_doc.pages,
+            'series': metadata_doc.series,
+            'container_title': metadata_doc.container_title,
+            'place': metadata_doc.place,
+            'issn': metadata_doc.issn,
+            'access_date': metadata_doc.access_date.isoformat() if metadata_doc.access_date else None,
+            'entry_term': metadata_doc.entry_term,
+            'notes': metadata_doc.notes
         }
 
         # Add custom fields from source_metadata JSONB (if any)
@@ -151,7 +164,10 @@ def update_document_metadata(document_uuid):
         # Standard fields that map to database columns
         standard_fields = {
             'title', 'authors', 'publication_date', 'journal', 'publisher',
-            'doi', 'isbn', 'type', 'abstract', 'url', 'citation'
+            'doi', 'isbn', 'type', 'abstract', 'url', 'citation',
+            # Extended bibliographic fields
+            'editor', 'edition', 'volume', 'issue', 'pages', 'series',
+            'container_title', 'place', 'issn', 'access_date', 'entry_term', 'notes'
         }
 
         # Track changes for provenance
@@ -232,6 +248,86 @@ def update_document_metadata(document_uuid):
                 changes['citation'] = {'old': document.citation, 'new': new_value}
                 document.citation = new_value
 
+        # Extended bibliographic fields
+        if 'editor' in metadata:
+            new_value = str(metadata['editor']) if metadata['editor'] else None
+            if document.editor != new_value:
+                changes['editor'] = {'old': document.editor, 'new': new_value}
+                document.editor = new_value
+
+        if 'edition' in metadata:
+            new_value = str(metadata['edition'])[:50] if metadata['edition'] else None
+            if document.edition != new_value:
+                changes['edition'] = {'old': document.edition, 'new': new_value}
+                document.edition = new_value
+
+        if 'volume' in metadata:
+            new_value = str(metadata['volume'])[:20] if metadata['volume'] else None
+            if document.volume != new_value:
+                changes['volume'] = {'old': document.volume, 'new': new_value}
+                document.volume = new_value
+
+        if 'issue' in metadata:
+            new_value = str(metadata['issue'])[:20] if metadata['issue'] else None
+            if document.issue != new_value:
+                changes['issue'] = {'old': document.issue, 'new': new_value}
+                document.issue = new_value
+
+        if 'pages' in metadata:
+            new_value = str(metadata['pages'])[:50] if metadata['pages'] else None
+            if document.pages != new_value:
+                changes['pages'] = {'old': document.pages, 'new': new_value}
+                document.pages = new_value
+
+        if 'series' in metadata:
+            new_value = str(metadata['series'])[:200] if metadata['series'] else None
+            if document.series != new_value:
+                changes['series'] = {'old': document.series, 'new': new_value}
+                document.series = new_value
+
+        if 'container_title' in metadata:
+            new_value = str(metadata['container_title'])[:300] if metadata['container_title'] else None
+            if document.container_title != new_value:
+                changes['container_title'] = {'old': document.container_title, 'new': new_value}
+                document.container_title = new_value
+
+        if 'place' in metadata:
+            new_value = str(metadata['place'])[:100] if metadata['place'] else None
+            if document.place != new_value:
+                changes['place'] = {'old': document.place, 'new': new_value}
+                document.place = new_value
+
+        if 'issn' in metadata:
+            new_value = str(metadata['issn'])[:20] if metadata['issn'] else None
+            if document.issn != new_value:
+                changes['issn'] = {'old': document.issn, 'new': new_value}
+                document.issn = new_value
+
+        if 'access_date' in metadata and metadata['access_date']:
+            try:
+                parsed_date = date_parser.parse(metadata['access_date'])
+                new_value = parsed_date.date()
+                if document.access_date != new_value:
+                    changes['access_date'] = {
+                        'old': document.access_date.isoformat() if document.access_date else None,
+                        'new': new_value.isoformat()
+                    }
+                    document.access_date = new_value
+            except:
+                pass  # Skip invalid dates
+
+        if 'entry_term' in metadata:
+            new_value = str(metadata['entry_term'])[:200] if metadata['entry_term'] else None
+            if document.entry_term != new_value:
+                changes['entry_term'] = {'old': document.entry_term, 'new': new_value}
+                document.entry_term = new_value
+
+        if 'notes' in metadata:
+            new_value = str(metadata['notes']) if metadata['notes'] else None
+            if document.notes != new_value:
+                changes['notes'] = {'old': document.notes, 'new': new_value}
+                document.notes = new_value
+
         # Handle custom (non-standard) fields in source_metadata JSONB
         custom_fields = {k: v for k, v in metadata.items() if k not in standard_fields}
 
@@ -271,7 +367,20 @@ def update_document_metadata(document_uuid):
             'type': document.document_subtype,
             'abstract': document.abstract,
             'url': document.url,
-            'citation': document.citation
+            'citation': document.citation,
+            # Extended bibliographic fields
+            'editor': document.editor,
+            'edition': document.edition,
+            'volume': document.volume,
+            'issue': document.issue,
+            'pages': document.pages,
+            'series': document.series,
+            'container_title': document.container_title,
+            'place': document.place,
+            'issn': document.issn,
+            'access_date': document.access_date.isoformat() if document.access_date else None,
+            'entry_term': document.entry_term,
+            'notes': document.notes
         }
 
         # Add custom fields

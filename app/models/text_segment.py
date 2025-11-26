@@ -52,7 +52,13 @@ class TextSegment(db.Model):
     
     # Foreign keys
     document_id = db.Column(db.Integer, db.ForeignKey('documents.id'), nullable=False, index=True)
-    
+
+    # Processing artifact tracking (for ProcessingArtifactGroup)
+    segmentation_method = db.Column(db.String(50), default='manual')
+    segmentation_job_id = db.Column(db.Integer, index=True)
+    processing_method = db.Column(db.String(100))
+    group_id = db.Column(db.Integer, db.ForeignKey('processing_artifact_groups.id'), index=True)
+
     # Relationships
     child_segments = db.relationship('TextSegment', backref=db.backref('parent_segment', remote_side=[id]), lazy='dynamic')
     extracted_entities = db.relationship('ExtractedEntity', backref='text_segment', lazy='dynamic')

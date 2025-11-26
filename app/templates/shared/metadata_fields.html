@@ -1,0 +1,317 @@
+{#
+Shared Metadata Form Fields Macro
+=================================
+Reusable metadata form fields for document upload and edit pages.
+
+Usage:
+  {% from 'shared/metadata_fields.html' import metadata_form_fields %}
+  {{ metadata_form_fields(document=doc, mode='edit', collapsed=False) }}
+
+Parameters:
+  - document: Document object for pre-populating values (optional)
+  - mode: 'create' or 'edit' (affects required fields)
+  - collapsed: Whether to collapse sections by default (default: False)
+  - prefix: Field name prefix for namespacing (default: '')
+#}
+
+{% macro metadata_form_fields(document=None, mode='create', collapsed=False, prefix='') %}
+{# Helper to get field value from document or source_metadata #}
+{% set sm = document.source_metadata if document and document.source_metadata else {} %}
+
+{# Determine collapse state #}
+{% set collapse_class = '' if not collapsed else 'collapsed' %}
+{% set show_class = 'show' if not collapsed else '' %}
+
+<!-- Core Metadata (Always Visible) -->
+<div class="card mb-3">
+    <div class="card-header">
+        <h6 class="mb-0">Core Information</h6>
+    </div>
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-8 mb-3">
+                <label for="{{ prefix }}authors" class="form-label">Authors</label>
+                <input type="text" class="form-control" id="{{ prefix }}authors" name="authors"
+                       value="{{ document.authors if document and document.authors else (sm.get('authors', [])|join(', ') if sm.get('authors') else '') }}"
+                       placeholder="e.g., Smith, J., Doe, A. (comma-separated)">
+                <div class="form-text">Separate multiple authors with commas</div>
+            </div>
+            <div class="col-md-4 mb-3">
+                <label for="{{ prefix }}publication_date" class="form-label">Publication Date</label>
+                <input type="text" class="form-control" id="{{ prefix }}publication_date" name="publication_date"
+                       value="{{ document.publication_date.strftime('%Y-%m-%d') if document and document.publication_date else sm.get('publication_date', '') }}"
+                       placeholder="e.g., 2023, 2023-06, or 2023-06-15">
+                <div class="form-text">Year, year-month, or full date</div>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-md-6 mb-3">
+                <label for="{{ prefix }}editor" class="form-label">Editor(s)</label>
+                <input type="text" class="form-control" id="{{ prefix }}editor" name="editor"
+                       value="{{ document.editor if document and document.editor else sm.get('editor', '') }}"
+                       placeholder="e.g., Garner, B. (for edited volumes/dictionaries)">
+                <div class="form-text">For reference works, encyclopedias, edited volumes</div>
+            </div>
+            <div class="col-md-6 mb-3">
+                <label for="{{ prefix }}edition" class="form-label">Edition</label>
+                <input type="text" class="form-control" id="{{ prefix }}edition" name="edition"
+                       value="{{ document.edition if document and document.edition else sm.get('edition', '') }}"
+                       placeholder="e.g., 4th, 11th, Revised">
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Publication Details (Collapsible) -->
+<div class="card mb-3">
+    <div class="card-header">
+        <a class="text-decoration-none {{ collapse_class }}" data-bs-toggle="collapse"
+           href="#{{ prefix }}publicationDetails" role="button" aria-expanded="{{ 'true' if not collapsed else 'false' }}">
+            <i class="fas fa-chevron-down me-2"></i>Publication Details
+        </a>
+    </div>
+    <div class="collapse {{ show_class }}" id="{{ prefix }}publicationDetails">
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <label for="{{ prefix }}journal" class="form-label">Journal / Publication</label>
+                    <input type="text" class="form-control" id="{{ prefix }}journal" name="journal"
+                           value="{{ document.journal if document and document.journal else sm.get('journal', '') }}"
+                           placeholder="e.g., Nature, IEEE Transactions">
+                    <div class="form-text">For journal articles</div>
+                </div>
+                <div class="col-md-6 mb-3">
+                    <label for="{{ prefix }}container_title" class="form-label">Container Title</label>
+                    <input type="text" class="form-control" id="{{ prefix }}container_title" name="container_title"
+                           value="{{ document.container_title if document and document.container_title else sm.get('container_title', '') }}"
+                           placeholder="e.g., Black's Law Dictionary, Encyclopedia Britannica">
+                    <div class="form-text">Book title, dictionary name, or anthology containing this work</div>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-md-3 mb-3">
+                    <label for="{{ prefix }}volume" class="form-label">Volume</label>
+                    <input type="text" class="form-control" id="{{ prefix }}volume" name="volume"
+                           value="{{ document.volume if document and document.volume else sm.get('volume', '') }}"
+                           placeholder="e.g., 10">
+                </div>
+                <div class="col-md-3 mb-3">
+                    <label for="{{ prefix }}issue" class="form-label">Issue</label>
+                    <input type="text" class="form-control" id="{{ prefix }}issue" name="issue"
+                           value="{{ document.issue if document and document.issue else sm.get('issue', '') }}"
+                           placeholder="e.g., 2">
+                </div>
+                <div class="col-md-3 mb-3">
+                    <label for="{{ prefix }}pages" class="form-label">Pages</label>
+                    <input type="text" class="form-control" id="{{ prefix }}pages" name="pages"
+                           value="{{ document.pages if document and document.pages else sm.get('pages', '') }}"
+                           placeholder="e.g., 115-152">
+                    <div class="form-text">Page range in source</div>
+                </div>
+                <div class="col-md-3 mb-3">
+                    <label for="{{ prefix }}series" class="form-label">Series</label>
+                    <input type="text" class="form-control" id="{{ prefix }}series" name="series"
+                           value="{{ document.series if document and document.series else sm.get('series', '') }}"
+                           placeholder="e.g., LNCS">
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <label for="{{ prefix }}publisher" class="form-label">Publisher</label>
+                    <input type="text" class="form-control" id="{{ prefix }}publisher" name="publisher"
+                           value="{{ document.publisher if document and document.publisher else sm.get('publisher', '') }}"
+                           placeholder="e.g., Pearson, Oxford University Press">
+                </div>
+                <div class="col-md-6 mb-3">
+                    <label for="{{ prefix }}place" class="form-label">Publication Place</label>
+                    <input type="text" class="form-control" id="{{ prefix }}place" name="place"
+                           value="{{ document.place if document and document.place else sm.get('place', '') }}"
+                           placeholder="e.g., New York, Cambridge">
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Identifiers (Collapsible) -->
+<div class="card mb-3">
+    <div class="card-header">
+        <a class="text-decoration-none {{ collapse_class }}" data-bs-toggle="collapse"
+           href="#{{ prefix }}identifiers" role="button" aria-expanded="{{ 'true' if not collapsed else 'false' }}">
+            <i class="fas fa-chevron-down me-2"></i>Identifiers
+        </a>
+    </div>
+    <div class="collapse {{ show_class }}" id="{{ prefix }}identifiers">
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <label for="{{ prefix }}doi" class="form-label">DOI</label>
+                    <input type="text" class="form-control" id="{{ prefix }}doi" name="doi"
+                           value="{{ document.doi if document and document.doi else sm.get('doi', '') }}"
+                           placeholder="e.g., 10.1234/example.doi">
+                </div>
+                <div class="col-md-6 mb-3">
+                    <label for="{{ prefix }}url" class="form-label">URL</label>
+                    <input type="url" class="form-control" id="{{ prefix }}url" name="url"
+                           value="{{ document.url if document and document.url else sm.get('url', '') }}"
+                           placeholder="https://example.com/paper">
+                </div>
+            </div>
+            <div class="row">
+                <div class="col-md-4 mb-3">
+                    <label for="{{ prefix }}isbn" class="form-label">ISBN</label>
+                    <input type="text" class="form-control" id="{{ prefix }}isbn" name="isbn"
+                           value="{{ document.isbn if document and document.isbn else sm.get('isbn', '') }}"
+                           placeholder="e.g., 978-3-16-148410-0">
+                </div>
+                <div class="col-md-4 mb-3">
+                    <label for="{{ prefix }}issn" class="form-label">ISSN</label>
+                    <input type="text" class="form-control" id="{{ prefix }}issn" name="issn"
+                           value="{{ document.issn if document and document.issn else sm.get('issn', '') }}"
+                           placeholder="e.g., 1234-5678">
+                </div>
+                <div class="col-md-4 mb-3">
+                    <label for="{{ prefix }}access_date" class="form-label">Access Date</label>
+                    <input type="date" class="form-control" id="{{ prefix }}access_date" name="access_date"
+                           value="{{ document.access_date.strftime('%Y-%m-%d') if document and document.access_date else sm.get('access_date', '') }}">
+                    <div class="form-text">For online sources</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Dictionary/Reference Entry (Collapsible) -->
+<div class="card mb-3">
+    <div class="card-header">
+        <a class="text-decoration-none {{ collapse_class }}" data-bs-toggle="collapse"
+           href="#{{ prefix }}referenceEntry" role="button" aria-expanded="{{ 'true' if not collapsed else 'false' }}">
+            <i class="fas fa-chevron-down me-2"></i>Dictionary / Reference Entry
+        </a>
+    </div>
+    <div class="collapse {{ show_class }}" id="{{ prefix }}referenceEntry">
+        <div class="card-body">
+            <div class="alert alert-info mb-3">
+                <i class="fas fa-info-circle me-2"></i>
+                Use these fields for dictionary entries, encyclopedia articles, or excerpts from larger works.
+            </div>
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <label for="{{ prefix }}entry_term" class="form-label">Entry Term / Headword</label>
+                    <input type="text" class="form-control" id="{{ prefix }}entry_term" name="entry_term"
+                           value="{{ document.entry_term if document and document.entry_term else sm.get('entry_term', '') }}"
+                           placeholder="e.g., agent, ontology">
+                    <div class="form-text">The term being defined (headword)</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Notes & Abstract (Collapsible) -->
+<div class="card mb-3">
+    <div class="card-header">
+        <a class="text-decoration-none {{ collapse_class }}" data-bs-toggle="collapse"
+           href="#{{ prefix }}notesAbstract" role="button" aria-expanded="{{ 'true' if not collapsed else 'false' }}">
+            <i class="fas fa-chevron-down me-2"></i>Abstract & Notes
+        </a>
+    </div>
+    <div class="collapse {{ show_class }}" id="{{ prefix }}notesAbstract">
+        <div class="card-body">
+            <div class="mb-3">
+                <label for="{{ prefix }}abstract" class="form-label">Abstract</label>
+                <textarea class="form-control" id="{{ prefix }}abstract" name="abstract" rows="4"
+                          placeholder="Brief summary of the document...">{{ document.abstract if document and document.abstract else sm.get('abstract', '') }}</textarea>
+            </div>
+
+            <div class="mb-3">
+                <label for="{{ prefix }}notes" class="form-label">Notes</label>
+                <textarea class="form-control" id="{{ prefix }}notes" name="notes" rows="3"
+                          placeholder="Additional notes, chapter numbers, special context...">{{ document.notes if document and document.notes else sm.get('notes', '') }}</textarea>
+                <div class="form-text">Any additional information (chapter number, special edition details, etc.)</div>
+            </div>
+
+            <div class="mb-3">
+                <label for="{{ prefix }}citation" class="form-label">Full Citation</label>
+                <textarea class="form-control" id="{{ prefix }}citation" name="citation" rows="2"
+                          placeholder="Complete citation in your preferred format...">{{ document.citation if document and document.citation else sm.get('citation', '') }}</textarea>
+                <div class="form-text">If not provided, a basic citation will be generated</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endmacro %}
+
+
+{# Compact version for inline use #}
+{% macro metadata_compact(document=None, prefix='') %}
+{% set sm = document.source_metadata if document and document.source_metadata else {} %}
+
+<div class="row">
+    <div class="col-md-6 mb-3">
+        <label for="{{ prefix }}authors" class="form-label">Authors</label>
+        <input type="text" class="form-control" id="{{ prefix }}authors" name="authors"
+               value="{{ document.authors if document and document.authors else (sm.get('authors', [])|join(', ') if sm.get('authors') else '') }}"
+               placeholder="Comma-separated author names">
+    </div>
+    <div class="col-md-3 mb-3">
+        <label for="{{ prefix }}publication_date" class="form-label">Date</label>
+        <input type="text" class="form-control" id="{{ prefix }}publication_date" name="publication_date"
+               value="{{ document.publication_date.strftime('%Y-%m-%d') if document and document.publication_date else sm.get('publication_date', '') }}"
+               placeholder="e.g., 2023">
+    </div>
+    <div class="col-md-3 mb-3">
+        <label for="{{ prefix }}edition" class="form-label">Edition</label>
+        <input type="text" class="form-control" id="{{ prefix }}edition" name="edition"
+               value="{{ document.edition if document and document.edition else sm.get('edition', '') }}"
+               placeholder="e.g., 4th">
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-6 mb-3">
+        <label for="{{ prefix }}container_title" class="form-label">Container/Book Title</label>
+        <input type="text" class="form-control" id="{{ prefix }}container_title" name="container_title"
+               value="{{ document.container_title if document and document.container_title else sm.get('container_title', '') }}"
+               placeholder="e.g., Black's Law Dictionary">
+    </div>
+    <div class="col-md-3 mb-3">
+        <label for="{{ prefix }}pages" class="form-label">Pages</label>
+        <input type="text" class="form-control" id="{{ prefix }}pages" name="pages"
+               value="{{ document.pages if document and document.pages else sm.get('pages', '') }}"
+               placeholder="e.g., 115-152">
+    </div>
+    <div class="col-md-3 mb-3">
+        <label for="{{ prefix }}entry_term" class="form-label">Entry Term</label>
+        <input type="text" class="form-control" id="{{ prefix }}entry_term" name="entry_term"
+               value="{{ document.entry_term if document and document.entry_term else sm.get('entry_term', '') }}"
+               placeholder="e.g., agent">
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-4 mb-3">
+        <label for="{{ prefix }}doi" class="form-label">DOI</label>
+        <input type="text" class="form-control" id="{{ prefix }}doi" name="doi"
+               value="{{ document.doi if document and document.doi else sm.get('doi', '') }}"
+               placeholder="10.1234/...">
+    </div>
+    <div class="col-md-4 mb-3">
+        <label for="{{ prefix }}isbn" class="form-label">ISBN</label>
+        <input type="text" class="form-control" id="{{ prefix }}isbn" name="isbn"
+               value="{{ document.isbn if document and document.isbn else sm.get('isbn', '') }}"
+               placeholder="978-...">
+    </div>
+    <div class="col-md-4 mb-3">
+        <label for="{{ prefix }}url" class="form-label">URL</label>
+        <input type="url" class="form-control" id="{{ prefix }}url" name="url"
+               value="{{ document.url if document and document.url else sm.get('url', '') }}"
+               placeholder="https://...">
+    </div>
+</div>
+
+{% endmacro %}
