@@ -161,25 +161,89 @@
                                                 Zotero if a match is found
                                             </p>
 
-                                            <div class="mb-3">
-                                                <label for="authors" class="form-label">Authors</label>
-                                                <input type="text" class="form-control" name="authors"
-                                                    placeholder="e.g., Smith, J., Doe, A. (comma-separated)">
+                                            <!-- Core Information -->
+                                            <div class="row">
+                                                <div class="col-md-8 mb-3">
+                                                    <label for="authors" class="form-label">Authors</label>
+                                                    <input type="text" class="form-control" name="authors"
+                                                        placeholder="e.g., Smith, J., Doe, A. (comma-separated)">
+                                                </div>
+                                                <div class="col-md-4 mb-3">
+                                                    <label for="publication_date" class="form-label">Publication Date</label>
+                                                    <input type="text" class="form-control" name="publication_date"
+                                                        placeholder="e.g., 2023">
+                                                </div>
                                             </div>
 
                                             <div class="row">
                                                 <div class="col-md-6 mb-3">
-                                                    <label for="publication_date" class="form-label">Publication
-                                                        Date</label>
-                                                    <input type="text" class="form-control" name="publication_date"
-                                                        placeholder="e.g., 2023">
+                                                    <label for="editor" class="form-label">Editor(s)</label>
+                                                    <input type="text" class="form-control" name="editor"
+                                                        placeholder="e.g., Garner, B. (for edited volumes/dictionaries)">
                                                 </div>
                                                 <div class="col-md-6 mb-3">
-                                                    <label for="journal" class="form-label">Journal/Publisher</label>
-                                                    <input type="text" class="form-control" name="journal"
-                                                        placeholder="e.g., Nature, IEEE">
+                                                    <label for="edition" class="form-label">Edition</label>
+                                                    <input type="text" class="form-control" name="edition"
+                                                        placeholder="e.g., 4th, 11th, Revised">
                                                 </div>
                                             </div>
+
+                                            <!-- Publication Details -->
+                                            <hr class="my-3">
+                                            <p class="small text-muted mb-2">Publication Details</p>
+
+                                            <div class="row">
+                                                <div class="col-md-6 mb-3">
+                                                    <label for="journal" class="form-label">Journal / Publication</label>
+                                                    <input type="text" class="form-control" name="journal"
+                                                        placeholder="e.g., Nature, IEEE Transactions">
+                                                </div>
+                                                <div class="col-md-6 mb-3">
+                                                    <label for="container_title" class="form-label">Container Title</label>
+                                                    <input type="text" class="form-control" name="container_title"
+                                                        placeholder="e.g., Black's Law Dictionary (book/dictionary name)">
+                                                </div>
+                                            </div>
+
+                                            <div class="row">
+                                                <div class="col-md-3 mb-3">
+                                                    <label for="volume" class="form-label">Volume</label>
+                                                    <input type="text" class="form-control" name="volume"
+                                                        placeholder="e.g., 10">
+                                                </div>
+                                                <div class="col-md-3 mb-3">
+                                                    <label for="issue" class="form-label">Issue</label>
+                                                    <input type="text" class="form-control" name="issue"
+                                                        placeholder="e.g., 2">
+                                                </div>
+                                                <div class="col-md-3 mb-3">
+                                                    <label for="pages" class="form-label">Pages</label>
+                                                    <input type="text" class="form-control" name="pages"
+                                                        placeholder="e.g., 115-152">
+                                                </div>
+                                                <div class="col-md-3 mb-3">
+                                                    <label for="series" class="form-label">Series</label>
+                                                    <input type="text" class="form-control" name="series"
+                                                        placeholder="e.g., LNCS">
+                                                </div>
+                                            </div>
+
+                                            <div class="row">
+                                                <div class="col-md-6 mb-3">
+                                                    <label for="publisher" class="form-label">Publisher</label>
+                                                    <input type="text" class="form-control" name="publisher"
+                                                        placeholder="e.g., Pearson, Oxford University Press">
+                                                </div>
+                                                <div class="col-md-6 mb-3">
+                                                    <label for="place" class="form-label">Publication Place</label>
+                                                    <input type="text" class="form-control" name="place"
+                                                        placeholder="e.g., New York, Cambridge">
+                                                </div>
+                                            </div>
+
+                                            <!-- Identifiers -->
+                                            <hr class="my-3">
+                                            <p class="small text-muted mb-2">Identifiers</p>
 
                                             <div class="row">
                                                 <div class="col-md-6 mb-3">
@@ -188,22 +252,57 @@
                                                         placeholder="e.g., 10.1234/example">
                                                 </div>
                                                 <div class="col-md-6 mb-3">
+                                                    <label for="url" class="form-label">URL</label>
+                                                    <input type="url" class="form-control" name="url"
+                                                        placeholder="https://example.com/paper">
+                                                </div>
+                                            </div>
+
+                                            <div class="row">
+                                                <div class="col-md-4 mb-3">
                                                     <label for="isbn" class="form-label">ISBN</label>
                                                     <input type="text" class="form-control" name="isbn"
                                                         placeholder="e.g., 978-3-16-148410-0">
                                                 </div>
+                                                <div class="col-md-4 mb-3">
+                                                    <label for="issn" class="form-label">ISSN</label>
+                                                    <input type="text" class="form-control" name="issn"
+                                                        placeholder="e.g., 1234-5678">
+                                                </div>
+                                                <div class="col-md-4 mb-3">
+                                                    <label for="access_date" class="form-label">Access Date</label>
+                                                    <input type="date" class="form-control" name="access_date">
+                                                    <small class="form-text text-muted">For online sources</small>
+                                                </div>
                                             </div>
 
-                                            <div class="mb-3">
-                                                <label for="url" class="form-label">URL</label>
-                                                <input type="url" class="form-control" name="url"
-                                                    placeholder="https://example.com/paper">
+                                            <!-- Dictionary/Reference Entry -->
+                                            <hr class="my-3">
+                                            <p class="small text-muted mb-2">Dictionary / Reference Entry</p>
+
+                                            <div class="row">
+                                                <div class="col-md-6 mb-3">
+                                                    <label for="entry_term" class="form-label">Entry Term / Headword</label>
+                                                    <input type="text" class="form-control" name="entry_term"
+                                                        placeholder="e.g., agent, ontology">
+                                                    <small class="form-text text-muted">The term being defined</small>
+                                                </div>
                                             </div>
+
+                                            <!-- Notes & Abstract -->
+                                            <hr class="my-3">
+                                            <p class="small text-muted mb-2">Notes & Abstract</p>
 
                                             <div class="mb-3">
                                                 <label for="abstract" class="form-label">Abstract</label>
                                                 <textarea class="form-control" name="abstract" rows="3"
                                                     placeholder="Paper abstract or document summary..."></textarea>
+                                            </div>
+
+                                            <div class="mb-3">
+                                                <label for="notes" class="form-label">Notes</label>
+                                                <textarea class="form-control" name="notes" rows="2"
+                                                    placeholder="Additional notes (chapter number, special context...)"></textarea>
                                             </div>
 
                                             <div class="mb-3">

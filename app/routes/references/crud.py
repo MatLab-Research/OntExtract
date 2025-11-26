@@ -12,7 +12,7 @@ Routes:
 - GET  /references/<id>/download - Download reference file
 """
 
-from flask import render_template, request, redirect, url_for, flash, send_file
+from flask import render_template, request, redirect, url_for, flash, send_file, current_app
 from flask_login import current_user
 from app.utils.auth_decorators import api_require_login_for_write
 import os
@@ -56,42 +56,70 @@ def view(id):
 @api_require_login_for_write
 def edit(id):
     """Edit reference metadata"""
+    from app.utils.date_parser import parse_flexible_date
+
     reference = Document.query.filter_by(
         id=id,
         document_type='reference'
     ).first_or_404()
 
     if request.method == 'POST':
-        # Update basic info
-        reference.title = request.form.get('title', reference.title)
-        reference.reference_subtype = request.form.get('reference_subtype', reference.reference_subtype)
+        try:
+            # Update basic info
+            reference.title = request.form.get('title', reference.title)
+            reference.reference_subtype = request.form.get('reference_subtype', reference.reference_subtype)
 
-        # Update source metadata
-        authors = request.form.get('authors', '').split(',')
-        authors = [a.strip() for a in authors if a.strip()]
+            # Update normalized bibliographic columns
+            reference.authors = request.form.get('authors', '').strip() or None
+            reference.editor = request.form.get('editor', '').strip() or None
+            reference.edition = request.form.get('edition', '').strip() or None
 
-        provided_meta = {
-            'authors': authors,
-            'publication_date': request.form.get('publication_date'),
-            'journal': request.form.get('journal'),
-            'doi': request.form.get('doi'),
-            'isbn': request.form.get('isbn'),
-            'url': request.form.get('url'),
-            'abstract': request.form.get('abstract'),
-            'citation': request.form.get('citation')
-        }
+            # Parse publication date
+            pub_date_str = request.form.get('publication_date', '').strip()
+            if pub_date_str:
+                reference.publication_date = parse_flexible_date(pub_date_str)
+            else:
+                reference.publication_date = None
 
-        # Remove empty values and merge into existing metadata to preserve OED-specific fields
-        provided_meta = {k: v for k, v in provided_meta.items() if v}
-        existing_meta = reference.source_metadata or {}
-        if not isinstance(existing_meta, dict):
-            existing_meta = {}
-        merged = {**existing_meta, **provided_meta}
-        reference.source_metadata = merged if merged else None
+            # Publication details
+            reference.journal = request.form.get('journal', '').strip() or None
+            reference.container_title = request.form.get('container_title', '').strip() or None
+            reference.volume = request.form.get('volume', '').strip() or None
+            reference.issue = request.form.get('issue', '').strip() or None
+            reference.pages = request.form.get('pages', '').strip() or None
+            reference.series = request.form.get('series', '').strip() or None
+            reference.publisher = request.form.get('publisher', '').strip() or None
+            reference.place = request.form.get('place', '').strip() or None
 
-        db.session.commit()
-        flash('Reference updated successfully', 'success')
-        return redirect(url_for('references.view', id=reference.id))
+            # Identifiers
+            reference.doi = request.form.get('doi', '').strip() or None
+            reference.isbn = request.form.get('isbn', '').strip() or None
+            reference.issn = request.form.get('issn', '').strip() or None
+            reference.url = request.form.get('url', '').strip() or None
+
+            # Parse access date
+            access_date_str = request.form.get('access_date', '').strip()
+            if access_date_str:
+                reference.access_date = parse_flexible_date(access_date_str)
+            else:
+                reference.access_date = None
+
+            # Dictionary/reference entry
+            reference.entry_term = request.form.get('entry_term', '').strip() or None
+
+            # Notes & abstract
+            reference.abstract = request.form.get('abstract', '').strip() or None
+            reference.notes = request.form.get('notes', '').strip() or None
+            reference.citation = request.form.get('citation', '').strip() or None
+
+            db.session.commit()
+            flash('Reference updated successfully', 'success')
+            return redirect(url_for('references.view', id=reference.id))
+
+        except Exception as e:
+            db.session.rollback()
+            current_app.logger.error(f"Error updating reference: {str(e)}")
+            flash(f'Error updating reference: {str(e)}', 'error')
 
     return render_template('references/edit.html', reference=reference)
 

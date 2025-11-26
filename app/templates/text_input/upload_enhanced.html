@@ -71,10 +71,16 @@
     margin-left: 8px;
 }
 
-.source-crossref {
+.source-crossref, .source-crossref_auto {
     background: #1e4620;
     color: #4dff4d;
     border: 1px solid #28a745;
+}
+
+.source-semanticscholar {
+    background: #1a3352;
+    color: #6c9bff;
+    border: 1px solid #6c9bff;
 }
 
 .source-user {
@@ -83,7 +89,7 @@
     border: 1px solid #5bc0de;
 }
 
-.source-file {
+.source-file, .source-pdf_analysis {
     background: #4a3a1c;
     color: #ffc107;
     border: 1px solid #ffc107;
@@ -258,16 +264,64 @@
                         <strong>Manual metadata entry:</strong> Since automatic extraction is disabled, you can provide additional metadata below.
                     </div>
 
+                    <!-- Core Information -->
                     <div class="row">
                         <div class="col-md-6 mb-3">
-                            <label for="file-journal" class="form-label">Journal/Venue (optional)</label>
+                            <label for="file-editor" class="form-label">Editor(s) (optional)</label>
+                            <input type="text" class="form-control" id="file-editor" placeholder="e.g., Garner, B. (for edited volumes)">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="file-edition" class="form-label">Edition (optional)</label>
+                            <input type="text" class="form-control" id="file-edition" placeholder="e.g., 4th, 11th, Revised">
+                        </div>
+                    </div>
+
+                    <!-- Publication Details -->
+                    <p class="small text-muted mb-2 mt-2">Publication Details</p>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="file-journal" class="form-label">Journal/Publication (optional)</label>
                             <input type="text" class="form-control" id="file-journal" placeholder="e.g., Nature, JCDL, arXiv">
                         </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="file-container-title" class="form-label">Container Title (optional)</label>
+                            <input type="text" class="form-control" id="file-container-title" placeholder="e.g., Black's Law Dictionary (book/dictionary name)">
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-3 mb-3">
+                            <label for="file-volume" class="form-label">Volume</label>
+                            <input type="text" class="form-control" id="file-volume" placeholder="e.g., 10">
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <label for="file-issue" class="form-label">Issue</label>
+                            <input type="text" class="form-control" id="file-issue" placeholder="e.g., 2">
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <label for="file-pages" class="form-label">Pages</label>
+                            <input type="text" class="form-control" id="file-pages" placeholder="e.g., 115-152">
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <label for="file-series" class="form-label">Series</label>
+                            <input type="text" class="form-control" id="file-series" placeholder="e.g., LNCS">
+                        </div>
+                    </div>
+
+                    <div class="row">
                         <div class="col-md-6 mb-3">
                             <label for="file-publisher" class="form-label">Publisher (optional)</label>
                             <input type="text" class="form-control" id="file-publisher" placeholder="e.g., ACM, Springer">
                         </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="file-place" class="form-label">Publication Place (optional)</label>
+                            <input type="text" class="form-control" id="file-place" placeholder="e.g., New York, Cambridge">
+                        </div>
                     </div>
+
+                    <!-- Identifiers -->
+                    <p class="small text-muted mb-2 mt-2">Identifiers</p>
 
                     <div class="row">
                         <div class="col-md-6 mb-3">
@@ -280,12 +334,31 @@
                         </div>
                     </div>
 
-                    <div class="mb-3">
-                        <label for="file-abstract" class="form-label">Abstract (optional)</label>
-                        <textarea class="form-control" id="file-abstract" rows="4" placeholder="Paper abstract or summary"></textarea>
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            <label for="file-isbn" class="form-label">ISBN (optional)</label>
+                            <input type="text" class="form-control" id="file-isbn" placeholder="e.g., 978-3-16-148410-0">
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label for="file-issn" class="form-label">ISSN (optional)</label>
+                            <input type="text" class="form-control" id="file-issn" placeholder="e.g., 1234-5678">
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label for="file-access-date" class="form-label">Access Date (optional)</label>
+                            <input type="date" class="form-control" id="file-access-date">
+                            <small class="form-text text-muted">For online sources</small>
+                        </div>
                     </div>
 
+                    <!-- Dictionary/Reference Entry -->
+                    <p class="small text-muted mb-2 mt-2">Dictionary / Reference Entry</p>
+
                     <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="file-entry-term" class="form-label">Entry Term / Headword (optional)</label>
+                            <input type="text" class="form-control" id="file-entry-term" placeholder="e.g., agent, ontology">
+                            <small class="form-text text-muted">The term being defined</small>
+                        </div>
                         <div class="col-md-6 mb-3">
                             <label for="file-type" class="form-label">Document Type (optional)</label>
                             <select class="form-select" id="file-type">
@@ -299,29 +372,22 @@
                                 <option value="preprint">Preprint (arXiv, etc.)</option>
                                 <option value="dictionary-entry">Dictionary Entry</option>
                                 <option value="encyclopedia-article">Encyclopedia Article</option>
-                                <option value="magazine-article">Magazine Article</option>
-                                <option value="newspaper-article">Newspaper Article</option>
-                                <option value="manuscript">Manuscript</option>
-                                <option value="presentation">Presentation/Slides</option>
-                                <option value="webpage">Webpage</option>
-                                <option value="blog-post">Blog Post</option>
-                                <option value="patent">Patent</option>
-                                <option value="case">Legal Case</option>
-                                <option value="statute">Statute/Law</option>
-                                <option value="letter">Letter/Correspondence</option>
-                                <option value="interview">Interview</option>
-                                <option value="podcast">Podcast</option>
-                                <option value="video">Video Recording</option>
-                                <option value="audio">Audio Recording</option>
-                                <option value="artwork">Artwork</option>
-                                <option value="map">Map</option>
                                 <option value="other">Other</option>
                             </select>
                         </div>
-                        <div class="col-md-6 mb-3">
-                            <label for="file-isbn" class="form-label">ISBN (optional)</label>
-                            <input type="text" class="form-control" id="file-isbn" placeholder="e.g., 978-3-16-148410-0">
-                        </div>
+                    </div>
+
+                    <!-- Notes & Abstract -->
+                    <p class="small text-muted mb-2 mt-2">Notes & Abstract</p>
+
+                    <div class="mb-3">
+                        <label for="file-abstract" class="form-label">Abstract (optional)</label>
+                        <textarea class="form-control" id="file-abstract" rows="3" placeholder="Paper abstract or summary"></textarea>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="file-notes" class="form-label">Notes (optional)</label>
+                        <textarea class="form-control" id="file-notes" rows="2" placeholder="Additional notes (chapter number, special context...)"></textarea>
                     </div>
                 </div>
 
@@ -369,13 +435,15 @@
                 </div>
 
                 <form id="metadata-form">
+                    <!-- Core Information -->
                     <div class="row">
                         <div class="col-md-12 metadata-field">
                             <label for="review-title" class="metadata-label">
                                 Title
                                 <span id="title-source-badge" class="metadata-source-badge"></span>
                             </label>
-                            <input type="text" class="form-control" id="review-title" required>
+                            <input type="text" class="form-control" id="review-title" required
+                                   onchange="markAsManual(this, 'title-source-badge')">
                         </div>
                     </div>
 
@@ -386,82 +454,253 @@
                                 <span id="authors-source-badge" class="metadata-source-badge"></span>
                             </label>
                             <input type="text" class="form-control" id="review-authors"
-                                   placeholder="Comma-separated author names">
-                            <div class="form-text">Comma-separated list of authors</div>
+                                   placeholder="e.g., Smith, J., Doe, A."
+                                   onchange="markAsManual(this, 'authors-source-badge')">
+                            <div class="form-text">Comma-separated list</div>
                         </div>
                         <div class="col-md-4 metadata-field">
                             <label for="review-date" class="metadata-label">
-                                Date
+                                Publication Date
                                 <span id="date-source-badge" class="metadata-source-badge"></span>
                             </label>
                             <input type="text" class="form-control" id="review-date"
-                                   placeholder="e.g., 2020 or 2020-05">
-                            <small class="form-text text-muted">Year, year-month, or full date</small>
+                                   placeholder="e.g., 2023"
+                                   onchange="markAsManual(this, 'date-source-badge')">
                         </div>
                     </div>
 
                     <div class="row">
                         <div class="col-md-6 metadata-field">
+                            <label for="review-editor" class="metadata-label">
+                                Editor(s)
+                                <span id="editor-source-badge" class="metadata-source-badge"></span>
+                            </label>
+                            <input type="text" class="form-control" id="review-editor"
+                                   placeholder="e.g., Garner, B."
+                                   onchange="markAsManual(this, 'editor-source-badge')">
+                        </div>
+                        <div class="col-md-6 metadata-field">
+                            <label for="review-edition" class="metadata-label">
+                                Edition
+                                <span id="edition-source-badge" class="metadata-source-badge"></span>
+                            </label>
+                            <input type="text" class="form-control" id="review-edition"
+                                   placeholder="e.g., 4th, 11th"
+                                   onchange="markAsManual(this, 'edition-source-badge')">
+                        </div>
+                    </div>
+
+                    <!-- Publication Details -->
+                    <hr class="my-3">
+                    <p class="small text-muted mb-2">Publication Details</p>
+
+                    <div class="row">
+                        <div class="col-md-6 metadata-field">
                             <label for="review-journal" class="metadata-label">
-                                Journal/Publisher
+                                Journal / Publication
                                 <span id="journal-source-badge" class="metadata-source-badge"></span>
                             </label>
-                            <input type="text" class="form-control" id="review-journal">
+                            <input type="text" class="form-control" id="review-journal"
+                                   placeholder="e.g., Nature"
+                                   onchange="markAsManual(this, 'journal-source-badge')">
                         </div>
+                        <div class="col-md-6 metadata-field">
+                            <label for="review-container-title" class="metadata-label">
+                                Container Title
+                                <span id="container-title-source-badge" class="metadata-source-badge"></span>
+                            </label>
+                            <input type="text" class="form-control" id="review-container-title"
+                                   placeholder="e.g., Black's Law Dictionary"
+                                   onchange="markAsManual(this, 'container-title-source-badge')">
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-3 metadata-field">
+                            <label for="review-volume" class="metadata-label">
+                                Volume
+                                <span id="volume-source-badge" class="metadata-source-badge"></span>
+                            </label>
+                            <input type="text" class="form-control" id="review-volume"
+                                   placeholder="e.g., 10"
+                                   onchange="markAsManual(this, 'volume-source-badge')">
+                        </div>
+                        <div class="col-md-3 metadata-field">
+                            <label for="review-issue" class="metadata-label">
+                                Issue
+                                <span id="issue-source-badge" class="metadata-source-badge"></span>
+                            </label>
+                            <input type="text" class="form-control" id="review-issue"
+                                   placeholder="e.g., 2"
+                                   onchange="markAsManual(this, 'issue-source-badge')">
+                        </div>
+                        <div class="col-md-3 metadata-field">
+                            <label for="review-pages" class="metadata-label">
+                                Pages
+                                <span id="pages-source-badge" class="metadata-source-badge"></span>
+                            </label>
+                            <input type="text" class="form-control" id="review-pages"
+                                   placeholder="e.g., 115-152"
+                                   onchange="markAsManual(this, 'pages-source-badge')">
+                        </div>
+                        <div class="col-md-3 metadata-field">
+                            <label for="review-series" class="metadata-label">
+                                Series
+                                <span id="series-source-badge" class="metadata-source-badge"></span>
+                            </label>
+                            <input type="text" class="form-control" id="review-series"
+                                   placeholder="e.g., LNCS"
+                                   onchange="markAsManual(this, 'series-source-badge')">
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 metadata-field">
+                            <label for="review-publisher" class="metadata-label">
+                                Publisher
+                                <span id="publisher-source-badge" class="metadata-source-badge"></span>
+                            </label>
+                            <input type="text" class="form-control" id="review-publisher"
+                                   placeholder="e.g., Oxford University Press"
+                                   onchange="markAsManual(this, 'publisher-source-badge')">
+                        </div>
+                        <div class="col-md-6 metadata-field">
+                            <label for="review-place" class="metadata-label">
+                                Publication Place
+                                <span id="place-source-badge" class="metadata-source-badge"></span>
+                            </label>
+                            <input type="text" class="form-control" id="review-place"
+                                   placeholder="e.g., New York"
+                                   onchange="markAsManual(this, 'place-source-badge')">
+                        </div>
+                    </div>
+
+                    <!-- Identifiers -->
+                    <hr class="my-3">
+                    <p class="small text-muted mb-2">Identifiers</p>
+
+                    <div class="row">
                         <div class="col-md-6 metadata-field">
                             <label for="review-doi" class="metadata-label">
                                 DOI
                                 <span id="doi-source-badge" class="metadata-source-badge"></span>
                             </label>
-                            <input type="text" class="form-control" id="review-doi">
+                            <input type="text" class="form-control" id="review-doi"
+                                   placeholder="e.g., 10.1234/example"
+                                   onchange="markAsManual(this, 'doi-source-badge')">
+                        </div>
+                        <div class="col-md-6 metadata-field">
+                            <label for="review-url" class="metadata-label">
+                                URL
+                                <span id="url-source-badge" class="metadata-source-badge"></span>
+                            </label>
+                            <input type="url" class="form-control" id="review-url"
+                                   placeholder="https://..."
+                                   onchange="markAsManual(this, 'url-source-badge')">
                         </div>
                     </div>
+
+                    <div class="row">
+                        <div class="col-md-4 metadata-field">
+                            <label for="review-isbn" class="metadata-label">
+                                ISBN
+                                <span id="isbn-source-badge" class="metadata-source-badge"></span>
+                            </label>
+                            <input type="text" class="form-control" id="review-isbn"
+                                   placeholder="e.g., 978-3-16-148410-0"
+                                   onchange="markAsManual(this, 'isbn-source-badge')">
+                        </div>
+                        <div class="col-md-4 metadata-field">
+                            <label for="review-issn" class="metadata-label">
+                                ISSN
+                                <span id="issn-source-badge" class="metadata-source-badge"></span>
+                            </label>
+                            <input type="text" class="form-control" id="review-issn"
+                                   placeholder="e.g., 1234-5678"
+                                   onchange="markAsManual(this, 'issn-source-badge')">
+                        </div>
+                        <div class="col-md-4 metadata-field">
+                            <label for="review-access-date" class="metadata-label">
+                                Access Date
+                                <span id="access-date-source-badge" class="metadata-source-badge"></span>
+                            </label>
+                            <input type="date" class="form-control" id="review-access-date"
+                                   onchange="markAsManual(this, 'access-date-source-badge')">
+                        </div>
+                    </div>
+
+                    <!-- Dictionary/Reference Entry -->
+                    <hr class="my-3">
+                    <p class="small text-muted mb-2">Dictionary / Reference Entry</p>
+
+                    <div class="row">
+                        <div class="col-md-6 metadata-field">
+                            <label for="review-entry-term" class="metadata-label">
+                                Entry Term / Headword
+                                <span id="entry-term-source-badge" class="metadata-source-badge"></span>
+                            </label>
+                            <input type="text" class="form-control" id="review-entry-term"
+                                   placeholder="e.g., agent, ontology"
+                                   onchange="markAsManual(this, 'entry-term-source-badge')">
+                        </div>
+                        <div class="col-md-6 metadata-field">
+                            <label for="review-type" class="metadata-label">
+                                Document Type
+                                <span id="type-source-badge" class="metadata-source-badge"></span>
+                            </label>
+                            <select class="form-select" id="review-type"
+                                    onchange="markAsManual(this, 'type-source-badge')">
+                                <option value="">Select type...</option>
+                                <option value="academic">Academic Paper</option>
+                                <option value="book">Book</option>
+                                <option value="book_section">Book Section/Chapter</option>
+                                <option value="conference">Conference Proceeding</option>
+                                <option value="dictionary_general">Dictionary Entry</option>
+                                <option value="dictionary_oed">OED Dictionary Entry</option>
+                                <option value="encyclopedia">Encyclopedia Entry</option>
+                                <option value="standard">Standard/Specification</option>
+                                <option value="technical">Technical Report</option>
+                                <option value="whitepaper">White Paper</option>
+                                <option value="patent">Patent</option>
+                                <option value="website">Web Resource</option>
+                                <option value="glossary">Glossary/Terminology</option>
+                                <option value="other">Other</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Notes & Abstract -->
+                    <hr class="my-3">
+                    <p class="small text-muted mb-2">Notes & Abstract</p>
 
                     <div class="metadata-field">
                         <label for="review-abstract" class="metadata-label">
                             Abstract
                             <span id="abstract-source-badge" class="metadata-source-badge"></span>
                         </label>
-                        <textarea class="form-control" id="review-abstract" rows="4"></textarea>
+                        <textarea class="form-control" id="review-abstract" rows="3"
+                                  placeholder="Brief summary..."
+                                  onchange="markAsManual(this, 'abstract-source-badge')"></textarea>
                     </div>
 
-                    <div class="row">
-                        <div class="col-md-6 metadata-field">
-                            <label for="review-type" class="metadata-label">Document Type</label>
-                            <select class="form-select" id="review-type">
-                                <option value="">Select type...</option>
-                                <option value="journal-article">Journal Article</option>
-                                <option value="conference-paper">Conference Paper</option>
-                                <option value="book">Book</option>
-                                <option value="book-chapter">Book Chapter</option>
-                                <option value="thesis">Thesis/Dissertation</option>
-                                <option value="report">Technical Report</option>
-                                <option value="preprint">Preprint (arXiv, etc.)</option>
-                                <option value="dictionary-entry">Dictionary Entry</option>
-                                <option value="encyclopedia-article">Encyclopedia Article</option>
-                                <option value="magazine-article">Magazine Article</option>
-                                <option value="newspaper-article">Newspaper Article</option>
-                                <option value="manuscript">Manuscript</option>
-                                <option value="presentation">Presentation/Slides</option>
-                                <option value="webpage">Webpage</option>
-                                <option value="blog-post">Blog Post</option>
-                                <option value="patent">Patent</option>
-                                <option value="case">Legal Case</option>
-                                <option value="statute">Statute/Law</option>
-                                <option value="letter">Letter/Correspondence</option>
-                                <option value="interview">Interview</option>
-                                <option value="podcast">Podcast</option>
-                                <option value="video">Video Recording</option>
-                                <option value="audio">Audio Recording</option>
-                                <option value="artwork">Artwork</option>
-                                <option value="map">Map</option>
-                                <option value="other">Other</option>
-                            </select>
-                        </div>
-                        <div class="col-md-6 metadata-field">
-                            <label for="review-url" class="metadata-label">URL</label>
-                            <input type="url" class="form-control" id="review-url">
-                        </div>
+                    <div class="metadata-field">
+                        <label for="review-notes" class="metadata-label">
+                            Notes
+                            <span id="notes-source-badge" class="metadata-source-badge"></span>
+                        </label>
+                        <textarea class="form-control" id="review-notes" rows="2"
+                                  placeholder="Additional notes..."
+                                  onchange="markAsManual(this, 'notes-source-badge')"></textarea>
+                    </div>
+
+                    <div class="metadata-field">
+                        <label for="review-citation" class="metadata-label">
+                            Citation
+                            <span id="citation-source-badge" class="metadata-source-badge"></span>
+                        </label>
+                        <textarea class="form-control" id="review-citation" rows="2"
+                                  placeholder="Full citation..."
+                                  onchange="markAsManual(this, 'citation-source-badge')"></textarea>
                     </div>
 
                     <div class="d-flex gap-2 mt-4">
@@ -659,6 +898,23 @@ function showMetadataReview() {
     }
 }
 
+// Mark field as manual entry when user adds/edits content
+function markAsManual(field, badgeId) {
+    const badge = document.getElementById(badgeId);
+    if (badge && field.value && field.value.trim()) {
+        // Only show MANUAL if field was previously empty or now has new content
+        const currentSource = badge.textContent;
+        if (!currentSource || currentSource === '') {
+            badge.textContent = 'MANUAL';
+            badge.className = 'metadata-source-badge source-user';
+        }
+    } else if (badge && (!field.value || !field.value.trim())) {
+        // Clear badge if field is emptied
+        badge.textContent = '';
+        badge.className = 'metadata-source-badge';
+    }
+}
+
 function populateMetadataForm(metadata, provenance) {
     console.log('populateMetadataForm() called');
     console.log('Metadata:', metadata);
@@ -669,7 +925,7 @@ function populateMetadataForm(metadata, provenance) {
         const field = document.getElementById(fieldId);
         const badge = document.getElementById(badgeId);
 
-        if (field && value != null) {
+        if (field && value != null && value !== '') {
             if (Array.isArray(value)) {
                 field.value = value.join(', ');
             } else {
@@ -678,22 +934,65 @@ function populateMetadataForm(metadata, provenance) {
         }
 
         if (badge && source) {
-            badge.textContent = source.toUpperCase();
+            // Format source name for display
+            let displaySource = source.toUpperCase();
+            if (source === 'crossref' || source === 'crossref_auto') {
+                displaySource = 'CROSSREF';
+            } else if (source === 'semanticscholar') {
+                displaySource = 'S2';
+            } else if (source === 'user') {
+                displaySource = 'MANUAL';
+            } else if (source === 'file' || source === 'pdf_analysis') {
+                displaySource = 'PDF';
+            }
+            badge.textContent = displaySource;
             badge.className = `metadata-source-badge source-${source}`;
         }
     };
 
-    // Populate fields
+    // Core fields
     setField('review-title', 'title-source-badge', metadata.title, provenance.title?.source);
     setField('review-authors', 'authors-source-badge', metadata.authors, provenance.authors?.source);
-    setField('review-date', 'date-source-badge', metadata.publication_year, provenance.publication_year?.source);
-    setField('review-journal', 'journal-source-badge', metadata.journal, provenance.journal?.source);
-    setField('review-doi', 'doi-source-badge', metadata.doi, provenance.doi?.source);
-    setField('review-abstract', 'abstract-source-badge', metadata.abstract, provenance.abstract?.source);
-    setField('review-url', null, metadata.url, null);
+    setField('review-date', 'date-source-badge', metadata.publication_year || metadata.publication_date, provenance.publication_year?.source || provenance.publication_date?.source);
+    setField('review-editor', 'editor-source-badge', metadata.editor, provenance.editor?.source);
+    setField('review-edition', 'edition-source-badge', metadata.edition, provenance.edition?.source);
 
+    // Publication details
+    setField('review-journal', 'journal-source-badge', metadata.journal, provenance.journal?.source);
+    setField('review-container-title', 'container-title-source-badge', metadata.container_title, provenance.container_title?.source);
+    setField('review-volume', 'volume-source-badge', metadata.volume, provenance.volume?.source);
+    setField('review-issue', 'issue-source-badge', metadata.issue, provenance.issue?.source);
+    setField('review-pages', 'pages-source-badge', metadata.pages || metadata.page, provenance.pages?.source || provenance.page?.source);
+    setField('review-series', 'series-source-badge', metadata.series, provenance.series?.source);
+    setField('review-publisher', 'publisher-source-badge', metadata.publisher, provenance.publisher?.source);
+    setField('review-place', 'place-source-badge', metadata.place, provenance.place?.source);
+
+    // Identifiers
+    setField('review-doi', 'doi-source-badge', metadata.doi, provenance.doi?.source);
+    setField('review-url', 'url-source-badge', metadata.url, provenance.url?.source);
+    setField('review-isbn', 'isbn-source-badge', metadata.isbn, provenance.isbn?.source);
+    setField('review-issn', 'issn-source-badge', metadata.issn, provenance.issn?.source);
+    setField('review-access-date', 'access-date-source-badge', metadata.access_date, provenance.access_date?.source);
+
+    // Dictionary/Reference entry
+    setField('review-entry-term', 'entry-term-source-badge', metadata.entry_term, provenance.entry_term?.source);
+
+    // Notes & Abstract
+    setField('review-abstract', 'abstract-source-badge', metadata.abstract, provenance.abstract?.source);
+    setField('review-notes', 'notes-source-badge', metadata.notes, provenance.notes?.source);
+    setField('review-citation', 'citation-source-badge', metadata.citation, provenance.citation?.source);
+
+    // Document type
     if (metadata.type) {
-        document.getElementById('review-type').value = metadata.type;
+        const typeField = document.getElementById('review-type');
+        if (typeField) {
+            typeField.value = metadata.type;
+            const typeBadge = document.getElementById('type-source-badge');
+            if (typeBadge && provenance.type?.source) {
+                typeBadge.textContent = provenance.type.source.toUpperCase();
+                typeBadge.className = `metadata-source-badge source-${provenance.type.source}`;
+            }
+        }
     }
 }
 
@@ -734,24 +1033,88 @@ document.getElementById('file-form').addEventListener('submit', async function(e
 
     uploadState.currentFileName = file.name;
 
-    // Only show progress card if automatic extraction is enabled
-    if (enableCrossref) {
-        // Hide form and show progress card immediately
-        document.getElementById('file-form').style.display = 'none';
-        const progressCard = document.getElementById('progress-card');
-        progressCard.classList.add('active');
-
-        // Show initial progress
-        const progressBar = document.getElementById('progress-bar');
-        const currentStepDiv = document.getElementById('current-step');
-        progressBar.style.width = '10%';
-        progressBar.setAttribute('aria-valuenow', 10);
-        progressBar.textContent = '10%';
-        currentStepDiv.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Uploading document...';
-    } else {
-        // For manual entry, just show loading spinner
+    // When auto-extraction is disabled, save directly without confirmation step
+    if (!enableCrossref) {
         showLoading('Uploading document...');
+
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('title', document.getElementById('file-title').value);
+        formData.append('publication_date', document.getElementById('file-date').value);
+        formData.append('authors', document.getElementById('file-authors').value);
+        // Core fields
+        formData.append('editor', document.getElementById('file-editor').value);
+        formData.append('edition', document.getElementById('file-edition').value);
+        // Publication details
+        formData.append('journal', document.getElementById('file-journal').value);
+        formData.append('container_title', document.getElementById('file-container-title').value);
+        formData.append('volume', document.getElementById('file-volume').value);
+        formData.append('issue', document.getElementById('file-issue').value);
+        formData.append('pages', document.getElementById('file-pages').value);
+        formData.append('series', document.getElementById('file-series').value);
+        formData.append('publisher', document.getElementById('file-publisher').value);
+        formData.append('place', document.getElementById('file-place').value);
+        // Identifiers
+        formData.append('doi', document.getElementById('file-doi').value);
+        formData.append('url', document.getElementById('file-url').value);
+        formData.append('isbn', document.getElementById('file-isbn').value);
+        formData.append('issn', document.getElementById('file-issn').value);
+        formData.append('access_date', document.getElementById('file-access-date').value);
+        // Dictionary/Reference
+        formData.append('entry_term', document.getElementById('file-entry-term').value);
+        // Notes
+        formData.append('abstract', document.getElementById('file-abstract').value);
+        formData.append('notes', document.getElementById('file-notes').value);
+
+        try {
+            console.log('Direct upload to: /upload/document');
+            const response = await fetchWithTimeout('/upload/document', {
+                method: 'POST',
+                body: formData
+            }, 45000);
+
+            hideLoading();
+
+            if (response.redirected) {
+                // Server returned a redirect, follow it
+                window.location.href = response.url;
+                return;
+            }
+
+            // If not a redirect, check for JSON response
+            const contentType = response.headers.get('content-type');
+            if (contentType && contentType.includes('application/json')) {
+                const result = await response.json();
+                if (result.success || result.document_uuid) {
+                    window.location.href = `/input/document/${result.document_uuid}`;
+                } else {
+                    showError(result.error || 'Upload failed');
+                }
+            } else {
+                // Likely HTML response (redirect was followed), reload
+                window.location.reload();
+            }
+        } catch (error) {
+            hideLoading();
+            console.error('Upload error:', error);
+            showError('An error occurred during upload: ' + error.message);
+        }
+        return;
     }
+
+    // Auto-extraction enabled: use the review flow
+    // Hide form and show progress card immediately
+    document.getElementById('file-form').style.display = 'none';
+    const progressCard = document.getElementById('progress-card');
+    progressCard.classList.add('active');
+
+    // Show initial progress
+    const progressBar = document.getElementById('progress-bar');
+    const currentStepDiv = document.getElementById('current-step');
+    progressBar.style.width = '10%';
+    progressBar.setAttribute('aria-valuenow', 10);
+    progressBar.textContent = '10%';
+    currentStepDiv.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Uploading document...';
 
     const formData = new FormData();
     formData.append('document_file', file);
@@ -759,18 +1122,7 @@ document.getElementById('file-form').addEventListener('submit', async function(e
     formData.append('title', document.getElementById('file-title').value);
     formData.append('publication_year', document.getElementById('file-date').value);
     formData.append('authors', document.getElementById('file-authors').value);
-    formData.append('enable_crossref', enableCrossref ? 'true' : 'false');
-
-    // Add additional metadata fields if provided (shown when auto-extraction is disabled)
-    if (!enableCrossref) {
-        formData.append('journal', document.getElementById('file-journal').value);
-        formData.append('publisher', document.getElementById('file-publisher').value);
-        formData.append('doi', document.getElementById('file-doi').value);
-        formData.append('url', document.getElementById('file-url').value);
-        formData.append('abstract', document.getElementById('file-abstract').value);
-        formData.append('type', document.getElementById('file-type').value);
-        formData.append('isbn', document.getElementById('file-isbn').value);
-    }
+    formData.append('enable_crossref', 'true');
 
     try {
         console.log('Uploading to: /upload/extract_metadata');
@@ -986,29 +1338,86 @@ document.getElementById('metadata-form').addEventListener('submit', async functi
     e.preventDefault();
     console.log('Metadata form submitted - JavaScript handler active');
 
-    // Collect updated metadata from form
+    // Helper to get field value (returns null if empty)
+    const getFieldValue = (id) => {
+        const el = document.getElementById(id);
+        const val = el ? el.value.trim() : '';
+        return val || null;
+    };
+
+    // Collect updated metadata from form - all extended fields
     const updatedMetadata = {
-        title: document.getElementById('review-title').value,
+        // Core fields
+        title: getFieldValue('review-title'),
         authors: document.getElementById('review-authors').value.split(',').map(a => a.trim()).filter(Boolean),
-        publication_year: document.getElementById('review-date').value || null,
-        journal: document.getElementById('review-journal').value,
-        doi: document.getElementById('review-doi').value,
-        abstract: document.getElementById('review-abstract').value,
-        type: document.getElementById('review-type').value,
-        url: document.getElementById('review-url').value
+        publication_year: getFieldValue('review-date'),
+        editor: getFieldValue('review-editor'),
+        edition: getFieldValue('review-edition'),
+        // Publication details
+        journal: getFieldValue('review-journal'),
+        container_title: getFieldValue('review-container-title'),
+        volume: getFieldValue('review-volume'),
+        issue: getFieldValue('review-issue'),
+        pages: getFieldValue('review-pages'),
+        series: getFieldValue('review-series'),
+        publisher: getFieldValue('review-publisher'),
+        place: getFieldValue('review-place'),
+        // Identifiers
+        doi: getFieldValue('review-doi'),
+        url: getFieldValue('review-url'),
+        isbn: getFieldValue('review-isbn'),
+        issn: getFieldValue('review-issn'),
+        access_date: getFieldValue('review-access-date'),
+        // Dictionary/Reference entry
+        entry_term: getFieldValue('review-entry-term'),
+        type: getFieldValue('review-type'),
+        // Notes & Abstract
+        abstract: getFieldValue('review-abstract'),
+        notes: getFieldValue('review-notes'),
+        citation: getFieldValue('review-citation')
     };
 
     // Update provenance for any user-edited fields
+    // - 'manual': User filled in a previously empty field (supplementing auto-extracted data)
+    // - 'user': User edited a field that already had a value from extraction
     const updatedProvenance = { ...uploadState.provenance };
     Object.keys(updatedMetadata).forEach(key => {
-        if (updatedMetadata[key] !== uploadState.extractedMetadata[key]) {
-            updatedProvenance[key] = {
-                source: 'user',
-                confidence: 1.0,
-                timestamp: new Date().toISOString(),
-                raw_value: updatedMetadata[key],
-                previous_source: uploadState.provenance[key]?.source
-            };
+        const oldValue = uploadState.extractedMetadata ? uploadState.extractedMetadata[key] : null;
+        const newValue = updatedMetadata[key];
+        const previousSource = uploadState.provenance[key]?.source;
+
+        // If field has a new value
+        if (newValue) {
+            // Field was empty before, now has user-provided content -> 'manual'
+            if (!oldValue && !previousSource) {
+                updatedProvenance[key] = {
+                    source: 'manual',
+                    confidence: 1.0,
+                    timestamp: new Date().toISOString(),
+                    raw_value: newValue
+                };
+            }
+            // Field had auto-extracted value that user changed -> keep original source, note it was edited
+            else if (newValue !== oldValue && previousSource && previousSource !== 'user' && previousSource !== 'manual') {
+                updatedProvenance[key] = {
+                    source: previousSource,  // Keep original source
+                    confidence: 1.0,
+                    timestamp: new Date().toISOString(),
+                    raw_value: newValue,
+                    original_value: oldValue,
+                    edited: true  // Flag that user edited this field
+                };
+            }
+            // Field was user-provided and changed -> still 'user'
+            else if (newValue !== oldValue) {
+                updatedProvenance[key] = {
+                    source: 'user',
+                    confidence: 1.0,
+                    timestamp: new Date().toISOString(),
+                    raw_value: newValue,
+                    previous_source: previousSource
+                };
+            }
         }
     });
 
@@ -1101,13 +1510,18 @@ function acceptLowConfidenceMatch() {
 
 function clearAllMetadata() {
     // Clear all metadata fields
-    document.getElementById('review-title').value = '';
-    document.getElementById('review-authors').value = '';
-    document.getElementById('review-date').value = '';
-    document.getElementById('review-journal').value = '';
-    document.getElementById('review-doi').value = '';
-    document.getElementById('review-abstract').value = '';
-    document.getElementById('review-url').value = '';
+    const fieldsToClear = [
+        'review-title', 'review-authors', 'review-date', 'review-editor', 'review-edition',
+        'review-journal', 'review-container-title', 'review-volume', 'review-issue',
+        'review-pages', 'review-series', 'review-publisher', 'review-place',
+        'review-doi', 'review-url', 'review-isbn', 'review-issn', 'review-access-date',
+        'review-entry-term', 'review-type', 'review-abstract', 'review-notes', 'review-citation'
+    ];
+
+    fieldsToClear.forEach(id => {
+        const field = document.getElementById(id);
+        if (field) field.value = '';
+    });
 
     // Clear all source badges
     document.querySelectorAll('.metadata-source-badge').forEach(badge => {
