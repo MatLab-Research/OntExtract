@@ -81,8 +81,9 @@ def new():
         if document_uuid:
             selected_document = Document.query.filter_by(uuid=document_uuid).first()
             if selected_document:
-                # Generate a description based on the document
-                generated_description = f"Document analysis of '{selected_document.get_display_name()}'"
+                # Use document title (from metadata), fall back to display name
+                title = selected_document.title or selected_document.get_display_name()
+                generated_description = f"Document analysis of {title}"
 
     return render_template('experiments/new.html',
                          documents=documents,
@@ -220,19 +221,88 @@ def create_sample():
 
 @experiments_bp.route('/<int:experiment_id>')
 def view(experiment_id):
-    """View experiment details"""
+    """View experiment details - Enhanced dashboard view"""
     experiment = Experiment.query.filter_by(id=experiment_id).first_or_404()
 
     # Get most recent orchestration run for this experiment
     from app.models import ExperimentOrchestrationRun
+    from app.models.processing_artifact_group import ProcessingArtifactGroup
+    from sqlalchemy import func
+
     recent_orchestration = ExperimentOrchestrationRun.query.filter_by(
         experiment_id=experiment_id
     ).order_by(ExperimentOrchestrationRun.started_at.desc()).first()
 
+    # Get all documents in this experiment
+    experiment_docs = list(experiment.documents)
+    doc_ids = [doc.id for doc in experiment_docs]
+
+    # --- Processing Summary ---
+    # Aggregate ProcessingArtifactGroups by artifact_type for all experiment documents
+    processing_summary = {}
+    if doc_ids:
+        artifact_counts = db.session.query(
+            ProcessingArtifactGroup.artifact_type,
+            func.count(ProcessingArtifactGroup.id).label('count')
+        ).filter(
+            ProcessingArtifactGroup.document_id.in_(doc_ids),
+            ProcessingArtifactGroup.status == 'completed'
+        ).group_by(ProcessingArtifactGroup.artifact_type).all()
+
+        for artifact_type, count in artifact_counts:
+            processing_summary[artifact_type] = count
+
+    # Count total processing operations
+    total_processing_ops = sum(processing_summary.values())
+
+    # --- Document Details with Versions and Cross-Experiment Usage ---
+    documents_enhanced = []
+    for doc in experiment_docs:
+        # Count how many OTHER experiments use this document
+        other_exp_count = doc.experiments.count() - 1  # Exclude current experiment
+
+        # Get processing for this document
+        doc_processing = ProcessingArtifactGroup.query.filter_by(
+            document_id=doc.id,
+            status='completed'
+        ).all()
+
+        # Group by artifact type
+        doc_processing_by_type = {}
+        for group in doc_processing:
+            if group.artifact_type not in doc_processing_by_type:
+                doc_processing_by_type[group.artifact_type] = []
+            doc_processing_by_type[group.artifact_type].append({
+                'method_key': group.method_key,
+                'created_at': group.created_at
+            })
+
+        documents_enhanced.append({
+            'document': doc,
+            'other_experiments_count': other_exp_count,
+            'processing_by_type': doc_processing_by_type,
+            'processing_count': len(doc_processing)
+        })
+
+    # --- Temporal Periods (for temporal_evolution experiments) ---
+    temporal_data = None
+    if experiment.experiment_type == 'temporal_evolution':
+        try:
+            from app.services.temporal_service import get_temporal_service
+            temporal_service = get_temporal_service()
+            temporal_data = temporal_service.get_temporal_ui_data(experiment_id)
+        except Exception as e:
+            logger.warning(f"Failed to get temporal data for experiment {experiment_id}: {e}")
+            temporal_data = None
+
     return render_template(
         'experiments/view.html',
         experiment=experiment,
-        recent_orchestration=recent_orchestration
+        recent_orchestration=recent_orchestration,
+        processing_summary=processing_summary,
+        total_processing_ops=total_processing_ops,
+        documents_enhanced=documents_enhanced,
+        temporal_data=temporal_data
     )
 
 

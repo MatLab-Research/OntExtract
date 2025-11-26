@@ -1,15 +1,27 @@
 {% extends "base.html" %}
+{% from "macros/processing_badges.html" import operation_badge, get_op_icon, get_op_color %}
 
 {% block title %}{{ experiment.name }} - OntExtract{% endblock %}
 
 {% block content %}
 <div class="container-fluid px-4">
+    <!-- Header -->
     <div class="row mt-4">
         <div class="col-12">
-            <div class="card">
-                <div class="card-header d-flex justify-content-between align-items-center">
-                    <h3 class="mb-0">{{ experiment.name }}</h3>
-                    <div>
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                    <h2 class="mb-1">{{ experiment.name }}</h2>
+                    <div class="d-flex align-items-center gap-2">
+                        {% if experiment.experiment_type == 'entity_extraction' %}
+                            <span class="badge bg-primary">Document Analysis</span>
+                        {% elif experiment.experiment_type == 'temporal_evolution' %}
+                            <span class="badge bg-info">Temporal Evolution</span>
+                        {% elif experiment.experiment_type == 'domain_comparison' %}
+                            <span class="badge bg-success">Domain Comparison</span>
+                        {% else %}
+                            <span class="badge bg-secondary">{{ experiment.experiment_type }}</span>
+                        {% endif %}
+
                         {% if experiment.status == 'draft' %}
                             <span class="badge bg-secondary">Draft</span>
                         {% elif experiment.status == 'running' %}
@@ -21,229 +33,447 @@
                         {% endif %}
                     </div>
                 </div>
-                <div class="card-body">
-                    {# Orchestration Status Indicator #}
-                    {% if recent_orchestration %}
-                    <div class="alert {% if recent_orchestration.status == 'completed' %}alert-success{% elif recent_orchestration.status == 'executing' %}alert-info{% elif recent_orchestration.status == 'failed' %}alert-danger{% else %}alert-warning{% endif %} d-flex align-items-center mb-4" role="alert">
-                        <div class="flex-grow-1">
-                            {% if recent_orchestration.status == 'completed' %}
-                                <h5 class="alert-heading mb-2">
-                                    <i class="fas fa-check-circle me-2"></i>LLM Orchestration Completed
-                                </h5>
-                                <p class="mb-2">
-                                    The 5-stage LLM orchestration workflow has successfully analyzed this experiment
-                                    {% if recent_orchestration.confidence %}
-                                    with <strong>{{ (recent_orchestration.confidence * 100) | round(0) }}% confidence</strong>
-                                    {% endif %}.
-                                </p>
-                                <small class="text-muted">
-                                    Completed {{ recent_orchestration.completed_at.strftime('%Y-%m-%d %H:%M') }}
-                                    ({{ ((recent_orchestration.completed_at - recent_orchestration.started_at).total_seconds()) | round(0) }}s duration)
-                                </small>
-                            {% elif recent_orchestration.status == 'executing' %}
-                                <h5 class="alert-heading mb-2">
-                                    <i class="fas fa-spinner fa-spin me-2"></i>Orchestration Running
-                                </h5>
-                                <p class="mb-0">
-                                    The LLM orchestration workflow is currently analyzing this experiment...
-                                </p>
-                            {% elif recent_orchestration.status == 'failed' %}
-                                <h5 class="alert-heading mb-2">
-                                    <i class="fas fa-exclamation-triangle me-2"></i>Orchestration Failed
-                                </h5>
-                                <p class="mb-0">
-                                    {{ recent_orchestration.error_message }}
-                                </p>
-                            {% else %}
-                                <h5 class="alert-heading mb-2">
-                                    <i class="fas fa-info-circle me-2"></i>Orchestration Status: {{ recent_orchestration.status }}
-                                </h5>
-                                <p class="mb-0">
-                                    Current stage: {{ recent_orchestration.current_stage or 'Unknown' }}
-                                </p>
-                            {% endif %}
-                        </div>
-                        {% if recent_orchestration.status == 'completed' %}
-                        <div class="ms-3">
-                            <a href="{{ url_for('orchestration.view_results', run_id=recent_orchestration.id) }}"
-                               class="btn btn-success btn-lg">
-                                <i class="fas fa-chart-line me-2"></i>View Results
-                            </a>
-                        </div>
-                        {% elif recent_orchestration.status == 'executing' %}
-                        <div class="ms-3">
-                            <a href="{{ url_for('orchestration.view_results', run_id=recent_orchestration.id) }}"
-                               class="btn btn-info">
-                                <i class="fas fa-sync-alt me-2"></i>Check Status
-                            </a>
-                        </div>
-                        {% endif %}
-                    </div>
+                <div class="d-flex gap-2">
+                    <a href="{{ url_for('experiments.index') }}" class="btn btn-outline-secondary">
+                        <i class="fas fa-arrow-left me-1"></i>All Experiments
+                    </a>
+                    {% if current_user.is_authenticated %}
+                    <a href="{{ url_for('experiments.edit', experiment_id=experiment.id) }}" class="btn btn-outline-primary">
+                        <i class="fas fa-edit me-1"></i>Edit
+                    </a>
+                    <button class="btn btn-outline-danger" id="delete-experiment">
+                        <i class="fas fa-trash me-1"></i>Delete
+                    </button>
                     {% endif %}
-
-                    <div class="row mb-4">
-                        <div class="col-md-6">
-                            <h5>Experiment Details</h5>
-                            <dl class="row">
-                                <dt class="col-sm-4">Type:</dt>
-                                <dd class="col-sm-8">
-                                    {% if experiment.experiment_type == 'entity_extraction' %}
-                                        <span class="badge bg-primary">Document Analysis</span>
-                                    {% elif experiment.experiment_type == 'temporal_evolution' %}
-                                        <span class="badge bg-info">Temporal Evolution</span>
-                                    {% elif experiment.experiment_type == 'domain_comparison' %}
-                                        <span class="badge bg-success">Domain Comparison</span>
-                                    {% else %}
-                                        <span class="badge bg-secondary">{{ experiment.experiment_type }}</span>
-                                    {% endif %}
-                                </dd>
-                                
-                                <dt class="col-sm-4">Documents:</dt>
-                                <dd class="col-sm-8">{{ experiment.get_document_count() }}</dd>
-                                
-                                <dt class="col-sm-4">Total Words:</dt>
-                                <dd class="col-sm-8">{{ experiment.get_total_word_count() | number_format }}</dd>
-                                
-                                <dt class="col-sm-4">Created:</dt>
-                                <dd class="col-sm-8">{{ experiment.created_at.strftime('%Y-%m-%d %H:%M') }}</dd>
-                                
-                                {% if experiment.started_at %}
-                                <dt class="col-sm-4">Started:</dt>
-                                <dd class="col-sm-8">{{ experiment.started_at.strftime('%Y-%m-%d %H:%M') }}</dd>
-                                {% endif %}
-                                
-                                {% if experiment.completed_at %}
-                                <dt class="col-sm-4">Completed:</dt>
-                                <dd class="col-sm-8">{{ experiment.completed_at.strftime('%Y-%m-%d %H:%M') }}</dd>
-                                {% endif %}
-                            </dl>
-                        </div>
-                        
-                        <div class="col-md-6">
-                            <h5>Document Processing</h5>
-                            <div class="btn-group-vertical w-100" role="group">
-                                {% if experiment.get_document_count() > 0 %}
-                                <a href="{{ url_for('experiments.document_pipeline', experiment_id=experiment.id) }}"
-                                   class="btn btn-primary text-start">
-                                    <i class="fas fa-cogs"></i> Document Processing Pipeline
-                                </a>
-                                {% endif %}
-
-                                {% if experiment.experiment_type == 'domain_comparison' %}
-                                <a href="{{ url_for('experiments.manage_terms', experiment_id=experiment.id) }}"
-                                   class="btn btn-info text-start">
-                                    <i class="fas fa-tags"></i> Manage Terms
-                                </a>
-                                {% endif %}
-
-                                {% if experiment.experiment_type == 'temporal_evolution' %}
-                                <a href="{{ url_for('experiments.manage_temporal_terms', experiment_id=experiment.id) }}"
-                                   class="btn btn-info text-start">
-                                    <i class="fas fa-clock"></i> Manage Temporal Terms
-                                </a>
-                                {% endif %}
-
-                                {% if current_user.is_authenticated %}
-                                <a href="{{ url_for('experiments.edit', experiment_id=experiment.id) }}"
-                                   class="btn btn-outline-secondary text-start">
-                                    <i class="fas fa-edit"></i> Edit Experiment
-                                </a>
-
-                                <button class="btn btn-outline-danger text-start" id="delete-experiment">
-                                    <i class="fas fa-trash"></i> Delete Experiment
-                                </button>
-                                {% endif %}
-                            </div>
-                        </div>
-                    </div>
-                    
-                    {% if experiment.description %}
-                    <div class="mb-4">
-                        <h5>Description</h5>
-                        <p>{{ experiment.description }}</p>
-                    </div>
-                    {% endif %}
-                    
-                    
-                    <div class="mb-4">
-                        <h5>Documents ({{ experiment.get_document_count() }})</h5>
-                        <div class="table-responsive">
-                            <table class="table table-sm table-hover">
-                                <thead>
-                                    <tr>
-                                        <th>Document</th>
-                                        <th>Type</th>
-                                        <th>Words</th>
-                                        <th>Uploaded</th>
-                                        <th>Actions</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {% for document in experiment.documents %}
-                                    <tr>
-                                        <td>{{ document.get_display_name() }}</td>
-                                        <td>
-                                            {% if document.file_type %}
-                                                <span class="badge bg-secondary">{{ document.file_type }}</span>
-                                            {% else %}
-                                                <span class="badge bg-secondary">{{ document.content_type }}</span>
-                                            {% endif %}
-                                        </td>
-                                        <td>{{ document.word_count or 0 }}</td>
-                                        <td>{{ document.created_at.strftime('%Y-%m-%d') }}</td>
-                                        <td>
-                                            <a href="{{ url_for('experiments.process_document', experiment_id=experiment.id, document_uuid=document.uuid) }}"
-                                               class="btn btn-sm btn-outline-primary">
-                                                <i class="fas fa-eye"></i> View
-                                            </a>
-                                        </td>
-                                    </tr>
-                                    {% endfor %}
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-
-                    
-                    {% if experiment.results_summary %}
-                    <div class="alert alert-info">
-                        <h5><i class="fas fa-info-circle"></i> Results Summary</h5>
-                        <p>{{ experiment.results_summary }}</p>
-                    </div>
-                    {% endif %}
-
-                    <!-- Results and Analysis Links -->
-                    {% if experiment.status == 'completed' %}
-                    <div class="mb-4">
-                        <h5><i class="fas fa-chart-bar"></i> Analysis Results</h5>
-                        <div class="btn-group" role="group">
-                            <a href="{{ url_for('experiments.results', experiment_id=experiment.id) }}"
-                               class="btn btn-outline-primary">
-                                <i class="fas fa-chart-line"></i> Standard Results
-                            </a>
-                            <a href="{{ url_for('experiments.orchestration_results', experiment_id=experiment.id) }}"
-                               class="btn btn-outline-info">
-                                <i class="fas fa-brain"></i> LLM Orchestration Results
-                            </a>
-                        </div>
-                        <p class="text-muted small mt-2 mb-0">
-                            <strong>Standard Results:</strong> Traditional analysis output (embeddings, entities, segments)<br>
-                            <strong>Orchestration Results:</strong> LLM-guided tool selection and cross-document synthesis
-                        </p>
-                    </div>
-                    {% endif %}
-
-                    <div class="d-flex justify-content-between">
-                        <a href="{{ url_for('experiments.index') }}" class="btn btn-secondary">
-                            <i class="fas fa-arrow-left"></i> Back to Experiments
-                        </a>
-                    </div>
                 </div>
             </div>
         </div>
     </div>
 
+    {# Orchestration Status Banner #}
+    {% if recent_orchestration %}
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="alert {% if recent_orchestration.status == 'completed' %}alert-success{% elif recent_orchestration.status == 'executing' %}alert-info{% elif recent_orchestration.status == 'failed' %}alert-danger{% else %}alert-warning{% endif %} d-flex align-items-center py-2" role="alert">
+                <div class="flex-grow-1">
+                    {% if recent_orchestration.status == 'completed' %}
+                        <strong><i class="fas fa-robot me-2"></i>LLM Orchestration Complete</strong>
+                        {% if recent_orchestration.confidence %}
+                        <span class="ms-2">{{ (recent_orchestration.confidence * 100) | round(0) }}% confidence</span>
+                        {% endif %}
+                        <span class="text-muted ms-2">
+                            {{ ((recent_orchestration.completed_at - recent_orchestration.started_at).total_seconds()) | round(0) }}s
+                        </span>
+                    {% elif recent_orchestration.status == 'executing' %}
+                        <strong><i class="fas fa-spinner fa-spin me-2"></i>Orchestration Running...</strong>
+                    {% elif recent_orchestration.status == 'failed' %}
+                        <strong><i class="fas fa-exclamation-triangle me-2"></i>Orchestration Failed</strong>
+                        <span class="ms-2">{{ recent_orchestration.error_message }}</span>
+                    {% else %}
+                        <strong><i class="fas fa-info-circle me-2"></i>{{ recent_orchestration.status | title }}</strong>
+                    {% endif %}
+                </div>
+                {% if recent_orchestration.status == 'completed' %}
+                <a href="{{ url_for('experiments.llm_orchestration_results', experiment_id=experiment.id, run_id=recent_orchestration.id) }}"
+                   class="btn btn-success btn-sm">
+                    <i class="fas fa-chart-line me-1"></i>View Results
+                </a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    {% endif %}
 
+    <!-- Main Content Grid -->
+    <div class="row">
+        <!-- Left Column: Stats and Actions -->
+        <div class="col-lg-4 mb-4">
+            <!-- Experiment Statistics Card -->
+            <div class="card mb-4">
+                <div class="card-header py-2">
+                    <h6 class="mb-0"><i class="fas fa-chart-pie me-2"></i>Experiment Statistics</h6>
+                </div>
+                <div class="card-body">
+                    <div class="row text-center">
+                        <div class="col-6 mb-3">
+                            <div class="h3 mb-0 text-primary">{{ experiment.get_document_count() }}</div>
+                            <small class="text-muted">Documents</small>
+                        </div>
+                        <div class="col-6 mb-3">
+                            <div class="h3 mb-0 text-info">{{ experiment.get_total_word_count() | number_format }}</div>
+                            <small class="text-muted">Total Words</small>
+                        </div>
+                        <div class="col-6">
+                            <div class="h3 mb-0 text-success">{{ total_processing_ops or 0 }}</div>
+                            <small class="text-muted">Processing Operations</small>
+                        </div>
+                        {% if temporal_data and temporal_data.periods %}
+                        <div class="col-6">
+                            <div class="h3 mb-0 text-warning">{{ temporal_data.periods | length }}</div>
+                            <small class="text-muted">Time Periods</small>
+                        </div>
+                        {% elif temporal_data and temporal_data.time_periods and temporal_data.time_periods | length > 0 %}
+                        <div class="col-6">
+                            <div class="h3 mb-0 text-warning">{{ temporal_data.time_periods | length }}</div>
+                            <small class="text-muted">Time Points</small>
+                        </div>
+                        {% elif temporal_data and temporal_data.semantic_events %}
+                        <div class="col-6">
+                            <div class="h3 mb-0 text-warning">{{ temporal_data.semantic_events | length }}</div>
+                            <small class="text-muted">Semantic Events</small>
+                        </div>
+                        {% else %}
+                        <div class="col-6">
+                            <div class="h3 mb-0 text-secondary">-</div>
+                            <small class="text-muted">{{ 'Periods' if experiment.experiment_type == 'temporal_evolution' else 'References' }}</small>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Processing Summary Card -->
+            {% if processing_summary %}
+            <div class="card mb-4">
+                <div class="card-header py-2">
+                    <h6 class="mb-0"><i class="fas fa-cogs me-2"></i>Processing Summary</h6>
+                </div>
+                <div class="card-body">
+                    <div class="d-flex flex-wrap gap-2">
+                        {% for artifact_type, count in processing_summary.items() %}
+                        <div class="d-flex align-items-center bg-light rounded px-2 py-1">
+                            <i class="fas {{ get_op_icon(artifact_type) }} me-2 text-{{ get_op_color(artifact_type) }}"></i>
+                            <span class="small">{{ artifact_type | replace('_', ' ') | title }}: <strong>{{ count }}</strong></span>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Actions Card -->
+            <div class="card mb-4">
+                <div class="card-header py-2">
+                    <h6 class="mb-0"><i class="fas fa-play-circle me-2"></i>Actions</h6>
+                </div>
+                <div class="card-body">
+                    <div class="d-grid gap-2">
+                        {% if experiment.get_document_count() > 0 %}
+                        <a href="{{ url_for('experiments.document_pipeline', experiment_id=experiment.id) }}"
+                           class="btn btn-primary">
+                            <i class="fas fa-cogs me-2"></i>Document Pipeline
+                        </a>
+                        {% endif %}
+
+                        {% if experiment.experiment_type == 'temporal_evolution' %}
+                        <a href="{{ url_for('experiments.manage_temporal_terms', experiment_id=experiment.id) }}"
+                           class="btn btn-info">
+                            <i class="fas fa-clock me-2"></i>Manage Temporal Terms
+                        </a>
+                        <a href="{{ url_for('experiments.timeline_view', experiment_id=experiment.id) }}"
+                           class="btn btn-outline-info">
+                            <i class="fas fa-stream me-2"></i>View Timeline
+                        </a>
+                        {% elif experiment.experiment_type == 'domain_comparison' %}
+                        <a href="{{ url_for('experiments.manage_terms', experiment_id=experiment.id) }}"
+                           class="btn btn-info">
+                            <i class="fas fa-tags me-2"></i>Manage Terms
+                        </a>
+                        {% endif %}
+
+                        {% if experiment.status == 'completed' %}
+                        <a href="{{ url_for('experiments.results', experiment_id=experiment.id) }}"
+                           class="btn btn-outline-success">
+                            <i class="fas fa-chart-bar me-2"></i>View Results
+                        </a>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Description -->
+            {% if experiment.description %}
+            <div class="card mb-4">
+                <div class="card-header py-2">
+                    <h6 class="mb-0"><i class="fas fa-info-circle me-2"></i>Description</h6>
+                </div>
+                <div class="card-body">
+                    <p class="mb-0 small">{{ experiment.description }}</p>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Metadata -->
+            <div class="card">
+                <div class="card-header py-2">
+                    <h6 class="mb-0"><i class="fas fa-calendar me-2"></i>Metadata</h6>
+                </div>
+                <div class="card-body small">
+                    <dl class="row mb-0">
+                        <dt class="col-5">Created:</dt>
+                        <dd class="col-7">{{ experiment.created_at.strftime('%Y-%m-%d') }}</dd>
+                        {% if experiment.started_at %}
+                        <dt class="col-5">Started:</dt>
+                        <dd class="col-7">{{ experiment.started_at.strftime('%Y-%m-%d') }}</dd>
+                        {% endif %}
+                        {% if experiment.completed_at %}
+                        <dt class="col-5">Completed:</dt>
+                        <dd class="col-7">{{ experiment.completed_at.strftime('%Y-%m-%d') }}</dd>
+                        {% endif %}
+                    </dl>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Column: Temporal Periods and Documents -->
+        <div class="col-lg-8">
+            {# Temporal Periods Card (only for temporal_evolution) #}
+            {% if experiment.experiment_type == 'temporal_evolution' and temporal_data %}
+            <div class="card mb-4">
+                <div class="card-header py-2 d-flex justify-content-between align-items-center">
+                    <h6 class="mb-0"><i class="fas fa-clock me-2"></i>Temporal Periods</h6>
+                    <a href="{{ url_for('experiments.manage_temporal_terms', experiment_id=experiment.id) }}"
+                       class="btn btn-sm btn-outline-info">
+                        <i class="fas fa-edit me-1"></i>Manage
+                    </a>
+                </div>
+                <div class="card-body">
+                    {% if temporal_data.periods %}
+                    {# Full period objects with label, start_year, end_year #}
+                    <div class="d-flex flex-wrap gap-2">
+                        {% for period in temporal_data.periods %}
+                        <div class="border rounded p-2 text-center" style="min-width: 120px;">
+                            <div class="fw-bold small">{{ period.label or period.name }}</div>
+                            <div class="text-muted small">
+                                {{ period.start_year }}{% if period.end_year %} - {{ period.end_year }}{% endif %}
+                            </div>
+                            {% if temporal_data.period_documents and temporal_data.period_documents[period.label|default(period.name, true)] %}
+                            <div class="text-primary small">
+                                <i class="fas fa-file-alt me-1"></i>{{ temporal_data.period_documents[period.label|default(period.name, true)] | length }} docs
+                            </div>
+                            {% endif %}
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% elif temporal_data.time_periods and temporal_data.time_periods | length > 0 %}
+                    {# Simple year list format #}
+                    <div class="d-flex flex-wrap gap-2 align-items-center">
+                        <span class="text-muted small me-2">Time Range:</span>
+                        {% if temporal_data.time_periods | length == 2 %}
+                        <div class="border rounded p-2 text-center" style="min-width: 120px;">
+                            <div class="fw-bold small">{{ temporal_data.time_periods[0] }} - {{ temporal_data.time_periods[-1] }}</div>
+                            <div class="text-muted small">{{ temporal_data.time_periods[-1] - temporal_data.time_periods[0] }} years</div>
+                        </div>
+                        {% else %}
+                        {% for year in temporal_data.time_periods %}
+                        <span class="badge bg-info">{{ year }}</span>
+                        {% endfor %}
+                        {% endif %}
+                    </div>
+                    <div class="mt-2 small text-muted">
+                        <i class="fas fa-info-circle me-1"></i>
+                        Define detailed periods for timeline visualization
+                    </div>
+                    {% else %}
+                    <div class="text-muted text-center py-3">
+                        <i class="fas fa-clock fa-2x mb-2 d-block opacity-50"></i>
+                        <p class="mb-2">No temporal periods defined yet.</p>
+                        <a href="{{ url_for('experiments.manage_temporal_terms', experiment_id=experiment.id) }}"
+                           class="btn btn-sm btn-info">
+                            <i class="fas fa-plus me-1"></i>Define Periods
+                        </a>
+                    </div>
+                    {% endif %}
+
+                    {% if temporal_data.semantic_events %}
+                    <hr class="my-3">
+                    <h6 class="small text-muted mb-2">Semantic Events ({{ temporal_data.semantic_events | length }})</h6>
+                    <div class="d-flex flex-wrap gap-1">
+                        {% for event in temporal_data.semantic_events[:5] %}
+                        <span class="badge bg-warning text-dark" title="{{ event.description }}">
+                            {{ event.type_label or event.event_type }}
+                        </span>
+                        {% endfor %}
+                        {% if temporal_data.semantic_events | length > 5 %}
+                        <span class="badge bg-secondary">+{{ temporal_data.semantic_events | length - 5 }} more</span>
+                        {% endif %}
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Documents Card -->
+            <div class="card">
+                <div class="card-header py-2 d-flex justify-content-between align-items-center">
+                    <h6 class="mb-0">
+                        <i class="fas fa-file-alt me-2"></i>Documents ({{ documents_enhanced | length }})
+                    </h6>
+                    <a href="{{ url_for('experiments.document_pipeline', experiment_id=experiment.id) }}"
+                       class="btn btn-sm btn-outline-primary">
+                        <i class="fas fa-cogs me-1"></i>Process All
+                    </a>
+                </div>
+                <div class="card-body p-0">
+                    {% if documents_enhanced %}
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th style="width: 35%">Document</th>
+                                    <th style="width: 15%">Date</th>
+                                    <th style="width: 35%">Processing</th>
+                                    <th style="width: 15%" class="text-center">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for item in documents_enhanced %}
+                                {% set doc = item.document %}
+                                <tr>
+                                    <td>
+                                        <div class="d-flex align-items-start">
+                                            {# Document Type Icon #}
+                                            <div class="me-2 text-muted">
+                                                {% if doc.file_type == 'pdf' %}
+                                                <i class="fas fa-file-pdf fa-lg text-danger"></i>
+                                                {% elif doc.file_type in ['doc', 'docx'] %}
+                                                <i class="fas fa-file-word fa-lg text-primary"></i>
+                                                {% elif doc.content_type == 'text' %}
+                                                <i class="fas fa-file-alt fa-lg text-secondary"></i>
+                                                {% elif doc.document_type == 'reference' %}
+                                                <i class="fas fa-book fa-lg text-success"></i>
+                                                {% else %}
+                                                <i class="fas fa-file fa-lg"></i>
+                                                {% endif %}
+                                            </div>
+                                            <div>
+                                                <div class="fw-medium">
+                                                    {{ doc.title or doc.get_display_name() | truncate(40) }}
+                                                </div>
+                                                <div class="small text-muted">
+                                                    {% if doc.authors %}{{ doc.authors | truncate(30) }}{% endif %}
+                                                    {% if doc.version_number and doc.version_number > 1 %}
+                                                    <span class="badge bg-secondary ms-1">v{{ doc.version_number }}</span>
+                                                    {% endif %}
+                                                    {% if item.other_experiments_count > 0 %}
+                                                    <span class="badge bg-info ms-1" title="Used in {{ item.other_experiments_count }} other experiment(s)">
+                                                        +{{ item.other_experiments_count }} exp
+                                                    </span>
+                                                    {% endif %}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <span class="small text-muted">
+                                            {% if doc.publication_date %}
+                                            {{ doc.publication_date.strftime('%Y') }}
+                                            {% else %}
+                                            -
+                                            {% endif %}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        {% if item.processing_by_type %}
+                                        <div class="d-flex flex-wrap gap-1">
+                                            {% for artifact_type, methods in item.processing_by_type.items() %}
+                                            {{ operation_badge(artifact_type, methods[0].method_key if methods else None) }}
+                                            {% endfor %}
+                                        </div>
+                                        {% else %}
+                                        <span class="text-muted small">No processing yet</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-center">
+                                        <a href="{{ url_for('experiments.process_document', experiment_id=experiment.id, document_uuid=doc.uuid) }}"
+                                           class="btn btn-sm btn-outline-primary" title="Process Document">
+                                            <i class="fas fa-cog"></i>
+                                        </a>
+                                        <a href="{{ url_for('text_input.document_detail', document_uuid=doc.uuid) }}"
+                                           class="btn btn-sm btn-outline-secondary" title="View Document">
+                                            <i class="fas fa-eye"></i>
+                                        </a>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="text-center py-4">
+                        <i class="fas fa-file-alt fa-3x text-muted mb-3"></i>
+                        <p class="text-muted">No documents in this experiment yet.</p>
+                        <a href="{{ url_for('experiments.edit', experiment_id=experiment.id) }}" class="btn btn-primary">
+                            <i class="fas fa-plus me-1"></i>Add Documents
+                        </a>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            {# References Section (if any) #}
+            {% set references = experiment.references | list %}
+            {% if references %}
+            <div class="card mt-4">
+                <div class="card-header py-2">
+                    <h6 class="mb-0"><i class="fas fa-book me-2"></i>References ({{ references | length }})</h6>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-sm table-hover mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Reference</th>
+                                    <th>Source</th>
+                                    <th>Words</th>
+                                    <th class="text-center">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for ref in references %}
+                                <tr>
+                                    <td>
+                                        <div class="d-flex align-items-center">
+                                            <i class="fas fa-book text-success me-2"></i>
+                                            {{ ref.get_display_name() | truncate(40) }}
+                                        </div>
+                                    </td>
+                                    <td>
+                                        {% if ref.source_metadata and ref.source_metadata.get('source') %}
+                                            <span class="badge bg-info">{{ ref.source_metadata.get('source') }}</span>
+                                        {% else %}
+                                            <span class="badge bg-secondary">Reference</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ ref.word_count or 0 }}</td>
+                                    <td class="text-center">
+                                        <a href="{{ url_for('experiments.process_document', experiment_id=experiment.id, document_uuid=ref.uuid) }}"
+                                           class="btn btn-sm btn-outline-success">
+                                            <i class="fas fa-eye"></i>
+                                        </a>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            {# Results Summary (if completed) #}
+            {% if experiment.results_summary %}
+            <div class="card mt-4">
+                <div class="card-header py-2">
+                    <h6 class="mb-0"><i class="fas fa-chart-bar me-2"></i>Results Summary</h6>
+                </div>
+                <div class="card-body">
+                    <p class="mb-0">{{ experiment.results_summary }}</p>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
 </div>
 
 <script>
@@ -252,41 +482,32 @@ document.addEventListener('DOMContentLoaded', function() {
     const deleteBtn = document.getElementById('delete-experiment');
     if (deleteBtn) {
         deleteBtn.addEventListener('click', async function() {
-            const confirmMessage = `Are you sure you want to delete this experiment?\n\nThis will delete:\n• All processing results (embeddings, segments, entities)\n• All experiment-specific data\n\nOriginal documents will be preserved.\n\nThis action cannot be undone.`;
+            const confirmMessage = `Are you sure you want to delete this experiment?\n\nThis will delete:\n- All processing results (embeddings, segments, entities)\n- All experiment-specific data\n\nOriginal documents will be preserved.\n\nThis action cannot be undone.`;
 
             if (confirm(confirmMessage)) {
-                // Disable button and show loading state
                 deleteBtn.disabled = true;
                 const originalHTML = deleteBtn.innerHTML;
-                deleteBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Deleting...';
+                deleteBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
 
                 try {
                     const response = await fetch(`/experiments/{{ experiment.id }}/delete`, {
                         method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                        }
+                        headers: { 'Content-Type': 'application/json' }
                     });
 
                     const data = await response.json();
                     if (data.success) {
-                        // Show success message briefly before redirect
-                        deleteBtn.innerHTML = '<i class="fas fa-check"></i> Deleted!';
+                        deleteBtn.innerHTML = '<i class="fas fa-check"></i>';
                         deleteBtn.classList.remove('btn-outline-danger');
                         deleteBtn.classList.add('btn-success');
-                        setTimeout(() => {
-                            window.location.href = '/experiments';
-                        }, 500);
+                        setTimeout(() => { window.location.href = '/experiments'; }, 500);
                     } else {
                         alert('Error: ' + data.error);
-                        // Restore button state
                         deleteBtn.disabled = false;
                         deleteBtn.innerHTML = originalHTML;
                     }
                 } catch (error) {
-                    console.error('Delete error:', error);
                     alert('Error deleting experiment: ' + error.message);
-                    // Restore button state
                     deleteBtn.disabled = false;
                     deleteBtn.innerHTML = originalHTML;
                 }
@@ -295,13 +516,4 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 });
 </script>
-
-{% endblock %}
-
-{% block extra_css %}
-<style>
-    .btn-group-vertical .btn {
-        margin-bottom: 0.5rem;
-    }
-</style>
 {% endblock %}

@@ -155,31 +155,37 @@ class InheritanceVersioningService:
             raise
     
     @staticmethod
-    def _record_version_change(document_id, version_number, change_type, description, 
+    def _record_version_change(document_id, version_number, change_type, description,
                               previous_version, user_id, processing_metadata):
-        """Record what changed in this version"""
+        """Record what changed in this version.
+
+        Uses a savepoint to isolate this operation - if it fails (e.g., table doesn't exist
+        in test environment), the main transaction continues unaffected.
+        """
         try:
-            db.session.execute(
-                text("""
-                    INSERT INTO version_changelog 
-                    (document_id, version_number, change_type, change_description, 
-                     previous_version, created_by, processing_metadata)
-                    VALUES (:doc_id, :version, :change_type, :description, 
-                            :prev_version, :user_id, :metadata)
-                """),
-                {
-                    'doc_id': document_id,
-                    'version': version_number,
-                    'change_type': change_type,
-                    'description': description,
-                    'prev_version': previous_version,
-                    'user_id': user_id,
-                    'metadata': json.dumps(processing_metadata) if processing_metadata else None
-                }
-            )
+            # Use savepoint to prevent transaction abort on failure
+            with db.session.begin_nested():
+                db.session.execute(
+                    text("""
+                        INSERT INTO version_changelog
+                        (document_id, version_number, change_type, change_description,
+                         previous_version, created_by, processing_metadata)
+                        VALUES (:doc_id, :version, :change_type, :description,
+                                :prev_version, :user_id, :metadata)
+                    """),
+                    {
+                        'doc_id': document_id,
+                        'version': version_number,
+                        'change_type': change_type,
+                        'description': description,
+                        'prev_version': previous_version,
+                        'user_id': user_id,
+                        'metadata': json.dumps(processing_metadata) if processing_metadata else None
+                    }
+                )
         except Exception as e:
             logger.error(f"Failed to record version change: {str(e)}")
-            # Don't raise - this is just logging
+            # Don't raise - this is just logging, savepoint handles rollback
     
     @staticmethod
     def get_document_version_history(document_id):

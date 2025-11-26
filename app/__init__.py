@@ -68,6 +68,7 @@ def create_app(config_name=None):
     from app.routes.orchestration import orchestration_bp
     from app.routes.linked_data import linked_data_bp
     from app.routes.docs import docs_bp
+    from app.routes.document_methods_api import document_methods_bp
 
     app.register_blueprint(auth_bp, url_prefix='/auth')
     app.register_blueprint(admin_bp)
@@ -88,6 +89,7 @@ def create_app(config_name=None):
     app.register_blueprint(orchestration_bp)
     app.register_blueprint(linked_data_bp, url_prefix='/linked-data')
     app.register_blueprint(docs_bp)
+    app.register_blueprint(document_methods_bp)
 
     # Composite documents removed - using inheritance-based versioning
     
@@ -109,9 +111,20 @@ def create_app(config_name=None):
             'term_creation': 'primary',
             'term_update': 'primary',
             'document_upload': 'success',
+            'text_extraction': 'success',
+            'metadata_extraction': 'info',
+            'metadata_extraction_pdf': 'secondary',
+            'metadata_update': 'warning',
+            'metadata_field_update': 'warning',
+            'document_save': 'success',
             'experiment_creation': 'info',
             'tool_execution': 'warning',
-            'orchestration_run': 'danger'
+            'orchestration_run': 'danger',
+            'document_segmentation': 'primary',
+            'embedding_generation': 'info',
+            'entity_extraction': 'warning',
+            'temporal_extraction': 'danger',
+            'definition_extraction': 'primary'
         }
         return colors.get(activity_type, 'secondary')
 
@@ -122,9 +135,20 @@ def create_app(config_name=None):
             'term_creation': 'fa-plus',
             'term_update': 'fa-edit',
             'document_upload': 'fa-upload',
+            'text_extraction': 'fa-file-alt',
+            'metadata_extraction': 'fa-tags',
+            'metadata_extraction_pdf': 'fa-file-pdf',
+            'metadata_update': 'fa-edit',
+            'metadata_field_update': 'fa-pen',
+            'document_save': 'fa-save',
             'experiment_creation': 'fa-flask',
             'tool_execution': 'fa-cog',
-            'orchestration_run': 'fa-brain'
+            'orchestration_run': 'fa-brain',
+            'document_segmentation': 'fa-cut',
+            'embedding_generation': 'fa-vector-square',
+            'entity_extraction': 'fa-sitemap',
+            'temporal_extraction': 'fa-clock',
+            'definition_extraction': 'fa-book'
         }
         return icons.get(activity_type, 'fa-circle')
 

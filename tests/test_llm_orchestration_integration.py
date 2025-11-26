@@ -336,37 +336,34 @@ class TestErrorRecovery:
 class TestStrategyModification:
     """Test user modification of recommended strategies."""
 
-    @patch('app.services.workflow_executor.WorkflowExecutor._execute_graph')
     @patch('app.services.workflow_executor.WorkflowExecutor._execute_processing')
     def test_modify_strategy_add_tools(
         self,
         mock_processing,
-        mock_graph,
         auth_client,
         multi_doc_experiment,
         db_session,
         test_user
     ):
         """Test adding additional tools to recommended strategy."""
-        # Start orchestration
-        mock_graph.return_value = {
-            'experiment_goal': 'Analyze temporal evolution',
-            'recommended_strategy': {
+        # With Celery, orchestration is async. Create a run in 'reviewing' state directly
+        # to test the strategy modification flow (simulating completed recommendation phase)
+        run = ExperimentOrchestrationRun(
+            experiment_id=multi_doc_experiment.id,
+            user_id=test_user.id,
+            status='reviewing',
+            current_stage='reviewing',
+            experiment_goal='Analyze temporal evolution',
+            recommended_strategy={
                 '1': ['extract_entities_spacy'],
                 '2': ['extract_entities_spacy']
             },
-            'strategy_reasoning': 'Documents require entity extraction',
-            'confidence': 0.82
-        }
-
-        start_response = auth_client.post(
-            f'/experiments/{multi_doc_experiment.id}/orchestration/analyze',
-            data=json.dumps({'review_choices': True}),
-            content_type='application/json'
+            strategy_reasoning='Documents require entity extraction',
+            confidence=0.82
         )
-
-        data = json.loads(start_response.data)
-        run_id = data['run_id']
+        db_session.add(run)
+        db_session.commit()
+        run_id = str(run.id)
 
         # Modify strategy to add temporal extraction
         modified_strategy = {
@@ -404,32 +401,31 @@ class TestStrategyModification:
         state_arg = call_args[0][0]  # First positional argument is the state dict
         assert state_arg.get('modified_strategy') == modified_strategy
 
-    @patch('app.services.workflow_executor.WorkflowExecutor._execute_graph')
     def test_modify_strategy_remove_tools(
         self,
-        mock_graph,
         auth_client,
         multi_doc_experiment,
-        db_session
+        db_session,
+        test_user
     ):
         """Test removing tools from recommended strategy."""
-        mock_graph.return_value = {
-            'experiment_goal': 'Test',
-            'recommended_strategy': {
+        # With Celery, orchestration is async. Create a run in 'reviewing' state directly
+        # to test strategy modification (simulating completed recommendation phase)
+        run = ExperimentOrchestrationRun(
+            experiment_id=multi_doc_experiment.id,
+            user_id=test_user.id,
+            status='reviewing',
+            current_stage='reviewing',
+            experiment_goal='Test',
+            recommended_strategy={
                 '1': ['segment_paragraph', 'extract_entities_spacy', 'extract_temporal'],
                 '2': ['segment_sentence', 'extract_entities_spacy']
             },
-            'strategy_reasoning': 'Comprehensive analysis',
-            'confidence': 0.75
-        }
-
-        start_response = auth_client.post(
-            f'/experiments/{multi_doc_experiment.id}/orchestration/analyze',
-            data=json.dumps({'review_choices': True}),
-            content_type='application/json'
+            strategy_reasoning='Comprehensive analysis',
+            confidence=0.75
         )
-
-        run_id = json.loads(start_response.data)['run_id']
+        db_session.add(run)
+        db_session.commit()
 
         # Simplify strategy
         modified_strategy = {
@@ -437,11 +433,8 @@ class TestStrategyModification:
             '2': ['extract_entities_spacy']
         }
 
-        # Get the run to verify modification is saved
-        run = ExperimentOrchestrationRun.query.get(run_id)
-
-        # In real scenario, would approve and execute
-        # Here just verify the modification pattern works
+        # Verify run is in reviewing state (ready for user approval)
+        db_session.refresh(run)
         assert run.status == 'reviewing'
 
 

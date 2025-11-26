@@ -17,8 +17,8 @@ from app.orchestration.state import create_initial_state
 from app.orchestration.graph import get_orchestration_graph
 
 
-async def test_document_from_db(document_id: int):
-    """Test orchestration with document from database"""
+async def run_orchestration_with_document(document_id: int):
+    """Run orchestration with document from database (CLI script, not a pytest test)"""
 
     print(f"Testing Orchestration with Document ID: {document_id}")
     print("=" * 70)
@@ -124,4 +124,4 @@ if __name__ == '__main__':
     # Create Flask app context for database access
     app = create_app()
     with app.app_context():
-        asyncio.run(test_document_from_db(doc_id))
+        asyncio.run(run_orchestration_with_document(doc_id))

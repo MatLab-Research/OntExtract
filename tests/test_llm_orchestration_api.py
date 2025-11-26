@@ -500,7 +500,8 @@ class TestOrchestrationResults:
         )
 
         assert response.status_code == 200
-        assert b'Cross-Document Insights' in response.data or b'cross_document_insights' in response.data.lower()
+        # UI was redesigned - now shows 'LLM Orchestration Results' or 'Term Usage Patterns'
+        assert b'LLM Orchestration Results' in response.data or b'Term Usage Patterns' in response.data
 
     def test_view_results_nonexistent_experiment(
         self,

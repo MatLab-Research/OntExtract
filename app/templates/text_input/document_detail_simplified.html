@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from 'shared/document_type_field.html' import document_type_field, document_type_display %}
 
 {% block title %}{{ document.title }} - OntExtract{% endblock %}
 
@@ -59,6 +60,9 @@
                         <i class="fas fa-ellipsis-v"></i>
                     </button>
                     <ul class="dropdown-menu">
+                        <li><a class="dropdown-item" href="{{ url_for('text_input.document_edit', document_uuid=document.uuid) }}">
+                                <i class="fas fa-edit me-2"></i>Edit Metadata
+                            </a></li>
                         <li><a class="dropdown-item" href="#" onclick="exportDocument('{{ document.uuid }}')">
                                 <i class="fas fa-download me-2"></i>Export
                             </a></li>
@@ -227,6 +231,83 @@
                             </div>
                             {% endif %}
 
+                            {% if document.issn %}
+                            <div class="col-md-6">
+                                <label class="form-label text-muted small mb-1">ISSN</label>
+                                <div class="form-control-plaintext py-1">{{ document.issn }}</div>
+                            </div>
+                            {% endif %}
+
+                            {% if document.editor %}
+                            <div class="col-md-6">
+                                <label class="form-label text-muted small mb-1">Editor</label>
+                                <div class="form-control-plaintext py-1">{{ document.editor }}</div>
+                            </div>
+                            {% endif %}
+
+                            {% if document.edition %}
+                            <div class="col-md-6">
+                                <label class="form-label text-muted small mb-1">Edition</label>
+                                <div class="form-control-plaintext py-1">{{ document.edition }}</div>
+                            </div>
+                            {% endif %}
+
+                            {% if document.container_title %}
+                            <div class="col-md-6">
+                                <label class="form-label text-muted small mb-1">Container Title</label>
+                                <div class="form-control-plaintext py-1">{{ document.container_title }}</div>
+                            </div>
+                            {% endif %}
+
+                            {% if document.volume %}
+                            <div class="col-md-3">
+                                <label class="form-label text-muted small mb-1">Volume</label>
+                                <div class="form-control-plaintext py-1">{{ document.volume }}</div>
+                            </div>
+                            {% endif %}
+
+                            {% if document.issue %}
+                            <div class="col-md-3">
+                                <label class="form-label text-muted small mb-1">Issue</label>
+                                <div class="form-control-plaintext py-1">{{ document.issue }}</div>
+                            </div>
+                            {% endif %}
+
+                            {% if document.pages %}
+                            <div class="col-md-3">
+                                <label class="form-label text-muted small mb-1">Pages</label>
+                                <div class="form-control-plaintext py-1">{{ document.pages }}</div>
+                            </div>
+                            {% endif %}
+
+                            {% if document.series %}
+                            <div class="col-md-3">
+                                <label class="form-label text-muted small mb-1">Series</label>
+                                <div class="form-control-plaintext py-1">{{ document.series }}</div>
+                            </div>
+                            {% endif %}
+
+                            {% if document.place %}
+                            <div class="col-md-6">
+                                <label class="form-label text-muted small mb-1">Publication Place</label>
+                                <div class="form-control-plaintext py-1">{{ document.place }}</div>
+                            </div>
+                            {% endif %}
+
+                            {% if document.entry_term %}
+                            <div class="col-md-6">
+                                <label class="form-label text-muted small mb-1">Entry Term</label>
+                                <div class="form-control-plaintext py-1">{{ document.entry_term }}</div>
+                            </div>
+                            {% endif %}
+
+                            {% if document.access_date %}
+                            <div class="col-md-6">
+                                <label class="form-label text-muted small mb-1">Access Date</label>
+                                <div class="form-control-plaintext py-1">{{ document.access_date.strftime('%Y-%m-%d') }}</div>
+                            </div>
+                            {% endif %}
+
                             {% if document.url %}
                             <div class="col-md-12">
                                 <label class="form-label text-muted small mb-1">URL</label>
@@ -243,6 +324,13 @@
                             <div class="col-md-12">
                                 <label class="form-label text-muted small mb-1">Abstract</label>
                                 <div class="form-control-plaintext py-1 small">{{ document.display_abstract }}</div>
+                            </div>
+                            {% endif %}
+
+                            {% if document.notes %}
+                            <div class="col-md-12">
+                                <label class="form-label text-muted small mb-1">Notes</label>
+                                <div class="form-control-plaintext py-1 small">{{ document.notes }}</div>
                             </div>
                             {% endif %}
 
@@ -557,16 +645,57 @@
                 <div class="card-body">
                     {% set crossref_count = namespace(value=0) %}
                     {% set semanticscholar_count = namespace(value=0) %}
+                    {% set pdf_count = namespace(value=0) %}
+                    {% set user_count = namespace(value=0) %}
+                    {% set manual_count = namespace(value=0) %}
                     {% if document.metadata_provenance %}
                     {% for field_name, prov_data in document.metadata_provenance.items() %}
-                        {% if prov_data.get('source') == 'crossref_auto' %}
+                        {% if prov_data.get('source') in ['crossref', 'crossref_auto'] %}
                             {% set crossref_count.value = crossref_count.value + 1 %}
                         {% endif %}
                         {% if prov_data.get('source') == 'semanticscholar' %}
                             {% set semanticscholar_count.value = semanticscholar_count.value + 1 %}
                         {% endif %}
+                        {% if prov_data.get('source') in ['pdf_analysis', 'file'] %}
+                            {% set pdf_count.value = pdf_count.value + 1 %}
+                        {% endif %}
+                        {% if prov_data.get('source') == 'user' %}
+                            {% set user_count.value = user_count.value + 1 %}
+                        {% endif %}
+                        {% if prov_data.get('source') == 'manual' %}
+                            {% set manual_count.value = manual_count.value + 1 %}
+                        {% endif %}
                     {% endfor %}
                     {% endif %}
+
+                    <!-- Source Summary Bar -->
+                    <div class="d-flex flex-wrap gap-1 mb-3">
+                        {% if semanticscholar_count.value > 0 %}
+                        <span class="badge bg-info" title="Semantic Scholar API">
+                            <i class="fas fa-brain me-1"></i>S2: {{ semanticscholar_count.value }}
+                        </span>
+                        {% endif %}
+                        {% if crossref_count.value > 0 %}
+                        <span class="badge bg-primary" title="CrossRef API">
+                            <i class="fas fa-university me-1"></i>CrossRef: {{ crossref_count.value }}
+                        </span>
+                        {% endif %}
+                        {% if pdf_count.value > 0 %}
+                        <span class="badge bg-secondary" title="PDF Analysis">
+                            <i class="fas fa-file-pdf me-1"></i>PDF: {{ pdf_count.value }}
+                        </span>
+                        {% endif %}
+                        {% if user_count.value > 0 %}
+                        <span class="badge bg-warning text-dark" title="User Provided">
+                            <i class="fas fa-user me-1"></i>User: {{ user_count.value }}
+                        </span>
+                        {% endif %}
+                        {% if manual_count.value > 0 %}
+                        <span class="badge bg-dark" title="Manual Entry">
+                            <i class="fas fa-keyboard me-1"></i>Manual: {{ manual_count.value }}
+                        </span>
+                        {% endif %}
+                    </div>
 
                     {% if semanticscholar_count.value > 0 %}
                     <div class="mb-3">
@@ -851,30 +980,68 @@
         }
         document.getElementById('metadataAuthors').value = authorsValue;
 
+        // Core fields
         document.getElementById('metadataPublicationDate').value = metadata.publication_date || metadata.publication_year || '';
+        document.getElementById('metadataEditor').value = metadata.editor || '';
+        document.getElementById('metadataEdition').value = metadata.edition || '';
+
+        // Publication details
         document.getElementById('metadataJournal').value = metadata.journal || '';
+        document.getElementById('metadataContainerTitle').value = metadata.container_title || '';
+        document.getElementById('metadataVolume').value = metadata.volume || '';
+        document.getElementById('metadataIssue').value = metadata.issue || '';
+        document.getElementById('metadataPages').value = metadata.pages || '';
+        document.getElementById('metadataSeries').value = metadata.series || '';
         document.getElementById('metadataPublisher').value = metadata.publisher || '';
-        document.getElementById('metadataType').value = metadata.type || '';
+        document.getElementById('metadataPlace').value = metadata.place || '';
+
+        // Identifiers
         document.getElementById('metadataDoi').value = metadata.doi || '';
-        document.getElementById('metadataIsbn').value = metadata.isbn || '';
         document.getElementById('metadataUrl').value = metadata.url || '';
+        document.getElementById('metadataIsbn').value = metadata.isbn || '';
+        document.getElementById('metadataIssn').value = metadata.issn || '';
+        document.getElementById('metadataAccessDate').value = metadata.access_date || '';
+
+        // Dictionary/Reference entry
+        document.getElementById('metadataEntryTerm').value = metadata.entry_term || '';
+        document.getElementById('metadataType').value = metadata.type || '';
+
+        // Notes & Abstract
         document.getElementById('metadataAbstract').value = metadata.abstract || '';
+        document.getElementById('metadataNotes').value = metadata.notes || '';
         document.getElementById('metadataCitation').value = metadata.citation || '';
     }
 
     function saveMetadata() {
         const documentUuid = document.getElementById('metadataModalDocumentUuid').value;
         const formData = {
+            // Core fields
             title: document.getElementById('metadataTitle').value,
             authors: document.getElementById('metadataAuthors').value,
             publication_date: document.getElementById('metadataPublicationDate').value,
+            editor: document.getElementById('metadataEditor').value,
+            edition: document.getElementById('metadataEdition').value,
+            // Publication details
             journal: document.getElementById('metadataJournal').value,
+            container_title: document.getElementById('metadataContainerTitle').value,
+            volume: document.getElementById('metadataVolume').value,
+            issue: document.getElementById('metadataIssue').value,
+            pages: document.getElementById('metadataPages').value,
+            series: document.getElementById('metadataSeries').value,
             publisher: document.getElementById('metadataPublisher').value,
-            type: document.getElementById('metadataType').value,
+            place: document.getElementById('metadataPlace').value,
+            // Identifiers
             doi: document.getElementById('metadataDoi').value,
-            isbn: document.getElementById('metadataIsbn').value,
             url: document.getElementById('metadataUrl').value,
+            isbn: document.getElementById('metadataIsbn').value,
+            issn: document.getElementById('metadataIssn').value,
+            access_date: document.getElementById('metadataAccessDate').value,
+            // Dictionary/Reference entry
+            entry_term: document.getElementById('metadataEntryTerm').value,
+            type: document.getElementById('metadataType').value,
+            // Notes & Abstract
             abstract: document.getElementById('metadataAbstract').value,
+            notes: document.getElementById('metadataNotes').value,
             citation: document.getElementById('metadataCitation').value
         };
 
@@ -923,61 +1090,150 @@
                 <form id="metadataForm">
                     <input type="hidden" id="metadataModalDocumentUuid">
 
+                    <!-- Core Information -->
                     <div class="row g-3">
                         <div class="col-md-12">
                             <label for="metadataTitle" class="form-label">Title</label>
                             <input type="text" class="form-control" id="metadataTitle">
                         </div>
 
-                        <div class="col-md-6">
+                        <div class="col-md-8">
                             <label for="metadataAuthors" class="form-label">Authors</label>
-                            <input type="text" class="form-control" id="metadataAuthors" placeholder="Author 1, Author 2">
+                            <input type="text" class="form-control" id="metadataAuthors" placeholder="e.g., Smith, J., Doe, A.">
                             <div class="form-text">Comma-separated list</div>
                         </div>
 
-                        <div class="col-md-6">
-                            <label for="metadataPublicationDate" class="form-label">Publication Date/Year</label>
-                            <input type="text" class="form-control" id="metadataPublicationDate" placeholder="2024 or 2024-01-15">
+                        <div class="col-md-4">
+                            <label for="metadataPublicationDate" class="form-label">Publication Date</label>
+                            <input type="text" class="form-control" id="metadataPublicationDate" placeholder="e.g., 2023">
                         </div>
 
                         <div class="col-md-6">
-                            <label for="metadataJournal" class="form-label">Journal/Publisher</label>
-                            <input type="text" class="form-control" id="metadataJournal">
+                            <label for="metadataEditor" class="form-label">Editor(s)</label>
+                            <input type="text" class="form-control" id="metadataEditor" placeholder="e.g., Garner, B.">
+                        </div>
+
+                        <div class="col-md-6">
+                            <label for="metadataEdition" class="form-label">Edition</label>
+                            <input type="text" class="form-control" id="metadataEdition" placeholder="e.g., 4th, 11th">
+                        </div>
+                    </div>
+
+                    <!-- Publication Details -->
+                    <hr class="my-3">
+                    <p class="small text-muted mb-2">Publication Details</p>
+
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label for="metadataJournal" class="form-label">Journal / Publication</label>
+                            <input type="text" class="form-control" id="metadataJournal" placeholder="e.g., Nature">
+                        </div>
+
+                        <div class="col-md-6">
+                            <label for="metadataContainerTitle" class="form-label">Container Title</label>
+                            <input type="text" class="form-control" id="metadataContainerTitle" placeholder="e.g., Black's Law Dictionary">
+                        </div>
+
+                        <div class="col-md-3">
+                            <label for="metadataVolume" class="form-label">Volume</label>
+                            <input type="text" class="form-control" id="metadataVolume" placeholder="e.g., 10">
+                        </div>
+
+                        <div class="col-md-3">
+                            <label for="metadataIssue" class="form-label">Issue</label>
+                            <input type="text" class="form-control" id="metadataIssue" placeholder="e.g., 2">
+                        </div>
+
+                        <div class="col-md-3">
+                            <label for="metadataPages" class="form-label">Pages</label>
+                            <input type="text" class="form-control" id="metadataPages" placeholder="e.g., 115-152">
+                        </div>
+
+                        <div class="col-md-3">
+                            <label for="metadataSeries" class="form-label">Series</label>
+                            <input type="text" class="form-control" id="metadataSeries" placeholder="e.g., LNCS">
                         </div>
 
                         <div class="col-md-6">
                             <label for="metadataPublisher" class="form-label">Publisher</label>
-                            <input type="text" class="form-control" id="metadataPublisher">
+                            <input type="text" class="form-control" id="metadataPublisher" placeholder="e.g., Oxford University Press">
                         </div>
 
-                        <div class="col-md-12">
-                            <label for="metadataType" class="form-label">Type</label>
-                            <input type="text" class="form-control" id="metadataType" placeholder="e.g., journal-article, book, conference-paper">
+                        <div class="col-md-6">
+                            <label for="metadataPlace" class="form-label">Publication Place</label>
+                            <input type="text" class="form-control" id="metadataPlace" placeholder="e.g., New York">
                         </div>
+                    </div>
 
+                    <!-- Identifiers -->
+                    <hr class="my-3">
+                    <p class="small text-muted mb-2">Identifiers</p>
+
+                    <div class="row g-3">
                         <div class="col-md-6">
                             <label for="metadataDoi" class="form-label">DOI</label>
-                            <input type="text" class="form-control" id="metadataDoi" placeholder="10.1234/example">
+                            <input type="text" class="form-control" id="metadataDoi" placeholder="e.g., 10.1234/example">
                         </div>
 
                         <div class="col-md-6">
-                            <label for="metadataIsbn" class="form-label">ISBN</label>
-                            <input type="text" class="form-control" id="metadataIsbn">
-                        </div>
-
-                        <div class="col-md-12">
                             <label for="metadataUrl" class="form-label">URL</label>
-                            <input type="url" class="form-control" id="metadataUrl">
+                            <input type="url" class="form-control" id="metadataUrl" placeholder="https://...">
                         </div>
 
+                        <div class="col-md-4">
+                            <label for="metadataIsbn" class="form-label">ISBN</label>
+                            <input type="text" class="form-control" id="metadataIsbn" placeholder="e.g., 978-3-16-148410-0">
+                        </div>
+
+                        <div class="col-md-4">
+                            <label for="metadataIssn" class="form-label">ISSN</label>
+                            <input type="text" class="form-control" id="metadataIssn" placeholder="e.g., 1234-5678">
+                        </div>
+
+                        <div class="col-md-4">
+                            <label for="metadataAccessDate" class="form-label">Access Date</label>
+                            <input type="date" class="form-control" id="metadataAccessDate">
+                        </div>
+                    </div>
+
+                    <!-- Dictionary/Reference Entry -->
+                    <hr class="my-3">
+                    <p class="small text-muted mb-2">Dictionary / Reference Entry</p>
+
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label for="metadataEntryTerm" class="form-label">Entry Term / Headword</label>
+                            <input type="text" class="form-control" id="metadataEntryTerm" placeholder="e.g., agent, ontology">
+                        </div>
+
+                        <div class="col-md-6">
+                            {{ document_type_field(
+                                id='metadataType',
+                                name='type',
+                                value='',
+                                help_text='Select from list or enter custom type'
+                            ) }}
+                        </div>
+                    </div>
+
+                    <!-- Notes & Abstract -->
+                    <hr class="my-3">
+                    <p class="small text-muted mb-2">Notes & Abstract</p>
+
+                    <div class="row g-3">
                         <div class="col-md-12">
                             <label for="metadataAbstract" class="form-label">Abstract</label>
-                            <textarea class="form-control" id="metadataAbstract" rows="4"></textarea>
+                            <textarea class="form-control" id="metadataAbstract" rows="3" placeholder="Brief summary..."></textarea>
+                        </div>
+
+                        <div class="col-md-12">
+                            <label for="metadataNotes" class="form-label">Notes</label>
+                            <textarea class="form-control" id="metadataNotes" rows="2" placeholder="Additional notes..."></textarea>
                         </div>
 
                         <div class="col-md-12">
                             <label for="metadataCitation" class="form-label">Citation</label>
-                            <textarea class="form-control" id="metadataCitation" rows="2"></textarea>
+                            <textarea class="form-control" id="metadataCitation" rows="2" placeholder="Full citation..."></textarea>
                         </div>
                     </div>
                 </form>

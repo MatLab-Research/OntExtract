@@ -247,7 +247,7 @@ class PipelineService(BaseService):
                     # Note: exp_doc still points to the original document's association, which is correct
 
             # Get processing operations (manual/user processing)
-            processing_operations = ExperimentDocumentProcessing.query.filter_by(
+            manual_operations = ExperimentDocumentProcessing.query.filter_by(
                 experiment_document_id=exp_doc.id
             ).order_by(ExperimentDocumentProcessing.created_at.desc()).all()
 
@@ -261,6 +261,42 @@ class PipelineService(BaseService):
                 doc_id_str = str(document_id)
                 if doc_id_str in orchestration_run.processing_results:
                     llm_operations = orchestration_run.processing_results[doc_id_str]
+
+            # Get ProcessingArtifactGroups for this document (includes LLM orchestration artifacts)
+            from app.models.processing_artifact_group import ProcessingArtifactGroup
+            artifact_groups = ProcessingArtifactGroup.query.filter_by(
+                document_id=document.id
+            ).order_by(ProcessingArtifactGroup.created_at.desc()).all()
+
+            # Create a unified list of processing operations
+            # Convert artifact groups to operation-like objects for template compatibility
+            processing_operations = list(manual_operations)
+
+            # Track what we already have to avoid duplicates
+            existing_ops = {(op.processing_type, op.processing_method) for op in manual_operations}
+
+            # Add artifact groups that aren't already in manual_operations
+            for group in artifact_groups:
+                # Map artifact_type to processing_type (they should match)
+                processing_type = group.artifact_type
+                processing_method = group.method_key
+
+                if (processing_type, processing_method) not in existing_ops:
+                    # Create a simple object that mimics ExperimentDocumentProcessing attributes
+                    class ArtifactGroupOp:
+                        def __init__(self, group):
+                            self.id = group.id
+                            self.processing_type = group.artifact_type
+                            self.processing_method = group.method_key
+                            self.status = group.status
+                            self.started_at = group.created_at
+                            self.completed_at = group.updated_at if group.status == 'completed' else None
+                            self.created_at = group.created_at
+                            self.metadata = group.metadata_json or {}
+                            self.source = 'llm_orchestration' if self.metadata.get('created_by') == 'llm_orchestration' else 'artifact_group'
+
+                    processing_operations.append(ArtifactGroupOp(group))
+                    existing_ops.add((processing_type, processing_method))
 
             # Get all experiment documents for navigation
             all_exp_docs = ExperimentDocument.query.filter_by(experiment_id=experiment_id).all()

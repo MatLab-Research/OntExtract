@@ -415,7 +415,8 @@ class TestExecuteProcessingPhase:
         mock_execute_processing,
         workflow_executor,
         completed_recommendation_run,
-        db_session
+        db_session,
+        test_user
     ):
         """Test successful execution of processing phase."""
         # Mock processing execution
@@ -438,7 +439,7 @@ class TestExecuteProcessingPhase:
             run_id=completed_recommendation_run.id,
             modified_strategy=None,
             review_notes='Looks good',
-            reviewer_id=1
+            reviewer_id=test_user.id
         )
 
         # Verify result
@@ -455,7 +456,7 @@ class TestExecuteProcessingPhase:
         assert completed_recommendation_run.cross_document_insights is not None
         assert completed_recommendation_run.completed_at is not None
         assert completed_recommendation_run.review_notes == 'Looks good'
-        assert completed_recommendation_run.reviewed_by == 1
+        assert completed_recommendation_run.reviewed_by == test_user.id
 
     @patch('app.services.workflow_executor.WorkflowExecutor._execute_processing')
     def test_execute_processing_phase_with_modified_strategy(
@@ -463,7 +464,8 @@ class TestExecuteProcessingPhase:
         mock_execute_processing,
         workflow_executor,
         completed_recommendation_run,
-        db_session
+        db_session,
+        test_user
     ):
         """Test execution with user-modified strategy."""
         modified_strategy = {
@@ -482,7 +484,7 @@ class TestExecuteProcessingPhase:
             run_id=completed_recommendation_run.id,
             modified_strategy=modified_strategy,
             review_notes='Added definitions extraction',
-            reviewer_id=1
+            reviewer_id=test_user.id
         )
 
         # Verify modified strategy saved

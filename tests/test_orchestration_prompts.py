@@ -120,7 +120,8 @@ def test_analyze_prompt_entity_extraction():
 
     # Check entity extraction specific content
     assert 'Entity Extraction' in prompt
-    assert 'entities, concepts, and relationships' in prompt
+    # Note: Prompt uses capital E - "Entities, concepts, and relationships"
+    assert 'Entities, concepts, and relationships' in prompt
 
 
 def test_analyze_prompt_without_metadata():

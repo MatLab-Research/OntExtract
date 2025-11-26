@@ -227,6 +227,7 @@ class ExperimentService(BaseService):
                 ProcessingArtifact,
                 DocumentProcessingIndex
             )
+            from app.models.processing_artifact_group import ProcessingArtifactGroup
 
             # Delete all processing artifacts first (most dependent)
             # Get all processing operations for this experiment's documents
@@ -298,6 +299,18 @@ class ExperimentService(BaseService):
 
             experimental_versions_count = len(versions_to_delete)
 
+            # Delete ProcessingArtifactGroups for documents being deleted
+            # Must do this BEFORE deleting documents to avoid FK constraint violation
+            artifact_groups_deleted = 0
+            for exp_version in versions_to_delete:
+                groups_deleted = ProcessingArtifactGroup.query.filter_by(
+                    document_id=exp_version.id
+                ).delete()
+                artifact_groups_deleted += groups_deleted
+
+            if artifact_groups_deleted > 0:
+                logger.info(f"Deleted {artifact_groups_deleted} processing artifact groups for experiment {experiment_id}")
+
             # First, remove them from the experiment relationship
             # This prevents SQLAlchemy from trying to set experiment_id=NULL
             for exp_version in versions_to_delete:
@@ -322,7 +335,8 @@ class ExperimentService(BaseService):
             logger.info(
                 f"Deleted experiment {experiment_id} with cascading deletes: "
                 f"{processing_count} processing ops, {artifact_count} artifacts, "
-                f"{index_count} indices, {exp_docs_deleted} experiment documents, "
+                f"{index_count} indices, {artifact_groups_deleted} artifact groups, "
+                f"{exp_docs_deleted} experiment documents, "
                 f"{experimental_versions_count} experimental version documents"
             )
 

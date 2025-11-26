@@ -1,0 +1,125 @@
+{#
+Document Type Field Macro
+
+A reusable datalist-based input for document types that allows:
+- Selection from predefined document types
+- Entry of custom document types
+
+Usage:
+  {% from 'shared/document_type_field.html' import document_type_field %}
+  {{ document_type_field(id='metadataType', name='type', value=document.document_subtype) }}
+
+Parameters:
+  - id: HTML id attribute (default: 'document_type')
+  - name: Form field name (default: 'type')
+  - value: Current value to pre-select (default: '')
+  - label: Label text (default: 'Document Type')
+  - show_label: Whether to show the label (default: True)
+  - required: Whether field is required (default: False)
+  - help_text: Optional help text below field
+  - css_class: Additional CSS classes for the input
+  - existing_types: List of existing types from database (for custom types)
+#}
+
+{% macro document_type_field(
+    id='document_type',
+    name='type',
+    value='',
+    label='Document Type',
+    show_label=True,
+    required=False,
+    help_text='',
+    css_class='',
+    existing_types=[]
+) %}
+
+{# Predefined document types (Zotero-aligned) - display name used as value #}
+{% set predefined_types = [
+    'Academic Paper',
+    'Book',
+    'Book Chapter',
+    'Conference Paper',
+    'Dictionary Entry',
+    'OED Entry',
+    'Encyclopedia Entry',
+    'Journal Article',
+    'Magazine Article',
+    'Newspaper Article',
+    'Standard',
+    'Technical Report',
+    'Thesis',
+    'White Paper',
+    'Patent',
+    'Website',
+    'Blog Post',
+    'Glossary',
+    'Legal Case',
+    'Legislation',
+    'Manuscript',
+    'Presentation',
+    'Video',
+    'Audio',
+    'Dataset',
+    'Software',
+    'Other'
+] %}
+
+{% if show_label %}
+<label for="{{ id }}" class="form-label">
+    {{ label }}{% if required %} <span class="text-danger">*</span>{% endif %}
+</label>
+{% endif %}
+
+<div class="input-group">
+    <input type="text"
+           class="form-control {{ css_class }}"
+           id="{{ id }}"
+           name="{{ name }}"
+           value="{{ value }}"
+           list="{{ id }}-options"
+           autocomplete="off"
+           placeholder="Select or enter type..."
+           {% if required %}required{% endif %}>
+    <button class="btn btn-outline-secondary" type="button"
+            data-bs-toggle="tooltip"
+            data-bs-placement="top"
+            title="Choose from existing types or enter a custom type">
+        <i class="fas fa-question-circle"></i>
+    </button>
+</div>
+
+<datalist id="{{ id }}-options">
+    {# Existing custom types from database (shown first) #}
+    {% for custom_type in existing_types %}
+        {% if custom_type not in predefined_types %}
+        <option value="{{ custom_type }}">
+        {% endif %}
+    {% endfor %}
+
+    {# Predefined types #}
+    {% for type_name in predefined_types %}
+    <option value="{{ type_name }}">
+    {% endfor %}
+</datalist>
+
+{% if help_text %}
+<div class="form-text">{{ help_text }}</div>
+{% endif %}
+
+{% endmacro %}
+
+
+{#
+Document Type Display Macro
+
+Formats a document type value for display. Since we now store display names
+directly, this just returns the value (or 'Unknown' if empty).
+
+Usage:
+  {% from 'shared/document_type_field.html' import document_type_display %}
+  {{ document_type_display(document.document_subtype) }}
+#}
+
+{% macro document_type_display(type_value) %}
+{{ type_value|default('Unknown', true) }}
+{% endmacro %}

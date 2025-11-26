@@ -4,10 +4,10 @@ Text Input Forms Routes
 This module handles upload and paste form routes.
 
 Routes:
-- GET  /input/ or /input/upload  - Upload form
+- GET  /input/ or /input/upload  - Redirects to /upload/
 - GET  /input/paste              - Paste form
 - POST /input/submit_text        - Submit pasted text
-- POST /input/upload_file        - Upload file
+- POST /input/upload_file        - Upload file (legacy, use /upload/ instead)
 """
 
 from flask import render_template, request, flash, redirect, url_for, jsonify, current_app
@@ -29,8 +29,8 @@ from . import text_input_bp
 @text_input_bp.route('/upload')
 @write_login_required
 def upload_form():
-    """Main upload form page"""
-    return render_template('text_input/upload_enhanced.html')
+    """Redirect to unified upload page"""
+    return redirect(url_for('upload.unified'))
 
 
 @text_input_bp.route('/paste')
@@ -114,7 +114,7 @@ def upload_file():
             if request.is_json:
                 return jsonify({'error': 'No file selected'}), 400
             flash('No file selected', 'error')
-            return redirect(url_for('text_input.upload_form'))
+            return redirect(url_for('upload.unified'))
 
         file = request.files['file']
         title = request.form.get('title', '').strip()
@@ -123,7 +123,7 @@ def upload_file():
             if request.is_json:
                 return jsonify({'error': 'No file selected'}), 400
             flash('No file selected', 'error')
-            return redirect(url_for('text_input.upload_form'))
+            return redirect(url_for('upload.unified'))
 
         # Validate file type
         file_handler = FileHandler()
@@ -134,7 +134,7 @@ def upload_file():
             if request.is_json:
                 return jsonify({'error': error_msg}), 400
             flash(error_msg, 'error')
-            return redirect(url_for('text_input.upload_form'))
+            return redirect(url_for('upload.unified'))
 
         # Generate secure filename
         original_filename = fname
@@ -159,7 +159,7 @@ def upload_file():
             if request.is_json:
                 return jsonify({'error': error_msg}), 400
             flash(error_msg, 'error')
-            return redirect(url_for('text_input.upload_form'))
+            return redirect(url_for('upload.unified'))
 
         # Auto-generate title if not provided
         if not title:
