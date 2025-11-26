@@ -5,322 +5,209 @@ Specialized agent for uploading the 7 "agent" semantic evolution source document
 ## Agent Purpose
 
 This agent programmatically uploads source documents for the "agent" temporal evolution experiment, ensuring:
-1. Correct document type classification (dictionary, article, book_chapter)
-2. Complete metadata (title, authors, dates, domains, chapter info)
-3. Full text extraction from PDFs
-4. Document processing through normal OntExtract workflow
+1. Correct document type classification (always `document_type='document'`)
+2. Complete metadata including all extended bibliographic fields (Session 30)
+3. Pre-extracted and cleaned text content
+4. Idempotent operation (skips documents that already exist)
 5. Standalone document creation (no experiment association yet)
 
 ## Prerequisites
 
 **Environment**: OntExtract
 **Database**: ontextract_db (PostgreSQL)
-**Source Directory**: /home/chris/onto/OntExtract/experiments/documents/source_documents/
+**Source Directory**: `/home/chris/onto/OntExtract/experiments/documents/`
+**Preprocessed Directory**: `/home/chris/onto/OntExtract/experiments/documents/preprocessed/`
 **User**: demo (user_id: 10)
-**Required Tools**: Python, psycopg2, pypdf/pdftotext
+**Virtual Environment**: `venv-ontextract`
 
 ## Source Documents
 
-| # | Filename | Year | Domain | Type | Chapter Info |
-|---|----------|------|--------|------|--------------|
-| 1 | agent, n.¹ & adj..pdf | Historical | Lexicography | dictionary | Full OED entry |
-| 2 | Henry Campbell Black - 1910 - Blacks Law Agent 1910.pdf | 1910 | Law | dictionary | Definition excerpt |
-| 3 | Anscombe - 1956 - Intention.pdf | 1956 | Philosophy | book_chapter | Chapter from "Intention" |
-| 4 | Wooldridge and Jennings - 1995 - Intelligent agents theory and practice.pdf | 1995 | AI/CS | article | Full paper |
-| 5 | Blacks Law 2019 Agent.pdf | 2019 | Law | dictionary | 11th ed. definition |
-| 6 | Russell and Norvig - 2022 - Intelligent Agents.pdf | 2022 | AI/CS | book_chapter | Ch 2 from AI: A Modern Approach |
-| 7 | Brian A. Garner - 2024 - Blacks Law Agent 2024.pdf | 2024 | Law | dictionary | 12th ed. definition |
+| # | Filename | Year | Domain | Type |
+|---|----------|------|--------|------|
+| 1 | Henry Campbell Black - 1910 - Blacks Law Agent 1910.pdf | 1910 | Law | Dictionary |
+| 2 | Anscombe - 1956 - Intention.pdf | 1956 | Philosophy | Journal Article |
+| 3 | Wooldridge and Jennings - 1995 - Intelligent agents theory and practice.pdf | 1995 | AI/CS | Journal Article |
+| 4 | Blacks Law 2019 Agent.pdf | 2019 | Law | Dictionary |
+| 5 | Russell and Norvig - 2022 - Intelligent Agents.pdf | 2022 | AI/CS | Book Chapter |
+| 6 | Brian A. Garner - 2024 - Blacks Law Agent 2024.pdf | 2024 | Law | Dictionary |
+| 7 | agent, n.1 & adj..pdf | 2024 | Lexicography | OED Entry |
 
-## Document Upload Workflow
+## Two-Stage Workflow
 
-### Step 1: Import Required Modules
+### Stage 1: Preprocessing (Run Once)
 
-```python
-import os
-import sys
-from datetime import datetime
-from pathlib import Path
+The preprocessing script extracts text from PDFs and saves cleaned content with metadata as JSON files.
 
-# Add OntExtract to path
-sys.path.insert(0, '/home/chris/onto/OntExtract')
-
-from app import create_app, db
-from app.models.document import Document
-from app.utils.file_handler import FileHandler
-from app.services.text_processing import TextProcessingService
-
-app = create_app()
-app.app_context().push()
+```bash
+cd /home/chris/onto/OntExtract
+source venv-ontextract/bin/activate
+python scripts/preprocess_experiment_documents.py
 ```
 
-### Step 2: Define Document Metadata
+**Output**: Creates 7 JSON files in `experiments/documents/preprocessed/`:
+- `blacks_law_1910.json`
+- `anscombe_1956.json`
+- `wooldridge_jennings_1995.json`
+- `blacks_law_2019.json`
+- `russell_norvig_2022.json`
+- `blacks_law_2024.json`
+- `oed_agent_2024.json`
 
-```python
-DOCUMENTS_METADATA = [
-    {
-        'filename': 'agent, n.¹ & adj..pdf',
-        'title': 'Agent (Oxford English Dictionary)',
-        'authors': 'Oxford English Dictionary',
-        'publication_date': '2024-01-01',  # OED is continuously updated
-        'domain': 'Lexicography',
-        'document_type': 'dictionary',
-        'description': 'Full OED entry for "agent" with historical quotations',
-        'chapter_info': None
-    },
-    {
-        'filename': 'Henry Campbell Black - 1910 - Blacks Law Agent 1910.pdf',
-        'title': 'Agent (Black\'s Law Dictionary, 1st ed.)',
-        'authors': 'Black, Henry Campbell',
-        'publication_date': '1910-01-01',
-        'domain': 'Law',
-        'document_type': 'dictionary',
-        'description': 'Legal definition of agent from first edition',
-        'chapter_info': None
-    },
-    {
-        'filename': 'Anscombe - 1956 - Intention.pdf',
-        'title': 'Intention (Chapter)',
-        'authors': 'Anscombe, G. E. M.',
-        'publication_date': '1956-01-01',
-        'domain': 'Philosophy',
-        'document_type': 'book_chapter',
-        'description': 'Philosophical analysis of intention and agency',
-        'chapter_info': {
-            'chapter_number': 'Introduction',
-            'chapter_title': 'Intention',
-            'source_book': 'Intention',
-            'source_book_pages': '94'
-        }
-    },
-    {
-        'filename': 'Wooldridge and Jennings - 1995 - Intelligent agents theory and practice.pdf',
-        'title': 'Intelligent Agents: Theory and Practice',
-        'authors': 'Wooldridge, Michael; Jennings, Nicholas R.',
-        'publication_date': '1995-01-01',
-        'domain': 'AI/Computer Science',
-        'document_type': 'article',
-        'description': 'Foundational paper on intelligent agent theory',
-        'chapter_info': None
-    },
-    {
-        'filename': 'Blacks Law 2019 Agent.pdf',
-        'title': 'Agent (Black\'s Law Dictionary, 11th ed.)',
-        'authors': 'Garner, Bryan A.',
-        'publication_date': '2019-01-01',
-        'domain': 'Law',
-        'document_type': 'dictionary',
-        'description': 'Modern legal definition of agent',
-        'chapter_info': None
-    },
-    {
-        'filename': 'Russell and Norvig - 2022 - Intelligent Agents.pdf',
-        'title': 'Intelligent Agents (Chapter 2)',
-        'authors': 'Russell, Stuart; Norvig, Peter',
-        'publication_date': '2022-01-01',
-        'domain': 'AI/Computer Science',
-        'document_type': 'book_chapter',
-        'description': 'Modern AI agent theory from leading textbook',
-        'chapter_info': {
-            'chapter_number': '2',
-            'chapter_title': 'Intelligent Agents',
-            'source_book': 'Artificial Intelligence: A Modern Approach (4th ed.)',
-            'source_book_pages': '1132'
-        }
-    },
-    {
-        'filename': 'Brian A. Garner - 2024 - Blacks Law Agent 2024.pdf',
-        'title': 'Agent (Black\'s Law Dictionary, 12th ed.)',
-        'authors': 'Garner, Bryan A.',
-        'publication_date': '2024-01-01',
-        'domain': 'Law',
-        'document_type': 'dictionary',
-        'description': 'Latest legal definition of agent',
-        'chapter_info': None
-    }
-]
+Each JSON file contains:
+```json
+{
+  "metadata": {
+    "original_filename": "...",
+    "title": "...",
+    "authors": "...",
+    "publication_date": "YYYY-MM-DD",
+    "document_type": "document",
+    "detected_language": "en",
+    "language_confidence": 0.98,
+    "container_title": "...",
+    "edition": "...",
+    "publisher": "...",
+    "place": "...",
+    "pages": "...",
+    "isbn": "...",
+    "doi": "...",
+    "entry_term": "...",
+    "notes": "..."
+  },
+  "content": "...(cleaned text)...",
+  "preprocessing": {
+    "extracted_chars": 16286,
+    "cleaned_chars": 16280,
+    "source_file": "/path/to/pdf"
+  }
+}
 ```
 
-### Step 3: Upload and Process Each Document
+### Stage 2: Upload (Run As Needed)
 
-```python
-SOURCE_DIR = '/home/chris/onto/OntExtract/experiments/documents/source_documents'
-USER_ID = 10  # demo user
+The upload script reads preprocessed JSON files and creates Document records.
 
-file_handler = FileHandler()
-processing_service = TextProcessingService()
-
-uploaded_docs = []
-
-for doc_meta in DOCUMENTS_METADATA:
-    try:
-        print(f"\nProcessing: {doc_meta['filename']}")
-
-        # Full file path
-        file_path = os.path.join(SOURCE_DIR, doc_meta['filename'])
-
-        if not os.path.exists(file_path):
-            print(f"  ERROR: File not found: {file_path}")
-            continue
-
-        # Extract text content using FileHandler
-        content = file_handler.extract_text_from_file(file_path, doc_meta['filename'])
-
-        if not content:
-            print(f"  WARNING: No text extracted from {doc_meta['filename']}")
-        else:
-            print(f"  Extracted {len(content)} characters")
-
-        # Build source_metadata with chapter info if applicable
-        source_metadata = {
-            'domain': doc_meta['domain'],
-            'description': doc_meta['description']
-        }
-
-        if doc_meta['chapter_info']:
-            source_metadata['chapter_metadata'] = doc_meta['chapter_info']
-
-        # Create Document record
-        # IMPORTANT: Use document_type='document' for source documents (not 'reference')
-        # References are bibliographic entries; documents are source content for experiments
-        document = Document(
-            title=doc_meta['title'],
-            content_type='file',
-            document_type='document',  # Always 'document' for experiment sources
-            reference_subtype=doc_meta.get('subtype'),  # Keep subtype for classification
-            file_type='pdf',
-            original_filename=doc_meta['filename'],
-            file_path=file_path,
-            file_size=os.path.getsize(file_path),
-            content=content,
-            authors=doc_meta['authors'],
-            publication_date=datetime.strptime(doc_meta['publication_date'], '%Y-%m-%d').date(),
-            detected_language='en',
-            language_confidence=0.95,
-            source_metadata=source_metadata,
-            user_id=USER_ID,
-            status='uploaded'
-        )
-
-        db.session.add(document)
-        db.session.commit()
-
-        print(f"  Created document ID: {document.id}")
-        print(f"  UUID: {document.uuid}")
-
-        # Process document through normal workflow
-        try:
-            processing_service.process_document(document)
-            print(f"  Document processed successfully")
-        except Exception as e:
-            print(f"  WARNING: Processing failed: {str(e)}")
-
-        uploaded_docs.append({
-            'id': document.id,
-            'uuid': document.uuid,
-            'title': document.title,
-            'type': document.document_type,
-            'filename': doc_meta['filename']
-        })
-
-    except Exception as e:
-        print(f"  ERROR: Failed to upload {doc_meta['filename']}: {str(e)}")
-        import traceback
-        traceback.print_exc()
-
-# Summary
-print("\n" + "="*80)
-print("UPLOAD SUMMARY")
-print("="*80)
-print(f"Successfully uploaded: {len(uploaded_docs)}/{len(DOCUMENTS_METADATA)} documents")
-print("\nDocument IDs:")
-for doc in uploaded_docs:
-    print(f"  [{doc['id']}] {doc['title']} ({doc['type']})")
-print("\n")
+```bash
+cd /home/chris/onto/OntExtract
+source venv-ontextract/bin/activate
+python scripts/upload_experiment_documents.py
 ```
 
-### Step 4: Verification Queries
+**Behavior**:
+- Checks if document already exists (by `original_filename`)
+- Skips existing documents
+- Creates new Document records with all metadata
+- Uses demo user (id=10) as owner
+- Sets `status='uploaded'`
+- Sets `source_metadata.upload_source='system'`
+
+## Extended Bibliographic Fields
+
+The upload includes all Session 30 extended fields:
+
+| Field | Example |
+|-------|---------|
+| `title` | Agent (Black's Law Dictionary, 11th ed.) |
+| `authors` | Bryan A. Garner |
+| `publication_date` | 2019-01-01 |
+| `container_title` | Black's Law Dictionary |
+| `editor` | Bryan A. Garner |
+| `edition` | 11th |
+| `publisher` | Thomson Reuters |
+| `place` | St. Paul, MN |
+| `volume` | 10 |
+| `issue` | 2 |
+| `pages` | 115-152 |
+| `isbn` | 978-1539229735 |
+| `issn` | (for journals) |
+| `doi` | 10.1017/S0269888900007797 |
+| `url` | https://www.oed.com/view/Entry/3851 |
+| `access_date` | 2024-10-09 |
+| `journal` | The Knowledge Engineering Review |
+| `abstract` | (for academic papers) |
+| `entry_term` | agent |
+| `notes` | Definition entry for "agent" from legal dictionary |
+
+## Verification
 
 After upload, verify documents in database:
 
 ```sql
 -- Check all uploaded documents
-SELECT id, title, document_type, authors, publication_date,
-       LENGTH(content) as content_length, status
+SELECT id, title, authors, publication_date, status, entry_term
 FROM documents
 WHERE user_id = 10
+  AND original_filename LIKE '%Agent%' OR original_filename LIKE '%agent%'
 ORDER BY publication_date;
 
--- Check chapter metadata
-SELECT id, title, document_type,
-       source_metadata->'chapter_metadata'->>'chapter_number' as chapter_num,
-       source_metadata->'chapter_metadata'->>'chapter_title' as chapter_title,
-       source_metadata->'chapter_metadata'->>'source_book' as source_book
+-- Check extended metadata
+SELECT id, title, container_title, edition, publisher, place
 FROM documents
-WHERE document_type = 'book_chapter'
-AND user_id = 10;
+WHERE user_id = 10
+  AND container_title IS NOT NULL
+ORDER BY publication_date;
 
--- Check text extraction success
-SELECT title, document_type,
-       CASE WHEN content IS NOT NULL THEN 'YES' ELSE 'NO' END as has_content,
-       LENGTH(content) as content_length
+-- Verify content extraction
+SELECT id, title, LENGTH(content) as content_length, detected_language
 FROM documents
 WHERE user_id = 10
 ORDER BY publication_date;
 ```
 
-## Execution Instructions
-
-1. **Create Python Script**: Save the upload code as `/home/chris/onto/OntExtract/scripts/upload_agent_documents.py`
-
-2. **Run Script**:
-   ```bash
-   cd /home/chris/onto/OntExtract
-   source venv-ontextract/bin/activate
-   python scripts/upload_agent_documents.py
-   ```
-
-3. **Verify Upload**: Run SQL queries to confirm all 7 documents uploaded successfully
-
-4. **Check Document Detail Pages**: Visit http://localhost:8765/input/documents to verify documents appear
-
 ## Expected Results
 
 **Success Criteria**:
-- ✅ All 7 documents uploaded with correct metadata
-- ✅ Full text extracted from each PDF
-- ✅ Chapter metadata present for Anscombe and Russell & Norvig
-- ✅ Document types correctly classified
-- ✅ Publication dates accurate
-- ✅ All documents accessible via web interface
-- ✅ Processing completed without errors
-
-**Document IDs**: Will be auto-generated, track for experiment association later
+- 7 documents uploaded with correct metadata
+- All extended bibliographic fields populated where applicable
+- Text content present for all documents
+- `document_type='document'` (not 'reference')
+- `status='uploaded'`
+- `source_metadata.upload_source='system'`
+- Documents accessible via web interface at `/input/documents`
 
 ## Troubleshooting
 
-**Issue**: Text extraction fails
-- Check PDF is not corrupted: `pdfinfo <file.pdf>`
-- Verify file permissions: `ls -l <file.pdf>`
-- Try manual extraction: `pdftotext <file.pdf> -`
+**Issue**: Preprocessing fails
+- Check PDF exists: `ls -la experiments/documents/*.pdf`
+- Check pdftotext works: `pdftotext "file.pdf" -`
+- Check permissions: `ls -la experiments/documents/preprocessed/`
 
-**Issue**: Chapter metadata not saved
-- Verify source_metadata is JSONB type in database
-- Check chapter_info dictionary structure matches expected format
+**Issue**: Upload fails with user not found
+- Verify demo user exists: `SELECT * FROM users WHERE id = 10;`
+- Create demo user if missing via admin interface
 
-**Issue**: Import errors
-- Ensure virtual environment activated
-- Check PYTHONPATH includes OntExtract directory
-- Verify all dependencies installed: `pip list | grep -i pdf`
+**Issue**: Document already exists
+- This is expected behavior for idempotency
+- To re-upload: Delete existing document first
+- Or modify script to update instead of skip
 
-## Maintenance Notes
+**Issue**: Missing metadata
+- Check preprocessed JSON file has all fields
+- Run preprocessing again if needed
+- Manually edit JSON file if necessary
 
-**When to Update This Agent**:
-- Adding new documents to the collection
-- Changing document type classifications
-- Updating chapter metadata format
-- Fixing text extraction issues
-- Modifying upload workflow in main application
+## Files
 
-**Version**: 1.0
-**Last Updated**: 2025-11-23
+| File | Purpose |
+|------|---------|
+| `scripts/preprocess_experiment_documents.py` | Extract text from PDFs, save as JSON |
+| `scripts/upload_experiment_documents.py` | Create Document records from JSON |
+| `experiments/documents/*.pdf` | Source PDF files |
+| `experiments/documents/preprocessed/*.json` | Preprocessed text + metadata |
+| `experiments/documents/DOCUMENT_METADATA.txt` | Human-readable metadata reference |
+
+## Future Improvements
+
+1. **Path A Implementation**: Add HTTP POST to `/upload/document` endpoint to test full upload flow
+2. **LLM Cleanup Integration**: Tag content with LLM cleanup metadata when that feature is added
+3. **Provenance Source Types**: Distinguish 'system', 'manual', 'user' upload sources
+4. **Semantic Scholar Integration**: Auto-fetch metadata for academic papers
+
+## Version History
+
+| Version | Date | Changes |
+|---------|------|---------|
+| 2.0 | 2025-11-26 | Rewritten with two-stage workflow, extended bibliographic fields |
+| 1.0 | 2025-11-23 | Initial version with direct ORM upload |
+
 **Maintained By**: Project team

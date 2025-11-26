@@ -12,6 +12,8 @@ source venv-ontextract/bin/activate
 # Set environment variables
 export FLASK_ENV=production
 export FLASK_DEBUG=0
+# Ensure OntExtract is first in PYTHONPATH to avoid importing OntServe's config
+export PYTHONPATH=/home/chris/onto/OntExtract:$PYTHONPATH
 
 echo "Starting Celery worker for OntExtract LLM orchestration..."
 echo "Broker: redis://localhost:6379/0"

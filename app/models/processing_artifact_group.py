@@ -13,7 +13,8 @@ class ProcessingArtifactGroup(db.Model):
     id = db.Column(db.Integer, primary_key=True)
 
     # Core identification
-    document_id = db.Column(db.Integer, db.ForeignKey('documents.id'), nullable=False, index=True)
+    # ondelete='CASCADE' ensures DB-level cascade when document is deleted
+    document_id = db.Column(db.Integer, db.ForeignKey('documents.id', ondelete='CASCADE'), nullable=False, index=True)
     artifact_type = db.Column(db.String(40), nullable=False, index=True)  # segmentation, embeddings, entities, temporal, etc.
     method_key = db.Column(db.String(100), nullable=False)  # e.g. sent_spacy_v1, paragraph_basic, openai_text-embedding-3-large
 
@@ -37,7 +38,8 @@ class ProcessingArtifactGroup(db.Model):
     )
 
     # Relationships (lazy backrefs defined on related models if needed later)
-    document = db.relationship('Document', backref=db.backref('artifact_groups', lazy='dynamic'))
+    # passive_deletes=True lets DB handle cascade delete (via ondelete='CASCADE')
+    document = db.relationship('Document', backref=db.backref('artifact_groups', lazy='dynamic', passive_deletes=True))
     processing_job = db.relationship('ProcessingJob', backref=db.backref('artifact_groups', lazy='dynamic'))
 
     def to_dict(self):

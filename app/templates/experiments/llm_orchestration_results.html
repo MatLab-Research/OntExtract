@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "macros/processing_badges.html" import tool_badge, get_op_icon, get_op_color %}
 
 {% block title %}LLM Orchestration Results - {{ experiment.name }} - OntExtract{% endblock %}
 
@@ -29,26 +30,23 @@
         </div>
     </div>
 
-    <!-- Status Banner -->
+    <!-- Status Banner (Compact) -->
     <div class="row mb-4">
         <div class="col-12">
             {% if run.status == 'completed' %}
-            <div class="alert alert-success d-flex align-items-center">
-                <i class="fas fa-check-circle fa-2x me-3"></i>
+            <div class="alert alert-success d-flex align-items-center py-2">
+                <i class="fas fa-check-circle fa-lg me-3"></i>
                 <div>
-                    <strong>Analysis Complete!</strong>
-                    <span class="ms-3">
-                        <i class="fas fa-clock me-1"></i>
-                        Completed in {{ duration.formatted if duration else 'N/A' }}
-                    </span>
-                    <span class="ms-3">
-                        <i class="fas fa-cogs me-1"></i>
-                        {{ total_operations }} operations across {{ document_count }} documents
+                    <strong>Analysis Complete</strong>
+                    <span class="ms-3 text-success-emphasis">
+                        {{ duration.formatted if duration else 'N/A' }} |
+                        {{ total_operations }} operations |
+                        {{ document_count }} documents
                     </span>
                 </div>
             </div>
             {% else %}
-            <div class="alert alert-warning">
+            <div class="alert alert-warning py-2">
                 <i class="fas fa-exclamation-triangle me-2"></i>
                 Analysis is in {{ run.status }} state
             </div>
@@ -56,18 +54,18 @@
         </div>
     </div>
 
-    <!-- Experiment Goal -->
+    <!-- Experiment Goal (compact, only if present) -->
     {% if run.experiment_goal %}
     <div class="row mb-4">
         <div class="col-12">
             <div class="card">
-                <div class="card-header bg-primary text-white">
-                    <h5 class="mb-0">
+                <div class="card-header bg-primary text-white py-2">
+                    <h6 class="mb-0">
                         <i class="fas fa-bullseye me-2"></i>Experiment Goal
-                    </h5>
+                    </h6>
                 </div>
-                <div class="card-body">
-                    <p class="mb-0">{{ run.experiment_goal }}</p>
+                <div class="card-body py-2">
+                    <p class="mb-0 small">{{ run.experiment_goal }}</p>
                 </div>
             </div>
         </div>
@@ -79,10 +77,10 @@
     <div class="row mb-4">
         <div class="col-12">
             <div class="card">
-                <div class="card-header">
-                    <h5 class="mb-0">
+                <div class="card-header py-2">
+                    <h6 class="mb-0">
                         <i class="fas fa-chart-bar me-2"></i>Term Usage Patterns
-                    </h5>
+                    </h6>
                 </div>
                 <div class="card-body">
                     <div class="insights-content">
@@ -123,175 +121,68 @@
     </div>
     {% endif %}
 
-    <!-- Strategy Details -->
-    <div class="row mb-4">
-        <div class="col-md-6">
-            <div class="card h-100">
-                <div class="card-header">
-                    <h5 class="mb-0">
-                        <i class="fas fa-clipboard-list me-2"></i>Recommended Strategy
-                    </h5>
-                </div>
-                <div class="card-body">
-                    {% if run.recommended_strategy %}
-                    <div class="mb-3">
-                        <h6 class="text-muted">Confidence Score</h6>
-                        <div class="d-flex align-items-center">
-                            <div class="flex-grow-1 me-3">
-                                <div class="progress" style="height: 20px;">
-                                    <div class="progress-bar bg-success"
-                                         role="progressbar"
-                                         style="width: {{ (run.confidence * 100) | round }}%">
-                                        {{ (run.confidence * 100) | round }}%
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    {% if run.strategy_reasoning %}
-                    <div class="mb-3">
-                        <h6 class="text-muted">Reasoning</h6>
-                        <p class="small">{{ run.strategy_reasoning }}</p>
-                    </div>
-                    {% endif %}
-
-                    <div>
-                        <h6 class="text-muted">Tools by Document</h6>
-                        <div class="list-group list-group-flush">
-                            {% for doc_id, tools in run.recommended_strategy.items() %}
-                            <div class="list-group-item px-0">
-                                <div class="d-flex justify-content-between align-items-start">
-                                    <div>
-                                        <strong>Document {{ doc_id }}</strong>
-                                        <ul class="mb-0 mt-1">
-                                            {% for tool in tools %}
-                                            <li class="small">{{ tool }}</li>
-                                            {% endfor %}
-                                        </ul>
-                                    </div>
-                                    {% if run.modified_strategy and doc_id in run.modified_strategy %}
-                                    <span class="badge bg-warning text-dark">Modified</span>
-                                    {% endif %}
-                                </div>
-                            </div>
-                            {% endfor %}
-                        </div>
-                    </div>
-                    {% else %}
-                    <p class="text-muted">No strategy information available.</p>
-                    {% endif %}
-                </div>
-            </div>
-        </div>
-
-        <div class="col-md-6">
-            <div class="card h-100">
-                <div class="card-header">
-                    <h5 class="mb-0">
-                        <i class="fas fa-tasks me-2"></i>Processing Summary
-                    </h5>
-                </div>
-                <div class="card-body">
-                    {% if run.processing_results %}
-                    <div class="row g-3">
-                        <div class="col-6">
-                            <div class="metric-card text-center p-3 bg-light rounded">
-                                <i class="fas fa-file-alt fa-2x text-primary mb-2"></i>
-                                <h3 class="mb-0">{{ document_count }}</h3>
-                                <small class="text-muted">Documents Processed</small>
-                            </div>
-                        </div>
-                        <div class="col-6">
-                            <div class="metric-card text-center p-3 bg-light rounded">
-                                <i class="fas fa-cogs fa-2x text-success mb-2"></i>
-                                <h3 class="mb-0">{{ total_operations }}</h3>
-                                <small class="text-muted">Total Operations</small>
-                            </div>
-                        </div>
-                        <div class="col-6">
-                            <div class="metric-card text-center p-3 bg-light rounded">
-                                <i class="fas fa-clock fa-2x text-info mb-2"></i>
-                                <h3 class="mb-0">{{ duration.formatted if duration else 'N/A' }}</h3>
-                                <small class="text-muted">Processing Time</small>
-                            </div>
-                        </div>
-                        <div class="col-6">
-                            <div class="metric-card text-center p-3 bg-light rounded">
-                                <i class="fas fa-check-circle fa-2x text-success mb-2"></i>
-                                <h3 class="mb-0">
-                                    {% if run.execution_trace %}
-                                    {{ run.execution_trace | selectattr('status', 'equalto', 'success') | list | length }}
-                                    {% else %}
-                                    N/A
-                                    {% endif %}
-                                </h3>
-                                <small class="text-muted">Successful Operations</small>
-                            </div>
-                        </div>
-                    </div>
-
-                    {% if run.review_notes %}
-                    <div class="mt-3">
-                        <h6 class="text-muted">Review Notes</h6>
-                        <p class="small bg-light p-2 rounded">{{ run.review_notes }}</p>
-                    </div>
-                    {% endif %}
-                    {% else %}
-                    <p class="text-muted">No processing results available.</p>
-                    {% endif %}
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Per-Document Results -->
+    <!-- Per-Document Processing Results (Main Section - Table View) -->
     {% if run.processing_results %}
     <div class="row mb-4">
         <div class="col-12">
             <div class="card">
-                <div class="card-header">
-                    <h5 class="mb-0">
-                        <i class="fas fa-list me-2"></i>Per-Document Results
-                    </h5>
+                <div class="card-header py-2">
+                    <h6 class="mb-0">
+                        <i class="fas fa-file-alt me-2"></i>Document Processing Results
+                    </h6>
                 </div>
-                <div class="card-body">
-                    <div class="accordion" id="documentResultsAccordion">
-                        {% for doc_id, doc_results in run.processing_results.items() %}
-                        <div class="accordion-item">
-                            <h2 class="accordion-header" id="heading-{{ doc_id }}">
-                                <button class="accordion-button collapsed" type="button"
-                                        data-bs-toggle="collapse"
-                                        data-bs-target="#collapse-{{ doc_id }}">
-                                    <strong>Document {{ doc_id }}</strong>
-                                    <span class="badge bg-primary ms-2">{{ doc_results | length }} tools</span>
-                                </button>
-                            </h2>
-                            <div id="collapse-{{ doc_id }}" class="accordion-collapse collapse"
-                                 data-bs-parent="#documentResultsAccordion">
-                                <div class="accordion-body">
-                                    {% for tool_name, tool_result in doc_results.items() %}
-                                    <div class="mb-3">
-                                        <h6 class="text-primary">
-                                            <i class="fas fa-wrench me-1"></i>{{ tool_name }}
-                                        </h6>
-                                        <div class="bg-light p-2 rounded small">
-                                            {% if tool_result.status == 'success' %}
-                                            <span class="badge bg-success mb-2">Success</span>
-                                            {% if tool_result.results %}
-                                            <pre class="mb-0" style="max-height: 200px; overflow-y: auto; font-size: 0.85em;">{{ tool_result.results | tojson(indent=2) }}</pre>
-                                            {% endif %}
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th style="width: 40%">Document</th>
+                                    <th style="width: 45%">Processing Operations</th>
+                                    <th style="width: 15%" class="text-center">Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for doc_id, doc_results in run.processing_results.items() %}
+                                {% set doc_info = document_lookup.get(doc_id, {}) %}
+                                <tr>
+                                    <td>
+                                        <div class="d-flex flex-column">
+                                            {% if doc_info.title %}
+                                            <a href="{{ url_for('experiments.process_document', experiment_id=experiment.id, document_uuid=doc_info.uuid) }}"
+                                               class="text-decoration-none fw-medium">
+                                                {{ doc_info.title | truncate(50) }}
+                                            </a>
+                                            <small class="text-muted">
+                                                {% if doc_info.authors %}{{ doc_info.authors | truncate(30) }}{% endif %}
+                                                {% if doc_info.publication_date %}({{ doc_info.publication_date }}){% endif %}
+                                                {% if doc_info.version_type %}<span class="badge bg-secondary ms-1">v{{ doc_info.version_number }}</span>{% endif %}
+                                            </small>
                                             {% else %}
-                                            <span class="badge bg-danger mb-2">{{ tool_result.status }}</span>
-                                            <p class="mb-0 text-danger">{{ tool_result.error }}</p>
+                                            <span class="text-muted">Document {{ doc_id }}</span>
                                             {% endif %}
                                         </div>
-                                    </div>
-                                    {% endfor %}
-                                </div>
-                            </div>
-                        </div>
-                        {% endfor %}
+                                    </td>
+                                    <td>
+                                        <div class="d-flex flex-wrap gap-1">
+                                            {% for tool_name, tool_result in doc_results.items() %}
+                                            {{ tool_badge(tool_name, tool_result.status) }}
+                                            {% endfor %}
+                                        </div>
+                                    </td>
+                                    <td class="text-center">
+                                        {# Count both 'success' and 'executed' as success states #}
+                                        {% set success_count = (doc_results.values() | selectattr('status', 'equalto', 'success') | list | length) + (doc_results.values() | selectattr('status', 'equalto', 'executed') | list | length) %}
+                                        {% set total_count = doc_results | length %}
+                                        {% if success_count == total_count %}
+                                        <span class="text-success"><i class="fas fa-check-circle"></i> {{ success_count }}/{{ total_count }}</span>
+                                        {% else %}
+                                        <span class="text-warning"><i class="fas fa-exclamation-circle"></i> {{ success_count }}/{{ total_count }}</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
                     </div>
                 </div>
             </div>
@@ -299,20 +190,113 @@
     </div>
     {% endif %}
 
-    <!-- PROV-O Download -->
+    <!-- Detailed Tool Results (Collapsible) -->
+    {% if run.processing_results %}
     <div class="row mb-4">
         <div class="col-12">
             <div class="card">
-                <div class="card-body">
-                    <h5 class="mb-3">
-                        <i class="fas fa-download me-2"></i>Provenance Data
-                    </h5>
-                    <p class="text-muted mb-3">
-                        Download the complete PROV-O compliant provenance record for this orchestration run.
-                    </p>
+                <div class="card-header py-2 d-flex justify-content-between align-items-center">
+                    <h6 class="mb-0">
+                        <i class="fas fa-wrench me-2"></i>Detailed Operation Output
+                    </h6>
+                    <button class="btn btn-sm btn-outline-secondary" type="button" data-bs-toggle="collapse" data-bs-target="#detailedResults">
+                        <i class="fas fa-chevron-down"></i> Show Details
+                    </button>
+                </div>
+                <div class="collapse" id="detailedResults">
+                    <div class="card-body">
+                        <div class="accordion accordion-flush" id="toolResultsAccordion">
+                            {% for doc_id, doc_results in run.processing_results.items() %}
+                            {% set doc_info = document_lookup.get(doc_id, {}) %}
+                            <div class="accordion-item">
+                                <h2 class="accordion-header">
+                                    <button class="accordion-button collapsed py-2" type="button"
+                                            data-bs-toggle="collapse"
+                                            data-bs-target="#tools-{{ doc_id }}">
+                                        <span class="me-2">{{ doc_info.title or ('Document ' ~ doc_id) | truncate(40) }}</span>
+                                        <span class="badge bg-primary">{{ doc_results | length }} operations</span>
+                                    </button>
+                                </h2>
+                                <div id="tools-{{ doc_id }}" class="accordion-collapse collapse"
+                                     data-bs-parent="#toolResultsAccordion">
+                                    <div class="accordion-body">
+                                        {% for tool_name, tool_result in doc_results.items() %}
+                                        <div class="mb-3 pb-2 {% if not loop.last %}border-bottom{% endif %}">
+                                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                                <h6 class="mb-0 text-{{ get_op_color(tool_name) }}">
+                                                    <i class="fas {{ get_op_icon(tool_name) }} me-1"></i>{{ tool_name | replace('_', ' ') | title }}
+                                                </h6>
+                                                {% if tool_result.status == 'success' %}
+                                                <span class="badge bg-success">Success</span>
+                                                {% else %}
+                                                <span class="badge bg-danger">{{ tool_result.status }}</span>
+                                                {% endif %}
+                                            </div>
+                                            {% if tool_result.status == 'success' and tool_result.results %}
+                                            <div class="bg-light p-2 rounded small">
+                                                <pre class="mb-0" style="max-height: 150px; overflow-y: auto; font-size: 0.8em;">{{ tool_result.results | tojson(indent=2) }}</pre>
+                                            </div>
+                                            {% elif tool_result.error %}
+                                            <p class="mb-0 text-danger small">{{ tool_result.error }}</p>
+                                            {% endif %}
+                                        </div>
+                                        {% endfor %}
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Strategy & Confidence (Combined, Compact) -->
+    {% if run.recommended_strategy or run.strategy_reasoning %}
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header py-2 d-flex justify-content-between align-items-center">
+                    <h6 class="mb-0">
+                        <i class="fas fa-clipboard-list me-2"></i>Strategy Details
+                    </h6>
+                    {% if run.confidence %}
+                    <div class="d-flex align-items-center">
+                        <small class="text-muted me-2">Confidence:</small>
+                        <div class="progress" style="width: 100px; height: 8px;">
+                            <div class="progress-bar bg-success" style="width: {{ (run.confidence * 100) | round }}%"></div>
+                        </div>
+                        <small class="ms-2">{{ (run.confidence * 100) | round }}%</small>
+                    </div>
+                    {% endif %}
+                </div>
+                <div class="card-body py-2">
+                    {% if run.strategy_reasoning %}
+                    <p class="small text-muted mb-2">{{ run.strategy_reasoning }}</p>
+                    {% endif %}
+                    {% if run.review_notes %}
+                    <p class="small bg-light p-2 rounded mb-0"><strong>Review Notes:</strong> {{ run.review_notes }}</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Provenance Download (Compact) -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body py-2 d-flex justify-content-between align-items-center">
+                    <div>
+                        <i class="fas fa-download me-2 text-muted"></i>
+                        <span class="small">Download PROV-O compliant provenance record</span>
+                    </div>
                     <a href="{{ url_for('experiments.download_llm_provenance', experiment_id=experiment.id, run_id=run.id) }}"
-                       class="btn btn-outline-primary">
-                        <i class="fas fa-file-download me-1"></i>Download PROV-O JSON
+                       class="btn btn-sm btn-outline-primary">
+                        <i class="fas fa-file-download me-1"></i>Download JSON
                     </a>
                 </div>
             </div>
@@ -323,7 +307,7 @@
     <div class="row mb-4">
         <div class="col-12 text-center">
             <a href="{{ url_for('experiments.document_pipeline', experiment_id=experiment.id) }}"
-               class="btn btn-primary btn-lg">
+               class="btn btn-primary">
                 <i class="fas fa-arrow-left me-2"></i>Return to Document Pipeline
             </a>
         </div>
@@ -379,12 +363,8 @@
     color: #666;
 }
 
-.metric-card {
-    transition: transform 0.2s;
-}
-
-.metric-card:hover {
-    transform: translateY(-2px);
+.table td {
+    vertical-align: middle;
 }
 </style>
 {% endblock %}

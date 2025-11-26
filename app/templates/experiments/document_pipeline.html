@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "macros/processing_badges.html" import operation_badge %}
 
 {% block title %}Document Processing Pipeline - {{ experiment.name }} - OntExtract{% endblock %}
 
@@ -355,34 +356,7 @@
                                         {% if doc.operations %}
                                             <div class="d-flex flex-wrap gap-1">
                                                 {% for op in doc.operations %}
-                                                    {% set icon_class = '' %}
-                                                    {% set badge_color = 'secondary' %}
-
-                                                    {% if 'segment' in op.type %}
-                                                        {% set icon_class = 'fa-cut' %}
-                                                        {% set badge_color = 'warning' %}
-                                                    {% elif 'embedding' in op.type %}
-                                                        {% set icon_class = 'fa-vector-square' %}
-                                                        {% set badge_color = 'info' %}
-                                                    {% elif 'entit' in op.type %}
-                                                        {% set icon_class = 'fa-tags' %}
-                                                        {% set badge_color = 'success' %}
-                                                    {% elif 'temporal' in op.type %}
-                                                        {% set icon_class = 'fa-clock' %}
-                                                        {% set badge_color = 'secondary' %}
-                                                    {% elif 'definition' in op.type %}
-                                                        {% set icon_class = 'fa-book' %}
-                                                        {% set badge_color = 'primary' %}
-                                                    {% elif 'cleanup' in op.type %}
-                                                        {% set icon_class = 'fa-broom' %}
-                                                        {% set badge_color = 'primary' %}
-                                                    {% else %}
-                                                        {% set icon_class = 'fa-cog' %}
-                                                    {% endif %}
-
-                                                    <span class="badge bg-{{ badge_color }}" title="{{ op.source|title }} Processing">
-                                                        <i class="fas {{ icon_class }} me-1"></i>{{ op.type }}: {{ op.method }}
-                                                    </span>
+                                                    {{ operation_badge(op.type, op.method, op.source) }}
                                                 {% endfor %}
                                             </div>
                                         {% else %}

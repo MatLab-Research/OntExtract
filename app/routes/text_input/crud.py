@@ -128,6 +128,10 @@ def document_detail(document_uuid):
     # Get experiments that include this document with their processing results
     from app.models.experiment_document import ExperimentDocument
     from app.models.experiment_processing import DocumentProcessingIndex
+    from app.models.processing_artifact_group import ProcessingArtifactGroup
+
+    # Get ProcessingArtifactGroup count for this document (includes LLM orchestration results)
+    artifact_group_count = ProcessingArtifactGroup.query.filter_by(document_id=document.id).count()
 
     # Get all experiment-document relationships for THIS VERSION
     this_version_experiments = ExperimentDocument.query.filter_by(document_id=document.id).all()
@@ -165,6 +169,9 @@ def document_detail(document_uuid):
         }
         document_experiments.append(exp_data)
         total_processing_count += len(processing_results)
+
+    # Add ProcessingArtifactGroup count (LLM orchestration results)
+    total_processing_count += artifact_group_count
 
     # Enrich with processing information - ALL VERSIONS
     all_experiments = []
