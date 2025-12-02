@@ -240,6 +240,9 @@ SHARING_GUIDE.md
 
 # Claude Code instructions (development only, not for version control)
 CLAUDE.md
+.claude/
+
+# Database backups
 backup_ontextract_*.sql
 
 # Documentation directories (development/internal only)
@@ -279,5 +282,10 @@ data/
 # Development review directory (temporary files for review before deletion)
 untracked_review/
 
+# MkDocs build output
 site/
-CLAUDE.md
+
+# Backup files (not for version control)
+*.backup
+*_backup_*.html
+*_old_backup_*.html
