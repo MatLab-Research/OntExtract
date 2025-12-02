@@ -2,10 +2,11 @@
 """
 OntExtract Application Runner
 
-This script starts the OntExtract Flask application with shared services enabled.
+This script starts the OntExtract Flask application.
 """
 
 import os
+import subprocess
 from dotenv import load_dotenv
 
 # Load environment variables from .env BEFORE any app imports
@@ -22,61 +23,81 @@ from app import create_app
 # Expose a module-level Flask app for Gunicorn (run:app)
 app = create_app()
 
+
+def check_redis():
+    """Check if Redis is running."""
+    try:
+        import redis
+        r = redis.Redis(host='localhost', port=6379, socket_timeout=1)
+        r.ping()
+        return True
+    except Exception:
+        return False
+
+
+def check_celery_worker():
+    """Check if Celery worker is running."""
+    try:
+        result = subprocess.run(
+            ['pgrep', '-f', 'celery.*worker.*ontextract'],
+            capture_output=True,
+            timeout=2
+        )
+        return result.returncode == 0
+    except Exception:
+        return False
+
+
 def main():
     """Main entry point for the application."""
-    
+
     # Set environment variables if not already set
     os.environ.setdefault('FLASK_ENV', 'development')
     os.environ.setdefault('FLASK_DEBUG', '1')
-    
+
     # Use the module-level app
     global app
-    
+
     # Print startup information
     print("=" * 60)
-    print("🚀 Starting OntExtract with Shared Services")
+    print("OntExtract")
     print("=" * 60)
-    
-    # Test shared services
-    try:
-        from app.services.text_processing import TextProcessingService
-        service = TextProcessingService()
-        status = service.get_service_status()
-        
-        print(f"📊 Enhanced Features: {'✅ Enabled' if status['enhanced_features_enabled'] else '❌ Disabled'}")
-        print(f"📚 Shared Services: {'✅ Available' if status['shared_services_available'] else '❌ Unavailable'}")
-        
-        if status.get('embedding_providers'):
-            available_embedding = [name for name, available in status['embedding_providers'].items() if available]
-            print(f"🧠 Embedding Providers: {', '.join(available_embedding) if available_embedding else 'None'}")
-        
-        if status.get('llm_providers'):
-            available_llm = [name for name, available in status['llm_providers'].items() if available]
-            print(f"🤖 LLM Providers: {', '.join(available_llm) if available_llm else 'None'}")
-        
-        if status.get('file_processor_types'):
-            print(f"📄 File Types: {', '.join(status['file_processor_types'])}")
-        
-        if status.get('available_ontologies') is not None:
-            print(f"🔗 Ontologies: {status['available_ontologies']} available")
-        
-    except Exception as e:
-        print(f"⚠️  Warning: Could not check service status: {e}")
-    
-    print("=" * 60)
-    print("🌐 Starting Flask development server...")
-    print("📍 Access the application at: http://localhost:8765")
-    print("🛑 Press Ctrl+C to stop the server")
-    print("=" * 60)
-    
+
+    # Check background services
+    redis_ok = check_redis()
+    celery_ok = check_celery_worker()
+
+    print(f"Redis: {'Running' if redis_ok else 'NOT RUNNING'}")
+    print(f"Celery Worker: {'Running' if celery_ok else 'NOT RUNNING'}")
+
+    if not redis_ok:
+        print("  Start Redis with: redis-server")
+    if not celery_ok:
+        print("  Start Celery with: ./start_celery_worker.sh")
+        print("  LLM orchestration requires Celery.")
+
+    print("-" * 60)
+
+    # Check API keys
+    anthropic_key = bool(os.environ.get('ANTHROPIC_API_KEY'))
+    print(f"Anthropic API Key: {'Present' if anthropic_key else 'Missing'}")
+    if not anthropic_key:
+        print("  LLM orchestration requires ANTHROPIC_API_KEY in .env")
+
     # Show OED API configuration status
     try:
         oed_enabled = bool(app.config.get('OED_USE_API'))
         app_id_set = bool(app.config.get('OED_APP_ID'))
         key_set = bool(app.config.get('OED_ACCESS_KEY'))
-        print(f"🔎 OED API: {'Enabled' if oed_enabled else 'Disabled'} | Credentials: {'Present' if (app_id_set and key_set) else 'Missing'}")
-    except Exception as _:
+        oed_ready = oed_enabled and app_id_set and key_set
+        print(f"OED API: {'Ready' if oed_ready else 'Not configured'}")
+    except Exception:
         pass
+
+    print("=" * 60)
+    print("http://localhost:8765")
+    print("Ctrl+C to stop")
+    print("=" * 60)
 
     # Run the Flask app
     # Note: use_reloader disabled to prevent killing long-running orchestration workflows

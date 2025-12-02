@@ -3,34 +3,20 @@ from pathlib import Path
 from dotenv import load_dotenv, find_dotenv
 
 # Load environment variables in priority order:
-# 1. shared/.env (shared across all applications)
-# 2. .env (app-specific configuration)
-# 3. .env.local (local overrides)
-# 4. local.env (alternative local overrides)
+# 1. .env (application configuration)
+# 2. .env.local (local overrides, not committed)
 
-# Load shared environment first
-current_dir = Path(__file__).parent
-workspace_root = current_dir.parent.parent
-shared_env = workspace_root / "shared" / ".env"
-
-if shared_env.exists():
-    load_dotenv(shared_env, override=False)
-    print(f"✅ Loaded shared environment config: {shared_env}")
-
-# Load app-specific .env
+# Load app .env
 base_env = find_dotenv(filename=".env")
 if base_env:
-    load_dotenv(base_env, override=True)  # App-specific overrides shared
-    print(f"✅ Loaded local environment config: .env")
+    load_dotenv(base_env, override=False)
+    print(f"Loaded environment config: .env")
 
 # Load local overrides
 local_env = find_dotenv(filename=".env.local")
 if local_env:
     load_dotenv(local_env, override=True)
-
-alt_local_env = find_dotenv(filename="local.env")
-if alt_local_env:
-    load_dotenv(alt_local_env, override=True)
+    print(f"Loaded local overrides: .env.local")
 
 class Config:
     """Base configuration class"""

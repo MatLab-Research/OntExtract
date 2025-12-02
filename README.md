@@ -1,6 +1,6 @@
 # OntExtract
 
-Historical Document Analysis with Optional LLM Orchestration
+PROV-O Provenance Tracking for Document Analysis Workflows
 
 Presented at JCDL 2025 (Joint Conference on Digital Libraries), December 15-19, 2025
 
@@ -8,7 +8,7 @@ Presented at JCDL 2025 (Joint Conference on Digital Libraries), December 15-19, 
 
 ## Overview
 
-OntExtract is a digital humanities platform for analyzing historical documents. The platform supports period-aware document processing along with temporal evolution tracking and semantic change annotation. Users retain manual control over tool selection while optional LLM enhancements provide automated suggestions when API access is available.
+OntExtract provides a unified interface for document processing with integrated provenance tracking. PROV-O provenance concepts are embedded directly in the database schema, and each processing operation creates a versioned output with corresponding provenance records. The system operates in two modes: API-enhanced mode uses large language models to orchestrate tool selection, while standalone mode relies on established NLP libraries (spaCy, NLTK, sentence-transformers). Users can apply different processing strategies to the same documents and compare results while the system tracks complete analytical provenance.
 
 ---
 
@@ -72,13 +72,12 @@ FLASK_ENV=development python run.py
 
 ## System Architecture
 
-The backend uses Flask with PostgreSQL, LangGraph for workflow state management, Claude Sonnet 4 for LLM orchestration, and SQLAlchemy ORM with PROV-O schema. The frontend provides a Bootstrap 5 interface with real-time progress tracking and strategy review. The provenance layer implements W3C PROV-O compliant tracking with exportable graphs.
+The backend uses Flask with PostgreSQL, LangGraph for workflow state management, Claude Sonnet 4 for LLM orchestration, and SQLAlchemy ORM with PROV-O schema. The frontend provides a Bootstrap 5 interface with real-time progress tracking. The provenance layer implements W3C PROV-O compliant tracking with exportable graphs.
 
 ---
 
 ## Ontology
-
-Semantic change event types derive from a validated ontology with 34 classes developed from 12 papers. The ontology includes 33 embedded academic citations and passes Pellet reasoner validation. Event types include pejoration, amelioration, linguistic drift, intension drift, extension drift, lexical emergence, and obsolescence.
+Semantic change event types derive from a Pellet reasoner validated ontology with 34 classes developed from 12 papers.  Event types include pejoration, amelioration, linguistic drift, intension drift, extension drift, lexical emergence, and obsolescence.
 
 See [semantic-change-ontology-v2.ttl](ontologies/semantic-change-ontology-v2.ttl) for the ontology file.
 
@@ -86,4 +85,4 @@ See [semantic-change-ontology-v2.ttl](ontologies/semantic-change-ontology-v2.ttl
 
 ## Publications
 
-[OntExtract_JCDL2025.pdf](papers/OntExtract_JCDL2025.pdf) - "LLM-Orchestrated Document Processing for Historical Text Analysis" (JCDL 2025)
+[OntExtract_JCDL2025.pdf](papers/OntExtract_JCDL2025.pdf) - "OntExtract: PROV-O Provenance Tracking for Document Analysis Workflows" (JCDL 2025)
