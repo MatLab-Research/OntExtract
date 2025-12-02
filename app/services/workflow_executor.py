@@ -58,6 +58,7 @@ class WorkflowExecutor:
             ValueError: If run not found or invalid state
             RuntimeError: If execution fails
         """
+        run = None
         try:
             # Load orchestration run
             run = ExperimentOrchestrationRun.query.get(run_id)
@@ -138,6 +139,7 @@ class WorkflowExecutor:
             ValueError: If run not found or invalid state
             RuntimeError: If execution fails
         """
+        run = None
         try:
             # Load orchestration run
             run = ExperimentOrchestrationRun.query.get(run_id)
