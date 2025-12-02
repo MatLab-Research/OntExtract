@@ -89,8 +89,19 @@
                         <div id="llm-mode-desc" class="mode-description" style="display: none;">
                             <p class="text-muted mb-3">
                                 <i class="fas fa-magic me-2"></i>
-                                Let Claude analyze all {{ total_count }} documents together and recommend an optimal processing strategy. You'll be able to review and modify the strategy before processing begins.
+                                Let Claude analyze all {{ total_count }} documents together and recommend an optimal processing strategy.
                             </p>
+
+                            <!-- Review Toggle -->
+                            <div class="form-check form-switch mb-3">
+                                <input class="form-check-input" type="checkbox" role="switch" id="review-choices-toggle" checked>
+                                <label class="form-check-label" for="review-choices-toggle">
+                                    <strong>Review recommendations before processing</strong>
+                                    <br>
+                                    <small class="text-muted">When enabled, you can review and modify the recommended tools before execution begins.</small>
+                                </label>
+                            </div>
+
                             <button id="analyze-experiment-btn" class="btn btn-primary btn-lg" data-experiment-id="{{ experiment.id }}">
                                 <i class="fas fa-chart-line me-2"></i>LLM Analyze
                             </button>

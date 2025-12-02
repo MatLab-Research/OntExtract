@@ -191,6 +191,24 @@ def create_app(config_name=None):
         except:
             return None
 
+    @app.template_filter('format_tool_name')
+    def format_tool_name_filter(tool_name):
+        """Format processing tool name for display."""
+        names = {
+            'segment_paragraph': 'Paragraph',
+            'segment_sentence': 'Sentence',
+            'embeddings_local': 'Local Embed',
+            'embeddings_openai': 'OpenAI Embed',
+            'embeddings_period_aware': 'Period Embed',
+            'entities_spacy': 'Entities',
+            'extract_entities_spacy': 'Entities',
+            'definitions_spacy': 'Definitions',
+            'extract_definitions_spacy': 'Definitions',
+            'temporal_spacy': 'Temporal',
+            'extract_temporal_spacy': 'Temporal'
+        }
+        return names.get(tool_name, tool_name)
+
     # Favicon route - silence 404 errors
     @app.route('/favicon.ico')
     def favicon():

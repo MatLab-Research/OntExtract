@@ -1,0 +1,248 @@
+{#
+Processing Operations Macro
+Reusable tool selection UI for document processing.
+
+Usage:
+{% from 'experiments/macros/processing_operations.html' import render_processing_operations %}
+{{ render_processing_operations(document_id, processing_operations, context='single', compact=false) }}
+
+Parameters:
+- document_id: The document ID (for form field naming)
+- processing_operations: List of existing processing operations (for showing "already applied")
+- context: 'single' for single document, 'batch' for orchestration review
+- compact: If true, use compact layout for batch review
+- recommended_tools: List of recommended tool names (for orchestration review)
+#}
+
+{% macro render_processing_operations(document_id, processing_operations=[], context='single', compact=false, recommended_tools=[], expanded=false) %}
+<div class="processing-operations-container" data-document-id="{{ document_id }}">
+    {% if context == 'batch' and not expanded %}
+    {# Compact summary view for batch review #}
+    <div class="tool-summary">
+        {% for tool in recommended_tools %}
+        <span class="badge bg-primary me-1 mb-1">{{ tool | format_tool_name }}</span>
+        {% endfor %}
+        <button type="button" class="btn btn-sm btn-outline-secondary ms-2 expand-tools-btn"
+                onclick="toggleToolsExpanded(this, '{{ document_id }}')">
+            <i class="fas fa-edit"></i> Edit
+        </button>
+    </div>
+    <div class="tool-editor d-none" id="tool-editor-{{ document_id }}">
+    {% endif %}
+
+    <div class="row {% if compact %}row-cols-2{% else %}row-cols-1 row-cols-md-2{% endif %}">
+        {# Segmentation Group #}
+        <div class="col mb-3">
+            <div class="border rounded p-{% if compact %}2{% else %}3{% endif %} bg-secondary bg-opacity-10 h-100">
+                <h6 class="mb-{% if compact %}2{% else %}3{% endif %}">
+                    <i class="fas fa-cut text-warning me-2"></i>Segmentation
+                </h6>
+                <div class="form-check {% if compact %}mb-1{% else %}mb-2{% endif %}">
+                    <input class="form-check-input tool-checkbox" type="checkbox"
+                           name="tools-{{ document_id }}[]" value="segment_paragraph"
+                           id="tool-{{ document_id }}-segment-paragraph"
+                           {{ 'checked' if 'segment_paragraph' in recommended_tools else '' }}
+                           {{ 'disabled' if is_tool_completed(processing_operations, 'segmentation', ['paragraph', 'semantic']) else '' }}>
+                    <label class="form-check-label" for="tool-{{ document_id }}-segment-paragraph">
+                        {% if compact %}
+                        Paragraph
+                        {% else %}
+                        <strong>Paragraph Segmentation</strong>
+                        <br><small class="text-muted">Split into paragraphs (NLTK-enhanced)</small>
+                        {% endif %}
+                        {% if is_tool_completed(processing_operations, 'segmentation', ['paragraph', 'semantic']) %}
+                        <small class="text-success"><i class="fas fa-check-circle ms-1"></i></small>
+                        {% endif %}
+                    </label>
+                </div>
+                <div class="form-check">
+                    <input class="form-check-input tool-checkbox" type="checkbox"
+                           name="tools-{{ document_id }}[]" value="segment_sentence"
+                           id="tool-{{ document_id }}-segment-sentence"
+                           {{ 'checked' if 'segment_sentence' in recommended_tools else '' }}
+                           {{ 'disabled' if is_tool_completed(processing_operations, 'segmentation', ['sentence']) else '' }}>
+                    <label class="form-check-label" for="tool-{{ document_id }}-segment-sentence">
+                        {% if compact %}
+                        Sentence
+                        {% else %}
+                        <strong>Sentence Segmentation</strong>
+                        <br><small class="text-muted">Split into sentences (NLTK Punkt)</small>
+                        {% endif %}
+                        {% if is_tool_completed(processing_operations, 'segmentation', ['sentence']) %}
+                        <small class="text-success"><i class="fas fa-check-circle ms-1"></i></small>
+                        {% endif %}
+                    </label>
+                </div>
+            </div>
+        </div>
+
+        {# Embeddings Group #}
+        <div class="col mb-3">
+            <div class="border rounded p-{% if compact %}2{% else %}3{% endif %} bg-secondary bg-opacity-10 h-100">
+                <h6 class="mb-{% if compact %}2{% else %}3{% endif %}">
+                    <i class="fas fa-vector-square text-info me-2"></i>Embeddings
+                </h6>
+                <div class="form-check {% if compact %}mb-1{% else %}mb-2{% endif %}">
+                    <input class="form-check-input tool-checkbox" type="checkbox"
+                           name="tools-{{ document_id }}[]" value="embeddings_local"
+                           id="tool-{{ document_id }}-embeddings-local"
+                           {{ 'checked' if 'embeddings_local' in recommended_tools else '' }}
+                           {{ 'disabled' if is_tool_completed(processing_operations, 'embeddings', ['local', 'period_aware']) else '' }}>
+                    <label class="form-check-label" for="tool-{{ document_id }}-embeddings-local">
+                        {% if compact %}
+                        Local (384d)
+                        {% else %}
+                        <strong>Local Embeddings</strong>
+                        <br><small class="text-muted">sentence-transformers (384 dims)</small>
+                        {% endif %}
+                        {% if is_tool_completed(processing_operations, 'embeddings', ['local']) %}
+                        <small class="text-success"><i class="fas fa-check-circle ms-1"></i></small>
+                        {% endif %}
+                    </label>
+                </div>
+                <div class="form-check {% if compact %}mb-1{% else %}mb-2{% endif %}">
+                    <input class="form-check-input tool-checkbox" type="checkbox"
+                           name="tools-{{ document_id }}[]" value="embeddings_period_aware"
+                           id="tool-{{ document_id }}-embeddings-period-aware"
+                           {{ 'checked' if 'embeddings_period_aware' in recommended_tools else '' }}
+                           {{ 'disabled' if is_tool_completed(processing_operations, 'embeddings', ['period_aware']) else '' }}>
+                    <label class="form-check-label" for="tool-{{ document_id }}-embeddings-period-aware">
+                        {% if compact %}
+                        Period-Aware
+                        {% else %}
+                        <strong>Period-Aware Embeddings</strong>
+                        <br><small class="text-muted">Historical/contemporary model selection</small>
+                        {% endif %}
+                        {% if is_tool_completed(processing_operations, 'embeddings', ['period_aware']) %}
+                        <small class="text-success"><i class="fas fa-check-circle ms-1"></i></small>
+                        {% endif %}
+                    </label>
+                </div>
+                <div class="form-check">
+                    <input class="form-check-input tool-checkbox" type="checkbox"
+                           name="tools-{{ document_id }}[]" value="embeddings_openai"
+                           id="tool-{{ document_id }}-embeddings-openai"
+                           {{ 'checked' if 'embeddings_openai' in recommended_tools else '' }}
+                           {{ 'disabled' if is_tool_completed(processing_operations, 'embeddings', ['openai']) else '' }}>
+                    <label class="form-check-label" for="tool-{{ document_id }}-embeddings-openai">
+                        {% if compact %}
+                        OpenAI (3072d)
+                        {% else %}
+                        <strong>OpenAI Embeddings</strong>
+                        <br><small class="text-muted">text-embedding-3-large (3072 dims)</small>
+                        {% endif %}
+                        {% if is_tool_completed(processing_operations, 'embeddings', ['openai']) %}
+                        <small class="text-success"><i class="fas fa-check-circle ms-1"></i></small>
+                        {% endif %}
+                    </label>
+                </div>
+            </div>
+        </div>
+
+        {# Entity Extraction Group #}
+        <div class="col mb-3">
+            <div class="border rounded p-{% if compact %}2{% else %}3{% endif %} bg-secondary bg-opacity-10 h-100">
+                <h6 class="mb-{% if compact %}2{% else %}3{% endif %}">
+                    <i class="fas fa-tags text-success me-2"></i>Extraction
+                </h6>
+                <div class="form-check {% if compact %}mb-1{% else %}mb-2{% endif %}">
+                    <input class="form-check-input tool-checkbox" type="checkbox"
+                           name="tools-{{ document_id }}[]" value="entities_spacy"
+                           id="tool-{{ document_id }}-entities-spacy"
+                           {{ 'checked' if 'entities_spacy' in recommended_tools or 'extract_entities_spacy' in recommended_tools else '' }}
+                           {{ 'disabled' if is_tool_completed(processing_operations, 'entities', ['spacy', 'spacy_ner']) else '' }}>
+                    <label class="form-check-label" for="tool-{{ document_id }}-entities-spacy">
+                        {% if compact %}
+                        Entities + Concepts
+                        {% else %}
+                        <strong>Named Entities + Concepts</strong>
+                        <br><small class="text-muted">spaCy NER + noun phrase extraction</small>
+                        {% endif %}
+                        {% if is_tool_completed(processing_operations, 'entities', ['spacy', 'spacy_ner']) %}
+                        <small class="text-success"><i class="fas fa-check-circle ms-1"></i></small>
+                        {% endif %}
+                    </label>
+                </div>
+                <div class="form-check">
+                    <input class="form-check-input tool-checkbox" type="checkbox"
+                           name="tools-{{ document_id }}[]" value="definitions_spacy"
+                           id="tool-{{ document_id }}-definitions-spacy"
+                           {{ 'checked' if 'definitions_spacy' in recommended_tools or 'extract_definitions_spacy' in recommended_tools else '' }}
+                           {{ 'disabled' if is_tool_completed(processing_operations, 'definitions', ['spacy', 'definition_extraction']) else '' }}>
+                    <label class="form-check-label" for="tool-{{ document_id }}-definitions-spacy">
+                        {% if compact %}
+                        Definitions
+                        {% else %}
+                        <strong>Definition Extraction</strong>
+                        <br><small class="text-muted">spaCy pattern matching + dependency parsing</small>
+                        {% endif %}
+                        {% if is_tool_completed(processing_operations, 'definitions', ['spacy', 'definition_extraction']) %}
+                        <small class="text-success"><i class="fas fa-check-circle ms-1"></i></small>
+                        {% endif %}
+                    </label>
+                </div>
+            </div>
+        </div>
+
+        {# Temporal Analysis Group #}
+        <div class="col mb-3">
+            <div class="border rounded p-{% if compact %}2{% else %}3{% endif %} bg-secondary bg-opacity-10 h-100">
+                <h6 class="mb-{% if compact %}2{% else %}3{% endif %}">
+                    <i class="fas fa-clock text-secondary me-2"></i>Temporal
+                </h6>
+                <div class="form-check">
+                    <input class="form-check-input tool-checkbox" type="checkbox"
+                           name="tools-{{ document_id }}[]" value="temporal_spacy"
+                           id="tool-{{ document_id }}-temporal-spacy"
+                           {{ 'checked' if 'temporal_spacy' in recommended_tools or 'extract_temporal_spacy' in recommended_tools else '' }}
+                           {{ 'disabled' if is_tool_completed(processing_operations, 'temporal', ['spacy', 'temporal_extraction']) else '' }}>
+                    <label class="form-check-label" for="tool-{{ document_id }}-temporal-spacy">
+                        {% if compact %}
+                        Temporal Markers
+                        {% else %}
+                        <strong>Temporal Extraction</strong>
+                        <br><small class="text-muted">spaCy + date parsing (dates, periods, markers)</small>
+                        {% endif %}
+                        {% if is_tool_completed(processing_operations, 'temporal', ['spacy', 'temporal_extraction']) %}
+                        <small class="text-success"><i class="fas fa-check-circle ms-1"></i></small>
+                        {% endif %}
+                    </label>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {% if context == 'batch' and not expanded %}
+    </div>
+    {% endif %}
+</div>
+{% endmacro %}
+
+{# Helper macro to check if a tool has been completed #}
+{% macro is_tool_completed(operations, proc_type, methods) %}
+{%- set ns = namespace(found=false) -%}
+{%- for op in operations -%}
+    {%- if op.processing_type == proc_type and op.processing_method in methods and op.status == 'completed' -%}
+        {%- set ns.found = true -%}
+    {%- endif -%}
+{%- endfor -%}
+{{ ns.found }}
+{% endmacro %}
+
+{# Helper filter for tool name formatting #}
+{% macro format_tool_name(tool_name) %}
+{%- set names = {
+    'segment_paragraph': 'Paragraph',
+    'segment_sentence': 'Sentence',
+    'embeddings_local': 'Local Embed',
+    'embeddings_openai': 'OpenAI Embed',
+    'embeddings_period_aware': 'Period Embed',
+    'entities_spacy': 'Entities',
+    'extract_entities_spacy': 'Entities',
+    'definitions_spacy': 'Definitions',
+    'extract_definitions_spacy': 'Definitions',
+    'temporal_spacy': 'Temporal',
+    'extract_temporal_spacy': 'Temporal'
+} -%}
+{{ names.get(tool_name, tool_name) }}
+{% endmacro %}

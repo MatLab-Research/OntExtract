@@ -68,6 +68,11 @@ async def analyze_experiment_node(state: ExperimentOrchestrationState) -> Dict[s
         - current_stage: Updated to "recommending"
     """
     claude_client = get_claude_client()
+    run_id = state.get('run_id')
+
+    # Update progress
+    if run_id:
+        update_current_operation(run_id, "Analyzing experiment goals and document collection...")
 
     # Extract metadata from state
     experiment_type = state.get('experiment_type', 'entity_extraction')
@@ -140,6 +145,12 @@ async def recommend_strategy_node(state: ExperimentOrchestrationState) -> Dict[s
         - current_stage: "reviewing" or "executing" (based on user_preferences)
     """
     claude_client = get_claude_client()
+    run_id = state.get('run_id')
+
+    # Update progress
+    if run_id:
+        num_docs = len(state.get('documents', []))
+        update_current_operation(run_id, f"Generating tool recommendations for {num_docs} documents...")
 
     # Extract metadata from state
     experiment_type = state.get('experiment_type', 'entity_extraction')
@@ -248,16 +259,67 @@ def update_current_operation(run_id: str, operation_text: str):
         db.session.rollback()
 
 
+def create_orchestration_versions(documents: List[Dict[str, Any]], run_id: str) -> Dict[str, int]:
+    """
+    Create new document versions for this orchestration run.
+
+    Each LLM orchestration run creates new versions of documents so processing
+    artifacts are linked to specific versions, enabling reproducibility.
+
+    Args:
+        documents: List of document dicts from state
+        run_id: Orchestration run ID
+
+    Returns:
+        Mapping of original doc_id (str) -> new version document_id (int)
+    """
+    from app.models import Document
+    from app.services.inheritance_versioning_service import InheritanceVersioningService
+
+    version_mapping = {}
+
+    for doc in documents:
+        doc_id = doc['id']
+        try:
+            original_doc = Document.query.get(int(doc_id))
+            if original_doc:
+                # Create new version for this orchestration run
+                new_version = InheritanceVersioningService.create_new_version(
+                    original_document=original_doc,
+                    processing_type='llm_orchestration',
+                    processing_metadata={
+                        'orchestration_run_id': run_id,
+                        'processing_type': 'llm_orchestration',
+                        'created_at': datetime.utcnow().isoformat()
+                    }
+                )
+                db.session.commit()
+                version_mapping[doc_id] = new_version.id
+                logger.info(f"Created version {new_version.id} (v{new_version.version_number}) "
+                           f"for document {doc_id}, orchestration run {run_id}")
+            else:
+                # Fallback to original if document not found
+                version_mapping[doc_id] = int(doc_id)
+                logger.warning(f"Document {doc_id} not found, using original ID")
+        except Exception as e:
+            logger.error(f"Failed to create version for document {doc_id}: {e}")
+            version_mapping[doc_id] = int(doc_id)
+
+    return version_mapping
+
+
 async def execute_strategy_node(state: ExperimentOrchestrationState) -> Dict[str, Any]:
     """
     Stage 4: Execute the approved processing strategy.
 
-    Processes all documents in parallel using the recommended (or modified)
-    tools. Tracks execution provenance for PROV-O compliance.
+    Creates new document versions for this run, then processes all documents
+    in parallel using the recommended (or modified) tools.
+    Tracks execution provenance for PROV-O compliance.
 
     Returns:
         - processing_results: {doc_id: {tool: result, ...}}
         - execution_trace: List of execution events
+        - version_mapping: {original_doc_id: new_version_id}
         - current_stage: "synthesizing"
     """
     strategy = state.get('modified_strategy') or state['recommended_strategy']
@@ -274,6 +336,19 @@ async def execute_strategy_node(state: ExperimentOrchestrationState) -> Dict[str
     total_tools = sum(len(tools) for tools in strategy.values())
     completed_tools = 0
 
+    # Build doc_id -> title mapping for better progress messages
+    doc_titles = {doc['id']: doc.get('title', f"Document {doc['id']}")[:40] for doc in documents}
+
+    # Create new versions for this orchestration run
+    if run_id:
+        update_current_operation(run_id, f"Creating document versions for orchestration run...")
+
+    version_mapping = create_orchestration_versions(documents, run_id)
+
+    # Initial progress update
+    if run_id:
+        update_current_operation(run_id, f"Processing {len(documents)} documents with {total_tools} operations...")
+
     async def process_document(doc: Dict[str, Any]) -> tuple[str, Dict[str, Any]]:
         """Process a single document with its recommended tools."""
         nonlocal completed_tools
@@ -288,21 +363,23 @@ async def execute_strategy_node(state: ExperimentOrchestrationState) -> Dict[str
             tool = tool_registry.get(tool_name)
             if tool:
                 try:
-                    # Update progress in database
+                    # Update progress in database with document title
+                    doc_title = doc_titles.get(doc_id, f"Doc {doc_id}")
                     update_current_operation(
                         run_id,
-                        f"Processing document {doc_id} with {tool_name} ({completed_tools + 1}/{total_tools} operations)"
+                        f"{tool_name} on '{doc_title}' ({completed_tools + 1}/{total_tools})"
                     )
 
-                    logger.info(f"[Run {run_id}] Processing doc {doc_id} with tool {tool_name}")
+                    # Use new version ID for artifact storage (links artifacts to this run's version)
+                    version_doc_id = version_mapping.get(doc_id, int(doc_id))
+                    logger.info(f"[Run {run_id}] Processing doc {doc_id} (version {version_doc_id}) with tool {tool_name}")
 
                     # Execute tool with 60 second timeout
-                    # Pass document_id and orchestration_run_id for artifact group creation
-                    # Convert doc_id from string to int (it's stored as string in state)
+                    # Pass version document_id for artifact group creation
                     result = await asyncio.wait_for(
                         tool.execute(
                             doc_content,
-                            document_id=int(doc_id),
+                            document_id=version_doc_id,
                             orchestration_run_id=str(run_id)
                         ),
                         timeout=60.0
@@ -320,10 +397,11 @@ async def execute_strategy_node(state: ExperimentOrchestrationState) -> Dict[str
                     # Increment completed counter
                     completed_tools += 1
 
-                    # Track execution
+                    # Track execution with version info
                     execution_trace.append({
                         "run_id": run_id,
                         "document_id": doc_id,
+                        "version_document_id": version_doc_id,
                         "tool": tool_name,
                         "timestamp": datetime.utcnow().isoformat(),
                         "status": "success"
@@ -371,6 +449,7 @@ async def execute_strategy_node(state: ExperimentOrchestrationState) -> Dict[str
     return {
         "processing_results": processing_results,
         "execution_trace": execution_trace,
+        "version_mapping": version_mapping,  # Maps original doc_id -> version doc_id
         "current_stage": "synthesizing"
     }
 
@@ -391,6 +470,11 @@ async def synthesize_experiment_node(state: ExperimentOrchestrationState) -> Dic
         - current_stage: "completed"
     """
     claude_client = get_claude_client()
+    run_id = state.get('run_id')
+
+    # Update progress
+    if run_id:
+        update_current_operation(run_id, "Synthesizing cross-document insights and generating visualizations...")
 
     # Extract metadata from state
     experiment_type = state.get('experiment_type', 'entity_extraction')

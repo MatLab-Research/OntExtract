@@ -1,0 +1,635 @@
+{% extends "base.html" %}
+
+{% block title %}Review Strategy - {{ experiment.name }} - OntExtract{% endblock %}
+
+{% block content %}
+<style>
+    .document-card {
+        border: 1px solid #dee2e6;
+        border-radius: 8px;
+        margin-bottom: 16px;
+        transition: box-shadow 0.2s ease;
+    }
+
+    .document-card:hover {
+        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    }
+
+    .document-card-header {
+        background: #f8f9fa;
+        padding: 12px 16px;
+        border-bottom: 1px solid #dee2e6;
+        border-radius: 8px 8px 0 0;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .document-card-body {
+        padding: 16px;
+    }
+
+    .tool-badge {
+        display: inline-block;
+        padding: 4px 10px;
+        margin: 2px 4px 2px 0;
+        border-radius: 4px;
+        font-size: 0.85rem;
+        font-weight: 500;
+    }
+
+    .tool-badge.active {
+        background: #0d6efd;
+        color: white;
+    }
+
+    .tool-badge.inactive {
+        background: #e9ecef;
+        color: #6c757d;
+    }
+
+    .tool-badge.completed {
+        background: #d4edda;
+        color: #155724;
+    }
+
+    .tool-editor {
+        display: none;
+        padding: 16px;
+        background: #f8f9fa;
+        border-radius: 0 0 8px 8px;
+        border-top: 1px dashed #dee2e6;
+    }
+
+    .tool-editor.show {
+        display: block;
+    }
+
+    .reasoning-card {
+        background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+        border-left: 4px solid #0d6efd;
+    }
+
+    .confidence-badge {
+        font-size: 1.1rem;
+        padding: 8px 16px;
+    }
+
+    .period-card {
+        border: 1px solid #dee2e6;
+        border-radius: 8px;
+        padding: 16px;
+        margin-bottom: 12px;
+        background: white;
+    }
+
+    .period-card.suggested {
+        border-left: 4px solid #ffc107;
+        background: #fffdf5;
+    }
+
+    .period-card.configured {
+        border-left: 4px solid #28a745;
+        background: #f8fff9;
+    }
+
+    .sticky-actions {
+        position: sticky;
+        bottom: 0;
+        background: white;
+        padding: 16px;
+        border-top: 1px solid #dee2e6;
+        box-shadow: 0 -4px 8px rgba(0,0,0,0.1);
+        z-index: 100;
+    }
+</style>
+
+<div class="container-fluid px-4">
+    {# Header #}
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                    <h2>Review Processing Strategy</h2>
+                    <p class="text-muted mb-0">
+                        <i class="fas fa-flask me-2"></i>{{ experiment.name }}
+                        <span class="badge bg-info ms-2">{{ experiment.experiment_type | replace('_', ' ') | title }}</span>
+                    </p>
+                </div>
+                <a href="{{ url_for('experiments.document_pipeline', experiment_id=experiment.id) }}"
+                   class="btn btn-outline-secondary">
+                    <i class="fas fa-arrow-left me-2"></i>Back to Pipeline
+                </a>
+            </div>
+        </div>
+    </div>
+
+    {# LLM Analysis Summary #}
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card reasoning-card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">
+                        <i class="fas fa-brain me-2"></i>LLM Analysis
+                    </h5>
+                    <span class="badge confidence-badge {% if run.confidence >= 0.8 %}bg-success{% elif run.confidence >= 0.6 %}bg-warning{% else %}bg-danger{% endif %}">
+                        {{ (run.confidence * 100) | int }}% Confidence
+                    </span>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6 class="text-muted mb-2">Experiment Goal</h6>
+                            <p class="mb-3">{{ run.experiment_goal or 'Goal analysis pending...' }}</p>
+                        </div>
+                        <div class="col-md-6">
+                            <h6 class="text-muted mb-2">Strategy Reasoning</h6>
+                            <p class="mb-0">{{ run.strategy_reasoning or 'Reasoning pending...' }}</p>
+                        </div>
+                    </div>
+                    {% if run.term_context %}
+                    <div class="mt-3 pt-3 border-top">
+                        <h6 class="text-muted mb-2">Term Context</h6>
+                        <p class="mb-0">{{ run.term_context }}</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {# Temporal Periods Section (for temporal_evolution experiments) #}
+    {% if experiment.experiment_type == 'temporal_evolution' %}
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">
+                        <i class="fas fa-clock me-2"></i>Temporal Periods
+                    </h5>
+                    {% if has_existing_periods %}
+                    <span class="badge bg-success">{{ existing_periods | length }} Periods Configured</span>
+                    {% else %}
+                    <span class="badge bg-warning">Not Configured</span>
+                    {% endif %}
+                </div>
+                <div class="card-body">
+                    {% if has_existing_periods %}
+                    <p class="text-muted mb-3">
+                        <i class="fas fa-check-circle text-success me-1"></i>
+                        Temporal periods have been configured for this experiment.
+                    </p>
+                    <div class="row row-cols-1 row-cols-md-4 g-3">
+                        {% for period in existing_periods %}
+                        <div class="col">
+                            <div class="period-card configured">
+                                <h6 class="mb-1" style="color: {{ period.marker_color or '#6c757d' }}">
+                                    {{ period.temporal_period }}
+                                </h6>
+                                <small class="text-muted">{{ period.temporal_start_year }} - {{ period.temporal_end_year }}</small>
+                                <div class="mt-2">
+                                    <span class="badge bg-secondary">{{ period.document_count }} docs</span>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <div class="alert alert-info mb-3">
+                        <i class="fas fa-info-circle me-2"></i>
+                        No temporal periods have been configured for this experiment.
+                        You can auto-generate periods based on document publication dates.
+                    </div>
+                    <div class="form-check mb-3">
+                        <input class="form-check-input" type="checkbox" id="generate-periods" checked>
+                        <label class="form-check-label" for="generate-periods">
+                            <strong>Generate periods from document dates</strong>
+                            <br>
+                            <small class="text-muted">
+                                Creates temporal periods based on publication years of the {{ documents | length }} documents.
+                            </small>
+                        </label>
+                    </div>
+
+                    {# Preview suggested periods #}
+                    {% if suggested_periods %}
+                    <div id="suggested-periods-preview">
+                        <h6 class="text-muted mb-2">Suggested Periods (based on document dates)</h6>
+                        <div class="row row-cols-1 row-cols-md-4 g-3">
+                            {% for period in suggested_periods %}
+                            <div class="col">
+                                <div class="period-card suggested">
+                                    <div class="d-flex justify-content-between align-items-start">
+                                        <div>
+                                            <h6 class="mb-1">{{ period.name }}</h6>
+                                            <small class="text-muted">{{ period.start_year }} - {{ period.end_year }}</small>
+                                        </div>
+                                        <button type="button" class="btn btn-sm btn-outline-danger remove-period-btn"
+                                                data-period-name="{{ period.name }}">
+                                            <i class="fas fa-times"></i>
+                                        </button>
+                                    </div>
+                                    <div class="mt-2">
+                                        <span class="badge bg-secondary">{{ period.document_count }} docs</span>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endif %}
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    {# Document Tool Recommendations #}
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">
+                        <i class="fas fa-cogs me-2"></i>Processing Operations per Document
+                    </h5>
+                    <div>
+                        <button type="button" class="btn btn-sm btn-outline-secondary me-2" onclick="collapseAllEditors()">
+                            <i class="fas fa-compress-alt me-1"></i>Collapse All
+                        </button>
+                        <button type="button" class="btn btn-sm btn-outline-primary" onclick="expandAllEditors()">
+                            <i class="fas fa-expand-alt me-1"></i>Expand All
+                        </button>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted mb-4">
+                        Review the recommended processing tools for each document.
+                        Click <strong>Edit</strong> to modify the selection.
+                    </p>
+
+                    <form id="strategy-form">
+                        {% for doc in documents %}
+                        <div class="document-card" data-document-id="{{ doc.id }}">
+                            <div class="document-card-header">
+                                <div>
+                                    <h6 class="mb-0">{{ doc.title | truncate(60) }}</h6>
+                                    <small class="text-muted">
+                                        {% if doc.authors %}{{ doc.authors }} | {% endif %}
+                                        {% if doc.publication_year %}{{ doc.publication_year }}{% endif %}
+                                        | {{ doc.word_count | default(0) | int }} words
+                                    </small>
+                                </div>
+                                <button type="button" class="btn btn-sm btn-outline-secondary edit-tools-btn"
+                                        onclick="toggleToolEditor('{{ doc.id }}')">
+                                    <i class="fas fa-edit me-1"></i>Edit
+                                </button>
+                            </div>
+                            <div class="document-card-body">
+                                {# Tool summary - shows recommended tools as badges #}
+                                <div class="tool-summary" id="tool-summary-{{ doc.id }}">
+                                    {% set recommended = recommended_strategy.get(doc.id | string, []) %}
+                                    {% if recommended %}
+                                        {% for tool in recommended %}
+                                        <span class="tool-badge active">
+                                            <i class="fas fa-check me-1"></i>{{ tool | format_tool_name }}
+                                        </span>
+                                        {% endfor %}
+                                    {% else %}
+                                        <span class="text-muted">No tools recommended</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+
+                            {# Expandable tool editor #}
+                            <div class="tool-editor" id="tool-editor-{{ doc.id }}">
+                                <div class="row">
+                                    {# Segmentation #}
+                                    <div class="col-md-3 mb-3">
+                                        <div class="border rounded p-2 bg-white h-100">
+                                            <h6 class="mb-2">
+                                                <i class="fas fa-cut text-warning me-1"></i>Segmentation
+                                            </h6>
+                                            <div class="form-check mb-1">
+                                                <input class="form-check-input tool-checkbox" type="checkbox"
+                                                       name="tools-{{ doc.id }}[]" value="segment_paragraph"
+                                                       id="tool-{{ doc.id }}-segment-paragraph"
+                                                       {{ 'checked' if 'segment_paragraph' in recommended else '' }}
+                                                       onchange="updateToolSummary('{{ doc.id }}')">
+                                                <label class="form-check-label small" for="tool-{{ doc.id }}-segment-paragraph">
+                                                    Paragraph
+                                                </label>
+                                            </div>
+                                            <div class="form-check">
+                                                <input class="form-check-input tool-checkbox" type="checkbox"
+                                                       name="tools-{{ doc.id }}[]" value="segment_sentence"
+                                                       id="tool-{{ doc.id }}-segment-sentence"
+                                                       {{ 'checked' if 'segment_sentence' in recommended else '' }}
+                                                       onchange="updateToolSummary('{{ doc.id }}')">
+                                                <label class="form-check-label small" for="tool-{{ doc.id }}-segment-sentence">
+                                                    Sentence
+                                                </label>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {# Embeddings #}
+                                    <div class="col-md-3 mb-3">
+                                        <div class="border rounded p-2 bg-white h-100">
+                                            <h6 class="mb-2">
+                                                <i class="fas fa-vector-square text-info me-1"></i>Embeddings
+                                            </h6>
+                                            <div class="form-check mb-1">
+                                                <input class="form-check-input tool-checkbox" type="checkbox"
+                                                       name="tools-{{ doc.id }}[]" value="embeddings_local"
+                                                       id="tool-{{ doc.id }}-embeddings-local"
+                                                       {{ 'checked' if 'embeddings_local' in recommended else '' }}
+                                                       onchange="updateToolSummary('{{ doc.id }}')">
+                                                <label class="form-check-label small" for="tool-{{ doc.id }}-embeddings-local">
+                                                    Local (384d)
+                                                </label>
+                                            </div>
+                                            <div class="form-check mb-1">
+                                                <input class="form-check-input tool-checkbox" type="checkbox"
+                                                       name="tools-{{ doc.id }}[]" value="embeddings_period_aware"
+                                                       id="tool-{{ doc.id }}-embeddings-period-aware"
+                                                       {{ 'checked' if 'embeddings_period_aware' in recommended else '' }}
+                                                       onchange="updateToolSummary('{{ doc.id }}')">
+                                                <label class="form-check-label small" for="tool-{{ doc.id }}-embeddings-period-aware">
+                                                    Period-Aware
+                                                </label>
+                                            </div>
+                                            <div class="form-check">
+                                                <input class="form-check-input tool-checkbox" type="checkbox"
+                                                       name="tools-{{ doc.id }}[]" value="embeddings_openai"
+                                                       id="tool-{{ doc.id }}-embeddings-openai"
+                                                       {{ 'checked' if 'embeddings_openai' in recommended else '' }}
+                                                       onchange="updateToolSummary('{{ doc.id }}')">
+                                                <label class="form-check-label small" for="tool-{{ doc.id }}-embeddings-openai">
+                                                    OpenAI (3072d)
+                                                </label>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {# Extraction #}
+                                    <div class="col-md-3 mb-3">
+                                        <div class="border rounded p-2 bg-white h-100">
+                                            <h6 class="mb-2">
+                                                <i class="fas fa-tags text-success me-1"></i>Extraction
+                                            </h6>
+                                            <div class="form-check mb-1">
+                                                <input class="form-check-input tool-checkbox" type="checkbox"
+                                                       name="tools-{{ doc.id }}[]" value="extract_entities_spacy"
+                                                       id="tool-{{ doc.id }}-entities-spacy"
+                                                       {{ 'checked' if 'extract_entities_spacy' in recommended or 'entities_spacy' in recommended else '' }}
+                                                       onchange="updateToolSummary('{{ doc.id }}')">
+                                                <label class="form-check-label small" for="tool-{{ doc.id }}-entities-spacy">
+                                                    Entities + Concepts
+                                                </label>
+                                            </div>
+                                            <div class="form-check">
+                                                <input class="form-check-input tool-checkbox" type="checkbox"
+                                                       name="tools-{{ doc.id }}[]" value="extract_definitions_spacy"
+                                                       id="tool-{{ doc.id }}-definitions-spacy"
+                                                       {{ 'checked' if 'extract_definitions_spacy' in recommended or 'definitions_spacy' in recommended else '' }}
+                                                       onchange="updateToolSummary('{{ doc.id }}')">
+                                                <label class="form-check-label small" for="tool-{{ doc.id }}-definitions-spacy">
+                                                    Definitions
+                                                </label>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {# Temporal #}
+                                    <div class="col-md-3 mb-3">
+                                        <div class="border rounded p-2 bg-white h-100">
+                                            <h6 class="mb-2">
+                                                <i class="fas fa-clock text-secondary me-1"></i>Temporal
+                                            </h6>
+                                            <div class="form-check">
+                                                <input class="form-check-input tool-checkbox" type="checkbox"
+                                                       name="tools-{{ doc.id }}[]" value="extract_temporal_spacy"
+                                                       id="tool-{{ doc.id }}-temporal-spacy"
+                                                       {{ 'checked' if 'extract_temporal_spacy' in recommended or 'temporal_spacy' in recommended else '' }}
+                                                       onchange="updateToolSummary('{{ doc.id }}')">
+                                                <label class="form-check-label small" for="tool-{{ doc.id }}-temporal-spacy">
+                                                    Temporal Markers
+                                                </label>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+
+                        {# Review Notes #}
+                        <div class="mt-4">
+                            <label for="review-notes" class="form-label">
+                                <strong>Review Notes</strong> (optional)
+                            </label>
+                            <textarea class="form-control" id="review-notes" rows="2"
+                                      placeholder="Add any notes about your modifications..."></textarea>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{# Sticky Action Bar #}
+<div class="sticky-actions">
+    <div class="container-fluid px-4">
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <span class="text-muted">
+                    <i class="fas fa-info-circle me-1"></i>
+                    Review and modify the processing strategy, then approve to begin execution.
+                </span>
+            </div>
+            <div class="d-flex gap-2">
+                <button type="button" class="btn btn-outline-danger" onclick="rejectStrategy()">
+                    <i class="fas fa-times me-2"></i>Reject
+                </button>
+                <button type="button" class="btn btn-success btn-lg" onclick="approveStrategy()">
+                    <i class="fas fa-check me-2"></i>Approve & Execute
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+const experimentId = {{ experiment.id }};
+const runId = '{{ run.id }}';
+
+// Tool name formatting
+const toolNames = {
+    'segment_paragraph': 'Paragraph',
+    'segment_sentence': 'Sentence',
+    'embeddings_local': 'Local Embed',
+    'embeddings_openai': 'OpenAI Embed',
+    'embeddings_period_aware': 'Period Embed',
+    'entities_spacy': 'Entities',
+    'extract_entities_spacy': 'Entities',
+    'definitions_spacy': 'Definitions',
+    'extract_definitions_spacy': 'Definitions',
+    'temporal_spacy': 'Temporal',
+    'extract_temporal_spacy': 'Temporal'
+};
+
+function formatToolName(tool) {
+    return toolNames[tool] || tool;
+}
+
+function toggleToolEditor(docId) {
+    const editor = document.getElementById(`tool-editor-${docId}`);
+    const btn = document.querySelector(`.document-card[data-document-id="${docId}"] .edit-tools-btn`);
+
+    if (editor.classList.contains('show')) {
+        editor.classList.remove('show');
+        btn.innerHTML = '<i class="fas fa-edit me-1"></i>Edit';
+    } else {
+        editor.classList.add('show');
+        btn.innerHTML = '<i class="fas fa-check me-1"></i>Done';
+    }
+}
+
+function expandAllEditors() {
+    document.querySelectorAll('.tool-editor').forEach(editor => {
+        editor.classList.add('show');
+    });
+    document.querySelectorAll('.edit-tools-btn').forEach(btn => {
+        btn.innerHTML = '<i class="fas fa-check me-1"></i>Done';
+    });
+}
+
+function collapseAllEditors() {
+    document.querySelectorAll('.tool-editor').forEach(editor => {
+        editor.classList.remove('show');
+    });
+    document.querySelectorAll('.edit-tools-btn').forEach(btn => {
+        btn.innerHTML = '<i class="fas fa-edit me-1"></i>Edit';
+    });
+}
+
+function updateToolSummary(docId) {
+    const summary = document.getElementById(`tool-summary-${docId}`);
+    const checkboxes = document.querySelectorAll(`input[name="tools-${docId}[]"]:checked`);
+
+    if (checkboxes.length === 0) {
+        summary.innerHTML = '<span class="text-muted">No tools selected</span>';
+        return;
+    }
+
+    let html = '';
+    checkboxes.forEach(cb => {
+        html += `<span class="tool-badge active"><i class="fas fa-check me-1"></i>${formatToolName(cb.value)}</span>`;
+    });
+    summary.innerHTML = html;
+}
+
+function collectModifiedStrategy() {
+    const strategy = {};
+
+    document.querySelectorAll('.document-card').forEach(card => {
+        const docId = card.dataset.documentId;
+        const checkboxes = card.querySelectorAll(`input[name="tools-${docId}[]"]:checked`);
+        const tools = Array.from(checkboxes).map(cb => cb.value);
+
+        if (tools.length > 0) {
+            strategy[docId] = tools;
+        }
+    });
+
+    return strategy;
+}
+
+async function approveStrategy() {
+    const modifiedStrategy = collectModifiedStrategy();
+    const reviewNotes = document.getElementById('review-notes').value;
+    const generatePeriods = document.getElementById('generate-periods')?.checked || false;
+
+    // Disable buttons during submission
+    document.querySelectorAll('.sticky-actions button').forEach(btn => btn.disabled = true);
+
+    try {
+        // If generating periods, do that first
+        if (generatePeriods && !{{ 'true' if has_existing_periods else 'false' }}) {
+            const periodResponse = await fetch(`/experiments/${experimentId}/generate_periods_from_documents`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' }
+            });
+
+            if (!periodResponse.ok) {
+                console.warn('Period generation failed, continuing anyway');
+            }
+        }
+
+        // Submit strategy approval
+        const response = await fetch(`/experiments/orchestration/approve-strategy/${runId}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                strategy_approved: true,
+                modified_strategy: modifiedStrategy,
+                review_notes: reviewNotes
+            })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            // Redirect back to pipeline page which will show progress
+            window.location.href = `{{ url_for('experiments.document_pipeline', experiment_id=experiment.id) }}?run_id=${runId}&auto_poll=true`;
+        } else {
+            throw new Error(data.error || 'Failed to approve strategy');
+        }
+
+    } catch (error) {
+        console.error('Error approving strategy:', error);
+        alert('Error: ' + error.message);
+        document.querySelectorAll('.sticky-actions button').forEach(btn => btn.disabled = false);
+    }
+}
+
+async function rejectStrategy() {
+    if (!confirm('Are you sure you want to reject this strategy? The orchestration run will be cancelled.')) {
+        return;
+    }
+
+    try {
+        const response = await fetch(`/experiments/orchestration/approve-strategy/${runId}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                strategy_approved: false,
+                review_notes: 'User rejected strategy'
+            })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            window.location.href = `{{ url_for('experiments.document_pipeline', experiment_id=experiment.id) }}`;
+        } else {
+            throw new Error(data.error || 'Failed to reject strategy');
+        }
+
+    } catch (error) {
+        console.error('Error rejecting strategy:', error);
+        alert('Error: ' + error.message);
+    }
+}
+
+// Remove period button handler
+document.querySelectorAll('.remove-period-btn').forEach(btn => {
+    btn.addEventListener('click', function() {
+        const periodName = this.dataset.periodName;
+        this.closest('.col').remove();
+    });
+});
+</script>
+{% endblock %}
