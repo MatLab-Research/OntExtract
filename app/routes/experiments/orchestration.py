@@ -351,10 +351,17 @@ def start_llm_orchestration(experiment_id):
             # Background threads need their own app context
             with app.app_context():
                 try:
-                    workflow_executor.execute_recommendation_phase(
+                    # Run stages 1-2 (analyze + recommend)
+                    result = workflow_executor.execute_recommendation_phase(
                         run_id=run_id,
                         review_choices=review_choices
                     )
+
+                    # If no review required (review_choices=false), automatically run stages 4-5
+                    if not review_choices and result.get('status') != 'failed':
+                        logger.info(f"Auto-executing processing phase for run {run_id} (review_choices=false)")
+                        workflow_executor.execute_processing_phase(run_id=run_id)
+
                 except Exception as e:
                     logger.error(f"Workflow execution failed for run {run_id}: {e}", exc_info=True)
 
@@ -586,6 +593,119 @@ def get_orchestration_status(run_id):
         }), 500
 
 
+@experiments_bp.route('/<int:experiment_id>/orchestration/review/<uuid:run_id>')
+@api_require_login_for_write
+def orchestration_review_page(experiment_id, run_id):
+    """
+    Dedicated page for reviewing and modifying LLM orchestration strategy.
+
+    Shows:
+    - LLM analysis (experiment goal, reasoning, confidence)
+    - Per-document tool recommendations with edit capability
+    - Temporal period configuration (for temporal_evolution experiments)
+    - Approve/Reject buttons
+    """
+    try:
+        # Get experiment
+        experiment = Experiment.query.get(experiment_id)
+        if not experiment:
+            from flask import abort
+            abort(404)
+
+        # Get orchestration run
+        run = ExperimentOrchestrationRun.query.get(run_id)
+        if not run or run.experiment_id != experiment_id:
+            from flask import abort
+            abort(404)
+
+        # Verify run is in reviewing state
+        if run.status != 'reviewing':
+            # If not in reviewing state, redirect to pipeline
+            from flask import redirect, url_for, flash
+            flash(f'Orchestration run is not in review state (current: {run.status})', 'warning')
+            return redirect(url_for('experiments.document_pipeline', experiment_id=experiment_id))
+
+        # Get documents for this experiment
+        from app.models import Document
+        documents = Document.query.filter_by(experiment_id=experiment_id).all()
+
+        # Build document list with metadata
+        doc_list = []
+        for doc in documents:
+            doc_list.append({
+                'id': doc.id,
+                'uuid': str(doc.uuid),
+                'title': doc.title or 'Untitled',
+                'authors': doc.authors,
+                'publication_year': doc.publication_date.year if doc.publication_date else None,
+                'word_count': doc.word_count
+            })
+
+        # Get recommended strategy (maps doc_id -> [tool_names])
+        recommended_strategy = run.recommended_strategy or {}
+
+        # Check for existing temporal periods (for temporal_evolution experiments)
+        has_existing_periods = False
+        existing_periods = []
+        suggested_periods = []
+
+        if experiment.experiment_type == 'temporal_evolution':
+            from app.models.temporal_experiment import DocumentTemporalMetadata
+
+            # Check for existing periods
+            existing_meta = DocumentTemporalMetadata.query.filter_by(
+                experiment_id=experiment_id
+            ).all()
+
+            if existing_meta:
+                has_existing_periods = True
+                # Group by period
+                period_docs = {}
+                for meta in existing_meta:
+                    period_name = meta.temporal_period
+                    if period_name not in period_docs:
+                        period_docs[period_name] = {
+                            'temporal_period': period_name,
+                            'temporal_start_year': meta.temporal_start_year,
+                            'temporal_end_year': meta.temporal_end_year,
+                            'marker_color': meta.marker_color,
+                            'document_count': 0
+                        }
+                    period_docs[period_name]['document_count'] += 1
+
+                existing_periods = list(period_docs.values())
+            else:
+                # Suggest periods based on document dates
+                from app.services.temporal_service import TemporalService
+                temporal_service = TemporalService()
+
+                try:
+                    result = temporal_service.generate_periods_from_documents(experiment_id)
+                    if result.get('success') and result.get('periods'):
+                        suggested_periods = result['periods']
+                except Exception as e:
+                    logger.warning(f"Could not suggest periods: {e}")
+
+        return render_template(
+            'experiments/orchestration_review.html',
+            experiment=experiment,
+            run=run,
+            documents=doc_list,
+            recommended_strategy=recommended_strategy,
+            has_existing_periods=has_existing_periods,
+            existing_periods=existing_periods,
+            suggested_periods=suggested_periods
+        )
+
+    except Exception as e:
+        from werkzeug.exceptions import HTTPException
+        if isinstance(e, HTTPException):
+            raise
+        logger.error(f"Error loading orchestration review page: {e}", exc_info=True)
+        from flask import abort
+        abort(500)
+
+
 @experiments_bp.route('/orchestration/approve-strategy/<uuid:run_id>', methods=['POST'])
 @api_require_login_for_write
 def approve_orchestration_strategy(run_id):
@@ -639,28 +759,46 @@ def approve_orchestration_strategy(run_id):
                 'message': 'Strategy rejected'
             }), 200
 
-        # Execute processing phase
-        try:
-            result = workflow_executor.execute_processing_phase(
-                run_id=run.id,
-                modified_strategy=data.get('modified_strategy'),
-                review_notes=data.get('review_notes'),
-                reviewer_id=current_user.id
-            )
+        # Store approval info
+        run.strategy_approved = True
+        run.modified_strategy = data.get('modified_strategy')
+        run.review_notes = data.get('review_notes')
+        run.reviewed_by = current_user.id
+        run.reviewed_at = datetime.utcnow()
+        run.status = 'executing'
+        run.current_stage = 'executing'
+        db.session.commit()
 
-            return jsonify({
-                'success': True,
-                'status': result['status'],
-                'message': 'Strategy approved - processing complete',
-                'execution_time': result['execution_time']
-            }), 200
+        # Execute processing phase in background thread
+        import threading
+        from flask import current_app
 
-        except Exception as e:
-            logger.error(f"Error executing processing phase: {e}", exc_info=True)
-            return jsonify({
-                'success': False,
-                'error': f'Processing failed: {str(e)}'
-            }), 500
+        app = current_app._get_current_object()
+        run_id_for_thread = run.id
+        modified_strategy = data.get('modified_strategy')
+        review_notes = data.get('review_notes')
+        reviewer_id = current_user.id
+
+        def run_processing():
+            with app.app_context():
+                try:
+                    workflow_executor.execute_processing_phase(
+                        run_id=run_id_for_thread,
+                        modified_strategy=modified_strategy,
+                        review_notes=review_notes,
+                        reviewer_id=reviewer_id
+                    )
+                except Exception as e:
+                    logger.error(f"Processing phase failed for run {run_id_for_thread}: {e}", exc_info=True)
+
+        thread = threading.Thread(target=run_processing, daemon=True)
+        thread.start()
+
+        return jsonify({
+            'success': True,
+            'status': 'executing',
+            'message': 'Strategy approved - processing started in background'
+        }), 200
 
     except Exception as e:
         logger.error(f"Error approving strategy for run {run_id}: {e}", exc_info=True)

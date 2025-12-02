@@ -37,11 +37,15 @@ class LLMOrchestrationClient {
                 }
             }
 
-            // STEP 2: Continue with orchestration
+            // STEP 2: Get review_choices setting from toggle
+            const reviewToggle = document.getElementById('review-choices-toggle');
+            const reviewChoices = reviewToggle ? reviewToggle.checked : true;
+
+            // STEP 3: Continue with orchestration
             this.showProgressModal();
             this.updateProgress('analyzing', 20, 'Starting analysis...');
 
-            // STEP 2: Start orchestration (runs in background thread)
+            // STEP 4: Start orchestration (runs in background thread)
             // Backend will mark any existing in-progress runs as failed automatically
             const response = await fetch(`/experiments/${this.experimentId}/orchestration/analyze`, {
                 method: 'POST',
@@ -49,7 +53,7 @@ class LLMOrchestrationClient {
                     'Content-Type': 'application/json'
                 },
                 body: JSON.stringify({
-                    review_choices: false  // Demo mode: automatic execution
+                    review_choices: reviewChoices
                 })
             });
 
@@ -223,15 +227,10 @@ class LLMOrchestrationClient {
             progressBar.textContent = `${percentage}%`;
         }
 
-        // Update status message
+        // Update status message - show current_operation if available, otherwise stage message
         const statusMessage = document.getElementById('llm-status-message');
         if (statusMessage) {
-            // If we have detailed current_operation, show both stage and detail
-            if (currentOperation) {
-                statusMessage.innerHTML = `<strong>${message}</strong><br><small class="text-muted">${currentOperation}</small>`;
-            } else {
-                statusMessage.textContent = message;
-            }
+            statusMessage.textContent = currentOperation || message;
         }
 
         // Update stage indicators
@@ -262,53 +261,14 @@ class LLMOrchestrationClient {
     }
 
     /**
-     * Show strategy review modal
+     * Show strategy review page (redirects to dedicated review page)
      */
     showStrategyReview(data) {
         // Hide progress modal
         this.hideProgressModal();
 
-        // Populate review modal
-        const modal = document.getElementById('strategy-review-modal');
-        if (!modal) {
-            console.error('Strategy review modal not found');
-            return;
-        }
-
-        // Set experiment goal
-        const goalElement = document.getElementById('review-experiment-goal');
-        if (goalElement) {
-            goalElement.textContent = data.experiment_goal || 'No goal specified';
-        }
-
-        // Set confidence
-        const confidenceElement = document.getElementById('review-confidence');
-        if (confidenceElement) {
-            const confidencePercent = Math.round(data.confidence * 100);
-            confidenceElement.textContent = `${confidencePercent}%`;
-
-            // Update progress bar
-            const progressBar = confidenceElement.parentElement?.querySelector('.progress-bar');
-            if (progressBar) {
-                progressBar.style.width = `${confidencePercent}%`;
-            }
-        }
-
-        // Set reasoning
-        const reasoningElement = document.getElementById('review-reasoning');
-        if (reasoningElement) {
-            reasoningElement.textContent = data.strategy_reasoning || 'No reasoning provided';
-        }
-
-        // Build strategy list
-        const strategyList = document.getElementById('review-strategy-list');
-        if (strategyList && data.recommended_strategy) {
-            strategyList.innerHTML = this.buildStrategyHTML(data.recommended_strategy);
-        }
-
-        // Show modal
-        const bsModal = new bootstrap.Modal(modal);
-        bsModal.show();
+        // Redirect to the dedicated review page
+        window.location.href = `/experiments/${this.experimentId}/orchestration/review/${this.currentRunId}`;
     }
 
     /**
@@ -581,6 +541,23 @@ document.addEventListener('DOMContentLoaded', function() {
                     const reviewNotes = document.getElementById('review-notes')?.value || '';
                     client.approveStrategy(null, reviewNotes);
                 });
+            }
+
+            // Check for auto_poll parameter (returned from review page after approval)
+            const urlParams = new URLSearchParams(window.location.search);
+            const autoPoll = urlParams.get('auto_poll');
+            const runId = urlParams.get('run_id');
+
+            if (autoPoll === 'true' && runId) {
+                // Resume polling for this run
+                client.currentRunId = runId;
+                client.showProgressModal();
+                client.updateProgress('executing', 70, 'Processing approved strategy...');
+                client.startPolling();
+
+                // Clean up URL (remove query params)
+                const cleanUrl = window.location.pathname;
+                window.history.replaceState({}, document.title, cleanUrl);
             }
         }
     }
