@@ -1,104 +1,30 @@
 # OntExtract
 
-User-Empowered Historical Document Analysis with Optional LLM Orchestration
+Historical Document Analysis with Optional LLM Orchestration
 
-Presented at JCDL 2025 (Joint Conference on Digital Libraries)
-December 15-19, 2025
+Presented at JCDL 2025 (Joint Conference on Digital Libraries), December 15-19, 2025
 
 ---
 
 ## Overview
 
-OntExtract is a digital humanities platform for analyzing historical documents with manual control and optional LLM enhancements. The system supports period-aware document processing, temporal evolution tracking, and semantic change annotation.
-
-The platform provides manual tool selection, period definition, and event annotation capabilities. An optional 5-stage LLM orchestration framework can suggest processing strategies and generate cross-document insights when API access is available. Core processing features are available without external API dependencies.
-
----
-
-## Motivation
-
-Digital humanities researchers processing historical documents face three challenges:
-
-1. Tool Selection Complexity - Dozens of NLP tools exist, each with specific capabilities and configuration requirements
-2. Document Variability - Historical texts vary in language, structure, and content; no single tool configuration works universally
-3. Cross-Document Synthesis - Manual synthesis of insights across document collections is time-consuming and error-prone
-
-Existing approaches require researchers to:
-- Manually select appropriate tools for each document
-- Configure tool parameters based on document characteristics
-- Separately analyze results from each tool and document
-- Synthesize findings across the collection manually
+OntExtract is a digital humanities platform for analyzing historical documents. The platform supports period-aware document processing along with temporal evolution tracking and semantic change annotation. Users retain manual control over tool selection while optional LLM enhancements provide automated suggestions when API access is available.
 
 ---
 
 ## Approach
 
-OntExtract implements a 5-stage workflow that automates tool selection, configuration, execution, and synthesis:
+OntExtract implements a 5-stage workflow for document analysis.
 
-### Stage 1: Analyze
-The LLM examines the experiment description and document collection to understand:
-- Research goals and required information types
-- Document characteristics (period, language, structure)
-- Potential processing challenges
-
-### Stage 2: Recommend
-The LLM generates a processing strategy for each document:
-- Selects NLP tools based on document content and research goals
-- Configures tool parameters
-- Provides rationale for each recommendation
-
-### Stage 3: Review
-Researchers review and approve or modify the recommended strategy:
-- Human-in-the-loop verification for alignment with research goals
-- Strategy adjustment before execution
-- Transparent decision-making process
-
-### Stage 4: Execute
-The system runs the approved tools across all documents:
-- Parallel processing
-- Error handling with automatic retries
-- Progress tracking with real-time updates
-
-### Stage 5: Synthesize
-The LLM analyzes results across the entire collection:
-- Identifies patterns and themes across documents
-- Generates cross-document insights
-- Produces structured analysis reports
-
----
-
-## Research Contributions
-
-### 1. LLM-Mediated Tool Orchestration
-Uses LLMs for intelligent NLP tool selection and configuration in digital humanities workflows.
-
-### 2. W3C PROV-O Provenance Tracking
-Provenance capture for all analysis steps:
-- Entities: Documents, tool outputs, insights
-- Activities: Tool executions, LLM analyses, human reviews
-- Agents: Tools, LLMs, researchers
-- Attributions: Lineage from source documents to final insights
-
-Enables reproducibility, transparency, and audit trails for computational analysis in humanities research.
-
-### 3. Period-Aware Historical Text Processing
-Processing features for historical documents:
-- Temporal expression extraction for dating events
-- Period-specific embedding models (historical vs. contemporary)
-- OED (Oxford English Dictionary) integration for historical definitions
-- Context-aware citation tracking
-
-### 4. Human-in-the-Loop Validation
-Strategy review stage provides:
-- Researcher control over computational methods
-- Alignment with domain expertise
-- Verification of automated recommendations
+1. **Analyze** - The LLM examines documents to identify research goals and document characteristics
+2. **Recommend** - The system proposes tool combinations for each document with rationale
+3. **Review** - Researchers approve or modify the recommended strategy
+4. **Execute** - Tools process documents in parallel with progress tracking
+5. **Synthesize** - The LLM generates cross-document insights and patterns
 
 ---
 
 ## Available NLP Tools
-
-The system provides 8 specialized processing tools:
 
 | Tool | Purpose | Historical Text Adaptation |
 |------|---------|---------------------------|
@@ -107,175 +33,57 @@ The system provides 8 specialized processing tools:
 | Definition Extraction | Find concept definitions | Pattern matching for archaic phrasing |
 | Text Segmentation | Break documents into logical sections | Structure-aware splitting |
 | Embedding Generation | Create semantic vectors | Period-specific embedding models |
-| LLM Text Cleanup | Modernize OCR errors, spelling | Preservation of historical terminology |
+| LLM Text Cleanup | Modernize OCR errors and spelling | Preservation of historical terminology |
 | Sentiment Analysis | Detect emotional tone | Calibrated for formal historical writing |
 | Keyword Extraction | Identify important terms | Domain-specific weighting |
 
 ---
 
-## Example Workflow
+## Operational Modes
 
-Research Question: "How do professional ethics concepts evolve in engineering publications from 1900-1950?"
+**Standalone Mode** operates without external API dependencies. Users select tools manually through the interface. Available features include entity extraction, temporal analysis, definition extraction, text segmentation, embedding generation, ontology-backed semantic change annotation, OED integration, and PROV-O provenance tracking.
 
-Stage 1 - Analyze: LLM identifies need for temporal expressions, entity recognition, and definition extraction
+**API-Enhanced Mode** adds LLM orchestration when an Anthropic API key is provided. Features include automated tool selection, cross-document synthesis, LLM-generated event suggestions, and enhanced context extraction. Human-in-the-loop review applies to all LLM recommendations.
 
-Stage 2 - Recommend:
-- Document A (1905 technical report): Temporal extraction, entity recognition, definition extraction
-- Document B (1920 ethics guideline): All tools plus sentiment analysis for prescriptive language
-- Document C (1948 court case): Entity recognition, temporal extraction (focused on legal dates)
+---
 
-Stage 3 - Review: Researcher approves strategy with minor adjustment (disable sentiment analysis for technical report)
+## Installation
 
-Stage 4 - Execute: Tools process all documents in parallel, extracting 847 entities, 156 temporal expressions, 43 definitions
+Live system available at https://ontextract.ontorealm.net
 
-Stage 5 - Synthesize: LLM generates report showing:
-- Evolution from implicit ethical assumptions (1905) to explicit codes (1920s)
-- Key concept definitions that shifted meaning over time
-- Network of referenced actors and institutions
+For local installation:
+
+```bash
+cd OntExtract
+
+python -m venv venv
+source venv/bin/activate
+
+pip install -r requirements.txt
+
+cp .env.template .env
+# Edit .env and add ANTHROPIC_API_KEY for API-enhanced mode (optional)
+
+FLASK_ENV=development python run.py
+# Access at http://localhost:8765
+```
 
 ---
 
 ## System Architecture
 
-Backend:
-- Flask application with PostgreSQL database
-- LangGraph for workflow state management
-- Claude Sonnet 4 for LLM orchestration
-- SQLAlchemy ORM with PROV-O schema
-
-Frontend:
-- Bootstrap 5 responsive interface
-- Real-time progress tracking
-- Markdown rendering for synthesized insights
-- Strategy review interface
-
-Provenance Layer:
-- W3C PROV-O compliant RDF serialization
-- Complete lineage tracking
-- Exportable provenance graphs
+The backend uses Flask with PostgreSQL, LangGraph for workflow state management, Claude Sonnet 4 for LLM orchestration, and SQLAlchemy ORM with PROV-O schema. The frontend provides a Bootstrap 5 interface with real-time progress tracking and strategy review. The provenance layer implements W3C PROV-O compliant tracking with exportable graphs.
 
 ---
 
-## Operational Modes
+## Ontology
 
-OntExtract operates in two modes based on available resources:
+Semantic change event types derive from a validated ontology with 34 classes developed from 12 papers. The ontology includes 33 embedded academic citations and passes Pellet reasoner validation. Event types include pejoration, amelioration, linguistic drift, intension drift, extension drift, lexical emergence, and obsolescence.
 
-### Standalone Mode
-Document processing and temporal analysis capabilities without external API dependencies:
-- Manual tool selection through interface
-- NLP libraries: spaCy, NLTK, sentence-transformers
-- Entity extraction, temporal analysis, definition extraction
-- Text segmentation and embedding generation
-- Temporal timeline with ontology-backed event types
-- Manual semantic change annotation
-- Period-aware document linking
-- OED integration for historical definitions
-- PROV-O provenance tracking
-- SPARQL queries over semantic events
-
-Configuration: Requires no API keys or external services. Ontology metadata is loaded from local file.
-
-### API-Enhanced Mode
-Additional LLM orchestration features when Anthropic API key is provided:
-- Automated tool selection and strategy recommendation
-- Cross-document synthesis with pattern identification
-- LLM-generated suggestions for semantic events (subject to user review)
-- Enhanced context anchor extraction
-- Human-in-the-loop review of LLM recommendations
-
-Configuration: Requires ANTHROPIC_API_KEY environment variable.
-
-Note: Core processing features are available in both modes. LLM features provide computational suggestions while preserving user control over annotations and analytical decisions.
-
----
-
-## Ontology-Informed Design
-
-OntExtract's semantic change event types are derived from a formally validated ontology:
-
-- 34 event type classes from comprehensive literature review (12 papers, 200+ pages)
-- 33 academic citations embedded directly in ontology
-- Pellet reasoner validation for logical consistency
-- BFO alignment for upper-level ontology integration
-
-Event types include:
-- Pejoration/Amelioration (sentiment change, Jatowt & Duh 2014)
-- Linguistic Drift (gradual meaning shift, Kutuzov et al. 2018)
-- Intension/Extension Drift (definition vs. usage, Stavropoulos et al. 2019)
-- Lexical Emergence/Obsolescence (lifecycle changes, Tahmasebi et al. 2021)
-- URI/Hierarchy Drift (structural changes, Capobianco et al. 2020)
-
-Event types are selected from an ontology-backed dropdown interface that displays academic definitions and citations.
-
-Ontology: [semantic-change-ontology-v2.ttl](ontologies/semantic-change-ontology-v2.ttl)
-Validation: [VALIDATION_GUIDE.md](VALIDATION_GUIDE.md)
-
----
-
-## Demonstration
-
-Live System: https://ontextract.ontorealm.net
-
-Local Installation:
-```bash
-# Clone repository
-cd OntExtract
-
-# Create and activate virtual environment
-python -m venv venv
-source venv/bin/activate
-
-# Install dependencies
-pip install -r requirements.txt
-
-# Configure environment
-cp .env.template .env
-# Edit .env and add your ANTHROPIC_API_KEY (optional, for API-enhanced mode)
-
-# Run application
-FLASK_ENV=development python run.py
-
-# Access at: http://localhost:8765
-```
-
-Workflow:
-
-API-Enhanced Mode (with ANTHROPIC_API_KEY):
-1. Create an experiment describing research goals
-2. Upload historical documents (PDF, TXT)
-3. Review LLM-recommended processing strategy
-4. Execute tools and view results
-5. Access synthesized cross-document insights
-
-Standalone Mode (without API key):
-1. Upload historical documents (PDF, TXT)
-2. Select processing tools for each document
-3. Execute tools and view results
-4. Analyze results through interface
-
----
-
-## Applications
-
-The platform addresses several computational challenges in digital humanities research:
-
-Digital Humanities:
-- Historical document analysis with provenance tracking
-- Reproducible computational methods for text processing
-- Access to NLP tools through guided workflows
-
-Scholarly Communication:
-- Transparent provenance records for computational analysis
-- Auditable analysis workflows
-- Shareable processing strategies
-
-Interdisciplinary Research:
-- Integration of humanities research questions with NLP methods
-- Workflow automation for document processing tasks
-- Support for interpretive analysis through structured outputs
+See [semantic-change-ontology-v2.ttl](ontologies/semantic-change-ontology-v2.ttl) for the ontology file.
 
 ---
 
 ## Publications
 
-JCDL 2025 Paper: "LLM-Orchestrated Document Processing: Intelligent Tool Selection for Historical Text Analysis"
+[OntExtract_JCDL2025.pdf](papers/OntExtract_JCDL2025.pdf) - "LLM-Orchestrated Document Processing for Historical Text Analysis" (JCDL 2025)
