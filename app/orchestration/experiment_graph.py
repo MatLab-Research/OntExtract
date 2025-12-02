@@ -22,7 +22,7 @@ Workflow:
 """
 
 from langgraph.graph import StateGraph, END
-from langgraph.checkpoint.postgres import PostgresSaver
+from langgraph.checkpoint.memory import MemorySaver
 from typing import Literal
 import os
 
@@ -38,13 +38,14 @@ from .experiment_nodes import (
 
 def create_experiment_orchestration_graph():
     """
-    Create the experiment-level orchestration LangGraph with PostgreSQL persistence.
+    Create the experiment-level orchestration LangGraph with checkpointing.
 
-    Uses PostgreSQL checkpointer for background execution and state persistence.
-    This allows workflows to run asynchronously and survive app restarts.
+    Uses MemorySaver for checkpointing. State is persisted in our own
+    ExperimentOrchestrationRun table, so in-memory checkpointing is sufficient
+    for workflow execution.
 
     Returns:
-        Compiled StateGraph with PostgreSQL checkpointer
+        Compiled StateGraph with checkpointer
     """
 
     # Initialize graph with state schema
@@ -66,20 +67,10 @@ def create_experiment_orchestration_graph():
     # Processing (Stages 4-5) will happen separately after approval
     workflow.add_edge("recommend_strategy", END)
 
-    # Create PostgreSQL checkpointer for persistence
-    # Uses sync saver which works better with our threading approach
-    db_uri = os.environ.get('DATABASE_URL', 'postgresql://localhost/ontextract_db')
+    # Use MemorySaver for checkpointing
+    # State is also persisted in ExperimentOrchestrationRun table by workflow_executor
+    checkpointer = MemorySaver()
 
-    # Initialize checkpointer with proper context manager
-    with PostgresSaver.from_conn_string(db_uri) as checkpointer:
-        # Setup creates checkpoint tables if they don't exist
-        checkpointer.setup()
-
-    # Create new checkpointer instance for the graph
-    # (context manager is for setup only, graph gets fresh instance)
-    checkpointer = PostgresSaver.from_conn_string(db_uri)
-
-    # Compile graph with checkpointer
     return workflow.compile(checkpointer=checkpointer)
 
 

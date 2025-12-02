@@ -1090,10 +1090,10 @@
             <div class="modal-body">
                 <div class="mb-3">
                     <label for="periodType" class="form-label">Period Type <span class="text-danger">*</span></label>
-                    <select class="form-select" id="periodType" required>
-                        <option value="">Select period type...</option>
-                    </select>
-                    <small class="text-muted">Ontology-defined temporal period classification</small>
+                    <input type="text" class="form-control" id="periodType" list="periodTypeOptions"
+                           placeholder="Select or enter period type..." required>
+                    <datalist id="periodTypeOptions"></datalist>
+                    <small class="text-muted">Select from ontology-defined types or enter a custom period type</small>
                 </div>
                 <div class="mb-3">
                     <label for="periodName" class="form-label">Period Name</label>
@@ -1366,22 +1366,20 @@ async function fetchPeriodTypes() {
         if (data.success && data.period_types) {
             periodTypes = data.period_types;
 
-            // Populate period type dropdown
-            const select = document.getElementById('periodType');
-            if (select) {
-                // Clear existing options except the first (placeholder)
-                while (select.options.length > 1) {
-                    select.remove(1);
-                }
+            // Populate period type datalist
+            const datalist = document.getElementById('periodTypeOptions');
+            if (datalist) {
+                // Clear existing options
+                datalist.innerHTML = '';
 
                 // Add period types
                 periodTypes.forEach(type => {
                     const option = document.createElement('option');
                     option.value = type.value;
-                    option.textContent = type.label;
+                    option.setAttribute('data-label', type.label);
                     option.setAttribute('data-description', type.description || '');
                     option.setAttribute('data-uri', type.uri || '');
-                    select.appendChild(option);
+                    datalist.appendChild(option);
                 });
             }
 

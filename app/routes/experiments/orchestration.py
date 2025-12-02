@@ -341,15 +341,22 @@ def start_llm_orchestration(experiment_id):
 
         # Execute in background thread (LangGraph checkpointer handles persistence)
         import threading
+        from flask import current_app
+
+        # Capture the app for use in the thread
+        app = current_app._get_current_object()
+        run_id = run.id
 
         def run_workflow():
-            try:
-                workflow_executor.execute_recommendation_phase(
-                    run_id=run.id,
-                    review_choices=review_choices
-                )
-            except Exception as e:
-                logger.error(f"Workflow execution failed for run {run.id}: {e}", exc_info=True)
+            # Background threads need their own app context
+            with app.app_context():
+                try:
+                    workflow_executor.execute_recommendation_phase(
+                        run_id=run_id,
+                        review_choices=review_choices
+                    )
+                except Exception as e:
+                    logger.error(f"Workflow execution failed for run {run_id}: {e}", exc_info=True)
 
         thread = threading.Thread(target=run_workflow, daemon=True)
         thread.start()
