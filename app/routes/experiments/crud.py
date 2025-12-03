@@ -61,8 +61,9 @@ def new():
     from app.models import Term
 
     # Get documents and references separately for all users
-    documents = Document.query.filter_by(document_type='document').order_by(Document.created_at.desc()).all()
-    references = Document.query.filter_by(document_type='reference').order_by(Document.created_at.desc()).all()
+    # Only show original (v1) documents - derived versions belong to their source experiments
+    documents = Document.query.filter_by(document_type='document', version_type='original').order_by(Document.created_at.desc()).all()
+    references = Document.query.filter_by(document_type='reference', version_type='original').order_by(Document.created_at.desc()).all()
 
     # Get all terms for the focus term dropdown
     terms = Term.query.order_by(Term.term_text).all()
@@ -100,8 +101,9 @@ def new():
 @write_login_required
 def wizard():
     """Guided wizard to create an experiment - requires login"""
-    documents = Document.query.filter_by(document_type='document').order_by(Document.created_at.desc()).all()
-    references = Document.query.filter_by(document_type='reference').order_by(Document.created_at.desc()).all()
+    # Only show original (v1) documents - derived versions belong to their source experiments
+    documents = Document.query.filter_by(document_type='document', version_type='original').order_by(Document.created_at.desc()).all()
+    references = Document.query.filter_by(document_type='reference', version_type='original').order_by(Document.created_at.desc()).all()
     return render_template('experiments/wizard.html', documents=documents, references=references)
 
 
@@ -226,7 +228,6 @@ def view(experiment_id):
 
     # Get most recent orchestration run for this experiment
     from app.models import ExperimentOrchestrationRun
-    from app.models.processing_artifact_group import ProcessingArtifactGroup
     from sqlalchemy import func
 
     recent_orchestration = ExperimentOrchestrationRun.query.filter_by(
@@ -238,22 +239,11 @@ def view(experiment_id):
     doc_ids = [doc.id for doc in experiment_docs]
 
     # --- Processing Summary ---
-    # Aggregate ProcessingArtifactGroups by artifact_type for all experiment documents
-    processing_summary = {}
-    if doc_ids:
-        artifact_counts = db.session.query(
-            ProcessingArtifactGroup.artifact_type,
-            func.count(ProcessingArtifactGroup.id).label('count')
-        ).filter(
-            ProcessingArtifactGroup.document_id.in_(doc_ids),
-            ProcessingArtifactGroup.status == 'completed'
-        ).group_by(ProcessingArtifactGroup.artifact_type).all()
+    # Use the same data sources as document_pipeline: ExperimentDocumentProcessing & DocumentProcessingIndex
+    from app.models.experiment_processing import ExperimentDocumentProcessing, DocumentProcessingIndex
+    from app.models import ExperimentDocument
 
-        for artifact_type, count in artifact_counts:
-            processing_summary[artifact_type] = count
-
-    # Count total processing operations
-    total_processing_ops = sum(processing_summary.values())
+    processing_summary = {}  # artifact_type -> count
 
     # --- Document Details with Versions and Cross-Experiment Usage ---
     documents_enhanced = []
@@ -261,28 +251,87 @@ def view(experiment_id):
         # Count how many OTHER experiments use this document
         other_exp_count = doc.experiments.count() - 1  # Exclude current experiment
 
-        # Get processing for this document
-        doc_processing = ProcessingArtifactGroup.query.filter_by(
+        # Get ExperimentDocument for this doc+experiment
+        exp_doc = ExperimentDocument.query.filter_by(
+            experiment_id=experiment_id,
+            document_id=doc.id
+        ).first()
+
+        # Collect processing operations from both systems
+        operations_list = []
+
+        if exp_doc:
+            # 1. Check manual processing operations (from process_document page buttons)
+            manual_ops = ExperimentDocumentProcessing.query.filter_by(
+                experiment_document_id=exp_doc.id,
+                status='completed'
+            ).all()
+
+            for op in manual_ops:
+                operations_list.append({
+                    'type': op.processing_type,
+                    'method': op.processing_method,
+                    'source': 'manual'
+                })
+
+        # 2. Check DocumentProcessingIndex (experiment-specific processing)
+        index_entries = DocumentProcessingIndex.query.filter_by(
             document_id=doc.id,
+            experiment_id=experiment_id,
             status='completed'
         ).all()
 
-        # Group by artifact type
-        doc_processing_by_type = {}
-        for group in doc_processing:
-            if group.artifact_type not in doc_processing_by_type:
-                doc_processing_by_type[group.artifact_type] = []
-            doc_processing_by_type[group.artifact_type].append({
-                'method_key': group.method_key,
-                'created_at': group.created_at
+        for entry in index_entries:
+            operations_list.append({
+                'type': entry.processing_type,
+                'method': entry.processing_method,
+                'source': 'experiment'
             })
+
+        # 3. Check orchestration results if available
+        if recent_orchestration and recent_orchestration.processing_results:
+            doc_id_str = str(doc.id)
+            if doc_id_str in recent_orchestration.processing_results:
+                llm_ops = recent_orchestration.processing_results[doc_id_str]
+                for tool_name, tool_result in llm_ops.items():
+                    if tool_result.get('status') == 'executed':
+                        operations_list.append({
+                            'type': tool_name,
+                            'method': 'llm',
+                            'source': 'llm'
+                        })
+
+        # Deduplicate by (type, method)
+        seen = set()
+        unique_operations = []
+        for op in operations_list:
+            key = (op['type'], op['method'])
+            if key not in seen:
+                seen.add(key)
+                unique_operations.append(op)
+
+        # Group by artifact type for template display
+        doc_processing_by_type = {}
+        for op in unique_operations:
+            artifact_type = op['type']
+            if artifact_type not in doc_processing_by_type:
+                doc_processing_by_type[artifact_type] = []
+            doc_processing_by_type[artifact_type].append({
+                'method_key': op['method'],
+                'source': op['source']
+            })
+            # Update global summary
+            processing_summary[artifact_type] = processing_summary.get(artifact_type, 0) + 1
 
         documents_enhanced.append({
             'document': doc,
             'other_experiments_count': other_exp_count,
             'processing_by_type': doc_processing_by_type,
-            'processing_count': len(doc_processing)
+            'processing_count': len(unique_operations)
         })
+
+    # Count total processing operations across all documents
+    total_processing_ops = sum(processing_summary.values())
 
     # --- Temporal Periods (for temporal_evolution experiments) ---
     temporal_data = None

@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "macros/processing_badges.html" import operation_badge, get_op_icon, get_op_color %}
+{% from "macros/processing_badges.html" import operation_badge, operation_badges_ordered, get_op_icon, get_op_color %}
 
 {% block title %}{{ experiment.name }} - OntExtract{% endblock %}
 
@@ -160,7 +160,7 @@
                     <div class="d-grid gap-2">
                         {% if experiment.get_document_count() > 0 %}
                         <a href="{{ url_for('experiments.document_pipeline', experiment_id=experiment.id) }}"
-                           class="btn btn-primary">
+                           class="btn btn-warning">
                             <i class="fas fa-cogs me-2"></i>Document Pipeline
                         </a>
                         {% endif %}
@@ -187,6 +187,11 @@
                             <i class="fas fa-chart-bar me-2"></i>View Results
                         </a>
                         {% endif %}
+
+                        <a href="{{ url_for('provenance.provenance_graph', experiment_id=experiment.id) }}"
+                           class="btn btn-outline-secondary" target="_blank">
+                            <i class="fas fa-project-diagram me-2"></i>View Provenance <i class="fas fa-external-link-alt fa-xs"></i>
+                        </a>
                     </div>
                 </div>
             </div>
@@ -375,22 +380,18 @@
                                     </td>
                                     <td>
                                         {% if item.processing_by_type %}
-                                        <div class="d-flex flex-wrap gap-1">
-                                            {% for artifact_type, methods in item.processing_by_type.items() %}
-                                            {{ operation_badge(artifact_type, methods[0].method_key if methods else None) }}
-                                            {% endfor %}
-                                        </div>
+                                        {{ operation_badges_ordered(item.processing_by_type) }}
                                         {% else %}
                                         <span class="text-muted small">No processing yet</span>
                                         {% endif %}
                                     </td>
                                     <td class="text-center">
                                         <a href="{{ url_for('experiments.process_document', experiment_id=experiment.id, document_uuid=doc.uuid) }}"
-                                           class="btn btn-sm btn-outline-primary" title="Process Document">
+                                           class="btn btn-sm btn-outline-warning" title="Process Document">
                                             <i class="fas fa-cog"></i>
                                         </a>
                                         <a href="{{ url_for('text_input.document_detail', document_uuid=doc.uuid) }}"
-                                           class="btn btn-sm btn-outline-secondary" title="View Document">
+                                           class="btn btn-sm btn-outline-primary" title="View Document">
                                             <i class="fas fa-eye"></i>
                                         </a>
                                     </td>

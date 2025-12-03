@@ -102,3 +102,12 @@
 body {
   font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
 }
+
+/* Theme-aware images - show/hide based on color scheme */
+[data-md-color-scheme="slate"] .light-only {
+  display: none;
+}
+
+[data-md-color-scheme="default"] .dark-only {
+  display: none;
+}

@@ -57,12 +57,12 @@
                             {% for doc in documents %}
                             <option value="{{ doc.id }}" {% if doc.id == selected_document_id %}selected{% endif %}>
                                 {{ doc.title[:50] }}{% if doc.title|length > 50 %}...{% endif %}
-                                {% if doc.source_document_id %}
-                                    [v{{ doc.version_number }} - {{ doc.version_type[:4]|title }}]
-                                {% endif %}
                             </option>
                             {% endfor %}
                         </select>
+                        {% if selected_document_id and version_count and version_count > 1 %}
+                        <small class="text-muted">Showing provenance for {{ version_count }} versions</small>
+                        {% endif %}
                     </div>
 
                     <!-- Term filter -->

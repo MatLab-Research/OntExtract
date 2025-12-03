@@ -89,11 +89,50 @@
 </span>
 {% endmacro %}
 
-{# Render multiple operation badges in a flex container #}
+{# Standard order for operation types - used for consistent display #}
+{# Order: cleanup first (prep), then segmentation, embeddings, extraction tasks #}
+{% set OPERATION_ORDER = ['cleanup', 'segmentation', 'embeddings', 'entities', 'temporal', 'definitions'] %}
+
+{# Render multiple operation badges in a flex container (from list), sorted by standard order #}
 {% macro operation_badges(operations) %}
 <div class="d-flex flex-wrap gap-1">
+    {# First, render operations in standard order #}
+    {% for op_type in OPERATION_ORDER %}
+        {% for op in operations %}
+            {% if op.type == op_type %}
+                {{ operation_badge(op.type, op.method, op.source) }}
+            {% endif %}
+        {% endfor %}
+    {% endfor %}
+    {# Then, render any remaining operations not in standard order #}
     {% for op in operations %}
-        {{ operation_badge(op.type, op.method, op.source) }}
+        {% if op.type not in OPERATION_ORDER %}
+            {{ operation_badge(op.type, op.method, op.source) }}
+        {% endif %}
     {% endfor %}
 </div>
+{% endmacro %}
+
+{# Render operation badges from a processing_by_type dictionary in standard order
+   processing_by_type: dict of {artifact_type: [{method_key: ..., source: ...}, ...]}
+   This ensures badges always appear in the same order across all views
+#}
+{% macro operation_badges_ordered(processing_by_type) %}
+{% if processing_by_type %}
+<div class="d-flex flex-wrap gap-1">
+    {# First, render operations in standard order #}
+    {% for op_type in OPERATION_ORDER %}
+        {% if op_type in processing_by_type %}
+            {% set methods = processing_by_type[op_type] %}
+            {{ operation_badge(op_type, methods[0].method_key if methods else None, methods[0].source if methods else None) }}
+        {% endif %}
+    {% endfor %}
+    {# Then, render any remaining operations not in standard order #}
+    {% for op_type, methods in processing_by_type.items() %}
+        {% if op_type not in OPERATION_ORDER %}
+            {{ operation_badge(op_type, methods[0].method_key if methods else None, methods[0].source if methods else None) }}
+        {% endif %}
+    {% endfor %}
+</div>
+{% endif %}
 {% endmacro %}

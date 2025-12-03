@@ -1539,8 +1539,9 @@ class ProvenanceService:
         experiment_id: int = None,
         user_id: int = None,
         activity_type: str = None,
-        term_id: int = None,
+        term_id: str = None,
         document_id: int = None,
+        document_ids: List[int] = None,
         limit: int = 100
     ) -> List[Dict[str, Any]]:
         """
@@ -1550,8 +1551,9 @@ class ProvenanceService:
             experiment_id: Filter by experiment (optional)
             user_id: Filter by user (optional)
             activity_type: Filter by activity type (optional)
-            term_id: Filter by term (optional)
-            document_id: Filter by document (optional)
+            term_id: Filter by term UUID (optional)
+            document_id: Filter by single document (optional, deprecated - use document_ids)
+            document_ids: Filter by multiple documents (optional) - for showing all versions
             limit: Maximum number of activities to return
 
         Returns:
@@ -1574,7 +1576,16 @@ class ProvenanceService:
                 ProvActivity.activity_parameters['term_id'].astext == str(term_id)
             )
 
-        if document_id:
+        # Handle document filtering - support both single ID and list of IDs
+        if document_ids:
+            # Filter for any document in the list (for document family/versions)
+            query = query.filter(
+                db.or_(*[
+                    ProvActivity.activity_parameters['document_id'].astext == str(doc_id)
+                    for doc_id in document_ids
+                ])
+            )
+        elif document_id:
             query = query.filter(
                 ProvActivity.activity_parameters['document_id'].astext == str(document_id)
             )
@@ -1675,6 +1686,202 @@ class ProvenanceService:
                 break
 
         return lineage
+
+    @staticmethod
+    def get_graph_data(
+        experiment_id: int = None,
+        document_id: int = None,
+        term_id: str = None,
+        limit: int = 50
+    ) -> Dict[str, Any]:
+        """
+        Get provenance data formatted for Cytoscape graph visualization.
+
+        Args:
+            experiment_id: Filter by experiment (optional)
+            document_id: Filter by document (optional)
+            term_id: Filter by term UUID (optional)
+            limit: Maximum number of activities to include
+
+        Returns:
+            Dict with 'nodes' and 'edges' arrays for Cytoscape
+        """
+        nodes = []
+        edges = []
+        seen_nodes = set()
+
+        # Build activity query with filters
+        query = db.session.query(ProvActivity)\
+            .order_by(ProvActivity.startedattime.desc())
+
+        if experiment_id:
+            query = query.filter(
+                ProvActivity.activity_parameters['experiment_id'].astext == str(experiment_id)
+            )
+
+        if document_id:
+            # Get all versions of this document
+            from app.models.document import Document
+            doc = Document.query.get(document_id)
+            if doc:
+                all_versions = doc.get_all_versions()
+                doc_ids = [str(v.id) for v in all_versions]
+                query = query.filter(
+                    db.or_(*[
+                        ProvActivity.activity_parameters['document_id'].astext == doc_id
+                        for doc_id in doc_ids
+                    ])
+                )
+
+        if term_id:
+            query = query.filter(
+                ProvActivity.activity_parameters['term_id'].astext == str(term_id)
+            )
+
+        activities = query.limit(limit).all()
+
+        # Collect all agents, activities, and entities
+        for activity in activities:
+            activity_id = str(activity.activity_id)
+
+            # Add activity node
+            if activity_id not in seen_nodes:
+                seen_nodes.add(activity_id)
+                nodes.append({
+                    'data': {
+                        'id': activity_id,
+                        'label': activity.activity_type.replace('_', '\n'),
+                        'type': 'activity',
+                        'description': f"Started: {activity.startedattime.strftime('%Y-%m-%d %H:%M') if activity.startedattime else 'N/A'}",
+                        'full_type': activity.activity_type,
+                        'status': activity.activity_status
+                    },
+                    'classes': 'activity'
+                })
+
+            # Add agent node and edge
+            if activity.wasassociatedwith:
+                agent = ProvAgent.query.get(activity.wasassociatedwith)
+                if agent:
+                    agent_id = str(agent.agent_id)
+                    if agent_id not in seen_nodes:
+                        seen_nodes.add(agent_id)
+                        nodes.append({
+                            'data': {
+                                'id': agent_id,
+                                'label': agent.foaf_name or 'Unknown',
+                                'type': 'agent',
+                                'description': agent.agent_type,
+                                'agent_type': agent.agent_type
+                            },
+                            'classes': 'agent'
+                        })
+
+                    # wasAssociatedWith edge
+                    edge_id = f"assoc_{activity_id}_{agent_id}"
+                    if edge_id not in seen_nodes:
+                        seen_nodes.add(edge_id)
+                        edges.append({
+                            'data': {
+                                'id': edge_id,
+                                'source': activity_id,
+                                'target': agent_id,
+                                'label': 'wasAssociatedWith'
+                            },
+                            'classes': 'associated'
+                        })
+
+            # Add generated entities
+            generated = ProvEntity.query.filter_by(wasgeneratedby=activity.activity_id).all()
+            for entity in generated:
+                entity_id = str(entity.entity_id)
+                if entity_id not in seen_nodes:
+                    seen_nodes.add(entity_id)
+
+                    # Build label from entity value
+                    label = entity.entity_type.replace('_', '\n')
+                    if entity.entity_value:
+                        if 'title' in entity.entity_value:
+                            label = entity.entity_value['title'][:20] + '...' if len(str(entity.entity_value.get('title', ''))) > 20 else entity.entity_value.get('title', label)
+                        elif 'document_id' in entity.entity_value:
+                            label = f"Doc {entity.entity_value['document_id']}"
+                        elif 'term_text' in entity.entity_value:
+                            label = entity.entity_value['term_text'][:20]
+
+                    nodes.append({
+                        'data': {
+                            'id': entity_id,
+                            'label': label,
+                            'type': 'entity',
+                            'description': entity.entity_type,
+                            'entity_type': entity.entity_type,
+                            'value': entity.entity_value
+                        },
+                        'classes': 'entity'
+                    })
+
+                # wasGeneratedBy edge
+                edge_id = f"gen_{entity_id}_{activity_id}"
+                if edge_id not in seen_nodes:
+                    seen_nodes.add(edge_id)
+                    edges.append({
+                        'data': {
+                            'id': edge_id,
+                            'source': entity_id,
+                            'target': activity_id,
+                            'label': 'wasGeneratedBy'
+                        },
+                        'classes': 'generated'
+                    })
+
+                # wasDerivedFrom edge
+                if entity.wasderivedfrom:
+                    source_entity = ProvEntity.query.get(entity.wasderivedfrom)
+                    if source_entity:
+                        source_id = str(source_entity.entity_id)
+
+                        # Add source entity if not seen
+                        if source_id not in seen_nodes:
+                            seen_nodes.add(source_id)
+                            source_label = source_entity.entity_type.replace('_', '\n')
+                            if source_entity.entity_value:
+                                if 'title' in source_entity.entity_value:
+                                    source_label = source_entity.entity_value['title'][:20] + '...' if len(str(source_entity.entity_value.get('title', ''))) > 20 else source_entity.entity_value.get('title', source_label)
+
+                            nodes.append({
+                                'data': {
+                                    'id': source_id,
+                                    'label': source_label,
+                                    'type': 'entity',
+                                    'description': source_entity.entity_type,
+                                    'entity_type': source_entity.entity_type
+                                },
+                                'classes': 'entity'
+                            })
+
+                        # wasDerivedFrom edge
+                        derived_edge_id = f"derived_{entity_id}_{source_id}"
+                        if derived_edge_id not in seen_nodes:
+                            seen_nodes.add(derived_edge_id)
+                            edges.append({
+                                'data': {
+                                    'id': derived_edge_id,
+                                    'source': entity_id,
+                                    'target': source_id,
+                                    'label': 'wasDerivedFrom'
+                                },
+                                'classes': 'derived'
+                            })
+
+        return {
+            'nodes': nodes,
+            'edges': edges,
+            'stats': {
+                'entities': len([n for n in nodes if n['classes'] == 'entity']),
+                'activities': len([n for n in nodes if n['classes'] == 'activity']),
+                'agents': len([n for n in nodes if n['classes'] == 'agent'])
+            }
+        }
 
 
 # Singleton instance

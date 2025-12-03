@@ -73,6 +73,7 @@ nav:
       - LLM Orchestration: how-to/llm-orchestration.md
       - Process Documents: how-to/document-processing.md
       - View Results: how-to/view-results.md
+      - Provenance Tracking: how-to/provenance-tracking.md
   - FAQ: faq.md
   - "↗ Back to OntExtract": "/"
 
