@@ -1,7 +1,8 @@
 # OntExtract Documentation
 
 <div style="float: right; margin-left: 1em; margin-bottom: 0.5em;">
-  <img src="assets/images/llm-attribution-dark.png" alt="Written with Claude" width="120">
+  <img class="dark-only" src="assets/images/llm-attribution-dark.png" alt="Written with Claude" width="120">
+  <img class="light-only" src="assets/images/llm-attribution.png" alt="Written with Claude" width="120">
 </div>
 
 Welcome to the OntExtract user manual.

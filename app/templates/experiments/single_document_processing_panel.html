@@ -1,4 +1,5 @@
 <!-- Single Document Processing Panel for Experiments -->
+{% from "macros/processing_badges.html" import operation_badge, OPERATION_ORDER %}
 <style>
 /* Fix for sticky navigation interfering with Bootstrap modal */
 .modal-open .navigation-card {
@@ -33,32 +34,20 @@
         <div class="mb-3">
             <div class="processing-status" id="processing-status-{{ experiment_document.id }}">
                 {% if processing_operations %}
+                    {# Render operations in standard order: cleanup, segmentation, embeddings, entities, temporal, definitions #}
+                    {% set op_order = ['cleanup', 'segmentation', 'embeddings', 'entities', 'temporal', 'definitions'] %}
+                    {% for op_type in op_order %}
+                        {% for op in processing_operations %}
+                            {% if op.processing_type == op_type %}
+                                {{ operation_badge(op.processing_type, op.processing_method) }}
+                            {% endif %}
+                        {% endfor %}
+                    {% endfor %}
+                    {# Render any operations not in standard order #}
                     {% for op in processing_operations %}
-                        {% set icon_class = '' %}
-                        {% set badge_color = 'secondary' %}
-
-                        {% if 'segment' in op.processing_type %}
-                            {% set icon_class = 'fa-cut' %}
-                            {% set badge_color = 'warning' %}
-                        {% elif 'embedding' in op.processing_type %}
-                            {% set icon_class = 'fa-vector-square' %}
-                            {% set badge_color = 'info' %}
-                        {% elif 'entit' in op.processing_type %}
-                            {% set icon_class = 'fa-tags' %}
-                            {% set badge_color = 'success' %}
-                        {% elif 'temporal' in op.processing_type %}
-                            {% set icon_class = 'fa-clock' %}
-                            {% set badge_color = 'secondary' %}
-                        {% elif 'definition' in op.processing_type %}
-                            {% set icon_class = 'fa-book' %}
-                            {% set badge_color = 'primary' %}
-                        {% else %}
-                            {% set icon_class = 'fa-cog' %}
+                        {% if op.processing_type not in op_order %}
+                            {{ operation_badge(op.processing_type, op.processing_method) }}
                         {% endif %}
-
-                        <span class="badge bg-{{ badge_color }} me-1 mb-1" title="{{ op.status|title }}">
-                            <i class="fas {{ icon_class }} me-1"></i>{{ op.processing_type }}: {{ op.processing_method }}
-                        </span>
                     {% endfor %}
                 {% else %}
                     <small class="text-muted">No manual processing applied</small>

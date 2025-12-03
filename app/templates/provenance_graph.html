@@ -26,12 +26,13 @@
         }
 
         .container-fluid {
-            padding: 20px;
+            padding: 10px 15px;
         }
 
         #cy {
             width: 100%;
-            height: 600px;
+            height: calc(100vh - 120px);  /* Full viewport minus navbar and padding */
+            min-height: 400px;
             background: #ffffff;
             border: 1px solid #dee2e6;
             border-radius: 8px;
@@ -41,31 +42,56 @@
         .control-panel {
             background: white;
             border-radius: 8px;
-            padding: 20px;
+            padding: 12px;
             box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
-            margin-bottom: 20px;
+            margin-bottom: 10px;
+        }
+
+        .control-panel h5, .control-panel h6 {
+            font-size: 0.9rem;
+            margin-bottom: 8px;
+        }
+
+        .control-panel .form-label {
+            font-size: 0.8rem;
+            margin-bottom: 4px;
+        }
+
+        .control-panel .mb-3 {
+            margin-bottom: 8px !important;
         }
 
         .stats-panel {
             background: white;
             border-radius: 8px;
-            padding: 20px;
+            padding: 10px;
             box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+        }
+
+        .stats-panel h6 {
+            font-size: 0.85rem;
+            margin-bottom: 8px;
+        }
+
+        .stats-panel .h4 {
+            font-size: 1.1rem;
         }
 
         .legend-item {
             display: flex;
             align-items: center;
-            margin-bottom: 10px;
+            margin-bottom: 6px;
+            font-size: 0.8rem;
         }
 
         .legend-color {
-            width: 30px;
-            height: 30px;
+            width: 20px;
+            height: 20px;
             border-radius: 50%;
-            margin-right: 10px;
+            margin-right: 8px;
             border: 2px solid #fff;
             box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            flex-shrink: 0;
         }
 
         .entity-color {
@@ -105,9 +131,10 @@
         .info-box {
             background: #e3f2fd;
             border-left: 4px solid #2196F3;
-            padding: 15px;
+            padding: 8px 12px;
             border-radius: 4px;
-            margin-bottom: 20px;
+            margin-bottom: 10px;
+            font-size: 0.85rem;
         }
 
         .detail-card {
@@ -146,8 +173,30 @@
             <span class="navbar-brand mb-0 h1">
                 <i class="fas fa-project-diagram me-2"></i>
                 OntExtract PROV-O Provenance Graph
+                <span class="badge bg-warning text-dark ms-2" style="font-size: 0.6rem; vertical-align: middle;">BETA</span>
+                {% if filter_context %}
+                <small class="ms-2 opacity-75">
+                    {% if filter_context.document %}| Document: {{ filter_context.document }}{% endif %}
+                    {% if filter_context.experiment %}| Experiment: {{ filter_context.experiment }}{% endif %}
+                    {% if filter_context.term %}| Term: {{ filter_context.term }}{% endif %}
+                </small>
+                {% endif %}
             </span>
             <div class="d-flex">
+                {% if filter_context %}
+                    {% if filter_context.document_id %}
+                <a href="{{ url_for('text_input.document_detail', document_uuid=filter_context.document_uuid) if filter_context.document_uuid else '#' }}" class="btn btn-outline-light btn-sm me-2" id="backLink">
+                    <i class="fas fa-arrow-left me-1"></i>Back to Document
+                </a>
+                    {% elif filter_context.experiment_id %}
+                <a href="{{ url_for('experiments.view', experiment_id=filter_context.experiment_id) }}" class="btn btn-outline-light btn-sm me-2">
+                    <i class="fas fa-arrow-left me-1"></i>Back to Experiment
+                </a>
+                    {% endif %}
+                <a href="{{ url_for('provenance.provenance_graph') }}" class="btn btn-outline-light btn-sm me-2">
+                    <i class="fas fa-times me-1"></i>Clear Filter
+                </a>
+                {% endif %}
                 <button class="btn btn-light btn-sm me-2" onclick="exportImage()">
                     <i class="fas fa-download me-1"></i>Export PNG
                 </button>
@@ -161,7 +210,7 @@
     <div class="container-fluid">
         <div class="row">
             <!-- Left Panel - Controls and Legend -->
-            <div class="col-md-3">
+            <div class="col-md-2">
                 <div class="control-panel">
                     <h5><i class="fas fa-sliders-h me-2"></i>Controls</h5>
                     <div class="mb-3">
@@ -174,11 +223,12 @@
                         </select>
                     </div>
                     <div class="mb-3">
-                        <label class="form-label">Processing Scenario</label>
+                        <label class="form-label">Data Source</label>
                         <select class="form-select" id="scenarioSelect" onchange="loadScenario()">
-                            <option value="complete">Complete Workflow</option>
-                            <option value="simple">Simple Processing</option>
-                            <option value="multi-version">Multi-Version Analysis</option>
+                            <option value="live" selected>Live Database</option>
+                            <option value="complete">Demo: Complete Workflow</option>
+                            <option value="simple">Demo: Simple Processing</option>
+                            <option value="multi-version">Demo: Multi-Version Analysis</option>
                         </select>
                     </div>
                     <button class="btn btn-primary btn-sm w-100 mb-2" onclick="highlightPath()">
@@ -241,7 +291,7 @@
             </div>
 
             <!-- Center - Graph Visualization -->
-            <div class="col-md-6">
+            <div class="col-md-8">
                 <div class="info-box">
                     <i class="fas fa-info-circle me-2"></i>
                     <strong>Interactive PROV-O Graph:</strong> This visualization shows how OntExtract tracks document
@@ -252,7 +302,7 @@
             </div>
 
             <!-- Right Panel - Details -->
-            <div class="col-md-3">
+            <div class="col-md-2">
                 <div class="card detail-card">
                     <div class="card-header bg-primary text-white">
                         <h6 class="mb-0"><i class="fas fa-info-circle me-2"></i>Element Details</h6>
@@ -290,7 +340,14 @@
         cytoscape.use(cytoscapeDagre);
 
         let cy; // Cytoscape instance
-        let currentScenario = 'complete';
+        let currentScenario = 'live';
+
+        // Filter parameters from server
+        const filterParams = {
+            experiment_id: {{ experiment_id|tojson if experiment_id else 'null' }},
+            document_id: {{ document_id|tojson if document_id else 'null' }},
+            term_id: {{ term_id|tojson if term_id else 'null' }}
+        };
 
         // Initialize Cytoscape
         function initCytoscape() {
@@ -434,9 +491,73 @@
             });
         }
 
+        // Fetch live data from API
+        async function loadLiveData() {
+            try {
+                // Build API URL with filters
+                let apiUrl = '/provenance/api/graph?limit=50';
+                if (filterParams.experiment_id) {
+                    apiUrl += `&experiment_id=${filterParams.experiment_id}`;
+                }
+                if (filterParams.document_id) {
+                    apiUrl += `&document_id=${filterParams.document_id}`;
+                }
+                if (filterParams.term_id) {
+                    apiUrl += `&term_id=${filterParams.term_id}`;
+                }
+
+                const response = await fetch(apiUrl);
+                const data = await response.json();
+
+                if (data.success) {
+                    // Convert to Cytoscape format
+                    const elements = [...data.nodes, ...data.edges];
+
+                    // Clear and add elements
+                    cy.elements().remove();
+
+                    if (elements.length === 0) {
+                        // Show empty state message
+                        document.getElementById('detailsPanel').innerHTML = `
+                            <div class="text-center text-muted py-4">
+                                <i class="fas fa-database fa-3x mb-3"></i>
+                                <p>No provenance data found${filterParams.document_id || filterParams.experiment_id || filterParams.term_id ? ' for this filter' : ''}.</p>
+                                <p class="small">Process some documents to see provenance tracking.</p>
+                            </div>
+                        `;
+                    } else {
+                        cy.add(elements);
+                        applyLayout();
+                    }
+
+                    // Update statistics
+                    document.getElementById('entityCount').textContent = data.stats.entities;
+                    document.getElementById('activityCount').textContent = data.stats.activities;
+                    document.getElementById('agentCount').textContent = data.stats.agents;
+                } else {
+                    console.error('Failed to load graph data:', data.error);
+                }
+            } catch (error) {
+                console.error('Error fetching graph data:', error);
+                document.getElementById('detailsPanel').innerHTML = `
+                    <div class="text-center text-danger py-4">
+                        <i class="fas fa-exclamation-triangle fa-3x mb-3"></i>
+                        <p>Error loading provenance data.</p>
+                        <p class="small">${error.message}</p>
+                    </div>
+                `;
+            }
+        }
+
         // Load provenance data
         function loadScenario() {
             const scenario = document.getElementById('scenarioSelect').value;
+
+            if (scenario === 'live') {
+                loadLiveData();
+                return;
+            }
+
             let elements = [];
 
             if (scenario === 'complete') {
@@ -614,20 +735,24 @@
             let layout = {
                 name: layoutName,
                 animate: true,
-                animationDuration: 500
+                animationDuration: 500,
+                // Fit to viewport after layout completes
+                stop: function() {
+                    cy.fit(undefined, 50);  // 50px padding
+                }
             };
 
             if (layoutName === 'dagre') {
                 layout.rankDir = 'LR';
-                layout.nodeSep = 150;  // Increased spacing
-                layout.rankSep = 200;  // Increased spacing
-                layout.edgeSep = 50;   // Added edge separation
+                layout.nodeSep = 100;
+                layout.rankSep = 120;
+                layout.edgeSep = 30;
             } else if (layoutName === 'breadthfirst') {
                 layout.directed = true;
-                layout.spacingFactor = 2.0;  // Increased spacing factor
+                layout.spacingFactor = 1.5;
             } else if (layoutName === 'cose') {
-                layout.nodeRepulsion = 8000;  // Increase repulsion for better spacing
-                layout.idealEdgeLength = 150;
+                layout.nodeRepulsion = 6000;
+                layout.idealEdgeLength = 100;
                 layout.edgeElasticity = 100;
             }
 
@@ -664,7 +789,7 @@
 
         // Fit to screen
         function fitToScreen() {
-            cy.fit();
+            cy.fit(undefined, 50);  // 50px padding around graph
         }
 
         // Export image

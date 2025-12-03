@@ -95,8 +95,8 @@
                                             {% endif %}
                                             {% if experiment.can_run() %}
                                             <a href="{{ url_for('experiments.document_pipeline', experiment_id=experiment.id) }}"
-                                               class="btn btn-outline-success" title="Process Documents">
-                                                <i class="fas fa-play"></i>
+                                               class="btn btn-outline-warning" title="Process Documents">
+                                                <i class="fas fa-cogs"></i>
                                             </a>
                                             {% endif %}
                                             {% if experiment.status == 'completed' %}

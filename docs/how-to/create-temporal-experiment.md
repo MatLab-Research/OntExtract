@@ -43,6 +43,52 @@ OntExtract automatically generates temporal periods based on your date range. Yo
 
 Click **Create Experiment** to save.
 
+## Manage Temporal Terms
+
+After creating a temporal evolution experiment, access the **Manage Temporal Terms** feature to configure your timeline in detail.
+
+### Accessing the Manager
+
+1. Go to your experiment's detail page
+2. Click **Manage Temporal Terms** button
+
+### Timeline Configuration
+
+The Temporal Term Manager provides two ways to set up periods:
+
+| Method | Description |
+|--------|-------------|
+| **Auto-generate from documents** | Creates artifact markers for each document's publication year |
+| **Manual Entry** | Manually specify time period boundaries |
+
+### Adding Semantic Events
+
+You can annotate your timeline with semantic change events:
+
+1. Click **Add Event** in the Periods & Events section
+2. Select the event type (e.g., amelioration, pejoration, drift)
+3. Specify the time range (from/to periods)
+4. Add a description of the semantic shift
+5. Link related documents as evidence
+
+### Period Cards
+
+The timeline displays period cards showing:
+
+- **Year** - The period's date marker
+- **Source badge** - ARTIFACT (auto-generated) or MANUAL
+- **Documents** - Papers associated with that period
+- **Events** - Semantic change events spanning periods
+
+Period boundaries are color-coded:
+
+- **Green (START)** - Beginning of a defined period
+- **Red (END)** - End of a defined period
+
+### Saving Configuration
+
+Click **Save Configuration** to persist your temporal setup before proceeding to analysis.
+
 ## Step 2: Add Documents
 
 ### Option A: Upload New Documents

@@ -66,6 +66,9 @@
                         <li><a class="dropdown-item" href="#" onclick="exportDocument('{{ document.uuid }}')">
                                 <i class="fas fa-download me-2"></i>Export
                             </a></li>
+                        <li><a class="dropdown-item" href="{{ url_for('provenance.provenance_graph', document_id=document.id) }}" target="_blank">
+                                <i class="fas fa-project-diagram me-2"></i>View Provenance <i class="fas fa-external-link-alt fa-xs"></i>
+                            </a></li>
                         <li>
                             <hr class="dropdown-divider">
                         </li>

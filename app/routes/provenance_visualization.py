@@ -20,8 +20,58 @@ bp = Blueprint('provenance', __name__, url_prefix='/provenance')
 
 @bp.route('/graph')
 def provenance_graph():
-    """Display the PROV-O provenance graph visualization."""
-    return render_template('provenance_graph.html')
+    """
+    Display the PROV-O provenance graph visualization.
+
+    Supports optional entity filters via query parameters:
+    - experiment_id: Filter by experiment
+    - document_id: Filter by document (includes all versions)
+    - term_id: Filter by term UUID
+
+    Examples:
+    - /provenance/graph?document_id=123
+    - /provenance/graph?experiment_id=83
+    - /provenance/graph?term_id=uuid-string
+    """
+    # Get filter parameters to pass to template
+    experiment_id = request.args.get('experiment_id', type=int)
+    document_id = request.args.get('document_id', type=int)
+    term_id = request.args.get('term_id')
+
+    # Get entity names for display
+    filter_context = {}
+    if document_id:
+        from app.models.document import Document
+        doc = Document.query.get(document_id)
+        if doc:
+            filter_context['document'] = doc.title or f"Document {doc.id}"
+            filter_context['document_id'] = document_id
+            filter_context['document_uuid'] = str(doc.uuid)
+
+    if experiment_id:
+        exp = Experiment.query.get(experiment_id)
+        if exp:
+            filter_context['experiment'] = exp.name
+            filter_context['experiment_id'] = experiment_id
+
+    if term_id:
+        from app.models.term import Term
+        from uuid import UUID
+        try:
+            term = Term.query.get(UUID(term_id))
+            if term:
+                filter_context['term'] = term.term_text
+                filter_context['term_id'] = term_id
+        except (ValueError, TypeError):
+            pass
+
+    return render_template(
+        'provenance_graph.html',
+        filter_context=filter_context,
+        experiment_id=experiment_id,
+        document_id=document_id,
+        term_id=term_id
+    )
 
 @bp.route('/graph/compact')
 def provenance_graph_compact():
@@ -54,7 +104,7 @@ def timeline():
     experiment_id = request.args.get('experiment_id', type=int)
     document_id = request.args.get('document_id', type=int)
     document_uuid = request.args.get('document_uuid')
-    term_id = request.args.get('term_id', type=int)
+    term_id = request.args.get('term_id')  # UUID string, not int
     activity_type = request.args.get('activity_type')
     limit = request.args.get('limit', 50, type=int)
 
@@ -66,10 +116,22 @@ def timeline():
         if doc:
             document_id = doc.id
 
-    # Get timeline data
+    # Get all document IDs in the family if a document is selected
+    # This allows showing provenance for all versions of a document
+    from app.models.document import Document
+    document_ids = None
+    selected_document = None
+    if document_id:
+        selected_document = Document.query.get(document_id)
+        if selected_document:
+            # Get all versions in this document family
+            all_versions = selected_document.get_all_versions()
+            document_ids = [v.id for v in all_versions]
+
+    # Get timeline data - pass document_ids to include all versions
     timeline_data = provenance_service.get_timeline(
         experiment_id=experiment_id,
-        document_id=document_id,
+        document_ids=document_ids,
         activity_type=activity_type,
         term_id=term_id,
         limit=limit
@@ -78,9 +140,8 @@ def timeline():
     # Get experiments for filter dropdown
     experiments = Experiment.query.order_by(Experiment.created_at.desc()).all()
 
-    # Get documents for filter dropdown
-    from app.models.document import Document
-    documents = Document.query.order_by(Document.created_at.desc()).all()
+    # Get documents for filter dropdown - only show original (v1) documents
+    documents = Document.query.filter_by(version_type='original').order_by(Document.created_at.desc()).all()
 
     # Get terms for filter dropdown
     from app.models.term import Term
@@ -121,7 +182,8 @@ def timeline():
         selected_experiment_id=experiment_id,
         selected_document_id=document_id,
         selected_activity_type=activity_type,
-        selected_term_id=term_id
+        selected_term_id=term_id,
+        version_count=len(document_ids) if document_ids else 0
     )
 
 
@@ -166,6 +228,37 @@ def api_timeline():
         'success': True,
         'timeline': timeline_data,
         'count': len(timeline_data)
+    })
+
+
+@bp.route('/api/graph')
+def api_graph():
+    """
+    API endpoint for graph data in Cytoscape format.
+
+    Query parameters:
+    - experiment_id: Filter by experiment
+    - document_id: Filter by document (includes all versions)
+    - term_id: Filter by term UUID
+    - limit: Maximum activities to include (default 50)
+
+    Returns JSON with 'nodes', 'edges', and 'stats' arrays.
+    """
+    experiment_id = request.args.get('experiment_id', type=int)
+    document_id = request.args.get('document_id', type=int)
+    term_id = request.args.get('term_id')
+    limit = request.args.get('limit', 50, type=int)
+
+    graph_data = provenance_service.get_graph_data(
+        experiment_id=experiment_id,
+        document_id=document_id,
+        term_id=term_id,
+        limit=limit
+    )
+
+    return jsonify({
+        'success': True,
+        **graph_data
     })
 
 
