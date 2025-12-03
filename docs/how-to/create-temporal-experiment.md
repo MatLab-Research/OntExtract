@@ -22,6 +22,8 @@ Before creating an experiment:
 1. Click **Experiments** in the main navigation
 2. Click **New Experiment**
 
+![Create New Experiment](../assets/images/screenshots/experiment-new-content.png)
+
 ### Fill in Experiment Details
 
 | Field | Description | Example |
@@ -213,5 +215,5 @@ The term "agent" shifts from:
 ## Related Guides
 
 - [Upload Documents](upload-documents.md)
+- [Process Documents](document-processing.md)
 - [Create Anchor Terms](create-anchor-terms.md)
-- [Document Processing](document-processing.md)
