@@ -221,9 +221,9 @@ class TermVersion(db.Model):
             # Build the INSERT statement dynamically based on available values
             if similarity_score is not None and rank is not None:
                 db.session.execute(
-                    text("INSERT INTO term_version_anchors (term_version_id, context_anchor_id, similarity_score, rank_in_neighborhood) VALUES (:version_id, :anchor_id, :score, :rank)"),
+                    text("INSERT INTO term_version_anchors (id, term_version_id, context_anchor_id, similarity_score, rank_in_neighborhood) VALUES (gen_random_uuid(), :version_id, :anchor_id, :score, :rank)"),
                     {
-                        'version_id': str(self.id), 
+                        'version_id': str(self.id),
                         'anchor_id': str(anchor.id),
                         'score': similarity_score,
                         'rank': rank
@@ -231,28 +231,28 @@ class TermVersion(db.Model):
                 )
             elif similarity_score is not None:
                 db.session.execute(
-                    text("INSERT INTO term_version_anchors (term_version_id, context_anchor_id, similarity_score) VALUES (:version_id, :anchor_id, :score)"),
+                    text("INSERT INTO term_version_anchors (id, term_version_id, context_anchor_id, similarity_score) VALUES (gen_random_uuid(), :version_id, :anchor_id, :score)"),
                     {
-                        'version_id': str(self.id), 
+                        'version_id': str(self.id),
                         'anchor_id': str(anchor.id),
                         'score': similarity_score
                     }
                 )
             elif rank is not None:
                 db.session.execute(
-                    text("INSERT INTO term_version_anchors (term_version_id, context_anchor_id, rank_in_neighborhood) VALUES (:version_id, :anchor_id, :rank)"),
+                    text("INSERT INTO term_version_anchors (id, term_version_id, context_anchor_id, rank_in_neighborhood) VALUES (gen_random_uuid(), :version_id, :anchor_id, :rank)"),
                     {
-                        'version_id': str(self.id), 
+                        'version_id': str(self.id),
                         'anchor_id': str(anchor.id),
                         'rank': rank
                     }
                 )
             else:
-                # Insert with only required fields, let PostgreSQL handle defaults/NULLs
+                # Insert with only required fields
                 db.session.execute(
-                    text("INSERT INTO term_version_anchors (term_version_id, context_anchor_id) VALUES (:version_id, :anchor_id)"),
+                    text("INSERT INTO term_version_anchors (id, term_version_id, context_anchor_id) VALUES (gen_random_uuid(), :version_id, :anchor_id)"),
                     {
-                        'version_id': str(self.id), 
+                        'version_id': str(self.id),
                         'anchor_id': str(anchor.id)
                     }
                 )

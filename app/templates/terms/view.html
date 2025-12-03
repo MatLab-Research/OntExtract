@@ -96,9 +96,11 @@
                         <div class="card-body text-center py-4">
                             <i class="fas fa-anchor fa-3x text-muted mb-3"></i>
                             <p class="text-muted">This term doesn't have an anchor definition yet.</p>
-                            <a href="{{ url_for('terms.add_version', term_id=term.id) }}" class="btn btn-primary">
-                                <i class="fas fa-plus me-1"></i>Add Anchor Term
-                            </a>
+                            <span class="d-inline-block" tabindex="0" data-bs-toggle="tooltip" data-bs-placement="top" data-bs-custom-class="tooltip-light" title="Coming soon">
+                                <button class="btn btn-secondary" disabled style="pointer-events: none;">
+                                    <i class="fas fa-plus me-1"></i>Add Anchor Term
+                                </button>
+                            </span>
                         </div>
                     </div>
                     {% endif %}
@@ -195,9 +197,11 @@
                                 </div>
 
                                 <div class="mt-3">
-                                    <a href="{{ url_for('terms.add_version', term_id=term.id) }}" class="btn btn-outline-primary btn-sm">
-                                        <i class="fas fa-plus me-1"></i>Add Historical Version
-                                    </a>
+                                    <span class="d-inline-block" tabindex="0" data-bs-toggle="tooltip" data-bs-placement="top" data-bs-custom-class="tooltip-light" title="Coming soon">
+                                        <button class="btn btn-outline-secondary btn-sm" disabled style="pointer-events: none;">
+                                            <i class="fas fa-plus me-1"></i>Add Historical Version
+                                        </button>
+                                    </span>
                                 </div>
                             </div>
                         </div>
@@ -278,9 +282,11 @@
                             <h5 class="mb-0">Quick Actions</h5>
                         </div>
                         <div class="card-body d-grid gap-2">
-                            <a href="{{ url_for('terms.add_version', term_id=term.id) }}" class="btn btn-primary">
-                                <i class="fas fa-plus me-1"></i>Add Version
-                            </a>
+                            <span class="d-inline-block" tabindex="0" data-bs-toggle="tooltip" data-bs-placement="top" data-bs-custom-class="tooltip-light" title="Coming soon">
+                                <button class="btn btn-secondary w-100" disabled style="pointer-events: none;">
+                                    <i class="fas fa-plus me-1"></i>Add Version
+                                </button>
+                            </span>
                             {% if term.created_by == current_user.id or current_user.is_admin %}
                             <a href="{{ url_for('terms.edit_term', term_id=term.id) }}" class="btn btn-outline-primary">
                                 <i class="fas fa-edit me-1"></i>Edit Term

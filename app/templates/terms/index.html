@@ -156,10 +156,11 @@
                                                 <i class="fas fa-edit"></i>
                                             </a>
                                             {% endif %}
-                                            <a href="{{ url_for('terms.add_version', term_id=term.id) }}" 
-                                               class="btn btn-outline-success" title="Add Version">
-                                                <i class="fas fa-plus"></i>
-                                            </a>
+                                            <span class="d-inline-block" tabindex="0" data-bs-toggle="tooltip" data-bs-placement="top" data-bs-custom-class="tooltip-light" title="Coming soon">
+                                                <button class="btn btn-outline-secondary" disabled style="pointer-events: none;">
+                                                    <i class="fas fa-plus"></i>
+                                                </button>
+                                            </span>
                                             {% if current_user.is_admin %}
                                             <button type="button" 
                                                     class="btn btn-outline-danger" 
@@ -294,13 +295,21 @@
 
 {% block extra_js %}
 <script>
+    // Initialize Bootstrap tooltips
+    document.addEventListener('DOMContentLoaded', function() {
+        var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+        tooltipTriggerList.map(function(tooltipTriggerEl) {
+            return new bootstrap.Tooltip(tooltipTriggerEl);
+        });
+    });
+
     // Auto-submit search form on Enter key
     document.getElementById('search').addEventListener('keypress', function(e) {
         if (e.key === 'Enter') {
             this.form.submit();
         }
     });
-    
+
     // Delete confirmation function
     function confirmDelete(termId, termText) {
         // Set the term name in the modal

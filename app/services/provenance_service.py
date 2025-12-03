@@ -527,9 +527,9 @@ class ProvenanceService:
         if doc_entity:
             used_rel = ProvRelationship(
                 relationship_type='used',
-                subject_type='Activity',
+                subject_type='activity',
                 subject_id=activity.activity_id,
-                object_type='Entity',
+                object_type='entity',
                 object_id=doc_entity.entity_id
             )
             db.session.add(used_rel)
@@ -603,9 +603,9 @@ class ProvenanceService:
         if doc_entity:
             used_rel = ProvRelationship(
                 relationship_type='used',
-                subject_type='Activity',
+                subject_type='activity',
                 subject_id=activity.activity_id,
-                object_type='Entity',
+                object_type='entity',
                 object_id=doc_entity.entity_id
             )
             db.session.add(used_rel)
@@ -669,9 +669,9 @@ class ProvenanceService:
         if text_entity:
             used_rel = ProvRelationship(
                 relationship_type='used',
-                subject_type='Activity',
+                subject_type='activity',
                 subject_id=activity.activity_id,
-                object_type='Entity',
+                object_type='entity',
                 object_id=text_entity.entity_id
             )
             db.session.add(used_rel)
@@ -740,9 +740,9 @@ class ProvenanceService:
         if text_entity:
             used_rel = ProvRelationship(
                 relationship_type='used',
-                subject_type='Activity',
+                subject_type='activity',
                 subject_id=activity.activity_id,
-                object_type='Entity',
+                object_type='entity',
                 object_id=text_entity.entity_id
             )
             db.session.add(used_rel)
@@ -879,9 +879,9 @@ class ProvenanceService:
         if doc_entity:
             used_rel = ProvRelationship(
                 relationship_type='used',
-                subject_type='Activity',
+                subject_type='activity',
                 subject_id=activity.activity_id,
-                object_type='Entity',
+                object_type='entity',
                 object_id=doc_entity.entity_id
             )
             db.session.add(used_rel)
@@ -984,9 +984,9 @@ class ProvenanceService:
         if doc_entity:
             used_rel = ProvRelationship(
                 relationship_type='used',
-                subject_type='Activity',
+                subject_type='activity',
                 subject_id=activity.activity_id,
-                object_type='Entity',
+                object_type='entity',
                 object_id=doc_entity.entity_id
             )
             db.session.add(used_rel)
@@ -1354,9 +1354,9 @@ class ProvenanceService:
         if doc_entity:
             used_rel = ProvRelationship(
                 relationship_type='used',
-                subject_type='Activity',
+                subject_type='activity',
                 subject_id=activity.activity_id,
-                object_type='Entity',
+                object_type='entity',
                 object_id=doc_entity.entity_id
             )
             db.session.add(used_rel)
@@ -1519,9 +1519,9 @@ class ProvenanceService:
                     if doc_entity:
                         used_rel = ProvRelationship(
                             relationship_type='used',
-                            subject_type='Activity',
+                            subject_type='activity',
                             subject_id=activity.activity_id,
-                            object_type='Entity',
+                            object_type='entity',
                             object_id=doc_entity.entity_id
                         )
                         db.session.add(used_rel)
