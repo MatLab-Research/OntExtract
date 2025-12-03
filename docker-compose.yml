@@ -1,0 +1,101 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database with pgvector
+  postgres:
+    image: pgvector/pgvector:pg17
+    container_name: ontextract-db
+    environment:
+      POSTGRES_DB: ontextract_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ontextract_dev_password
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./docker-init-db.sh:/docker-entrypoint-initdb.d/init-pgvector.sh
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Redis Cache
+  redis:
+    image: redis:7-alpine
+    container_name: ontextract-redis
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Flask Web Application
+  web:
+    build: .
+    container_name: ontextract-web
+    command: python run.py
+    volumes:
+      - ./app:/app/app
+      - ./uploads:/app/uploads
+      - ./logs:/app/logs
+      - ./ontologies:/app/ontologies
+    ports:
+      - "8765:8765"
+    environment:
+      - FLASK_ENV=development
+      - FLASK_DEBUG=1
+      - SECRET_KEY=dev-secret-key-change-in-production
+      - DATABASE_URL=postgresql://postgres:ontextract_dev_password@postgres:5432/ontextract_db
+      - SQLALCHEMY_DATABASE_URI=postgresql://postgres:ontextract_dev_password@postgres:5432/ontextract_db
+      - POSTGRES_DB=ontextract_db
+      - POSTGRES_PASSWORD=ontextract_dev_password
+      - REDIS_URL=redis://redis:6379/0
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      - DEFAULT_LLM_PROVIDER=anthropic
+      - CLAUDE_DEFAULT_MODEL=claude-sonnet-4-20250514
+      # Admin account creation (optional)
+      - CREATE_DEFAULT_ADMIN=${CREATE_DEFAULT_ADMIN:-true}
+      - ADMIN_USERNAME=${ADMIN_USERNAME:-admin}
+      - ADMIN_PASSWORD=${ADMIN_PASSWORD:-admin123}
+      - ADMIN_EMAIL=${ADMIN_EMAIL:-admin@ontextract.local}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8765"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Celery Worker
+  celery:
+    build: .
+    container_name: ontextract-celery
+    command: celery -A celery_config.celery worker --loglevel=info --concurrency=2 --pool=prefork
+    volumes:
+      - ./app:/app/app
+      - ./uploads:/app/uploads
+      - ./logs:/app/logs
+      - ./ontologies:/app/ontologies
+    environment:
+      - FLASK_ENV=development
+      - DATABASE_URL=postgresql://postgres:ontextract_dev_password@postgres:5432/ontextract_db
+      - SQLALCHEMY_DATABASE_URI=postgresql://postgres:ontextract_dev_password@postgres:5432/ontextract_db
+      - REDIS_URL=redis://redis:6379/0
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      - DEFAULT_LLM_PROVIDER=anthropic
+      - CLAUDE_DEFAULT_MODEL=claude-sonnet-4-20250514
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+volumes:
+  postgres_data:

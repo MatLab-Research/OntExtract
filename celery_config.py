@@ -41,10 +41,14 @@ def get_celery():
 
         app = create_app()
 
+        # Get Redis URL from environment (supports Docker networking)
+        import os
+        redis_url = os.environ.get('REDIS_URL', 'redis://localhost:6379/0')
+
         celery = Celery(
             app.import_name,
-            broker='redis://localhost:6379/0',
-            backend='redis://localhost:6379/0',
+            broker=redis_url,
+            backend=redis_url,
             include=['app.tasks.orchestration']
         )
 
