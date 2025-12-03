@@ -283,7 +283,7 @@ class ProvOTrackingService:
             # Get source entities (wasDerivedFrom relationships)
             derivation_rels = ProvRelationship.query.filter_by(
                 relationship_type='wasDerivedFrom',
-                subject_type='Entity',
+                subject_type='entity',
                 subject_id=entity.entity_id
             ).all()
             
@@ -300,7 +300,7 @@ class ProvOTrackingService:
             # Get derived entities (entities that were derived from this one)
             derived_rels = ProvRelationship.query.filter_by(
                 relationship_type='wasDerivedFrom',
-                object_type='Entity',
+                object_type='entity',
                 object_id=entity.entity_id
             ).all()
             

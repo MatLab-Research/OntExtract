@@ -151,8 +151,18 @@ def generate_embeddings(document_uuid):
             from datetime import datetime
             import time
             
-            # Initialize embedding service
-            embedding_service = EmbeddingService()
+            # Initialize embedding service with user-selected method
+            # Map method names to provider priority (selected method first, then fallbacks)
+            if embedding_method == 'openai':
+                provider_priority = ['openai', 'local']
+            elif embedding_method == 'claude':
+                provider_priority = ['claude', 'local']
+            elif embedding_method == 'local':
+                provider_priority = ['local']
+            else:
+                provider_priority = ['local', 'openai', 'claude']  # Default fallback order
+
+            embedding_service = EmbeddingService(provider_priority=provider_priority)
             
             # Record start time
             start_time = time.time()

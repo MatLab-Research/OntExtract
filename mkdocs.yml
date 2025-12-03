@@ -69,6 +69,8 @@ nav:
       - Installation: getting-started/installation.md
       - First Login: getting-started/first-login.md
   - How-To Guides:
+      - Upload Documents: how-to/upload-documents.md
+      - Create Anchor Terms: how-to/create-anchor-terms.md
       - Create Temporal Experiment: how-to/create-temporal-experiment.md
   - FAQ: faq.md
   - "↗ Back to OntExtract": "http://localhost:8765/"

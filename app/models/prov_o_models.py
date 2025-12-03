@@ -306,9 +306,9 @@ class ProvRelationship(db.Model):
         """Create wasGeneratedBy relationship"""
         return cls(
             relationship_type='wasGeneratedBy',
-            subject_type='Entity',
+            subject_type='entity',
             subject_id=entity.entity_id,
-            object_type='Activity',
+            object_type='activity',
             object_id=activity.activity_id,
             relationship_metadata={'created_automatically': True}
         )
@@ -318,9 +318,9 @@ class ProvRelationship(db.Model):
         """Create wasDerivedFrom relationship"""
         return cls(
             relationship_type='wasDerivedFrom',
-            subject_type='Entity',
+            subject_type='entity',
             subject_id=derived_entity.entity_id,
-            object_type='Entity',
+            object_type='entity',
             object_id=source_entity.entity_id,
             relationship_metadata={'derivation_type': derivation_type}
         )
@@ -330,9 +330,9 @@ class ProvRelationship(db.Model):
         """Create wasInformedBy relationship between activities"""
         return cls(
             relationship_type='wasInformedBy',
-            subject_type='Activity',
+            subject_type='activity',
             subject_id=downstream_activity.activity_id,
-            object_type='Activity',
+            object_type='activity',
             object_id=upstream_activity.activity_id,
             relationship_metadata={'information_flow': True}
         )

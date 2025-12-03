@@ -190,6 +190,19 @@
         .spinner-overlay.show {
             display: flex;
         }
+
+        /* Light tooltip for dark backgrounds */
+        .tooltip-light .tooltip-inner {
+            background-color: #f8f9fa;
+            color: #212529;
+            border: 1px solid #dee2e6;
+        }
+        .tooltip-light .tooltip-arrow::before {
+            border-top-color: #f8f9fa;
+        }
+        .tooltip-light.bs-tooltip-bottom .tooltip-arrow::before {
+            border-bottom-color: #f8f9fa;
+        }
     </style>
 
     {% block extra_css %}{% endblock %}
