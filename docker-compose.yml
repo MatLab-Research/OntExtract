@@ -3,7 +3,9 @@ version: '3.8'
 services:
   # PostgreSQL Database with pgvector
   postgres:
-    image: pgvector/pgvector:pg17
+    build:
+      context: .
+      dockerfile: Dockerfile.postgres
     container_name: ontextract-db
     environment:
       POSTGRES_DB: ontextract_db
@@ -11,7 +13,6 @@ services:
       POSTGRES_PASSWORD: ontextract_dev_password
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./docker-init-db.sh:/docker-entrypoint-initdb.d/init-pgvector.sh
     ports:
       - "5432:5432"
     healthcheck:
@@ -87,6 +88,8 @@ services:
       - FLASK_ENV=development
       - DATABASE_URL=postgresql://postgres:ontextract_dev_password@postgres:5432/ontextract_db
       - SQLALCHEMY_DATABASE_URI=postgresql://postgres:ontextract_dev_password@postgres:5432/ontextract_db
+      - POSTGRES_DB=ontextract_db
+      - POSTGRES_PASSWORD=ontextract_dev_password
       - REDIS_URL=redis://redis:6379/0
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
       - DEFAULT_LLM_PROVIDER=anthropic

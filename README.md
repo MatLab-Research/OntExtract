@@ -55,41 +55,26 @@ Access the live system at **https://ontextract.ontorealm.net**
 - Pre-loaded experiment: Agent Temporal Evolution (1910-2024)
 - No installation required
 
-### Option 2: Docker (Recommended for Local)
-Requires Docker and Docker Compose:
+### Option 2: Docker (Recommended)
+One-command local installation with Docker Compose:
 
 ```bash
 cd OntExtract
 docker-compose up -d
 # Access at http://localhost:8765
+# Default login: admin / admin123
 ```
 
-See [DOCKER_SETUP.md](DOCKER_SETUP.md) for detailed instructions.
+**See [DOCKER_SETUP.md](DOCKER_SETUP.md) for complete Docker setup guide.**
 
 ### Option 3: Manual Installation
-For development or when Docker isn't available:
+For advanced users and development. Requires PostgreSQL 14+, Redis 6+, and Python 3.12+.
 
-```bash
-cd OntExtract
+**See [docs-internal/SETUP_SECONDARY_DEV.md](docs-internal/SETUP_SECONDARY_DEV.md) for manual installation guide.**
 
-# Install dependencies: PostgreSQL, Redis, Python 3.12+
-python -m venv venv
-source venv/bin/activate
-pip install -r requirements.txt
-python -m spacy download en_core_web_sm
+---
 
-# Configure environment
-cp .env.example .env
-# Edit .env: database credentials, optional ANTHROPIC_API_KEY
-
-# Start services
-redis-server --daemonize yes
-celery -A app.celery_app worker --loglevel=info &
-python run.py
-# Access at http://localhost:8765
-```
-
-See [DOCKER_SETUP.md](DOCKER_SETUP.md) for complete setup instructions.
+**Need help choosing?** See [INSTALLATION_OPTIONS.md](INSTALLATION_OPTIONS.md) to compare all installation methods.
 
 ---
 
