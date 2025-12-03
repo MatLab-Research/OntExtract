@@ -9,6 +9,13 @@ Quick start guide for running OntExtract using Docker Compose.
 - 4GB RAM minimum
 - 10GB free disk space
 
+**For Windows Users**: Docker Desktop with WSL2 integration enabled
+- Open Docker Desktop → Settings → Resources → WSL Integration
+- Enable integration for your WSL2 distribution
+
+**For Linux Users**: Docker Engine + Docker Compose plugin
+**For macOS Users**: Docker Desktop
+
 ## Quick Start
 
 ### 1. Clone and Navigate

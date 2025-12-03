@@ -1,14 +1,12 @@
 # OntExtract Installation Options Comparison
 
-## For JCDL Demo Attendees
-
-Quick decision guide for trying OntExtract locally.
+Quick decision guide for trying OntExtract.
 
 ---
 
 ## Option 1: Live Demo (Recommended for Quick Start)
 
-**Best for**: Conference attendees who want to see the system immediately
+**Best for**: Users who want to see the system immediately without installation
 
 ✅ **Pros:**
 - Zero installation
@@ -119,8 +117,8 @@ docker-compose down
 ### "I want to develop or contribute code"
 → **Option 3: Manual** (best for development)
 
-### "I'm at a conference with unreliable WiFi"
-→ **Option 2: Docker** (pre-download, then offline)
+### "I need to run offline"
+→ **Option 2: Docker** (fully self-contained after initial download)
 
 ---
 

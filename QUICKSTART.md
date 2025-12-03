@@ -93,11 +93,9 @@ See [INSTALLATION_OPTIONS.md](INSTALLATION_OPTIONS.md) for a detailed comparison
 
 ---
 
-## For JCDL 2025 Demo
+## Publications
 
-This system was presented at JCDL 2025. See our paper:
+For more details on the system architecture and provenance tracking approach, see:
+
+**OntExtract: PROV-O Provenance Tracking for Document Analysis Workflows** (JCDL 2025)
 [OntExtract_JCDL2025.pdf](papers/OntExtract_JCDL2025.pdf)
-
-**Live demo credentials**: `demo` / `demo123`
-
-**Demo experiment**: Agent Temporal Evolution (1910-2024)

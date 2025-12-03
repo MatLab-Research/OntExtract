@@ -1,0 +1,7 @@
+FROM pgvector/pgvector:pg17
+
+# Copy the initialization script
+COPY docker-init-db.sql /docker-entrypoint-initdb.d/init-pgvector.sql
+
+# Ensure proper permissions
+RUN chmod 644 /docker-entrypoint-initdb.d/init-pgvector.sql
