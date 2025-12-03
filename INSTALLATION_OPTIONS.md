@@ -99,7 +99,7 @@ docker-compose down
 
 **Setup Time**: ~30-45 minutes
 
-**Instructions**: See [DOCKER_SETUP.md](DOCKER_SETUP.md) or [docs-internal/SETUP_SECONDARY_DEV.md](docs-internal/SETUP_SECONDARY_DEV.md) for advanced manual setup
+**Instructions**: See [DOCKER_SETUP.md](DOCKER_SETUP.md#manual-installation-alternative)
 
 ---
 
