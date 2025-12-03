@@ -34,9 +34,7 @@ docker-compose up -d
 See [DOCKER_SETUP.md](DOCKER_SETUP.md) for more details and customization options.
 
 ### 🛠️ Want Full Control? → Manual Install
-See [DOCKER_SETUP.md](DOCKER_SETUP.md) for complete installation instructions.
-
-For advanced manual setup, see [docs-internal/SETUP_SECONDARY_DEV.md](docs-internal/SETUP_SECONDARY_DEV.md).
+See [DOCKER_SETUP.md](DOCKER_SETUP.md#manual-installation-alternative) for manual installation instructions.
 
 ---
 
@@ -88,8 +86,8 @@ See [INSTALLATION_OPTIONS.md](INSTALLATION_OPTIONS.md) for a detailed comparison
 ## Need Help?
 
 - **Docker issues**: [DOCKER_SETUP.md](DOCKER_SETUP.md#troubleshooting)
+- **Manual installation**: [DOCKER_SETUP.md](DOCKER_SETUP.md#manual-installation-alternative)
 - **Usage questions**: See main [README.md](README.md)
-- **Development guide**: [docs-internal/DEVELOPMENT_GUIDE.md](docs-internal/DEVELOPMENT_GUIDE.md)
 
 ---
 

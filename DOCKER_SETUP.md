@@ -255,12 +255,69 @@ For production use:
 
 ---
 
+## Manual Installation (Alternative)
+
+If you cannot use Docker, you can install manually:
+
+### Prerequisites
+```bash
+# Install system dependencies (Ubuntu/Debian)
+sudo apt-get update
+sudo apt-get install -y postgresql-14 redis-server python3.12 python3.12-venv
+
+# Install pgvector extension
+sudo apt-get install -y postgresql-14-pgvector
+```
+
+### Setup
+```bash
+# Create and activate virtual environment
+python3.12 -m venv venv
+source venv/bin/activate
+
+# Install Python dependencies
+pip install -r requirements.txt
+python -m spacy download en_core_web_sm
+
+# Configure PostgreSQL
+sudo -u postgres psql -c "CREATE DATABASE ontextract_db;"
+sudo -u postgres psql -d ontextract_db -c "CREATE EXTENSION vector;"
+
+# Configure environment
+cp .env.example .env
+# Edit .env with your database credentials and settings
+
+# Initialize database
+flask db upgrade
+
+# Create admin user (optional)
+python init_admin.py
+```
+
+### Run Services
+```bash
+# Terminal 1: Start Redis (if not running as service)
+redis-server
+
+# Terminal 2: Start Celery worker
+celery -A celery_config.celery worker --loglevel=info
+
+# Terminal 3: Start Flask application
+python run.py
+```
+
+Access at http://localhost:8765
+
+**Note**: Manual installation requires more configuration and troubleshooting. Docker is strongly recommended for most users.
+
+---
+
 ## Next Steps
 
 After starting the services:
 
 1. Open http://localhost:8765
-2. Create an account or use demo credentials
+2. Create an account or use default admin (Docker: `admin` / `admin123`)
 3. Create a new experiment
 4. Upload documents
 5. Run analysis workflows

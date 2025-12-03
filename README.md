@@ -68,9 +68,11 @@ docker-compose up -d
 **See [DOCKER_SETUP.md](DOCKER_SETUP.md) for complete Docker setup guide.**
 
 ### Option 3: Manual Installation
-For advanced users and development. Requires PostgreSQL 14+, Redis 6+, and Python 3.12+.
+For advanced users and contributors who need to modify the code.
 
-**See [docs-internal/SETUP_SECONDARY_DEV.md](docs-internal/SETUP_SECONDARY_DEV.md) for manual installation guide.**
+**Requirements**: PostgreSQL 14+ with pgvector, Redis 6+, Python 3.12+
+
+See [DOCKER_SETUP.md](DOCKER_SETUP.md#manual-installation-alternative) for manual setup instructions.
 
 ---
 
