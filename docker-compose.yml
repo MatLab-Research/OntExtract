@@ -36,6 +36,7 @@ services:
   # Flask Web Application
   web:
     build: .
+    image: ontextract-app:latest
     container_name: ontextract-web
     command: python run.py
     volumes:
@@ -76,7 +77,7 @@ services:
 
   # Celery Worker
   celery:
-    build: .
+    image: ontextract-app:latest
     container_name: ontextract-celery
     command: celery -A celery_config.celery worker --loglevel=info --concurrency=2 --pool=prefork
     volumes:
