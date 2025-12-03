@@ -47,26 +47,49 @@ OntExtract implements a 5-stage workflow for document analysis.
 
 ---
 
-## Installation
+## Try It Out
 
-Live system available at https://ontextract.ontorealm.net
+### Option 1: Live Demo (Easiest)
+Access the live system at **https://ontextract.ontorealm.net**
+- Demo credentials: `demo` / `demo123`
+- Pre-loaded experiment: Agent Temporal Evolution (1910-2024)
+- No installation required
 
-For local installation:
+### Option 2: Docker (Recommended for Local)
+Requires Docker and Docker Compose:
+
+```bash
+cd OntExtract
+docker-compose up -d
+# Access at http://localhost:8765
+```
+
+See [DOCKER_SETUP.md](DOCKER_SETUP.md) for detailed instructions.
+
+### Option 3: Manual Installation
+For development or when Docker isn't available:
 
 ```bash
 cd OntExtract
 
+# Install dependencies: PostgreSQL, Redis, Python 3.12+
 python -m venv venv
 source venv/bin/activate
-
 pip install -r requirements.txt
+python -m spacy download en_core_web_sm
 
-cp .env.template .env
-# Edit .env and add ANTHROPIC_API_KEY for API-enhanced mode (optional)
+# Configure environment
+cp .env.example .env
+# Edit .env: database credentials, optional ANTHROPIC_API_KEY
 
-FLASK_ENV=development python run.py
+# Start services
+redis-server --daemonize yes
+celery -A app.celery_app worker --loglevel=info &
+python run.py
 # Access at http://localhost:8765
 ```
+
+See [DOCKER_SETUP.md](DOCKER_SETUP.md) for complete setup instructions.
 
 ---
 

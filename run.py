@@ -28,7 +28,15 @@ def check_redis():
     """Check if Redis is running."""
     try:
         import redis
-        r = redis.Redis(host='localhost', port=6379, socket_timeout=1)
+        from urllib.parse import urlparse
+
+        # Get Redis URL from environment (supports Docker networking)
+        redis_url = os.environ.get('REDIS_URL', 'redis://localhost:6379/0')
+        parsed = urlparse(redis_url)
+        host = parsed.hostname or 'localhost'
+        port = parsed.port or 6379
+
+        r = redis.Redis(host=host, port=port, socket_timeout=1)
         r.ping()
         return True
     except Exception:
