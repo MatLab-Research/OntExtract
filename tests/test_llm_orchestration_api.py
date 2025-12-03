@@ -123,19 +123,18 @@ def completed_run(db_session, experiment_with_docs, test_user):
 class TestStartOrchestration:
     """Test POST /experiments/<id>/orchestration/analyze"""
 
-    @patch('app.routes.experiments.orchestration.get_orchestration_task')
+    @patch('threading.Thread')
     def test_start_orchestration_success(
         self,
-        mock_get_task,
+        mock_thread,
         auth_client,
         experiment_with_docs,
         db_session
     ):
-        """Test starting orchestration successfully via Celery."""
-        # Mock Celery task
-        mock_task = Mock()
-        mock_task.apply_async.return_value = Mock(id='test-task-id-success')
-        mock_get_task.return_value = (mock_task, True)
+        """Test starting orchestration successfully via background thread."""
+        # Mock thread to prevent actual background execution
+        mock_thread_instance = Mock()
+        mock_thread.return_value = mock_thread_instance
 
         response = auth_client.post(
             f'/experiments/{experiment_with_docs.id}/orchestration/analyze',
@@ -147,8 +146,8 @@ class TestStartOrchestration:
         data = json.loads(response.data)
         assert data['success'] is True
         assert 'run_id' in data
-        assert data['status'] == 'analyzing'  # Initial status when task enqueued
-        assert data['task_id'] == 'test-task-id-success'
+        assert data['status'] == 'analyzing'  # Initial status when thread started
+        mock_thread_instance.start.assert_called_once()
 
     def test_start_orchestration_requires_auth(
         self,
@@ -179,18 +178,16 @@ class TestStartOrchestration:
         data = json.loads(response.data)
         assert data['success'] is False
 
-    @patch('app.routes.experiments.orchestration.get_orchestration_task')
+    @patch('threading.Thread')
     def test_start_orchestration_workflow_error(
         self,
-        mock_get_task,
+        mock_thread,
         auth_client,
         experiment_with_docs
     ):
-        """Test error handling when Celery task enqueueing fails."""
-        # Mock Celery task that raises error when enqueued
-        mock_task = Mock()
-        mock_task.apply_async.side_effect = Exception('Redis connection error')
-        mock_get_task.return_value = (mock_task, True)
+        """Test error handling when thread creation fails."""
+        # Mock thread that raises error when created
+        mock_thread.side_effect = Exception('Thread creation error')
 
         response = auth_client.post(
             f'/experiments/{experiment_with_docs.id}/orchestration/analyze',
@@ -203,18 +200,17 @@ class TestStartOrchestration:
         assert data['success'] is False
         assert 'error' in data
 
-    @patch('app.routes.experiments.orchestration.get_orchestration_task')
+    @patch('threading.Thread')
     def test_start_orchestration_auto_approve(
         self,
-        mock_get_task,
+        mock_thread,
         auth_client,
         experiment_with_docs
     ):
-        """Test orchestration with auto-approval (no review) via Celery."""
-        # Mock Celery task
-        mock_task = Mock()
-        mock_task.apply_async.return_value = Mock(id='test-celery-task-id')
-        mock_get_task.return_value = (mock_task, True)
+        """Test orchestration with auto-approval (no review) via background thread."""
+        # Mock thread to prevent actual background execution
+        mock_thread_instance = Mock()
+        mock_thread.return_value = mock_thread_instance
 
         response = auth_client.post(
             f'/experiments/{experiment_with_docs.id}/orchestration/analyze',
@@ -224,14 +220,11 @@ class TestStartOrchestration:
 
         assert response.status_code == 200
         data = json.loads(response.data)
-        assert data['status'] == 'analyzing'  # Initial status when task enqueued
-        assert data['task_id'] == 'test-celery-task-id'
+        assert data['status'] == 'analyzing'  # Initial status when thread started
         assert 'run_id' in data
 
-        # Verify Celery task was enqueued with review_choices=False
-        mock_task.apply_async.assert_called_once()
-        call_args = mock_task.apply_async.call_args
-        assert call_args[1]['args'][1] is False  # review_choices=False
+        # Verify background thread was started
+        mock_thread_instance.start.assert_called_once()
 
 
 # ==============================================================================
@@ -323,21 +316,17 @@ class TestOrchestrationStatus:
 class TestApproveStrategy:
     """Test POST /orchestration/approve-strategy/<run_id>"""
 
-    @patch('app.routes.experiments.orchestration.workflow_executor')
+    @patch('threading.Thread')
     def test_approve_strategy_success(
         self,
-        mock_executor,
+        mock_thread,
         auth_client,
         reviewing_run
     ):
-        """Test approving strategy successfully."""
-        mock_executor.execute_processing_phase.return_value = {
-            'status': 'completed',
-            'run_id': str(reviewing_run.id),
-            'processing_results': {},
-            'cross_document_insights': 'Test insights',
-            'execution_time': 125.5
-        }
+        """Test approving strategy successfully - starts background execution."""
+        # Mock thread to prevent actual background execution
+        mock_thread_instance = Mock()
+        mock_thread.return_value = mock_thread_instance
 
         response = auth_client.post(
             f'/experiments/orchestration/approve-strategy/{reviewing_run.id}',
@@ -351,8 +340,8 @@ class TestApproveStrategy:
         assert response.status_code == 200
         data = json.loads(response.data)
         assert data['success'] is True
-        assert data['status'] == 'completed'
-        assert 'execution_time' in data
+        assert data['status'] == 'executing'  # Returns immediately with executing status
+        mock_thread_instance.start.assert_called_once()
 
     def test_approve_strategy_requires_auth(
         self,
@@ -460,15 +449,17 @@ class TestApproveStrategy:
         assert reviewing_run.status == 'cancelled'
         assert 'Not suitable' in reviewing_run.review_notes
 
-    @patch('app.routes.experiments.orchestration.workflow_executor')
-    def test_approve_strategy_execution_error(
+    @patch('threading.Thread')
+    def test_approve_strategy_thread_error(
         self,
-        mock_executor,
+        mock_thread,
         auth_client,
         reviewing_run
     ):
-        """Test error handling when processing phase fails."""
-        mock_executor.execute_processing_phase.side_effect = Exception('Tool execution failed')
+        """Test error handling when thread creation fails."""
+        # Errors during background execution are handled asynchronously,
+        # but thread creation errors are caught immediately
+        mock_thread.side_effect = Exception('Thread creation failed')
 
         response = auth_client.post(
             f'/experiments/orchestration/approve-strategy/{reviewing_run.id}',
@@ -478,7 +469,8 @@ class TestApproveStrategy:
 
         assert response.status_code == 500
         data = json.loads(response.data)
-        assert 'Processing failed' in data['error']
+        assert data['success'] is False
+        assert 'error' in data
 
 
 # ==============================================================================
@@ -685,28 +677,26 @@ class TestProvenanceDownload:
 class TestFullOrchestrationWorkflow:
     """Test complete orchestration workflow through API."""
 
-    @patch('app.routes.experiments.orchestration.workflow_executor')
+    @patch('threading.Thread')
     def test_full_workflow_api(
         self,
-        mock_executor,
+        mock_thread,
         auth_client,
         client,
         experiment_with_docs,
         db_session
     ):
-        """Test full workflow: start → poll → approve → results → provenance."""
+        """Test full workflow: start → poll → approve → results → provenance.
+
+        Note: With background thread execution, the API returns immediately with
+        'analyzing' or 'executing' status. Actual workflow completion happens
+        asynchronously. This test simulates completion by updating DB directly.
+        """
+        # Mock thread to prevent actual background execution
+        mock_thread_instance = Mock()
+        mock_thread.return_value = mock_thread_instance
 
         # Step 1: Start orchestration
-        mock_executor.execute_recommendation_phase.return_value = {
-            'status': 'reviewing',
-            'run_id': str(uuid4()),
-            'experiment_goal': 'Test goal',
-            'recommended_strategy': {'1': ['extract_entities_spacy']},
-            'strategy_reasoning': 'Test reasoning',
-            'confidence': 0.88,
-            'awaiting_approval': True
-        }
-
         start_response = auth_client.post(
             f'/experiments/{experiment_with_docs.id}/orchestration/analyze',
             data=json.dumps({'review_choices': True}),
@@ -716,8 +706,10 @@ class TestFullOrchestrationWorkflow:
         assert start_response.status_code == 200
         start_data = json.loads(start_response.data)
         run_id = start_data['run_id']
+        assert start_data['status'] == 'analyzing'
+        mock_thread_instance.start.assert_called()
 
-        # Simulate what the real execute_recommendation_phase does - update run status in DB
+        # Simulate what the background thread does - update run status in DB
         run = ExperimentOrchestrationRun.query.get(run_id)
         run.status = 'reviewing'
         run.experiment_goal = 'Test goal'
@@ -733,15 +725,7 @@ class TestFullOrchestrationWorkflow:
         assert status_data['status'] == 'reviewing'
         assert status_data['awaiting_user_approval'] is True
 
-        # Step 3: Approve strategy
-        mock_executor.execute_processing_phase.return_value = {
-            'status': 'completed',
-            'run_id': run_id,
-            'processing_results': {'1': {'extract_entities_spacy': {'count': 15}}},
-            'cross_document_insights': 'Test insights',
-            'execution_time': 95.3
-        }
-
+        # Step 3: Approve strategy - returns 'executing' immediately
         approve_response = auth_client.post(
             f'/experiments/orchestration/approve-strategy/{run_id}',
             data=json.dumps({'strategy_approved': True, 'review_notes': 'LGTM'}),
@@ -750,7 +734,13 @@ class TestFullOrchestrationWorkflow:
 
         assert approve_response.status_code == 200
         approve_data = json.loads(approve_response.data)
-        assert approve_data['status'] == 'completed'
+        assert approve_data['status'] == 'executing'  # Returns immediately
+
+        # Simulate background thread completion
+        db_session.refresh(run)
+        run.status = 'completed'
+        run.cross_document_insights = 'Test insights'
+        db_session.commit()
 
         # Step 4: View results
         results_response = client.get(

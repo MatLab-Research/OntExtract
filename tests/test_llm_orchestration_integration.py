@@ -10,7 +10,7 @@ Tests complete end-to-end scenarios including:
 """
 
 import pytest
-from unittest.mock import patch, AsyncMock, MagicMock
+from unittest.mock import patch, AsyncMock, MagicMock, Mock
 import json
 from uuid import uuid4
 from datetime import datetime, timedelta
@@ -336,18 +336,21 @@ class TestErrorRecovery:
 class TestStrategyModification:
     """Test user modification of recommended strategies."""
 
-    @patch('app.services.workflow_executor.WorkflowExecutor._execute_processing')
+    @patch('threading.Thread')
     def test_modify_strategy_add_tools(
         self,
-        mock_processing,
+        mock_thread,
         auth_client,
         multi_doc_experiment,
         db_session,
         test_user
     ):
         """Test adding additional tools to recommended strategy."""
-        # With Celery, orchestration is async. Create a run in 'reviewing' state directly
-        # to test the strategy modification flow (simulating completed recommendation phase)
+        # Mock thread to prevent actual background execution
+        mock_thread_instance = Mock()
+        mock_thread.return_value = mock_thread_instance
+
+        # Create a run in 'reviewing' state to test strategy modification
         run = ExperimentOrchestrationRun(
             experiment_id=multi_doc_experiment.id,
             user_id=test_user.id,
@@ -371,17 +374,6 @@ class TestStrategyModification:
             '2': ['extract_entities_spacy', 'extract_temporal']
         }
 
-        mock_processing.return_value = {
-            'processing_results': {
-                '1': {
-                    'extract_entities_spacy': {'count': 15},
-                    'extract_temporal': {'count': 5}
-                }
-            },
-            'execution_trace': [],
-            'cross_document_insights': 'Test insights'
-        }
-
         # Approve with modifications
         approve_response = auth_client.post(
             f'/experiments/orchestration/approve-strategy/{run_id}',
@@ -394,12 +386,15 @@ class TestStrategyModification:
         )
 
         assert approve_response.status_code == 200
+        data = json.loads(approve_response.data)
+        assert data['status'] == 'executing'
 
-        # Verify modified strategy was used
-        # _execute_processing receives state as first positional arg
-        call_args = mock_processing.call_args
-        state_arg = call_args[0][0]  # First positional argument is the state dict
-        assert state_arg.get('modified_strategy') == modified_strategy
+        # Verify modified strategy was stored in the run
+        db_session.refresh(run)
+        assert run.modified_strategy == modified_strategy
+        assert run.review_notes == 'Added temporal extraction for historical analysis'
+        assert run.strategy_approved is True
+        mock_thread_instance.start.assert_called_once()
 
     def test_modify_strategy_remove_tools(
         self,
