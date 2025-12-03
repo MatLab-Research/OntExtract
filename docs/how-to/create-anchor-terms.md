@@ -18,6 +18,8 @@ Anchor terms are the key concepts you want to track across historical periods. T
 1. Click **Anchor Terms** in the main navigation
 2. Click **Add New Anchor Term**
 
+![Anchor Terms List](../assets/images/screenshots/terms-list-content.png)
+
 ### Step 2: Basic Information
 
 Fill in the term details:
@@ -123,6 +125,6 @@ Find existing terms using:
 
 ## Related Guides
 
-- [Creating Temporal Experiments](create-temporal-experiment.md)
 - [Upload Documents](upload-documents.md)
-- [Semantic Change Event Types](../reference/semantic-change-types.md)
+- [Process Documents](document-processing.md)
+- [Create Temporal Experiment](create-temporal-experiment.md)
