@@ -132,36 +132,15 @@ def start_llm_orchestration(experiment_id):
 
         logger.info(f"Created orchestration run {run.id} for experiment {experiment_id}")
 
-        # Execute in background thread (LangGraph checkpointer handles persistence)
-        import threading
-        from flask import current_app
+        # Execute via Celery task (persists in Redis, survives restarts)
+        from app.tasks.orchestration import run_orchestration_task
+        task = run_orchestration_task.delay(str(run.id), review_choices)
 
-        # Capture the app for use in the thread
-        app = current_app._get_current_object()
-        run_id = run.id
+        # Store Celery task ID for monitoring
+        run.celery_task_id = task.id
+        db.session.commit()
 
-        def run_workflow():
-            # Background threads need their own app context
-            with app.app_context():
-                try:
-                    # Run stages 1-2 (analyze + recommend)
-                    result = workflow_executor.execute_recommendation_phase(
-                        run_id=run_id,
-                        review_choices=review_choices
-                    )
-
-                    # If no review required (review_choices=false), automatically run stages 4-5
-                    if not review_choices and result.get('status') != 'failed':
-                        logger.info(f"Auto-executing processing phase for run {run_id} (review_choices=false)")
-                        workflow_executor.execute_processing_phase(run_id=run_id)
-
-                except Exception as e:
-                    logger.error(f"Workflow execution failed for run {run_id}: {e}", exc_info=True)
-
-        thread = threading.Thread(target=run_workflow, daemon=True)
-        thread.start()
-
-        logger.info(f"Started background thread for orchestration run {run.id}")
+        logger.info(f"Started Celery task {task.id} for orchestration run {run.id}")
 
         return jsonify({
             'success': True,
@@ -605,7 +584,9 @@ def approve_orchestration_strategy(run_id):
 
         # Handle generate_periods option for temporal_evolution experiments
         generate_periods = data.get('generate_periods', False)
-        if generate_periods:
+        suggested_periods = data.get('suggested_periods', [])
+
+        if generate_periods and suggested_periods:
             experiment = run.experiment
             if experiment and experiment.experiment_type == 'temporal_evolution':
                 # Check if periods already exist
@@ -626,28 +607,29 @@ def approve_orchestration_strategy(run_id):
                 has_named_periods = bool(config.get('named_periods'))
 
                 if not existing_meta and not has_named_periods:
-                    # Create one temporal period per document based on publication date
-                    from app.models import Document
-                    documents = experiment.documents.all()  # Convert to list for len()
+                    # Use the periods provided from the frontend (user may have removed some)
+                    created_count = 0
+                    for period_data in suggested_periods:
+                        period_name = period_data.get('name', '')
+                        document_id = period_data.get('document_id')
+                        start_year = period_data.get('start_year')
+                        end_year = period_data.get('end_year')
 
-                    for doc in documents:
-                        if doc.publication_date:
-                            year = doc.publication_date.year
-                            period_name = f"{year}"
-
+                        if document_id and start_year:
                             meta = DocumentTemporalMetadata(
-                                document_id=doc.id,
+                                document_id=document_id,
                                 experiment_id=experiment.id,
                                 temporal_period=period_name,
-                                temporal_start_year=year,
-                                temporal_end_year=year,
-                                publication_year=year,
+                                temporal_start_year=start_year,
+                                temporal_end_year=end_year or start_year,
+                                publication_year=start_year,
                                 extraction_method='auto_generated'
                             )
                             db.session.add(meta)
+                            created_count += 1
 
                     db.session.flush()
-                    logger.info(f"Generated temporal metadata for {len(documents)} documents in experiment {experiment.id}")
+                    logger.info(f"Generated temporal metadata for {created_count} documents in experiment {experiment.id}")
 
         # Store approval info
         run.strategy_approved = True
@@ -659,30 +641,20 @@ def approve_orchestration_strategy(run_id):
         run.current_stage = 'executing'
         db.session.commit()
 
-        # Execute processing phase in background thread
-        import threading
-        from flask import current_app
+        # Execute processing phase via Celery task
+        from app.tasks.orchestration import run_execution_phase_task
+        task = run_execution_phase_task.delay(
+            str(run.id),
+            modified_strategy=data.get('modified_strategy'),
+            review_notes=data.get('review_notes'),
+            reviewer_id=current_user.id
+        )
 
-        app = current_app._get_current_object()
-        run_id_for_thread = run.id
-        modified_strategy = data.get('modified_strategy')
-        review_notes = data.get('review_notes')
-        reviewer_id = current_user.id
+        # Store Celery task ID for monitoring
+        run.celery_task_id = task.id
+        db.session.commit()
 
-        def run_processing():
-            with app.app_context():
-                try:
-                    workflow_executor.execute_processing_phase(
-                        run_id=run_id_for_thread,
-                        modified_strategy=modified_strategy,
-                        review_notes=review_notes,
-                        reviewer_id=reviewer_id
-                    )
-                except Exception as e:
-                    logger.error(f"Processing phase failed for run {run_id_for_thread}: {e}", exc_info=True)
-
-        thread = threading.Thread(target=run_processing, daemon=True)
-        thread.start()
+        logger.info(f"Started Celery task {task.id} for execution phase of run {run.id}")
 
         return jsonify({
             'success': True,

@@ -104,3 +104,79 @@ def run_orchestration_task(self, run_id: str, review_choices: bool):
 
         # Re-raise for Celery to mark task as failed
         raise
+
+
+@celery.task(bind=True, name='app.tasks.orchestration.run_execution_phase')
+def run_execution_phase_task(
+    self,
+    run_id: str,
+    modified_strategy: dict = None,
+    review_notes: str = None,
+    reviewer_id: int = None
+):
+    """
+    Execute processing phase (Stages 4-5) after user approval.
+
+    This task runs in a Celery worker process after the user has reviewed
+    and approved the recommended strategy.
+
+    Args:
+        run_id: UUID of the orchestration run
+        modified_strategy: User-modified strategy (if any)
+        review_notes: User's review notes
+        reviewer_id: ID of user who reviewed
+
+    Returns:
+        dict: Result summary with status
+
+    Raises:
+        Exception: Any unhandled errors are caught, logged, and marked in database
+    """
+    logger.info(f"[Celery Task {self.request.id}] Starting execution phase for run {run_id}")
+
+    try:
+        # Update task ID in database for tracking
+        run = ExperimentOrchestrationRun.query.get(run_id)
+        if not run:
+            raise ValueError(f"Run {run_id} not found")
+
+        # Store Celery task ID for monitoring
+        run.celery_task_id = self.request.id
+        db.session.commit()
+
+        logger.info(f"[Celery Task {self.request.id}] Executing processing phase for run {run_id}")
+
+        # Execute processing phase (Stages 4-5: Execute + Synthesize)
+        result = workflow_executor.execute_processing_phase(
+            run_id=run_id,
+            modified_strategy=modified_strategy,
+            review_notes=review_notes,
+            reviewer_id=reviewer_id
+        )
+
+        logger.info(f"[Celery Task {self.request.id}] Execution phase completed: {result['status']}")
+
+        return {
+            'success': True,
+            'run_id': run_id,
+            'status': result['status'],
+            'message': f"Processing completed with status: {result['status']}"
+        }
+
+    except Exception as e:
+        logger.error(f"[Celery Task {self.request.id}] Execution phase failed: {e}", exc_info=True)
+
+        # Mark run as failed in database
+        try:
+            run = ExperimentOrchestrationRun.query.get(run_id)
+            if run:
+                run.status = 'failed'
+                run.error_message = str(e)
+                run.completed_at = datetime.utcnow()
+                db.session.commit()
+                logger.info(f"[Celery Task {self.request.id}] Marked run {run_id} as failed in database")
+        except Exception as db_error:
+            logger.error(f"[Celery Task {self.request.id}] Failed to mark run as failed: {db_error}", exc_info=True)
+
+        # Re-raise for Celery to mark task as failed
+        raise

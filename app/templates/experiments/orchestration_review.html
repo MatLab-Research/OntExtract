@@ -158,6 +158,48 @@
         color: #5cb85c !important;
     }
 
+    /* Artifact cards - cleaner design matching temporal_term_manager */
+    .artifact-card {
+        background: #2d2d2d;
+        border: 1px solid #444;
+        border-left: 4px solid #0d6efd;
+        border-radius: 8px;
+        overflow: hidden;
+        transition: all 0.2s ease;
+    }
+
+    .artifact-card:hover {
+        box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+        transform: translateY(-2px);
+    }
+
+    .artifact-card-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 8px 12px;
+        background: #383838;
+        border-bottom: 1px solid #444;
+    }
+
+    .artifact-year {
+        font-size: 1.25rem;
+        font-weight: 700;
+        color: #0d6efd;
+    }
+
+    .artifact-card-body {
+        padding: 10px 12px;
+    }
+
+    .artifact-doc-title {
+        font-size: 0.85rem;
+        color: #ccc;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
     .sticky-actions {
         position: sticky;
         bottom: 0;
@@ -234,8 +276,10 @@
                     </h5>
                     {% if has_existing_periods %}
                     <span class="badge bg-success">{{ existing_periods | length }} Periods Configured</span>
+                    {% elif suggested_periods %}
+                    <span class="badge bg-info">{{ suggested_periods | length }} Periods (from document dates)</span>
                     {% else %}
-                    <span class="badge bg-warning">Not Configured</span>
+                    <span class="badge bg-secondary">No documents with dates</span>
                     {% endif %}
                 </div>
                 <div class="card-body">
@@ -270,50 +314,40 @@
                     <h6 class="text-muted mb-2"><i class="fas fa-calendar-alt me-1"></i>Document Artifacts ({{ time_periods|length }} years)</h6>
                     {{ time_periods_timeline(time_periods, period_metadata, period_documents) }}
                     {% endif %}
-                    {% else %}
-                    <div class="alert alert-info mb-3">
-                        <i class="fas fa-info-circle me-2"></i>
-                        No temporal periods have been configured for this experiment.
-                        You can auto-generate periods based on document publication dates.
-                    </div>
-                    <div class="form-check mb-3">
-                        <input class="form-check-input" type="checkbox" id="generate-periods" checked>
-                        <label class="form-check-label" for="generate-periods">
-                            <strong>Generate periods from document dates</strong>
-                            <br>
-                            <small class="text-muted">
-                                Creates one temporal period per document based on publication year.
-                            </small>
-                        </label>
-                    </div>
-
-                    {# Preview suggested periods #}
-                    {% if suggested_periods %}
+                    {% elif suggested_periods %}
+                    {# Show suggested periods based on document dates - remove a card to exclude it #}
+                    <p class="text-muted mb-3">
+                        <i class="fas fa-info-circle me-1"></i>
+                        Temporal artifacts will be created from document dates. Click <i class="fas fa-times text-danger"></i> to remove.
+                    </p>
                     <div id="suggested-periods-preview">
-                        <h6 class="text-muted mb-2">Suggested Periods (based on document dates)</h6>
-                        <div class="row row-cols-1 row-cols-md-4 g-3">
+                        <div class="row row-cols-1 row-cols-md-3 row-cols-lg-4 g-3">
                             {% for period in suggested_periods %}
-                            <div class="col">
-                                <div class="period-card suggested">
-                                    <div class="d-flex justify-content-between align-items-start">
-                                        <div>
-                                            <h6 class="mb-1">{{ period.name }}</h6>
-                                            <small class="text-muted">{{ period.start_year }} - {{ period.end_year }}</small>
-                                        </div>
-                                        <button type="button" class="btn btn-sm btn-outline-danger remove-period-btn"
-                                                data-period-name="{{ period.name }}">
+                            <div class="col" data-period-name="{{ period.name }}" data-document-id="{{ period.document_id }}"
+                                 data-start-year="{{ period.start_year }}" data-end-year="{{ period.end_year }}">
+                                <div class="artifact-card">
+                                    <div class="artifact-card-header">
+                                        <span class="artifact-year">{{ period.start_year }}</span>
+                                        <button type="button" class="btn btn-sm btn-link text-danger remove-period-btn p-0"
+                                                data-period-name="{{ period.name }}" title="Remove this artifact">
                                             <i class="fas fa-times"></i>
                                         </button>
                                     </div>
-                                    <div class="mt-2">
-                                        <span class="badge bg-secondary">{{ period.document_count }} docs</span>
+                                    <div class="artifact-card-body">
+                                        <div class="artifact-doc-title" title="{{ period.name }}">
+                                            <i class="fas fa-file-alt text-muted me-1"></i>{{ period.name }}
+                                        </div>
                                     </div>
                                 </div>
                             </div>
                             {% endfor %}
                         </div>
                     </div>
-                    {% endif %}
+                    {% else %}
+                    <div class="alert alert-secondary mb-0">
+                        <i class="fas fa-calendar-times me-2"></i>
+                        No documents have publication dates. Add publication dates to enable temporal analysis.
+                    </div>
                     {% endif %}
                 </div>
             </div>
@@ -643,17 +677,33 @@ function collectModifiedStrategy() {
     return strategy;
 }
 
+// Collect suggested periods that haven't been removed
+function collectSuggestedPeriods() {
+    const periods = [];
+    document.querySelectorAll('#suggested-periods-preview .col[data-period-name]').forEach(col => {
+        periods.push({
+            name: col.dataset.periodName,
+            document_id: parseInt(col.dataset.documentId),
+            start_year: parseInt(col.dataset.startYear),
+            end_year: parseInt(col.dataset.endYear)
+        });
+    });
+    return periods;
+}
+
 async function approveStrategy() {
     const modifiedStrategy = collectModifiedStrategy();
     const reviewNotes = document.getElementById('review-notes').value;
-    const generatePeriodsCheckbox = document.getElementById('generate-periods');
-    const generatePeriods = generatePeriodsCheckbox ? generatePeriodsCheckbox.checked : false;
+
+    // Collect periods from the remaining cards (cards that weren't removed)
+    const suggestedPeriods = collectSuggestedPeriods();
+    const generatePeriods = suggestedPeriods.length > 0;
 
     // Disable buttons during submission
     document.querySelectorAll('.sticky-actions button').forEach(btn => btn.disabled = true);
 
     try {
-        // Submit strategy approval with generate_periods flag
+        // Submit strategy approval with periods to generate
         const response = await fetch(`/experiments/orchestration/approve-strategy/${runId}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -661,7 +711,8 @@ async function approveStrategy() {
                 strategy_approved: true,
                 modified_strategy: modifiedStrategy,
                 review_notes: reviewNotes,
-                generate_periods: generatePeriods
+                generate_periods: generatePeriods,
+                suggested_periods: suggestedPeriods
             })
         });
 

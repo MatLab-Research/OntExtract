@@ -17,18 +17,10 @@ from app.models import Experiment, Document
 from app.models.experiment_orchestration_run import ExperimentOrchestrationRun
 from datetime import datetime
 from typing import List, Dict, Any, Optional
-import asyncio
 import uuid
 import json
 import time
 import markdown
-
-from app.orchestration.experiment_state import create_initial_experiment_state
-from app.orchestration.experiment_graph import get_experiment_graph
-from app.orchestration.experiment_nodes import (
-    execute_strategy_node,
-    synthesize_experiment_node
-)
 
 
 orchestration_bp = Blueprint('orchestration', __name__, url_prefix='/orchestration')
@@ -107,72 +99,21 @@ def analyze_experiment(experiment_id: int):
         db.session.add(orchestration_run)
         db.session.commit()
 
-        # Create initial state
-        initial_state = create_initial_experiment_state(
-            experiment_id=str(experiment_id),
-            run_id=str(run_id),
-            documents=documents,
-            focus_term=focus_term,
-            user_preferences={
-                'review_choices': review_choices
-            }
-        )
+        # Start Celery task for background processing
+        # The task rebuilds state from database, so we just pass the run_id
+        from app.tasks.orchestration import run_orchestration_task
+        task = run_orchestration_task.delay(str(run_id), review_choices)
 
-        # Capture app instance for background thread
-        app = current_app._get_current_object()
+        # Store task ID for monitoring
+        orchestration_run.celery_task_id = task.id
+        db.session.commit()
 
-        # Execute graph in background thread for Stages 1-2 only
-        # (analyze_experiment and recommend_strategy)
-        def run_recommendation_phase():
-            try:
-                # Create new app context for background thread
-                with app.app_context():
-                    # Get fresh db session in this thread
-                    from app import db
-                    orch_run = db.session.get(ExperimentOrchestrationRun, run_id)
-
-                    # Update status to analyzing
-                    orch_run.status = 'analyzing'
-                    orch_run.current_stage = 'analyzing'
-                    db.session.commit()
-
-                    # Run the graph (only Stages 1-2) - synchronously via asyncio.run
-                    graph = get_experiment_graph()
-
-                    async def execute_graph():
-                        return await graph.ainvoke(initial_state)
-
-                    final_state = asyncio.run(execute_graph())
-
-                    # Update database with Stage 1-2 results
-                    orch_run.experiment_goal = final_state.get('experiment_goal', '')
-                    orch_run.term_context = final_state.get('term_context')
-                    orch_run.recommended_strategy = final_state.get('recommended_strategy', {})
-                    orch_run.strategy_reasoning = final_state.get('strategy_reasoning', '')
-                    orch_run.confidence = final_state.get('confidence', 0.0)
-                    orch_run.status = 'strategy_ready'
-                    orch_run.current_stage = 'reviewing'
-                    db.session.commit()
-
-            except Exception as e:
-                with app.app_context():
-                    from app import db
-                    orch_run = db.session.get(ExperimentOrchestrationRun, run_id)
-                    app.logger.error(f"Orchestration error (run {run_id}): {str(e)}")
-                    orch_run.status = 'failed'
-                    orch_run.error_message = str(e)
-                    db.session.commit()
-
-        # Start in background thread
-        # Note: In production, use Celery or similar for proper task management
-        import threading
-        thread = threading.Thread(target=run_recommendation_phase)
-        thread.daemon = True
-        thread.start()
+        current_app.logger.info(f"Started Celery task {task.id} for orchestration run {run_id}")
 
         return jsonify({
             'success': True,
             'run_id': str(run_id),
+            'celery_task_id': task.id,
             'message': 'Orchestration started - analyzing experiment'
         })
 
@@ -246,7 +187,8 @@ def experiment_status(run_id: str):
                         last_stage = current_stage
 
                     # Check if workflow finished (strategy ready for review)
-                    if status == 'strategy_ready':
+                    # Handle both 'strategy_ready' and 'reviewing' statuses
+                    if status in ('strategy_ready', 'reviewing'):
                         yield f"data: {json.dumps({'status': 'strategy_ready', 'progress': 100})}\n\n"
                         break
 
@@ -395,102 +337,24 @@ def approve_strategy(run_id: str):
         orchestration_run.current_stage = 'executing'
         db.session.commit()
 
-        # Prepare state for Stages 4-5
-        # Reconstruct state from database
-        experiment = orchestration_run.experiment
-        documents = []
-        for doc in experiment.documents.all():
-            documents.append({
-                'id': str(doc.id),
-                'title': doc.title,
-                'content': doc.content or '',
-                'metadata': {}
-            })
+        # Start Celery task for execution phase (Stages 4-5)
+        from app.tasks.orchestration import run_execution_phase_task
+        task = run_execution_phase_task.delay(
+            str(run_uuid),
+            modified_strategy=modified_strategy,
+            review_notes=review_notes,
+            reviewer_id=current_user.id
+        )
 
-        focus_term = experiment.term.term_text if experiment.term else None
+        # Store task ID for monitoring
+        orchestration_run.celery_task_id = task.id
+        db.session.commit()
 
-        state = {
-            'experiment_id': str(experiment.id),
-            'run_id': str(run_id),
-            'documents': documents,
-            'focus_term': focus_term,
-            'user_preferences': {'review_choices': True},
-
-            # Stage 1-2 results from database
-            'experiment_goal': orchestration_run.experiment_goal,
-            'term_context': orchestration_run.term_context,
-            'recommended_strategy': orchestration_run.recommended_strategy,
-            'strategy_reasoning': orchestration_run.strategy_reasoning,
-            'confidence': orchestration_run.confidence,
-
-            # Stage 3 (just approved)
-            'strategy_approved': True,
-            'modified_strategy': modified_strategy,
-            'review_notes': review_notes,
-
-            # Initialize Stage 4-5 fields
-            'processing_results': {},
-            'execution_trace': [],
-            'cross_document_insights': '',
-            'term_evolution_analysis': None,
-            'comparative_summary': '',
-            'current_stage': 'executing',
-            'error_message': None
-        }
-
-        # Capture app instance for background thread
-        app = current_app._get_current_object()
-
-        # Execute Stages 4-5 in background thread
-        def run_execution_phase():
-            try:
-                # Create new app context for background thread
-                with app.app_context():
-                    from app import db
-                    orch_run = db.session.get(ExperimentOrchestrationRun, run_uuid)
-
-                    # Execute graph stages synchronously via asyncio.run
-                    async def execute_stages():
-                        # Stage 4: Execute strategy
-                        result_state = await execute_strategy_node(state)
-                        state.update(result_state)
-
-                        # Stage 5: Synthesize insights
-                        final_state = await synthesize_experiment_node(state)
-                        state.update(final_state)
-
-                        return state
-
-                    final_state = asyncio.run(execute_stages())
-
-                    # Update database
-                    orch_run.processing_results = final_state['processing_results']
-                    orch_run.execution_trace = final_state['execution_trace']
-                    orch_run.cross_document_insights = final_state['cross_document_insights']
-                    orch_run.term_evolution_analysis = final_state.get('term_evolution_analysis')
-                    orch_run.comparative_summary = final_state['comparative_summary']
-                    orch_run.status = 'completed'
-                    orch_run.current_stage = 'completed'
-                    orch_run.completed_at = datetime.utcnow()
-                    db.session.commit()
-
-            except Exception as e:
-                with app.app_context():
-                    from app import db
-                    orch_run = db.session.get(ExperimentOrchestrationRun, run_uuid)
-                    app.logger.error(f"Execution error (run {run_id}): {str(e)}")
-                    orch_run.status = 'failed'
-                    orch_run.error_message = str(e)
-                    db.session.commit()
-
-        # Start in background thread
-        import threading
-        thread = threading.Thread(target=run_execution_phase)
-        thread.daemon = True
-        thread.start()
+        current_app.logger.info(f"Started Celery task {task.id} for execution phase of run {run_id}")
 
         return jsonify({
             'success': True,
+            'celery_task_id': task.id,
             'message': 'Strategy approved - processing documents'
         })
 
