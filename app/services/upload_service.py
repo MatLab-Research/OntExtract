@@ -261,20 +261,11 @@ class UploadService:
         progress = []
         try:
             # Analyze PDF to extract arXiv ID, DOI, title, authors
-            progress.append("Analyzing PDF...")
             pdf_info = pdf_analyzer.analyze(pdf_path)
 
-            # Report what we extracted
-            if pdf_info.get('arxiv_id'):
-                progress.append(f"Found arXiv ID: {pdf_info['arxiv_id']}")
-            if pdf_info.get('doi'):
-                progress.append(f"Found DOI: {pdf_info['doi']}")
-            if pdf_info.get('title'):
-                title_preview = pdf_info['title'][:60] + '...' if len(pdf_info['title']) > 60 else pdf_info['title']
-                progress.append(f"Extracted title: {title_preview}")
-            if pdf_info.get('authors'):
-                author_count = len(pdf_info['authors'])
-                progress.append(f"Extracted {author_count} author(s)")
+            # Include progress messages from PDF analyzer
+            if pdf_info.get('progress'):
+                progress.extend(pdf_info['progress'])
 
             # Try arXiv ID first (most reliable for arXiv papers)
             if pdf_info.get('arxiv_id'):
