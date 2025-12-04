@@ -382,7 +382,18 @@ class TestModelAvailability:
         async def run_health_check():
             return await period_service.health_check()
 
-        health = asyncio.get_event_loop().run_until_complete(run_health_check())
+        # Use asyncio.run() for Python 3.7+ or create new event loop to avoid conflicts
+        try:
+            # Try asyncio.run() first (cleaner, avoids event loop issues)
+            health = asyncio.run(run_health_check())
+        except RuntimeError:
+            # Fallback for nested event loop situations
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            try:
+                health = loop.run_until_complete(run_health_check())
+            finally:
+                loop.close()
 
         assert 'service_status' in health
         assert health['service_status'] == 'ok'
