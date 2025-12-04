@@ -43,6 +43,10 @@ if [ -n "$CREATE_DEFAULT_ADMIN" ] && [ "$CREATE_DEFAULT_ADMIN" = "true" ]; then
     python init_admin.py || echo "Admin user may already exist"
 fi
 
+# Seed default prompt templates and settings
+echo "Seeding default templates and settings..."
+flask seed-defaults || echo "Defaults may already exist"
+
 echo "=========================================="
 echo "Starting application..."
 echo "=========================================="

@@ -90,13 +90,30 @@ python scripts/download_embedding_models.py --check
 
 ## Archaic Language Detection
 
-When no publication date is available, the service analyzes text for archaic patterns:
+When no publication date is available, the service uses a heuristic approach to detect archaic language, based on lexical markers established in historical linguistics research.
+
+### Linguistic Basis
+
+The detection approach uses two categories of markers that are well-documented in the literature on Early Modern English (c. 1500-1700):
+
+**1. Archaic Second-Person Pronouns and Verb Forms**
+
+- **thou, thee, thy, thine** — The singular second-person pronoun system that fell out of standard use by the 17th century. The shift from "thou" to "you" is one of the most studied changes in English historical linguistics (see Burnley, 2000; Wales, 1996).
+- **hath, doth** — Third-person singular verb forms with the archaic *-eth* ending, replaced by modern *-s* forms ("has," "does") during the Early Modern period.
+
+**2. Pronominal Adverbs**
+
+- **whence, wherefore, wherein, whereby, heretofore, hereunto** — These are pronominal adverbs formed from wh-/h-/th- stems combined with prepositions. They form systematic patterns (hither/thither/whither for direction-to; hence/thence/whence for direction-from) and are characteristic of both archaic and legal English.
+
+These markers are used in corpus normalization research for Early Modern English texts (see Archer et al., 2015, "Guidelines for normalising Early Modern English corpora") and are recognized as reliable indicators of historical text in computational historical linguistics.
+
+### Detection Method
 
 **Archaic indicators detected:**
 
-- Historical pronouns: thou, thee, thy
+- Historical pronouns: thou, thee, thy, thine
 - Archaic verbs: hath, doth
-- Historical adverbs: whence, wherefore, wherein, heretofore
+- Pronominal adverbs: whence, wherefore, wherein, whereby, heretofore, hereunto, notwithstanding
 
 **Technical indicators detected:**
 
@@ -104,6 +121,23 @@ When no publication date is available, the service analyzes text for archaic pat
 - Scientific terms: coefficient, algorithm, paradigm, empirical
 
 If archaic language is detected, the historical model is automatically selected.
+
+### Limitations
+
+This is a heuristic approach based on lexical markers rather than a trained classifier. It works well for:
+
+- Texts containing Early Modern English features (pre-1700)
+- Legal documents with formal/archaic register
+- Religious texts (e.g., King James Bible style)
+
+For more sophisticated period detection, future versions may incorporate trained classifiers on dated corpora.
+
+### References
+
+- Archer, D., Kytö, M., Baron, A., & Rayson, P. (2015). Guidelines for normalising Early Modern English corpora: Decisions and justifications. *ICAME Journal*, 39, 5-24.
+- Burnley, D. (2000). *The History of the English Language: A Source Book* (2nd ed.). Longman.
+- Wales, K. (1996). *Personal Pronouns in Present-Day English*. Cambridge University Press.
+- For computational approaches, see: List, J.-M. (2012). LexStat: Automatic detection of cognates in multilingual wordlists. *Proceedings of the EACL 2012 Joint Workshop of LINGVIS & UNCLH*.
 
 ## Understanding Results
 

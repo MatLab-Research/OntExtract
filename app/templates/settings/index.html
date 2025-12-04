@@ -22,13 +22,6 @@
                     </button>
                 </li>
                 <li class="nav-item" role="presentation">
-                    <button class="nav-link {% if active_tab == 'processing' %}active{% endif %}"
-                            id="processing-tab" data-bs-toggle="tab" data-bs-target="#processing"
-                            type="button" role="tab">
-                        <i class="fas fa-cogs me-2"></i>Processing
-                    </button>
-                </li>
-                <li class="nav-item" role="presentation">
                     <button class="nav-link {% if active_tab == 'nlp' %}active{% endif %}"
                             id="nlp-tab" data-bs-toggle="tab" data-bs-target="#nlp"
                             type="button" role="tab">
@@ -42,16 +35,6 @@
                         <i class="fas fa-file-alt me-2"></i>Prompt Templates
                     </button>
                 </li>
-                <!-- UI Preferences tab hidden - theme switching not yet implemented -->
-                <!--
-                <li class="nav-item" role="presentation">
-                    <button class="nav-link {% if active_tab == 'ui' %}active{% endif %}"
-                            id="ui-tab" data-bs-toggle="tab" data-bs-target="#ui"
-                            type="button" role="tab">
-                        <i class="fas fa-palette me-2"></i>UI Preferences
-                    </button>
-                </li>
-                -->
             </ul>
 
             <div class="tab-content mt-4" id="settingsTabContent">
@@ -92,7 +75,7 @@
                                         <strong>Anthropic Claude</strong>
                                         <small class="text-muted ms-2">(Model: claude-sonnet-4-5-20250929)</small>
                                     </div>
-                                    <small class="text-muted">Provider and model are configured in system settings.</small>
+                                    <small class="text-muted">Provider and model are configured via environment variables.</small>
                                 </div>
 
                                 <hr class="my-4">
@@ -105,9 +88,9 @@
                                                {% if settings.llm.enable_llm_enhancement %}checked{% endif %}
                                                {% if not api_key_available %}disabled{% endif %}>
                                         <label class="form-check-label" for="enable_llm_enhancement">
-                                            <strong>Enable LLM Processing Suggestions</strong>
+                                            <strong>Enable LLM Template Enhancement</strong>
                                             <small class="d-block text-muted">
-                                                LLM will analyze experiment descriptions and suggest processing methods
+                                                LLM will enhance prompt template outputs (experiment descriptions, etc.)
                                             </small>
                                         </label>
                                     </div>
@@ -117,14 +100,18 @@
                                         Disabled: API key not found
                                     </small>
                                     {% endif %}
+                                    <small class="text-muted d-block mt-2">
+                                        <i class="fas fa-info-circle me-1"></i>
+                                        Note: This setting controls template enhancement only. The "LLM Analyze" feature in experiments works independently when an API key is available.
+                                    </small>
                                 </div>
 
                                 <!-- Max Tokens -->
                                 <div class="mb-3">
                                     <label for="llm_max_tokens" class="form-label">Max Tokens</label>
                                     <input type="number" class="form-control" id="llm_max_tokens"
-                                           value="{{ settings.llm.llm_max_tokens or 500 }}" min="100" max="4000">
-                                    <small class="text-muted">Maximum response length (100-4000). Default: 500</small>
+                                           value="{{ settings.llm.llm_max_tokens or 200 }}" min="50" max="1000">
+                                    <small class="text-muted">Maximum response length for template enhancement (50-1000). Default: 200 (~150 words)</small>
                                 </div>
 
                                 <div class="d-flex gap-2">
@@ -142,143 +129,26 @@
                     </div>
                 </div>
 
-                <!-- Processing Tab -->
-                <div class="tab-pane fade {% if active_tab == 'processing' %}show active{% endif %}"
-                     id="processing" role="tabpanel">
-                    <div class="card">
-                        <div class="card-body">
-                            <h5 class="card-title">Processing Defaults</h5>
-                            <p class="text-muted">
-                                Default processing methods. LLM can suggest alternatives based on experiment context.
-                            </p>
-
-                            <form id="processing-settings-form">
-                                <div class="mb-3">
-                                    <label for="default_segmentation_method" class="form-label">Segmentation Method</label>
-                                    <select class="form-select" id="default_segmentation_method">
-                                        <option value="paragraph" {% if settings.processing.default_segmentation_method == 'paragraph' %}selected{% endif %}>
-                                            Paragraph
-                                        </option>
-                                        <option value="sentence" {% if settings.processing.default_segmentation_method == 'sentence' %}selected{% endif %}>
-                                            Sentence
-                                        </option>
-                                        <option value="semantic" {% if settings.processing.default_segmentation_method == 'semantic' %}selected{% endif %}>
-                                            Semantic
-                                        </option>
-                                    </select>
-                                </div>
-
-                                <div class="mb-3">
-                                    <label for="default_embedding_model" class="form-label">Embedding Model</label>
-                                    <select class="form-select" id="default_embedding_model">
-                                        <option value="all-MiniLM-L6-v2" {% if settings.processing.default_embedding_model == 'all-MiniLM-L6-v2' %}selected{% endif %}>
-                                            all-MiniLM-L6-v2 (Fast, General)
-                                        </option>
-                                        <option value="all-mpnet-base-v2" {% if settings.processing.default_embedding_model == 'all-mpnet-base-v2' %}selected{% endif %}>
-                                            all-mpnet-base-v2 (Better Quality)
-                                        </option>
-                                    </select>
-                                </div>
-
-                                <div class="mb-3">
-                                    <label for="max_segment_length" class="form-label">Max Segment Length (tokens)</label>
-                                    <input type="number" class="form-control" id="max_segment_length"
-                                           value="{{ settings.processing.max_segment_length }}" min="128" max="2048">
-                                </div>
-
-                                <div class="mb-3">
-                                    <div class="form-check form-switch">
-                                        <input class="form-check-input" type="checkbox"
-                                               id="enable_period_aware_processing"
-                                               {% if settings.processing.enable_period_aware_processing %}checked{% endif %}>
-                                        <label class="form-check-label" for="enable_period_aware_processing">
-                                            Enable Period-Aware Processing
-                                            <small class="d-block text-muted">
-                                                Use historical embedding models for older documents
-                                            </small>
-                                        </label>
-                                    </div>
-                                </div>
-
-                                <button type="submit" class="btn btn-primary">
-                                    <i class="fas fa-save me-2"></i>Save Changes
-                                </button>
-                                <button type="button" class="btn btn-outline-secondary"
-                                        onclick="resetCategory('processing')">
-                                    <i class="fas fa-undo me-2"></i>Reset to Defaults
-                                </button>
-                            </form>
-                        </div>
-                    </div>
-                </div>
-
                 <!-- NLP Tools Tab -->
                 <div class="tab-pane fade {% if active_tab == 'nlp' %}show active{% endif %}"
                      id="nlp" role="tabpanel">
                     <div class="card">
                         <div class="card-body">
-                            <h5 class="card-title">NLP Tool Configuration</h5>
-                            <p class="text-muted">Configure SpaCy, NLTK, and other NLP tools</p>
+                            <h5 class="card-title">Definition Extraction</h5>
+                            <p class="text-muted">Configure the transformer-based definition extraction tool</p>
 
                             <form id="nlp-settings-form">
                                 <div class="mb-3">
-                                    <label for="spacy_model" class="form-label">SpaCy Model</label>
-                                    <select class="form-select" id="spacy_model">
-                                        <option value="en_core_web_sm" {% if settings.nlp.spacy_model == 'en_core_web_sm' %}selected{% endif %}>
-                                            en_core_web_sm (Small, Fast)
-                                        </option>
-                                        <option value="en_core_web_md" {% if settings.nlp.spacy_model == 'en_core_web_md' %}selected{% endif %}>
-                                            en_core_web_md (Medium)
-                                        </option>
-                                        <option value="en_core_web_lg" {% if settings.nlp.spacy_model == 'en_core_web_lg' %}selected{% endif %}>
-                                            en_core_web_lg (Large, Best Quality)
-                                        </option>
-                                    </select>
-                                </div>
-
-                                <div class="mb-3">
-                                    <label for="default_language" class="form-label">Default Language</label>
-                                    <input type="text" class="form-control" id="default_language"
-                                           value="{{ settings.nlp.default_language }}">
-                                </div>
-
-                                <div class="mb-3">
-                                    <div class="form-check form-switch">
-                                        <input class="form-check-input" type="checkbox"
-                                               id="enable_lemmatization"
-                                               {% if settings.nlp.enable_lemmatization %}checked{% endif %}>
-                                        <label class="form-check-label" for="enable_lemmatization">
-                                            Enable Lemmatization
-                                        </label>
-                                    </div>
-                                </div>
-
-                                <div class="mb-3">
-                                    <div class="form-check form-switch">
-                                        <input class="form-check-input" type="checkbox"
-                                               id="enable_pos_tagging"
-                                               {% if settings.nlp.enable_pos_tagging %}checked{% endif %}>
-                                        <label class="form-check-label" for="enable_pos_tagging">
-                                            Enable POS Tagging
-                                        </label>
-                                    </div>
-                                </div>
-
-                                <hr class="my-4">
-
-                                <h6 class="mb-3">Definition Extraction (Transformer)</h6>
-
-                                <div class="mb-3">
                                     <label for="definition_extraction_confidence_threshold" class="form-label">
                                         Confidence Threshold
-                                        <span class="text-muted">(0.0 - 1.0)</span>
+                                        <span class="text-muted">(0.5 - 0.95)</span>
                                     </label>
-                                    <div class="input-group">
-                                        <input type="range" class="form-range" id="definition_extraction_confidence_threshold"
+                                    <div class="d-flex align-items-center gap-3">
+                                        <input type="range" class="form-range flex-grow-1" id="definition_extraction_confidence_threshold"
                                                min="0.5" max="0.95" step="0.05"
                                                value="{{ settings.nlp.definition_extraction_confidence_threshold or 0.70 }}"
                                                oninput="updateConfidenceDisplay(this.value)">
-                                        <span class="input-group-text" id="confidence-display">{{ (settings.nlp.definition_extraction_confidence_threshold or 0.70)|round(2) }}</span>
+                                        <span class="badge bg-primary fs-6" id="confidence-display">{{ (settings.nlp.definition_extraction_confidence_threshold or 0.70)|round(2) }}</span>
                                     </div>
                                     <small class="form-text text-muted">
                                         Higher values = fewer but higher-quality definitions. Lower values = more definitions with potential false positives.
@@ -302,6 +172,7 @@
                             <h5 class="card-title">Prompt Templates</h5>
                             <p class="text-muted">Manage Jinja2 templates for experiment descriptions</p>
 
+                            {% if templates %}
                             <div class="table-responsive">
                                 <table class="table">
                                     <thead>
@@ -309,7 +180,7 @@
                                             <th>Template</th>
                                             <th>Category</th>
                                             <th>Variables</th>
-                                            <th>LLM +</th>
+                                            <th>LLM Enhancement</th>
                                             <th>Actions</th>
                                         </tr>
                                     </thead>
@@ -326,62 +197,31 @@
                                                 <span class="badge bg-secondary">No</span>
                                                 {% endif %}
                                             </td>
-                                            <td>
-                                                <button class="btn btn-sm btn-outline-info me-2"
-                                                        onclick="viewTemplate({{ template.id }})">
-                                                    <i class="fas fa-eye"></i> View
-                                                </button>
-                                                <button class="btn btn-sm btn-outline-primary"
-                                                        onclick="editTemplate({{ template.id }})">
-                                                    <i class="fas fa-edit"></i> Edit
-                                                </button>
+                                            <td class="text-nowrap">
+                                                <div class="btn-group btn-group-sm" role="group">
+                                                    <button class="btn btn-outline-primary"
+                                                            onclick="viewTemplate({{ template.id }})"
+                                                            title="View">
+                                                        <i class="fas fa-eye"></i>
+                                                    </button>
+                                                    <button class="btn btn-outline-secondary"
+                                                            onclick="editTemplate({{ template.id }})"
+                                                            title="Edit">
+                                                        <i class="fas fa-edit"></i>
+                                                    </button>
+                                                </div>
                                             </td>
                                         </tr>
                                         {% endfor %}
                                     </tbody>
                                 </table>
                             </div>
+                            {% else %}
+                            <p class="text-muted">No prompt templates configured.</p>
+                            {% endif %}
                         </div>
                     </div>
                 </div>
-
-                <!-- UI Preferences Tab - hidden until theme switching is implemented -->
-                <!--
-                <div class="tab-pane fade {% if active_tab == 'ui' %}show active{% endif %}"
-                     id="ui" role="tabpanel">
-                    <div class="card">
-                        <div class="card-body">
-                            <h5 class="card-title">UI Preferences</h5>
-                            <p class="text-muted">Customize the user interface</p>
-
-                            <form id="ui-settings-form">
-                                <div class="mb-3">
-                                    <label for="theme" class="form-label">Theme</label>
-                                    <select class="form-select" id="theme">
-                                        <option value="darkly" {% if settings.ui.theme == 'darkly' %}selected{% endif %}>
-                                            Darkly (Dark Mode)
-                                        </option>
-                                        <option value="flatly" {% if settings.ui.theme == 'flatly' %}selected{% endif %}>
-                                            Flatly (Light Mode)
-                                        </option>
-                                    </select>
-                                    <small class="text-muted">Note: Theme change requires page reload</small>
-                                </div>
-
-                                <div class="mb-3">
-                                    <label for="items_per_page" class="form-label">Items Per Page</label>
-                                    <input type="number" class="form-control" id="items_per_page"
-                                           value="{{ settings.ui.items_per_page }}" min="10" max="100">
-                                </div>
-
-                                <button type="submit" class="btn btn-primary">
-                                    <i class="fas fa-save me-2"></i>Save Changes
-                                </button>
-                            </form>
-                        </div>
-                    </div>
-                </div>
-                -->
             </div>
         </div>
     </div>
@@ -486,12 +326,11 @@ function updateConfidenceDisplay(value) {
 }
 
 // Save settings forms
-['llm', 'processing', 'nlp', 'ui'].forEach(category => {
+['llm', 'nlp'].forEach(category => {
     const form = document.getElementById(`${category}-settings-form`);
     if (form) {
         form.addEventListener('submit', async (e) => {
             e.preventDefault();
-            const formData = new FormData(form);
             const settings = {};
 
             // Collect all form inputs
@@ -503,7 +342,7 @@ function updateConfidenceDisplay(value) {
                     dataType = 'boolean';
                 } else if (input.type === 'number' || input.type === 'range') {
                     dataType = 'integer';
-                    value = parseFloat(value);  // Convert to number
+                    value = parseFloat(value);
                 }
 
                 settings[input.id] = {
@@ -539,7 +378,6 @@ function updateConfidenceDisplay(value) {
 });
 
 function testLLMConnection() {
-    // Always use Anthropic (Claude) as provider
     const provider = 'anthropic';
 
     fetch('/settings/test-llm-connection', {
@@ -550,7 +388,7 @@ function testLLMConnection() {
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            alert('Connection successful!\\n\\nResponse: ' + data.response);
+            alert('Connection successful!\n\nResponse: ' + data.response);
         } else {
             alert('Connection failed: ' + data.error);
         }
@@ -558,12 +396,6 @@ function testLLMConnection() {
     .catch(error => {
         alert('Error testing connection: ' + error.message);
     });
-}
-
-function resetCategory(category) {
-    if (confirm(`Reset all ${category} settings to system defaults?`)) {
-        window.location.href = `/settings/reset/${category}`;
-    }
 }
 
 async function viewTemplate(templateId) {

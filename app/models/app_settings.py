@@ -117,33 +117,24 @@ class AppSetting(db.Model):
 
     @classmethod
     def seed_defaults(cls):
-        """Seed default settings if they don't exist."""
+        """Seed default settings if they don't exist.
+
+        Only includes settings that are actually used in the codebase:
+        - enable_llm_enhancement: controls PromptService.render_and_enhance()
+        - llm_max_tokens: controls max response length for LLM calls
+        - default_llm_provider: used when calling LLM APIs
+        - llm_model: default model for LLM calls
+        - definition_extraction_confidence_threshold: controls definition extraction sensitivity
+        """
         defaults = [
-            # NLP Tool Settings
-            ('spacy_model', 'en_core_web_sm', 'nlp', 'string', 'Default spaCy model'),
-            ('nltk_tokenizer', 'punkt', 'nlp', 'string', 'NLTK tokenizer to use'),
-            ('default_language', 'en', 'nlp', 'string', 'Default document language'),
-            ('enable_lemmatization', True, 'nlp', 'boolean', 'Enable lemmatization in NLP processing'),
-            ('enable_pos_tagging', True, 'nlp', 'boolean', 'Enable POS tagging'),
-
-            # Processing Settings
-            ('default_segmentation_method', 'paragraph', 'processing', 'string', 'Default text segmentation method'),
-            ('default_embedding_model', 'all-MiniLM-L6-v2', 'processing', 'string', 'Default embedding model'),
-            ('embedding_dimension', 384, 'processing', 'integer', 'Embedding vector dimension'),
-            ('max_segment_length', 512, 'processing', 'integer', 'Maximum segment length in tokens'),
-            ('enable_period_aware_processing', False, 'processing', 'boolean', 'Enable period-aware embedding models'),
-
-            # LLM Integration Settings
+            # LLM Integration Settings (used in prompt_service.py)
             ('default_llm_provider', 'anthropic', 'llm', 'string', 'Default LLM provider'),
-            ('enable_llm_enhancement', False, 'llm', 'boolean', 'Enable LLM enhancement features'),
+            ('enable_llm_enhancement', True, 'llm', 'boolean', 'Enable LLM template enhancement (requires API key)'),
             ('llm_model', 'claude-sonnet-4-5-20250929', 'llm', 'string', 'Default LLM model'),
-            ('llm_max_tokens', 500, 'llm', 'integer', 'Maximum tokens for LLM responses'),
+            ('llm_max_tokens', 200, 'llm', 'integer', 'Maximum tokens for LLM responses'),
 
-            # UI Preferences
-            ('theme', 'darkly', 'ui', 'string', 'UI theme name'),
-            ('default_experiment_view', 'grid', 'ui', 'string', 'Default experiment view mode'),
-            ('show_provenance_by_default', False, 'ui', 'boolean', 'Show provenance info by default'),
-            ('items_per_page', 20, 'ui', 'integer', 'Items per page in lists'),
+            # NLP Tool Settings (used in processing_tools.py)
+            ('definition_extraction_confidence_threshold', 0.70, 'nlp', 'float', 'Confidence threshold for definition extraction'),
         ]
 
         for key, value, category, data_type, description in defaults:

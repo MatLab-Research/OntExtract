@@ -290,6 +290,9 @@ cp .env.example .env
 # Initialize database
 flask db upgrade
 
+# Seed default templates and settings
+flask seed-defaults
+
 # Create admin user (optional)
 python init_admin.py
 ```

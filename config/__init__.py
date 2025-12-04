@@ -63,12 +63,12 @@ class Config:
     ZOTERO_API_KEY = os.environ.get('ZOTERO_API_KEY')
     ZOTERO_USER_ID = os.environ.get('ZOTERO_USER_ID')
     
-    # Google Cloud Configuration
+    # Google Cloud Configuration (disabled by default - requires credentials)
     GOOGLE_APPLICATION_CREDENTIALS = os.environ.get('GOOGLE_APPLICATION_CREDENTIALS')
     GOOGLE_PROJECT_ID = os.environ.get('GOOGLE_PROJECT_ID')
     GOOGLE_LOCATION = os.environ.get('GOOGLE_LOCATION', 'us-central1')
-    GOOGLE_LANGUAGE_SERVICE_ENABLED = os.environ.get('GOOGLE_LANGUAGE_SERVICE_ENABLED', 'True').lower() == 'true'
-    GOOGLE_TRANSLATE_SERVICE_ENABLED = os.environ.get('GOOGLE_TRANSLATE_SERVICE_ENABLED', 'True').lower() == 'true'
+    GOOGLE_LANGUAGE_SERVICE_ENABLED = os.environ.get('GOOGLE_LANGUAGE_SERVICE_ENABLED', 'False').lower() == 'true'
+    GOOGLE_TRANSLATE_SERVICE_ENABLED = os.environ.get('GOOGLE_TRANSLATE_SERVICE_ENABLED', 'False').lower() == 'true'
     GOOGLE_GEMINI_API_KEY = os.environ.get('GOOGLE_GEMINI_API_KEY')
     
     # Processing Configuration

@@ -106,8 +106,10 @@ class PromptService:
                 'activity_id': None
             }
 
-        # Get LLM settings
-        llm_enabled = AppSetting.get_setting('enable_llm_enhancement', user.id if user else None, default=False)
+        # Get LLM settings - default to True if API key is available
+        api_key = PromptService._get_api_key(provider or 'anthropic', user)
+        default_enabled = bool(api_key)  # Enable by default if API key exists
+        llm_enabled = AppSetting.get_setting('enable_llm_enhancement', user.id if user else None, default=default_enabled)
         if not llm_enabled:
             return {
                 'template_output': template_output,
@@ -116,10 +118,9 @@ class PromptService:
                 'activity_id': None
             }
 
-        # Get API key
-        api_key = PromptService._get_api_key(provider or 'anthropic', user)
+        # api_key already fetched above for default check
         if not api_key:
-            logger.warning(f"LLM enhancement requested but no API key found for user {user.id if user else 'system'}")
+            logger.warning(f"LLM enhancement enabled but no API key found for user {user.id if user else 'system'}")
             return {
                 'template_output': template_output,
                 'enhanced_output': template_output,
@@ -257,7 +258,7 @@ class PromptService:
             import anthropic
             client = anthropic.Anthropic(api_key=api_key)
 
-            max_tokens = AppSetting.get_setting('llm_max_tokens', default=500)
+            max_tokens = AppSetting.get_setting('llm_max_tokens', default=200)
 
             message = client.messages.create(
                 model=model,
@@ -290,7 +291,7 @@ class PromptService:
             import openai
             client = openai.OpenAI(api_key=api_key)
 
-            max_tokens = AppSetting.get_setting('llm_max_tokens', default=500)
+            max_tokens = AppSetting.get_setting('llm_max_tokens', default=200)
 
             response = client.chat.completions.create(
                 model=model,
