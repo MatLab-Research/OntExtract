@@ -24,11 +24,11 @@ else
     exit 1
 fi
 
-# Start Celery worker in background
+# Start Celery worker in background (required for LLM orchestration)
 if pgrep -f "celery.*worker.*ontextract" > /dev/null; then
     echo "Celery Worker: Already running"
 else
-    echo "Starting Celery worker..."
+    echo "Starting Celery worker (required for LLM orchestration)..."
     ./start_celery_worker.sh &
     sleep 2
     if pgrep -f "celery.*worker.*ontextract" > /dev/null; then
@@ -36,6 +36,7 @@ else
     else
         echo "Celery Worker: FAILED TO START"
         echo "Check /tmp/celery_ontextract.log for errors"
+        echo "WARNING: LLM orchestration will not work!"
     fi
 fi
 

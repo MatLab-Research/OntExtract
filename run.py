@@ -82,7 +82,7 @@ def main():
         print("  Start Redis with: redis-server")
     if not celery_ok:
         print("  Start Celery with: ./start_celery_worker.sh")
-        print("  LLM orchestration requires Celery.")
+        print("  LLM orchestration will not work without Celery.")
 
     print("-" * 60)
 
