@@ -156,7 +156,8 @@ class TemporalService(BaseService):
                 'period_documents': period_documents_hydrated,
                 'period_metadata': config.get('period_metadata', {}),
                 'semantic_events': config.get('semantic_events', []),
-                'periods': config.get('periods', [])  # Full period objects for timeline view
+                'periods': config.get('periods', []),  # Full period objects for timeline view
+                'named_periods': config.get('named_periods', [])  # Named period ranges (e.g., "AI Revolution")
             }
 
         except (NotFoundError, ValidationError):
@@ -291,6 +292,39 @@ class TemporalService(BaseService):
                 config['period_metadata'] = temporal_data['period_metadata']
             if 'period_documents' in temporal_data:
                 config['period_documents'] = temporal_data['period_documents']
+            if 'named_periods' in temporal_data:
+                config['named_periods'] = temporal_data['named_periods']
+
+            # Build named_periods from boundary metadata if not explicitly provided
+            # This reconstructs named periods from the start/end boundary markers
+            if 'named_periods' not in temporal_data:
+                period_metadata = temporal_data.get('period_metadata', {})
+                named_periods = []
+                start_boundaries = {}
+
+                # First pass: collect start boundaries
+                for year_str, meta in period_metadata.items():
+                    if meta.get('boundary_type') == 'start' and meta.get('period_id'):
+                        start_boundaries[meta['period_id']] = {
+                            'id': meta['period_id'],
+                            'name': meta.get('period_name', ''),
+                            'description': meta.get('period_description', ''),
+                            'start_year': int(year_str)
+                        }
+
+                # Second pass: find end boundaries and complete the periods
+                for year_str, meta in period_metadata.items():
+                    if meta.get('boundary_type') == 'end' and meta.get('period_id'):
+                        period_id = meta['period_id']
+                        if period_id in start_boundaries:
+                            start_boundaries[period_id]['end_year'] = int(year_str)
+
+                # Add completed periods to named_periods list
+                named_periods = list(start_boundaries.values())
+                named_periods.sort(key=lambda p: p.get('start_year', 0))
+
+                if named_periods:
+                    config['named_periods'] = named_periods
 
             experiment.configuration = json.dumps(config)
             experiment.updated_at = datetime.utcnow()

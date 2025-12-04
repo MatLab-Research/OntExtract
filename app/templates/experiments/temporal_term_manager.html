@@ -1217,8 +1217,56 @@ let periodTypes = [];  // Will be populated from backend
     const backendPeriods = {{ time_periods|tojson|safe }};
     const backendMetadata = {{ period_metadata|tojson|safe }};
     const backendDocuments = {{ period_documents|tojson|safe }};
+    const namedPeriods = {{ named_periods|default([])|tojson|safe }};
 
     periodDocuments = backendDocuments;
+
+    // Track which years have been added as boundaries (from named_periods)
+    const boundaryYears = new Set();
+
+    // First, process named_periods to create boundary entries
+    // These take precedence over the metadata-based approach
+    namedPeriods.forEach(period => {
+        if (period.start_year && period.end_year) {
+            const periodId = period.id || `period_${Date.now()}_${Math.random()}`;
+
+            // START boundary
+            const startYear = period.start_year;
+            const startYearStr = startYear.toString();
+            const startEntryId = `start_${startYearStr}_${periodId}`;
+
+            timelineEntries.push({
+                id: startEntryId,
+                year: startYear,
+                type: 'boundary',
+                boundary_type: 'start',
+                period_id: periodId,
+                period_name: period.name || '',
+                period_description: period.description || '',
+                paired_with_year: period.end_year,
+                source: 'manual'
+            });
+            boundaryYears.add(startYear);
+
+            // END boundary
+            const endYear = period.end_year;
+            const endYearStr = endYear.toString();
+            const endEntryId = `end_${endYearStr}_${periodId}`;
+
+            timelineEntries.push({
+                id: endEntryId,
+                year: endYear,
+                type: 'boundary',
+                boundary_type: 'end',
+                period_id: periodId,
+                period_name: period.name || '',
+                period_description: period.description || '',
+                paired_with_year: period.start_year,
+                source: 'manual'
+            });
+            boundaryYears.add(endYear);
+        }
+    });
 
     // Convert backend metadata to timeline entries (periods and artifacts)
     backendPeriods.forEach(year => {
@@ -1226,8 +1274,27 @@ let periodTypes = [];  // Will be populated from backend
         const meta = backendMetadata[yearStr] || {};
         const hasDocs = (backendDocuments[yearStr] || []).length > 0;
 
+        // Skip if this year was already processed as a named period boundary
+        if (boundaryYears.has(year)) {
+            // Still add artifact entry if there are documents
+            if (hasDocs) {
+                const artifactId = `artifact_${yearStr}`;
+                // Check if artifact already exists
+                const exists = timelineEntries.some(e => e.id === artifactId);
+                if (!exists) {
+                    timelineEntries.push({
+                        id: artifactId,
+                        year: year,
+                        type: 'artifact',
+                        source: 'auto-generated'
+                    });
+                }
+            }
+            return;
+        }
+
         if (meta.boundary_type) {
-            // This is a period boundary (START or END)
+            // This is a period boundary (START or END) from metadata
             const periodId = meta.period_id || `period_${Date.now()}_${Math.random()}`;
             const entryId = `${meta.boundary_type}_${yearStr}_${periodId}`;
 
@@ -2302,6 +2369,39 @@ async function saveTerms(callback) {
     // Sort periods
     backendPeriods.sort((a, b) => a - b);
 
+    // Build named_periods array from boundary entries
+    const namedPeriods = [];
+    const startBoundaries = {};
+
+    // First pass: collect start boundaries
+    for (const [yearStr, meta] of Object.entries(backendMetadata)) {
+        if (meta.boundary_type === 'start' && meta.period_id) {
+            startBoundaries[meta.period_id] = {
+                id: meta.period_id,
+                name: meta.period_name || '',
+                description: meta.period_description || '',
+                start_year: parseInt(yearStr)
+            };
+        }
+    }
+
+    // Second pass: find end boundaries and complete the periods
+    for (const [yearStr, meta] of Object.entries(backendMetadata)) {
+        if (meta.boundary_type === 'end' && meta.period_id) {
+            if (startBoundaries[meta.period_id]) {
+                startBoundaries[meta.period_id].end_year = parseInt(yearStr);
+            }
+        }
+    }
+
+    // Add completed periods to namedPeriods array
+    for (const period of Object.values(startBoundaries)) {
+        if (period.start_year && period.end_year) {
+            namedPeriods.push(period);
+        }
+    }
+    namedPeriods.sort((a, b) => a.start_year - b.start_year);
+
     try {
         const response = await fetch(`/experiments/${experimentId}/update_temporal_terms`, {
             method: 'POST',
@@ -2314,7 +2414,8 @@ async function saveTerms(callback) {
                 temporal_data: {
                     ...termData,
                     period_metadata: backendMetadata,
-                    period_documents: periodDocuments
+                    period_documents: periodDocuments,
+                    named_periods: namedPeriods
                 }
             })
         });

@@ -1,0 +1,143 @@
+{# Temporal Periods Display Macros
+   Provides reusable components for displaying temporal periods across:
+   - orchestration_review.html
+   - temporal_term_manager.html
+   - view.html
+#}
+
+{# Compact display of named periods (e.g., "AI Revolution: 1995-2021") #}
+{% macro named_periods_cards(periods, period_documents=None, compact=false) %}
+{% if periods %}
+<div class="row row-cols-1 row-cols-md-{{ 4 if compact else 2 }} g-3">
+    {% for period in periods %}
+    {% set doc_count = 0 %}
+    {% if period_documents %}
+        {% for year_str, docs in period_documents.items() %}
+            {% set year = year_str|int %}
+            {% if period.start_year and period.end_year and period.start_year <= year <= period.end_year %}
+                {% set doc_count = doc_count + (docs|length if docs is iterable else 1) %}
+            {% endif %}
+        {% endfor %}
+    {% endif %}
+    <div class="col">
+        <div class="period-card configured">
+            <div class="d-flex justify-content-between align-items-start">
+                <h6 class="mb-1 period-name" style="color: #28a745;">
+                    {{ period.name }}
+                </h6>
+                {% if doc_count > 0 %}
+                <span class="badge bg-secondary">{{ doc_count }} docs</span>
+                {% endif %}
+            </div>
+            <small class="text-muted d-block mb-1">{{ period.start_year }} - {{ period.end_year }}</small>
+            {% if period.description and not compact %}
+            <p class="small mb-0 period-description" style="color: #666;">{{ period.description }}</p>
+            {% endif %}
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% endif %}
+{% endmacro %}
+
+{# Compact timeline showing individual years with artifacts #}
+{% macro time_periods_timeline(time_periods, period_metadata=None, period_documents=None, compact=true) %}
+{% if time_periods %}
+<div class="time-periods-compact d-flex flex-wrap gap-2 mt-2">
+    {% for year in time_periods|sort %}
+    {% set meta = period_metadata.get(year|string, {}) if period_metadata else {} %}
+    {% set docs = period_documents.get(year|string, []) if period_documents else [] %}
+    {% set source = meta.get('source', 'manual') %}
+    <div class="time-period-badge {% if source == 'auto-generated' %}auto{% else %}manual{% endif %}"
+         title="{{ docs|length }} document(s)">
+        <span class="year">{{ year }}</span>
+        {% if docs|length > 0 %}
+        <span class="doc-count">{{ docs|length }}</span>
+        {% endif %}
+    </div>
+    {% endfor %}
+</div>
+{% endif %}
+{% endmacro %}
+
+{# Combined display: Named periods at top, time periods below #}
+{% macro full_temporal_display(named_periods=None, time_periods=None, period_metadata=None, period_documents=None, show_header=true) %}
+<div class="temporal-display">
+    {% if named_periods %}
+    {% if show_header %}
+    <h6 class="text-muted mb-2"><i class="fas fa-layer-group me-1"></i>Named Periods</h6>
+    {% endif %}
+    {{ named_periods_cards(named_periods, period_documents, compact=false) }}
+    {% endif %}
+
+    {% if time_periods %}
+    {% if named_periods %}<hr class="my-3">{% endif %}
+    {% if show_header %}
+    <h6 class="text-muted mb-2"><i class="fas fa-calendar-alt me-1"></i>Document Artifacts</h6>
+    {% endif %}
+    {{ time_periods_timeline(time_periods, period_metadata, period_documents) }}
+    {% endif %}
+</div>
+{% endmacro %}
+
+{# Styles for temporal period display - include once in page #}
+{% macro temporal_periods_styles() %}
+<style>
+    .period-card {
+        border: 1px solid #dee2e6;
+        border-radius: 8px;
+        padding: 12px;
+    }
+
+    .period-card.configured {
+        border-left: 4px solid #28a745;
+        background: #f8fff9;
+    }
+
+    .period-card .period-name {
+        font-weight: 600;
+    }
+
+    .period-card .period-description {
+        line-height: 1.4;
+    }
+
+    .time-periods-compact {
+        padding: 8px 0;
+    }
+
+    .time-period-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        padding: 4px 10px;
+        border-radius: 16px;
+        font-size: 0.85rem;
+        background: #e9ecef;
+        border: 1px solid #dee2e6;
+    }
+
+    .time-period-badge.auto {
+        background: linear-gradient(135deg, #e7f3ff 0%, #f0f7ff 100%);
+        border-color: #b8daff;
+    }
+
+    .time-period-badge.manual {
+        background: linear-gradient(135deg, #f0fff0 0%, #f8fff8 100%);
+        border-color: #c3e6cb;
+    }
+
+    .time-period-badge .year {
+        font-weight: 600;
+        color: #495057;
+    }
+
+    .time-period-badge .doc-count {
+        font-size: 0.75rem;
+        padding: 1px 6px;
+        background: rgba(0,0,0,0.1);
+        border-radius: 10px;
+        color: #6c757d;
+    }
+</style>
+{% endmacro %}

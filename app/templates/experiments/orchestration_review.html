@@ -1,34 +1,42 @@
 {% extends "base.html" %}
+{% from 'macros/temporal_periods.html' import named_periods_cards, time_periods_timeline, temporal_periods_styles %}
 
 {% block title %}Review Strategy - {{ experiment.name }} - OntExtract{% endblock %}
 
 {% block content %}
+{{ temporal_periods_styles() }}
 <style>
     .document-card {
-        border: 1px solid #dee2e6;
+        border: 1px solid #444;
         border-radius: 8px;
         margin-bottom: 16px;
         transition: box-shadow 0.2s ease;
+        background: #2d2d2d;
     }
 
     .document-card:hover {
-        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        box-shadow: 0 4px 8px rgba(0,0,0,0.3);
     }
 
     .document-card-header {
-        background: #f8f9fa;
+        background: #383838;
         padding: 12px 16px;
-        border-bottom: 1px solid #dee2e6;
+        border-bottom: 1px solid #444;
         border-radius: 8px 8px 0 0;
         display: flex;
         justify-content: space-between;
         align-items: center;
     }
 
+    .document-card-header h6 {
+        color: #fff;
+    }
+
     .document-card-body {
         padding: 16px;
     }
 
+    /* Tool badge colors matching processing_badges.html */
     .tool-badge {
         display: inline-block;
         padding: 4px 10px;
@@ -36,33 +44,57 @@
         border-radius: 4px;
         font-size: 0.85rem;
         font-weight: 500;
-    }
-
-    .tool-badge.active {
-        background: #0d6efd;
         color: white;
     }
 
-    .tool-badge.inactive {
-        background: #e9ecef;
-        color: #6c757d;
+    .tool-badge.tool-segment {
+        background: #f39c12;  /* warning - yellow/orange */
     }
 
-    .tool-badge.completed {
-        background: #d4edda;
-        color: #155724;
+    .tool-badge.tool-embed {
+        background: #17a2b8;  /* info - blue */
+    }
+
+    .tool-badge.tool-entity {
+        background: #28a745;  /* success - green */
+    }
+
+    .tool-badge.tool-definition {
+        background: #0d6efd;  /* primary - blue */
+    }
+
+    .tool-badge.tool-temporal {
+        background: #6c757d;  /* secondary - gray */
+    }
+
+    .tool-badge.inactive {
+        background: #444;
+        color: #888;
     }
 
     .tool-editor {
         display: none;
         padding: 16px;
-        background: #f8f9fa;
+        background: #333;
         border-radius: 0 0 8px 8px;
-        border-top: 1px dashed #dee2e6;
+        border-top: 1px dashed #444;
     }
 
     .tool-editor.show {
         display: block;
+    }
+
+    .tool-editor .border {
+        border-color: #444 !important;
+        background: #2d2d2d !important;
+    }
+
+    .tool-editor h6 {
+        color: #fff;
+    }
+
+    .tool-editor .form-check-label {
+        color: #ccc;
     }
 
     .reasoning-card {
@@ -116,10 +148,10 @@
     .sticky-actions {
         position: sticky;
         bottom: 0;
-        background: white;
+        background: #2d2d2d;
         padding: 16px;
-        border-top: 1px solid #dee2e6;
-        box-shadow: 0 -4px 8px rgba(0,0,0,0.1);
+        border-top: 1px solid #444;
+        box-shadow: 0 -4px 8px rgba(0,0,0,0.3);
         z-index: 100;
     }
 </style>
@@ -159,17 +191,17 @@
                 <div class="card-body">
                     <div class="row">
                         <div class="col-md-6">
-                            <h6 class="text-muted mb-2">Experiment Goal</h6>
+                            <h6 class="mb-2">Experiment Goal</h6>
                             <p class="mb-3">{{ run.experiment_goal or 'Goal analysis pending...' }}</p>
                         </div>
                         <div class="col-md-6">
-                            <h6 class="text-muted mb-2">Strategy Reasoning</h6>
+                            <h6 class="mb-2">Strategy Reasoning</h6>
                             <p class="mb-0">{{ run.strategy_reasoning or 'Reasoning pending...' }}</p>
                         </div>
                     </div>
                     {% if run.term_context %}
                     <div class="mt-3 pt-3 border-top">
-                        <h6 class="text-muted mb-2">Term Context</h6>
+                        <h6 class="mb-2">Term Context</h6>
                         <p class="mb-0">{{ run.term_context }}</p>
                     </div>
                     {% endif %}
@@ -199,21 +231,32 @@
                         <i class="fas fa-check-circle text-success me-1"></i>
                         Temporal periods have been configured for this experiment.
                     </p>
-                    <div class="row row-cols-1 row-cols-md-4 g-3">
+                    {# Named periods (e.g., "AI Revolution: 1995-2021") #}
+                    <div class="row row-cols-1 row-cols-md-2 g-3">
                         {% for period in existing_periods %}
                         <div class="col">
                             <div class="period-card configured">
-                                <h6 class="mb-1" style="color: {{ period.marker_color or '#6c757d' }}">
-                                    {{ period.temporal_period }}
-                                </h6>
-                                <small class="text-muted">{{ period.temporal_start_year }} - {{ period.temporal_end_year }}</small>
-                                <div class="mt-2">
+                                <div class="d-flex justify-content-between align-items-start">
+                                    <h6 class="mb-1" style="color: #28a745;">
+                                        {{ period.temporal_period }}
+                                    </h6>
                                     <span class="badge bg-secondary">{{ period.document_count }} docs</span>
                                 </div>
+                                <small class="text-muted d-block mb-2">{{ period.temporal_start_year }} - {{ period.temporal_end_year }}</small>
+                                {% if period.description %}
+                                <p class="small mb-0" style="color: #666;">{{ period.description }}</p>
+                                {% endif %}
                             </div>
                         </div>
                         {% endfor %}
                     </div>
+
+                    {# Time periods / Document artifacts (individual years with documents) #}
+                    {% if time_periods and time_periods|length > 0 %}
+                    <hr class="my-3">
+                    <h6 class="text-muted mb-2"><i class="fas fa-calendar-alt me-1"></i>Document Artifacts ({{ time_periods|length }} years)</h6>
+                    {{ time_periods_timeline(time_periods, period_metadata, period_documents) }}
+                    {% endif %}
                     {% else %}
                     <div class="alert alert-info mb-3">
                         <i class="fas fa-info-circle me-2"></i>
@@ -311,8 +354,8 @@
                                     {% set recommended = recommended_strategy.get(doc.id | string, []) %}
                                     {% if recommended %}
                                         {% for tool in recommended %}
-                                        <span class="tool-badge active">
-                                            <i class="fas fa-check me-1"></i>{{ tool | format_tool_name }}
+                                        <span class="tool-badge {% if 'segment' in tool %}tool-segment{% elif 'embed' in tool %}tool-embed{% elif 'entit' in tool %}tool-entity{% elif 'definition' in tool %}tool-definition{% elif 'temporal' in tool %}tool-temporal{% else %}tool-entity{% endif %}">
+                                            <i class="fas {% if 'segment' in tool %}fa-cut{% elif 'embed' in tool %}fa-vector-square{% elif 'entit' in tool %}fa-tags{% elif 'definition' in tool %}fa-book{% elif 'temporal' in tool %}fa-clock{% else %}fa-cog{% endif %} me-1"></i>{{ tool | format_tool_name }}
                                         </span>
                                         {% endfor %}
                                     {% else %}
@@ -326,7 +369,7 @@
                                 <div class="row">
                                     {# Segmentation #}
                                     <div class="col-md-3 mb-3">
-                                        <div class="border rounded p-2 bg-white h-100">
+                                        <div class="border rounded p-2 h-100">
                                             <h6 class="mb-2">
                                                 <i class="fas fa-cut text-warning me-1"></i>Segmentation
                                             </h6>
@@ -355,7 +398,7 @@
 
                                     {# Embeddings #}
                                     <div class="col-md-3 mb-3">
-                                        <div class="border rounded p-2 bg-white h-100">
+                                        <div class="border rounded p-2 h-100">
                                             <h6 class="mb-2">
                                                 <i class="fas fa-vector-square text-info me-1"></i>Embeddings
                                             </h6>
@@ -371,9 +414,9 @@
                                             </div>
                                             <div class="form-check mb-1">
                                                 <input class="form-check-input tool-checkbox" type="checkbox"
-                                                       name="tools-{{ doc.id }}[]" value="embeddings_period_aware"
+                                                       name="tools-{{ doc.id }}[]" value="period_aware_embedding"
                                                        id="tool-{{ doc.id }}-embeddings-period-aware"
-                                                       {{ 'checked' if 'embeddings_period_aware' in recommended else '' }}
+                                                       {{ 'checked' if 'period_aware_embedding' in recommended or 'embeddings_period_aware' in recommended else '' }}
                                                        onchange="updateToolSummary('{{ doc.id }}')">
                                                 <label class="form-check-label small" for="tool-{{ doc.id }}-embeddings-period-aware">
                                                     Period-Aware
@@ -394,7 +437,7 @@
 
                                     {# Extraction #}
                                     <div class="col-md-3 mb-3">
-                                        <div class="border rounded p-2 bg-white h-100">
+                                        <div class="border rounded p-2 h-100">
                                             <h6 class="mb-2">
                                                 <i class="fas fa-tags text-success me-1"></i>Extraction
                                             </h6>
@@ -410,9 +453,9 @@
                                             </div>
                                             <div class="form-check">
                                                 <input class="form-check-input tool-checkbox" type="checkbox"
-                                                       name="tools-{{ doc.id }}[]" value="extract_definitions_spacy"
+                                                       name="tools-{{ doc.id }}[]" value="extract_definitions"
                                                        id="tool-{{ doc.id }}-definitions-spacy"
-                                                       {{ 'checked' if 'extract_definitions_spacy' in recommended or 'definitions_spacy' in recommended else '' }}
+                                                       {{ 'checked' if 'extract_definitions' in recommended or 'extract_definitions_spacy' in recommended or 'definitions_spacy' in recommended else '' }}
                                                        onchange="updateToolSummary('{{ doc.id }}')">
                                                 <label class="form-check-label small" for="tool-{{ doc.id }}-definitions-spacy">
                                                     Definitions
@@ -423,15 +466,15 @@
 
                                     {# Temporal #}
                                     <div class="col-md-3 mb-3">
-                                        <div class="border rounded p-2 bg-white h-100">
+                                        <div class="border rounded p-2 h-100">
                                             <h6 class="mb-2">
                                                 <i class="fas fa-clock text-secondary me-1"></i>Temporal
                                             </h6>
                                             <div class="form-check">
                                                 <input class="form-check-input tool-checkbox" type="checkbox"
-                                                       name="tools-{{ doc.id }}[]" value="extract_temporal_spacy"
+                                                       name="tools-{{ doc.id }}[]" value="extract_temporal"
                                                        id="tool-{{ doc.id }}-temporal-spacy"
-                                                       {{ 'checked' if 'extract_temporal_spacy' in recommended or 'temporal_spacy' in recommended else '' }}
+                                                       {{ 'checked' if 'extract_temporal' in recommended or 'extract_temporal_spacy' in recommended or 'temporal_spacy' in recommended else '' }}
                                                        onchange="updateToolSummary('{{ doc.id }}')">
                                                 <label class="form-check-label small" for="tool-{{ doc.id }}-temporal-spacy">
                                                     Temporal Markers
@@ -535,6 +578,24 @@ function collapseAllEditors() {
     });
 }
 
+function getToolClass(tool) {
+    if (tool.includes('segment')) return 'tool-segment';
+    if (tool.includes('embed')) return 'tool-embed';
+    if (tool.includes('entit')) return 'tool-entity';
+    if (tool.includes('definition')) return 'tool-definition';
+    if (tool.includes('temporal')) return 'tool-temporal';
+    return 'tool-entity';
+}
+
+function getToolIcon(tool) {
+    if (tool.includes('segment')) return 'fa-cut';
+    if (tool.includes('embed')) return 'fa-vector-square';
+    if (tool.includes('entit')) return 'fa-tags';
+    if (tool.includes('definition')) return 'fa-book';
+    if (tool.includes('temporal')) return 'fa-clock';
+    return 'fa-cog';
+}
+
 function updateToolSummary(docId) {
     const summary = document.getElementById(`tool-summary-${docId}`);
     const checkboxes = document.querySelectorAll(`input[name="tools-${docId}[]"]:checked`);
@@ -546,7 +607,9 @@ function updateToolSummary(docId) {
 
     let html = '';
     checkboxes.forEach(cb => {
-        html += `<span class="tool-badge active"><i class="fas fa-check me-1"></i>${formatToolName(cb.value)}</span>`;
+        const toolClass = getToolClass(cb.value);
+        const toolIcon = getToolIcon(cb.value);
+        html += `<span class="tool-badge ${toolClass}"><i class="fas ${toolIcon} me-1"></i>${formatToolName(cb.value)}</span>`;
     });
     summary.innerHTML = html;
 }
@@ -570,32 +633,22 @@ function collectModifiedStrategy() {
 async function approveStrategy() {
     const modifiedStrategy = collectModifiedStrategy();
     const reviewNotes = document.getElementById('review-notes').value;
-    const generatePeriods = document.getElementById('generate-periods')?.checked || false;
+    const generatePeriodsCheckbox = document.getElementById('generate-periods');
+    const generatePeriods = generatePeriodsCheckbox ? generatePeriodsCheckbox.checked : false;
 
     // Disable buttons during submission
     document.querySelectorAll('.sticky-actions button').forEach(btn => btn.disabled = true);
 
     try {
-        // If generating periods, do that first
-        if (generatePeriods && !{{ 'true' if has_existing_periods else 'false' }}) {
-            const periodResponse = await fetch(`/experiments/${experimentId}/generate_periods_from_documents`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' }
-            });
-
-            if (!periodResponse.ok) {
-                console.warn('Period generation failed, continuing anyway');
-            }
-        }
-
-        // Submit strategy approval
+        // Submit strategy approval with generate_periods flag
         const response = await fetch(`/experiments/orchestration/approve-strategy/${runId}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 strategy_approved: true,
                 modified_strategy: modifiedStrategy,
-                review_notes: reviewNotes
+                review_notes: reviewNotes,
+                generate_periods: generatePeriods
             })
         });
 

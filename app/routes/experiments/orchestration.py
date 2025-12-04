@@ -4,19 +4,14 @@ Experiments LLM Orchestration Routes
 This module handles human-in-the-loop LLM orchestration for experiments.
 
 Routes:
-- GET  /experiments/<id>/orchestrated_analysis         - Orchestrated analysis UI
-- POST /experiments/<id>/create_orchestration_decision - Create orchestration decision
-- POST /experiments/<id>/run_orchestrated_analysis     - Run orchestrated analysis
-- GET  /experiments/<id>/orchestration-results         - View orchestration results
 - GET  /experiments/<id>/orchestration-provenance.json - Download PROV-O JSON
-
-NEW LLM Analyze Routes:
 - POST /experiments/<id>/orchestration/analyze         - Start LLM orchestration
 - GET  /orchestration/status/<run_id>                  - Poll orchestration status
 - POST /orchestration/approve-strategy/<run_id>        - Approve strategy & continue
+- GET  /experiments/<id>/orchestration/review/<run_id> - Review strategy page
 - GET  /experiments/<id>/orchestration/llm-results/<run_id> - View LLM results
 
-REFACTORED: Now uses OrchestrationService with DTO validation
+Uses OrchestrationService with DTO validation
 """
 
 from flask import render_template, request, jsonify
@@ -24,18 +19,12 @@ from flask_login import current_user
 from app.utils.auth_decorators import api_require_login_for_write
 from app.services.orchestration_service import get_orchestration_service
 from app.services.workflow_executor import get_workflow_executor
-from app.services.base_service import ServiceError, ValidationError, NotFoundError
+from app.services.base_service import ServiceError, NotFoundError
 import markdown
-from app.dto.orchestration_dto import (
-    CreateOrchestrationDecisionDTO,
-    RunOrchestratedAnalysisDTO
-)
 from app.models.experiment_orchestration_run import ExperimentOrchestrationRun
 from app.models import Experiment
 from app import db
-from pydantic import ValidationError as PydanticValidationError
 import logging
-from uuid import UUID
 from datetime import datetime
 
 from . import experiments_bp
@@ -46,202 +35,6 @@ workflow_executor = get_workflow_executor()
 
 # Background execution handled by LangGraph AsyncPostgresSaver
 # No Celery or external workers needed
-
-
-@experiments_bp.route('/<int:experiment_id>/orchestrated_analysis')
-@api_require_login_for_write
-def orchestrated_analysis(experiment_id):
-    """
-    Human-in-the-loop orchestrated analysis interface
-
-    REFACTORED: Now uses OrchestrationService
-    """
-    try:
-        # Get orchestration UI data from service
-        data = orchestration_service.get_orchestration_ui_data(experiment_id)
-
-        return render_template(
-            'experiments/orchestrated_analysis.html',
-            experiment=data['experiment'],
-            decisions=data['decisions'],
-            patterns=data['patterns'],
-            terms=data['terms']
-        )
-
-    except NotFoundError as e:
-        logger.warning(f"Experiment {experiment_id} not found: {e}")
-        from flask import abort
-        abort(404)
-
-    except ServiceError as e:
-        logger.error(f"Service error getting orchestration UI data: {e}", exc_info=True)
-        from flask import abort
-        abort(500)
-
-
-@experiments_bp.route('/<int:experiment_id>/create_orchestration_decision', methods=['POST'])
-@api_require_login_for_write
-def create_orchestration_decision(experiment_id):
-    """
-    Create a new orchestration decision for human feedback
-
-    REFACTORED: Now uses OrchestrationService with DTO validation
-    """
-    try:
-        # Validate request data using DTO
-        data = CreateOrchestrationDecisionDTO(**request.get_json())
-
-        # Call service to create decision
-        result = orchestration_service.create_orchestration_decision(
-            experiment_id,
-            term_text=data.term_text,
-            user_id=current_user.id
-        )
-
-        return jsonify({
-            'success': True,
-            'message': 'Orchestration decision created successfully',
-            'decision_id': result['decision_id'],
-            'selected_tools': result['selected_tools'],
-            'embedding_model': result['embedding_model'],
-            'confidence': result['confidence'],
-            'reasoning': result['reasoning']
-        }), 201
-
-    except PydanticValidationError as e:
-        # Validation errors from DTO
-        logger.warning(f"Validation error creating orchestration decision for experiment {experiment_id}: {e}")
-        return jsonify({
-            'success': False,
-            'error': 'Validation failed',
-            'details': e.errors()
-        }), 400
-
-    except ValidationError as e:
-        # Business validation errors
-        logger.warning(f"Business validation error: {e}")
-        return jsonify({
-            'success': False,
-            'error': str(e)
-        }), 400
-
-    except ServiceError as e:
-        # Service errors (database, etc.)
-        logger.error(f"Service error creating orchestration decision for experiment {experiment_id}: {e}", exc_info=True)
-        return jsonify({
-            'success': False,
-            'error': 'Failed to create orchestration decision'
-        }), 500
-
-    except Exception as e:
-        # Unexpected errors
-        logger.error(f"Unexpected error creating orchestration decision for experiment {experiment_id}: {e}", exc_info=True)
-        return jsonify({
-            'success': False,
-            'error': str(e)
-        }), 500
-
-
-@experiments_bp.route('/<int:experiment_id>/run_orchestrated_analysis', methods=['POST'])
-@api_require_login_for_write
-def run_orchestrated_analysis(experiment_id):
-    """
-    Run analysis with LLM orchestration decisions and real-time feedback
-
-    REFACTORED: Now uses OrchestrationService with DTO validation
-    """
-    try:
-        # Validate request data using DTO
-        data = RunOrchestratedAnalysisDTO(**request.get_json())
-
-        # Call service to run analysis
-        result = orchestration_service.run_orchestrated_analysis(
-            experiment_id,
-            terms=data.terms,
-            user_id=current_user.id
-        )
-
-        return jsonify({
-            'success': True,
-            'message': f'Orchestrated analysis initiated for {len(data.terms)} terms',
-            'results': result['results'],
-            'total_decisions': result['total_decisions']
-        }), 200
-
-    except PydanticValidationError as e:
-        # Validation errors from DTO
-        logger.warning(f"Validation error running orchestrated analysis for experiment {experiment_id}: {e}")
-        return jsonify({
-            'success': False,
-            'error': 'Validation failed',
-            'details': e.errors()
-        }), 400
-
-    except ValidationError as e:
-        # Business validation errors
-        logger.warning(f"Business validation error: {e}")
-        return jsonify({
-            'success': False,
-            'error': str(e)
-        }), 400
-
-    except ServiceError as e:
-        # Service errors (database, etc.)
-        logger.error(f"Service error running orchestrated analysis for experiment {experiment_id}: {e}", exc_info=True)
-        return jsonify({
-            'success': False,
-            'error': 'Failed to run orchestrated analysis'
-        }), 500
-
-    except Exception as e:
-        # Unexpected errors
-        logger.error(f"Unexpected error running orchestrated analysis for experiment {experiment_id}: {e}", exc_info=True)
-        return jsonify({
-            'success': False,
-            'error': str(e)
-        }), 500
-
-
-@experiments_bp.route('/<int:experiment_id>/orchestration-results')
-def orchestration_results(experiment_id):
-    """
-    Display orchestration results for an experiment
-
-    REFACTORED: Now uses OrchestrationService
-    """
-    try:
-        # Get orchestration results from service
-        data = orchestration_service.get_orchestration_results(experiment_id)
-
-        # Allow template override via query parameter (for backward compatibility)
-        template = request.args.get('template', 'enhanced')
-        if template == 'compact':
-            template_name = 'experiments/orchestration_results.html'
-        else:
-            template_name = 'experiments/orchestration_results_enhanced.html'
-
-        return render_template(
-            template_name,
-            experiment=data['experiment'],
-            decisions=data['decisions'],
-            total_decisions=data['total_decisions'],
-            completed_decisions=data['completed_decisions'],
-            avg_confidence=data['avg_confidence'],
-            recent_decision=data['recent_decision'],
-            cross_document_insights=data['cross_document_insights'],
-            duration=data['duration'],
-            document_count=data['document_count']
-        )
-
-    except NotFoundError as e:
-        logger.warning(f"Experiment {experiment_id} not found: {e}")
-        from flask import abort
-        abort(404)
-
-    except ServiceError as e:
-        logger.error(f"Service error getting orchestration results: {e}", exc_info=True)
-        from flask import abort
-        abort(500)
 
 
 @experiments_bp.route('/<int:experiment_id>/orchestration-provenance.json')
@@ -650,41 +443,89 @@ def orchestration_review_page(experiment_id, run_id):
         suggested_periods = []
 
         if experiment.experiment_type == 'temporal_evolution':
-            from app.models.temporal_experiment import DocumentTemporalMetadata
-
-            # Check for existing periods
-            existing_meta = DocumentTemporalMetadata.query.filter_by(
-                experiment_id=experiment_id
-            ).all()
-
-            if existing_meta:
-                has_existing_periods = True
-                # Group by period
-                period_docs = {}
-                for meta in existing_meta:
-                    period_name = meta.temporal_period
-                    if period_name not in period_docs:
-                        period_docs[period_name] = {
-                            'temporal_period': period_name,
-                            'temporal_start_year': meta.temporal_start_year,
-                            'temporal_end_year': meta.temporal_end_year,
-                            'marker_color': meta.marker_color,
-                            'document_count': 0
-                        }
-                    period_docs[period_name]['document_count'] += 1
-
-                existing_periods = list(period_docs.values())
-            else:
-                # Suggest periods based on document dates
-                from app.services.temporal_service import TemporalService
-                temporal_service = TemporalService()
-
+            # First check experiment.configuration for named_periods (preferred storage)
+            config = experiment.configuration or {}
+            # Handle case where config is a JSON string
+            if isinstance(config, str):
+                import json
                 try:
-                    result = temporal_service.generate_periods_from_documents(experiment_id)
-                    if result.get('success') and result.get('periods'):
-                        suggested_periods = result['periods']
-                except Exception as e:
-                    logger.warning(f"Could not suggest periods: {e}")
+                    config = json.loads(config)
+                except (json.JSONDecodeError, TypeError):
+                    config = {}
+            named_periods = config.get('named_periods', [])
+            period_documents = config.get('period_documents', {})
+
+            if named_periods:
+                has_existing_periods = True
+                for period in named_periods:
+                    # Count documents in this period's year range
+                    start_year = period.get('start_year')
+                    end_year = period.get('end_year')
+                    doc_count = 0
+                    for year_str, docs in period_documents.items():
+                        try:
+                            year = int(year_str)
+                            if start_year and end_year and start_year <= year <= end_year:
+                                doc_count += len(docs) if isinstance(docs, list) else 1
+                        except (ValueError, TypeError):
+                            pass
+
+                    existing_periods.append({
+                        'temporal_period': period.get('name', 'Unnamed Period'),
+                        'temporal_start_year': start_year,
+                        'temporal_end_year': end_year,
+                        'description': period.get('description', ''),
+                        'marker_color': '#6c757d',  # Default color
+                        'document_count': doc_count
+                    })
+            else:
+                # Fall back to DocumentTemporalMetadata table
+                from app.models.temporal_experiment import DocumentTemporalMetadata
+
+                existing_meta = DocumentTemporalMetadata.query.filter_by(
+                    experiment_id=experiment_id
+                ).all()
+
+                if existing_meta:
+                    has_existing_periods = True
+                    # Group by period
+                    period_docs = {}
+                    for meta in existing_meta:
+                        period_name = meta.temporal_period
+                        if period_name not in period_docs:
+                            period_docs[period_name] = {
+                                'temporal_period': period_name,
+                                'temporal_start_year': meta.temporal_start_year,
+                                'temporal_end_year': meta.temporal_end_year,
+                                'marker_color': meta.marker_color,
+                                'document_count': 0
+                            }
+                        period_docs[period_name]['document_count'] += 1
+
+                    existing_periods = list(period_docs.values())
+
+            # If no existing periods, suggest auto-generating one per document
+            if not has_existing_periods:
+                # Build suggested periods - one per document based on publication date
+                for doc in documents:
+                    if doc.publication_date:
+                        year = doc.publication_date.year
+                        suggested_periods.append({
+                            'name': f"{doc.title[:30]}..." if len(doc.title or '') > 30 else (doc.title or 'Untitled'),
+                            'start_year': year,
+                            'end_year': year,
+                            'document_id': doc.id,
+                            'document_count': 1
+                        })
+
+            # Also get time_periods (individual years) and period_documents for artifact display
+            time_periods = config.get('time_periods', [])
+            period_documents = config.get('period_documents', {})
+            period_metadata = config.get('period_metadata', {})
+        else:
+            time_periods = []
+            period_documents = {}
+            period_metadata = {}
 
         return render_template(
             'experiments/orchestration_review.html',
@@ -694,7 +535,10 @@ def orchestration_review_page(experiment_id, run_id):
             recommended_strategy=recommended_strategy,
             has_existing_periods=has_existing_periods,
             existing_periods=existing_periods,
-            suggested_periods=suggested_periods
+            suggested_periods=suggested_periods,
+            time_periods=time_periods,
+            period_documents=period_documents,
+            period_metadata=period_metadata
         )
 
     except Exception as e:
@@ -758,6 +602,45 @@ def approve_orchestration_strategy(run_id):
                 'status': 'cancelled',
                 'message': 'Strategy rejected'
             }), 200
+
+        # Handle generate_periods option for temporal_evolution experiments
+        generate_periods = data.get('generate_periods', False)
+        if generate_periods:
+            experiment = run.experiment
+            if experiment and experiment.experiment_type == 'temporal_evolution':
+                # Check if periods already exist
+                from app.models.temporal_experiment import DocumentTemporalMetadata
+                existing_meta = DocumentTemporalMetadata.query.filter_by(
+                    experiment_id=experiment.id
+                ).first()
+
+                # Also check configuration
+                config = experiment.configuration or {}
+                has_named_periods = bool(config.get('named_periods'))
+
+                if not existing_meta and not has_named_periods:
+                    # Create one temporal period per document based on publication date
+                    from app.models import Document
+                    documents = experiment.documents
+
+                    for doc in documents:
+                        if doc.publication_date:
+                            year = doc.publication_date.year
+                            period_name = f"{year}"
+
+                            meta = DocumentTemporalMetadata(
+                                document_id=doc.id,
+                                experiment_id=experiment.id,
+                                temporal_period=period_name,
+                                temporal_start_year=year,
+                                temporal_end_year=year,
+                                publication_year=year,
+                                extraction_method='auto_generated'
+                            )
+                            db.session.add(meta)
+
+                    db.session.flush()
+                    logger.info(f"Generated temporal metadata for {len(documents)} documents in experiment {experiment.id}")
 
         # Store approval info
         run.strategy_approved = True
