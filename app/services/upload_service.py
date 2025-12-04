@@ -411,7 +411,9 @@ class UploadService:
             'citation_count': metadata.get('citation_count'),  # Citation count from Semantic Scholar
             'extraction_method': metadata.get('extraction_method'),  # Method used (arxiv_id, doi, title_search)
             'confidence_level': metadata.get('confidence_level'),  # high, low
-            'confidence_value': metadata.get('confidence_value')  # 0.0-1.0
+            'confidence_value': metadata.get('confidence_value'),  # 0.0-1.0
+            'extracted_title': metadata.get('extracted_title'),  # PDF-extracted title (for low-confidence fallback)
+            'extracted_authors': metadata.get('extracted_authors')  # PDF-extracted authors (for low-confidence fallback)
         }
 
     def merge_metadata(self, *metadata_dicts: Dict[str, Any]) -> Dict[str, Any]:
