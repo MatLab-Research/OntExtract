@@ -106,7 +106,8 @@ def process_document(experiment_id, document_uuid):
             previous_doc_id=data['previous_doc_id'],
             next_doc_id=data['next_doc_id'],
             all_versions=data.get('all_versions', []),
-            is_latest_version=data.get('is_latest_version', True)
+            is_latest_version=data.get('is_latest_version', True),
+            has_cleanup=data.get('has_cleanup', False)
         )
 
     except ValidationError as e:
