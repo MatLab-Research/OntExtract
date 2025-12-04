@@ -77,19 +77,30 @@ Segmentation creates TextSegment artifacts with:
 
 Create vector representations for semantic similarity search.
 
-### Embedding Providers
+### Embedding Methods
 
-| Provider | Model | Requirements |
-|----------|-------|--------------|
-| **Local** | sentence-transformers | None (default) |
-| **OpenAI** | text-embedding-ada-002 | OpenAI API key |
+| Method | Description | Best For |
+|--------|-------------|----------|
+| **Local** | Standard sentence-transformers model | General modern text |
+| **Period Aware** | Selects model based on document era/domain | Historical or domain-specific text |
+| **OpenAI** | text-embedding-ada-002 | High accuracy (requires API key) |
 
 ### How to Run
 
 1. Go to **Document Pipeline** or document detail
 2. Check **Embeddings** in Processing Operations
-3. Select embedding method (Local or OpenAI)
+3. Select embedding method
 4. Click **Run Selected Operations**
+
+### Period-Aware Embeddings
+
+For historical documents or specialized domains, use **Period Aware** embeddings. This automatically selects appropriate models based on:
+
+- Document publication date
+- Domain (scientific, legal, biomedical)
+- Detected archaic language patterns
+
+See [Period-Aware Embeddings](period-aware-embeddings.md) for detailed information.
 
 ### Results
 

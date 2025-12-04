@@ -72,6 +72,7 @@ nav:
       - Create Temporal Experiment: how-to/create-temporal-experiment.md
       - LLM Orchestration: how-to/llm-orchestration.md
       - Process Documents: how-to/document-processing.md
+      - Period-Aware Embeddings: how-to/period-aware-embeddings.md
       - View Results: how-to/view-results.md
       - Provenance Tracking: how-to/provenance-tracking.md
   - FAQ: faq.md

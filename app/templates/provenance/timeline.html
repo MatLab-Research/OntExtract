@@ -6,16 +6,27 @@
 <div class="container-fluid mt-4">
     <div class="row mb-4">
         <div class="col">
-            <h1 class="h3">
-                <i class="fas fa-history me-2"></i>
-                Provenance Timeline
-            </h1>
-            <p class="text-muted">
-                W3C PROV-O standard relationships:
-                <span class="badge bg-light text-dark">prov:wasAssociatedWith</span>
-                <span class="badge bg-light text-dark">prov:generated</span>
+            <div class="d-flex align-items-center mb-2">
+                <h1 class="h3 mb-0 me-3">
+                    <i class="fas fa-history me-2"></i>
+                    Provenance Timeline
+                </h1>
+                <!-- View Switcher -->
+                <div class="btn-group" role="group" aria-label="View switcher">
+                    <a href="{{ url_for('provenance.provenance_graph', experiment_id=selected_experiment_id, document_id=selected_document_id, term_id=selected_term_id) }}" class="btn btn-outline-primary btn-sm">
+                        <i class="fas fa-project-diagram me-1"></i>Graph
+                    </a>
+                    <a href="{{ url_for('provenance.timeline', experiment_id=selected_experiment_id, document_id=selected_document_id, term_id=selected_term_id) }}" class="btn btn-primary btn-sm">
+                        <i class="fas fa-stream me-1"></i>Timeline
+                    </a>
+                </div>
+            </div>
+            <p class="text-muted mb-0">
+                W3C PROV-O relationships:
+                <span class="badge bg-light text-dark">prov:wasGeneratedBy</span>
                 <span class="badge bg-light text-dark">prov:used</span>
                 <span class="badge bg-light text-dark">prov:wasDerivedFrom</span>
+                <span class="badge bg-light text-dark">prov:wasAssociatedWith</span>
             </p>
         </div>
         {% if current_user.is_admin %}
@@ -156,10 +167,10 @@
                                 </div>
                             </div>
                             <div class="card-body">
-                                <!-- Agent (PROV-O: wasAssociatedWith) -->
+                                <!-- Activity wasAssociatedWith Agent -->
                                 {% if item.agent %}
                                 <div class="mb-2">
-                                    <strong><span class="text-muted small">prov:</span>wasAssociatedWith</strong>
+                                    <strong>Activity <span class="text-muted small">prov:</span>wasAssociatedWith</strong>
                                     <span class="badge bg-secondary">
                                         <i class="fas {{ 'fa-user' if item.agent.type == 'Person' else 'fa-robot' }}"></i>
                                         {{ item.agent.name }}
@@ -229,10 +240,10 @@
                                 </div>
                                 {% endif %}
 
-                                <!-- Used entities (PROV-O: used) -->
+                                <!-- Activity used these Entities -->
                                 {% if item.used %}
                                 <div class="mb-2">
-                                    <strong><span class="text-muted small">prov:</span>used</strong>
+                                    <strong>Activity <span class="text-muted small">prov:</span>used</strong>
                                     {% for entity in item.used %}
                                         {% if entity.type == 'term' and entity.value and entity.value.term_id %}
                                             <a href="{{ url_for('terms.view_term', term_id=entity.value.term_id) }}" class="badge bg-info me-1 text-decoration-none">
@@ -257,10 +268,10 @@
                                 </div>
                                 {% endif %}
 
-                                <!-- Generated entities (PROV-O: generated) -->
+                                <!-- Entities wasGeneratedBy this Activity -->
                                 {% if item.generated %}
                                 <div class="mb-2">
-                                    <strong><span class="text-muted small">prov:</span>generated</strong>
+                                    <strong>Entities <span class="text-muted small">prov:</span>wasGeneratedBy</strong>
                                     {% for entity in item.generated %}
                                         {% if entity.type == 'term' and entity.value and entity.value.term_id %}
                                             <a href="{{ url_for('terms.view_term', term_id=entity.value.term_id) }}" class="badge bg-success me-1 text-decoration-none">

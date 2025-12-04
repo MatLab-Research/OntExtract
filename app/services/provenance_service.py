@@ -1181,12 +1181,19 @@ class ProvenanceService:
         db.session.add(activity)
         db.session.flush()
 
+        # Find the origin document entity to link derivation
+        doc_entity = ProvEntity.query.filter(
+            ProvEntity.entity_type == 'document',
+            ProvEntity.entity_value['document_id'].astext == str(document.id)
+        ).order_by(ProvEntity.created_at.asc()).first()
+
         # Create entity for the processed document
         entity = ProvEntity(
             entity_type='document',
             generatedattime=current_time,
             wasgeneratedby=activity.activity_id,
             wasattributedto=agent.agent_id,
+            wasderivedfrom=doc_entity.entity_id if doc_entity else None,
             entity_value=_serialize_value({
                 'document_id': document.id,
                 'document_uuid': str(document.uuid) if hasattr(document, 'uuid') else None,
@@ -1719,6 +1726,9 @@ class ProvenanceService:
                 ProvActivity.activity_parameters['experiment_id'].astext == str(experiment_id)
             )
 
+        # Track the origin document entity to add as root node
+        origin_doc_entity = None
+
         if document_id:
             # Get all versions of this document
             from app.models.document import Document
@@ -1733,12 +1743,115 @@ class ProvenanceService:
                     ])
                 )
 
+                # Find the origin document entity (the original uploaded document)
+                # This is the entity created by document_upload activity
+                origin_doc = doc.get_original_document() if hasattr(doc, 'get_original_document') else doc
+                origin_doc_entity = ProvEntity.query.filter(
+                    ProvEntity.entity_type == 'document',
+                    ProvEntity.entity_value['document_id'].astext == str(origin_doc.id)
+                ).order_by(ProvEntity.created_at.asc()).first()
+
         if term_id:
             query = query.filter(
                 ProvActivity.activity_parameters['term_id'].astext == str(term_id)
             )
 
         activities = query.limit(limit).all()
+
+        # Add the origin document entity as the root node if filtering by document
+        if origin_doc_entity:
+            origin_id = str(origin_doc_entity.entity_id)
+            if origin_id not in seen_nodes:
+                seen_nodes.add(origin_id)
+
+                # Build label from entity value
+                origin_label = 'Original Document'
+                if origin_doc_entity.entity_value:
+                    if 'title' in origin_doc_entity.entity_value:
+                        title = origin_doc_entity.entity_value.get('title', '')
+                        origin_label = title[:30] + '...' if len(title) > 30 else title
+                    elif 'filename' in origin_doc_entity.entity_value:
+                        origin_label = origin_doc_entity.entity_value['filename']
+
+                nodes.append({
+                    'data': {
+                        'id': origin_id,
+                        'label': origin_label,
+                        'type': 'entity',
+                        'description': 'Original uploaded document',
+                        'entity_type': 'document',
+                        'value': origin_doc_entity.entity_value,
+                        'is_origin': True
+                    },
+                    'classes': 'entity origin'
+                })
+
+                # Also add the upload activity and agent if they exist
+                if origin_doc_entity.wasgeneratedby:
+                    upload_activity = ProvActivity.query.get(origin_doc_entity.wasgeneratedby)
+                    if upload_activity:
+                        upload_activity_id = str(upload_activity.activity_id)
+                        if upload_activity_id not in seen_nodes:
+                            seen_nodes.add(upload_activity_id)
+                            nodes.append({
+                                'data': {
+                                    'id': upload_activity_id,
+                                    'label': upload_activity.activity_type.replace('_', '\n'),
+                                    'type': 'activity',
+                                    'description': f"Started: {upload_activity.startedattime.strftime('%Y-%m-%d %H:%M') if upload_activity.startedattime else 'N/A'}",
+                                    'full_type': upload_activity.activity_type,
+                                    'status': upload_activity.activity_status
+                                },
+                                'classes': 'activity'
+                            })
+
+                        # wasGeneratedBy edge from origin document to upload activity
+                        gen_edge_id = f"gen_{origin_id}_{upload_activity_id}"
+                        if gen_edge_id not in seen_nodes:
+                            seen_nodes.add(gen_edge_id)
+                            edges.append({
+                                'data': {
+                                    'id': gen_edge_id,
+                                    'source': origin_id,
+                                    'target': upload_activity_id,
+                                    'label': 'wasGeneratedBy'
+                                },
+                                'classes': 'generated'
+                            })
+
+                        # Add agent for upload activity
+                        if upload_activity.wasassociatedwith:
+                            upload_agent = ProvAgent.query.get(upload_activity.wasassociatedwith)
+                            if upload_agent:
+                                upload_agent_id = str(upload_agent.agent_id)
+                                if upload_agent_id not in seen_nodes:
+                                    seen_nodes.add(upload_agent_id)
+                                    # Add 'person' class for Person agents (purple styling)
+                                    agent_classes = 'agent person' if upload_agent.agent_type == 'Person' else 'agent'
+                                    nodes.append({
+                                        'data': {
+                                            'id': upload_agent_id,
+                                            'label': upload_agent.foaf_name or 'Unknown',
+                                            'type': 'agent',
+                                            'description': upload_agent.agent_type,
+                                            'agent_type': upload_agent.agent_type
+                                        },
+                                        'classes': agent_classes
+                                    })
+
+                                # wasAssociatedWith edge
+                                assoc_edge_id = f"assoc_{upload_activity_id}_{upload_agent_id}"
+                                if assoc_edge_id not in seen_nodes:
+                                    seen_nodes.add(assoc_edge_id)
+                                    edges.append({
+                                        'data': {
+                                            'id': assoc_edge_id,
+                                            'source': upload_activity_id,
+                                            'target': upload_agent_id,
+                                            'label': 'wasAssociatedWith'
+                                        },
+                                        'classes': 'associated'
+                                    })
 
         # Collect all agents, activities, and entities
         for activity in activities:
@@ -1766,6 +1879,8 @@ class ProvenanceService:
                     agent_id = str(agent.agent_id)
                     if agent_id not in seen_nodes:
                         seen_nodes.add(agent_id)
+                        # Add 'person' class for Person agents (purple styling)
+                        agent_classes = 'agent person' if agent.agent_type == 'Person' else 'agent'
                         nodes.append({
                             'data': {
                                 'id': agent_id,
@@ -1774,7 +1889,7 @@ class ProvenanceService:
                                 'description': agent.agent_type,
                                 'agent_type': agent.agent_type
                             },
-                            'classes': 'agent'
+                            'classes': agent_classes
                         })
 
                     # wasAssociatedWith edge
@@ -1877,7 +1992,7 @@ class ProvenanceService:
             'nodes': nodes,
             'edges': edges,
             'stats': {
-                'entities': len([n for n in nodes if n['classes'] == 'entity']),
+                'entities': len([n for n in nodes if 'entity' in n['classes']]),
                 'activities': len([n for n in nodes if n['classes'] == 'activity']),
                 'agents': len([n for n in nodes if n['classes'] == 'agent'])
             }
