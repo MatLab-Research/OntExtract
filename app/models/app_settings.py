@@ -11,9 +11,13 @@ class AppSetting(db.Model):
     Settings are stored as JSONB for flexibility.
     """
     __tablename__ = 'app_settings'
+    __table_args__ = (
+        db.UniqueConstraint('setting_key', 'user_id', name='uq_setting_key_user_id'),
+    )
 
     id = db.Column(db.Integer, primary_key=True)
-    setting_key = db.Column(db.String(100), unique=True, nullable=False, index=True)
+    # Unique per (setting_key, user_id) - allows system + user overrides
+    setting_key = db.Column(db.String(100), nullable=False, index=True)
     setting_value = db.Column(db.JSON, nullable=False)
     category = db.Column(db.String(50), nullable=False, index=True)  # 'prompts', 'nlp', 'processing', 'llm', 'ui'
     data_type = db.Column(db.String(20), nullable=False)  # 'string', 'integer', 'boolean', 'json'
