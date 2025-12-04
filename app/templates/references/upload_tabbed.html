@@ -59,8 +59,15 @@
                                 </div>
 
                                 <div id="metadata-extraction-status" class="mb-3" style="display: none;">
-                                    <div class="alert alert-secondary">
-                                        <i class="fas fa-spinner fa-spin"></i> <span id="extraction-message">Analyzing PDF...</span>
+                                    <div class="card">
+                                        <div class="card-header py-2 bg-light">
+                                            <i class="fas fa-spinner fa-spin" id="extraction-spinner"></i>
+                                            <span id="extraction-header">Analyzing PDF...</span>
+                                        </div>
+                                        <div class="card-body py-2">
+                                            <div id="extraction-progress" class="small text-muted" style="max-height: 150px; overflow-y: auto;">
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
 
@@ -310,9 +317,14 @@ function handleFileSelect(fileInput) {
 
     // Show loading status
     const statusDiv = document.getElementById('metadata-extraction-status');
-    const messageSpan = document.getElementById('extraction-message');
+    const headerSpan = document.getElementById('extraction-header');
+    const progressDiv = document.getElementById('extraction-progress');
+    const spinner = document.getElementById('extraction-spinner');
+
     statusDiv.style.display = 'block';
-    messageSpan.textContent = 'Analyzing PDF... Extracting DOI, title, and querying Zotero...';
+    headerSpan.textContent = 'Analyzing PDF...';
+    progressDiv.innerHTML = '<div class="text-muted">Starting extraction...</div>';
+    spinner.className = 'fas fa-spinner fa-spin';
 
     // Create form data
     const formData = new FormData();
@@ -325,43 +337,57 @@ function handleFileSelect(fileInput) {
     })
     .then(response => response.json())
     .then(result => {
+        // Display progress messages
+        if (result.progress && result.progress.length > 0) {
+            progressDiv.innerHTML = result.progress.map(msg => {
+                // Color code different message types
+                let icon = 'fas fa-circle';
+                let colorClass = 'text-muted';
+                if (msg.includes('Found')) {
+                    icon = 'fas fa-check';
+                    colorClass = 'text-success';
+                } else if (msg.includes('Not found') || msg.includes('failed')) {
+                    icon = 'fas fa-times';
+                    colorClass = 'text-warning';
+                } else if (msg.includes('Checking') || msg.includes('Extracting') || msg.includes('Scanning')) {
+                    icon = 'fas fa-search';
+                    colorClass = 'text-info';
+                }
+                return `<div class="${colorClass}"><i class="${icon} fa-xs me-1"></i>${msg}</div>`;
+            }).join('');
+        }
+
         if (result.success) {
             // Populate form fields with extracted metadata
             populateFormFields(result.metadata);
 
-            // Update status message
-            let statusMessage = 'Successfully extracted metadata!';
-            if (result.zotero_match) {
-                statusMessage += ` (Found in Zotero: ${result.zotero_match.type} match, score: ${result.zotero_match.score.toFixed(2)})`;
+            // Update header to success
+            spinner.className = 'fas fa-check-circle text-success';
+            let statusMessage = 'Metadata extracted successfully';
+            if (result.source) {
+                statusMessage += ` (via ${result.source})`;
             }
-
-            statusDiv.innerHTML = `
-                <div class="alert alert-success">
-                    <i class="fas fa-check-circle"></i> ${statusMessage}
-                </div>
-            `;
+            headerSpan.textContent = statusMessage;
 
             // Log to console for debugging
             console.log('Extracted metadata:', result.metadata);
-            if (result.zotero_match) {
-                console.log('Zotero match:', result.zotero_match);
-            }
         } else {
-            // Show error
-            statusDiv.innerHTML = `
-                <div class="alert alert-warning">
-                    <i class="fas fa-exclamation-triangle"></i> Could not extract metadata: ${result.error || 'Unknown error'}
-                </div>
-            `;
-            console.error('Metadata extraction failed:', result.error);
+            // Partial success - may have some metadata from PDF
+            spinner.className = 'fas fa-exclamation-triangle text-warning';
+            headerSpan.textContent = 'Extraction complete (some fields may be missing)';
+
+            // Still try to populate what we got
+            if (result.metadata) {
+                populateFormFields(result.metadata);
+            }
+
+            console.log('Partial extraction:', result.metadata, result.error);
         }
     })
     .catch(error => {
-        statusDiv.innerHTML = `
-            <div class="alert alert-danger">
-                <i class="fas fa-times-circle"></i> Error: ${error.message || 'Network error'}
-            </div>
-        `;
+        spinner.className = 'fas fa-times-circle text-danger';
+        headerSpan.textContent = 'Extraction failed';
+        progressDiv.innerHTML = `<div class="text-danger">${error.message || 'Network error'}</div>`;
         console.error('Metadata extraction error:', error);
     });
 }

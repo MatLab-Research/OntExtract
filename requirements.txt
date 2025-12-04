@@ -155,6 +155,7 @@ Pygments==2.19.2
 pymdown-extensions==10.17.1
 pyparsing==3.2.5
 pypdf==5.1.0
+pdfplumber==0.11.8
 pytest==7.4.3
 pytest-flask==1.3.0
 python-dateutil==2.9.0

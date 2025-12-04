@@ -57,12 +57,13 @@ class PDFAnalyzer:
         except ImportError:
             logger.warning("pdfplumber not available - title extraction will be limited")
 
-    def analyze(self, pdf_path: str) -> Dict[str, Any]:
+    def analyze(self, pdf_path: str, progress_callback=None) -> Dict[str, Any]:
         """
         Analyze PDF and extract all possible metadata.
 
         Args:
             pdf_path: Path to PDF file
+            progress_callback: Optional callback function(message: str) for progress updates
 
         Returns:
             Dictionary with extracted metadata:
@@ -73,6 +74,7 @@ class PDFAnalyzer:
             - abstract: Extracted abstract if found
             - metadata: PDF embedded metadata
             - extraction_methods: List of methods used
+            - progress: List of progress messages
         """
         result = {
             'doi': None,
@@ -81,43 +83,56 @@ class PDFAnalyzer:
             'authors': None,
             'abstract': None,
             'metadata': {},
-            'extraction_methods': []
+            'extraction_methods': [],
+            'progress': []
         }
+
+        def report_progress(message: str):
+            """Report progress both to callback and result list."""
+            result['progress'].append(message)
+            if progress_callback:
+                progress_callback(message)
+            logger.info(message)
+
+        report_progress("Scanning PDF for identifiers...")
 
         # Try arXiv ID extraction (check filename first, then content)
         arxiv_id = self.extract_arxiv_id(pdf_path)
         if arxiv_id:
             result['arxiv_id'] = arxiv_id
             result['extraction_methods'].append('arxiv_id_from_filename_or_text')
-            logger.info(f"Extracted arXiv ID from PDF: {arxiv_id}")
+            report_progress(f"Found arXiv ID: {arxiv_id}")
 
         # Try DOI extraction (most reliable for CrossRef lookup)
         doi = self.extract_doi(pdf_path)
         if doi:
             result['doi'] = doi
             result['extraction_methods'].append('doi_from_text')
-            logger.info(f"Extracted DOI from PDF: {doi}")
+            report_progress(f"Found DOI: {doi}")
 
         # Try title extraction
+        report_progress("Extracting title from PDF...")
         title = self.extract_title(pdf_path)
         if title:
             result['title'] = title
             result['extraction_methods'].append('title_from_text')
-            logger.info(f"Extracted title from PDF: {title[:50]}...")
+            # Truncate for display
+            display_title = title[:60] + '...' if len(title) > 60 else title
+            report_progress(f"Found title: {display_title}")
 
         # Try author extraction
+        report_progress("Extracting authors...")
         authors = self.extract_authors(pdf_path)
         if authors:
             result['authors'] = authors
             result['extraction_methods'].append('authors_from_text')
-            logger.info(f"Extracted {len(authors)} authors from PDF")
+            report_progress(f"Found {len(authors)} author(s)")
 
         # Try abstract extraction
         abstract = self.extract_abstract(pdf_path)
         if abstract:
             result['abstract'] = abstract
             result['extraction_methods'].append('abstract_from_text')
-            logger.info(f"Extracted abstract from PDF ({len(abstract)} chars)")
 
         # Try embedded metadata
         metadata = self.extract_metadata(pdf_path)
@@ -128,7 +143,8 @@ class PDFAnalyzer:
             # Use embedded data if we don't have it yet
             if not result['title'] and metadata.get('title'):
                 result['title'] = metadata['title']
-                logger.info(f"Using title from PDF metadata: {metadata['title'][:50]}...")
+                display_title = metadata['title'][:60] + '...' if len(metadata['title']) > 60 else metadata['title']
+                report_progress(f"Found title in PDF metadata: {display_title}")
 
             if not result['authors'] and metadata.get('author'):
                 # Parse author string (may be comma-separated)
@@ -137,7 +153,7 @@ class PDFAnalyzer:
                     result['authors'] = [a.strip() for a in re.split('[,;]', author_str)]
                 else:
                     result['authors'] = [author_str]
-                logger.info(f"Using authors from PDF metadata: {result['authors']}")
+                report_progress(f"Found {len(result['authors'])} author(s) in PDF metadata")
 
         return result
 
