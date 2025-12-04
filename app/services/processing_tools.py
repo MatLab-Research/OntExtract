@@ -1043,22 +1043,25 @@ class DocumentProcessor:
                 provenance=self._generate_provenance("extract_definitions")
             )
 
-    def period_aware_embedding(self, text: str, period: Optional[str] = None) -> ProcessingResult:
+    def period_aware_embedding(self, text: str, period: Optional[str] = None,
+                                domain: Optional[str] = None) -> ProcessingResult:
         """
         Generate period-aware embeddings for semantic drift analysis.
 
-        Uses the shared EmbeddingService with period detection to:
-        - Automatically detect document period from temporal markers
-        - Select appropriate embedding model for the period
+        Uses the PeriodAwareEmbeddingService to:
+        - Automatically detect document period from temporal markers or text analysis
+        - Select appropriate embedding model for the period and domain
         - Generate embeddings suitable for diachronic analysis
 
-        If period is not specified, attempts to extract from document.
+        From the JCDL paper: "The architecture selects period-appropriate embedding
+        models based on the temporal and domain characteristics of the text."
 
         Requires: sentence-transformers
 
         Args:
             text: The document text to embed
-            period: Optional time period (e.g., "1950s", "contemporary", "2000-2010")
+            period: Optional time period (e.g., "1950s", "1850", "2000-2010")
+            domain: Optional domain hint (e.g., "scientific", "legal", "philosophy")
 
         Returns:
             ProcessingResult with embedding data containing:
@@ -1066,90 +1069,78 @@ class DocumentProcessor:
             - period: detected or specified period
             - model: model used for embedding
             - dimensions: embedding dimensionality
+            - selection_reason: why this model was chosen
+            - selection_confidence: confidence in model selection
         """
         try:
-            from shared_services.embedding.embedding_service import EmbeddingService
+            from app.services.period_aware_embedding_service import get_period_aware_embedding_service
             import re
-            from datetime import datetime
 
-            # Initialize embedding service
+            # Initialize period-aware embedding service
             try:
-                embedding_service = EmbeddingService()
+                period_service = get_period_aware_embedding_service()
             except Exception as e:
                 return ProcessingResult(
                     tool_name="period_aware_embedding",
                     status="error",
                     data=[],
-                    metadata={"error": f"Failed to initialize embedding service: {str(e)}"},
+                    metadata={"error": f"Failed to initialize period-aware embedding service: {str(e)}"},
                     provenance=self._generate_provenance("period_aware_embedding")
                 )
 
-            # If no period specified, try to extract from text
-            detected_period = period
-            period_confidence = 1.0 if period else 0.0
-
-            if not period:
-                # Extract years from text
-                year_pattern = r'\b(1[6-9]\d{2}|20[0-2]\d)\b'
-                years = [int(y) for y in re.findall(year_pattern, text)]
-
-                if years:
-                    # Use median year as representative period
-                    median_year = sorted(years)[len(years) // 2]
-
-                    # Map to period categories
-                    if median_year < 1900:
-                        detected_period = "pre-1900"
-                    elif median_year < 1950:
-                        detected_period = "early-20th-century"
-                    elif median_year < 1980:
-                        detected_period = "mid-20th-century"
-                    elif median_year < 2000:
-                        detected_period = "late-20th-century"
-                    elif median_year < 2010:
-                        detected_period = "early-21st-century"
-                    else:
-                        detected_period = "contemporary"
-
-                    period_confidence = 0.75
-                else:
-                    # No clear period markers - use contemporary
-                    detected_period = "contemporary"
-                    period_confidence = 0.50
+            # Parse year from period parameter if provided
+            doc_year = None
+            if period:
+                year_match = re.search(r'\b(1[6-9]\d{2}|20[0-2]\d)\b', str(period))
+                if year_match:
+                    doc_year = int(year_match.group(1))
 
             # Limit text length for embedding (most models have token limits)
             max_chars = 5000
             text_to_embed = text[:max_chars] if len(text) > max_chars else text
 
-            # Generate embedding
+            # Generate period-aware embedding using the service
             try:
-                embedding_vector = embedding_service.get_embedding(text_to_embed)
-                model_name = embedding_service.get_model_name()
-                dimensions = embedding_service.get_dimension()
+                result = period_service.generate_period_aware_embedding(
+                    text=text_to_embed,
+                    year=doc_year,
+                    domain=domain,
+                    metadata={"text_length": len(text), "truncated": len(text) > max_chars}
+                )
+
+                embedding_vector = result.get('embedding', [])
+                model_name = result.get('model_used', 'unknown')
+                dimensions = result.get('dimension', len(embedding_vector) if embedding_vector else 0)
 
                 # Calculate some additional metadata
                 token_estimate = len(text_to_embed.split())
 
                 metadata = {
-                    "period": detected_period,
-                    "period_confidence": period_confidence,
+                    "period": result.get('period_detected') or period or "unknown",
+                    "period_confidence": result.get('selection_confidence', 0.5),
                     "period_detection": "manual" if period else "automatic",
                     "model": model_name,
+                    "model_description": result.get('model_description', ''),
+                    "selection_reason": result.get('selection_reason', ''),
                     "dimensions": dimensions,
                     "text_length": len(text),
                     "text_embedded": len(text_to_embed),
                     "truncated": len(text) > max_chars,
                     "estimated_tokens": token_estimate,
-                    "embedding_type": "period_aware"
+                    "embedding_type": "period_aware",
+                    "domain_detected": result.get('domain_detected'),
+                    "generated_at": result.get('generated_at')
                 }
 
                 # The embedding is returned as both metadata and data
                 # Data contains the actual vector for downstream processing
                 data = {
                     "embedding": embedding_vector,
-                    "period": detected_period,
+                    "period": metadata["period"],
                     "model": model_name,
-                    "dimensions": dimensions
+                    "dimensions": dimensions,
+                    "selection_confidence": result.get('selection_confidence', 0.5),
+                    "selection_reason": result.get('selection_reason', '')
                 }
 
                 return ProcessingResult(
@@ -1157,7 +1148,10 @@ class DocumentProcessor:
                     status="success",
                     data=data,
                     metadata=metadata,
-                    provenance=self._generate_provenance("period_aware_embedding", f"{len(text)} chars, period={detected_period}")
+                    provenance=self._generate_provenance(
+                        "period_aware_embedding",
+                        f"{len(text)} chars, period={metadata['period']}, model={model_name}"
+                    )
                 )
 
             except Exception as e:
@@ -1167,7 +1161,7 @@ class DocumentProcessor:
                     data={},
                     metadata={
                         "error": f"Embedding generation failed: {str(e)}",
-                        "period": detected_period,
+                        "period": period,
                         "text_length": len(text)
                     },
                     provenance=self._generate_provenance("period_aware_embedding")

@@ -62,10 +62,10 @@ class PeriodAwareEmbeddingService:
             'era': 'modern'
         },
         'contemporary_2000plus': {
-            'model': 'sentence-transformers/all-roberta-base-v1',
+            'model': 'sentence-transformers/all-roberta-large-v1',
             'description': 'Contemporary model for modern language patterns',
             'handles_archaic': False,
-            'dimension': 768,
+            'dimension': 1024,
             'era': 'contemporary'
         },
         # Domain-specific models
@@ -434,3 +434,97 @@ def get_period_aware_embedding_service() -> PeriodAwareEmbeddingService:
     if _period_aware_service is None:
         _period_aware_service = PeriodAwareEmbeddingService()
     return _period_aware_service
+
+
+def ensure_models_downloaded(download: bool = True) -> Dict[str, Any]:
+    """
+    Setup utility to check and download required embedding models.
+
+    This should be run BEFORE deploying the application, not during runtime.
+    Embedding models are large (100-400MB each) and should be pre-downloaded.
+
+    Run this during:
+    - Initial setup: `python -c "from app.services.period_aware_embedding_service import ensure_models_downloaded; ensure_models_downloaded()"`
+    - Docker build: Add to Dockerfile
+    - CI/CD: As part of deployment pipeline
+
+    Args:
+        download: If True, download missing models. If False, only check status.
+
+    Returns:
+        Dictionary with status information:
+        - models_checked: List of model names that were checked
+        - models_available: List of models already cached
+        - models_missing: List of models not cached
+        - models_downloaded: List of models downloaded (if download=True)
+        - errors: Any errors encountered
+
+    Usage:
+        # Check status only (quick, no downloads)
+        status = ensure_models_downloaded(download=False)
+
+        # Download all missing models (run during setup)
+        status = ensure_models_downloaded(download=True)
+
+    CLI usage:
+        python -c "from app.services.period_aware_embedding_service import ensure_models_downloaded; print(ensure_models_downloaded())"
+    """
+    # Get the list of models from the service
+    service = PeriodAwareEmbeddingService()
+    models = service.PERIOD_MODELS
+
+    # Get unique model names
+    unique_models = set()
+    for config in models.values():
+        unique_models.add(config['model'])
+
+    cache_base = os.path.expanduser("~/.cache/huggingface/hub")
+
+    result = {
+        'models_checked': list(unique_models),
+        'models_available': [],
+        'models_missing': [],
+        'models_downloaded': [],
+        'errors': []
+    }
+
+    for model_name in unique_models:
+        # Convert model name to cache directory format
+        cache_name = model_name.replace("/", "--")
+        model_path = os.path.join(cache_base, f"models--{cache_name}")
+
+        # Check if model is cached
+        is_cached = False
+        if os.path.exists(model_path):
+            snapshots = os.path.join(model_path, "snapshots")
+            if os.path.exists(snapshots) and os.listdir(snapshots):
+                is_cached = True
+
+        if is_cached:
+            result['models_available'].append(model_name)
+        else:
+            result['models_missing'].append(model_name)
+
+            if download:
+                try:
+                    logger.info(f"Downloading model: {model_name}")
+                    from sentence_transformers import SentenceTransformer
+                    SentenceTransformer(model_name)
+                    result['models_downloaded'].append(model_name)
+                    result['models_available'].append(model_name)
+                    result['models_missing'].remove(model_name)
+                except Exception as e:
+                    error_msg = f"Failed to download {model_name}: {str(e)}"
+                    logger.error(error_msg)
+                    result['errors'].append(error_msg)
+
+    return result
+
+
+def check_models_status() -> Dict[str, Any]:
+    """
+    Quick check of model status without downloading.
+
+    Returns a summary of which models are available and which need downloading.
+    """
+    return ensure_models_downloaded(download=False)

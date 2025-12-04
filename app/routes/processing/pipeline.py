@@ -150,10 +150,47 @@ def generate_embeddings(document_uuid):
             from shared_services.embedding.embedding_service import EmbeddingService
             from datetime import datetime
             import time
-            
+
+            # Period-aware embedding metadata (populated if using period_aware method)
+            period_selection_info = None
+
             # Initialize embedding service with user-selected method
             # Map method names to provider priority (selected method first, then fallbacks)
-            if embedding_method == 'openai':
+            if embedding_method == 'period_aware':
+                # Use PeriodAwareEmbeddingService for intelligent model selection
+                from app.services.period_aware_embedding_service import get_period_aware_embedding_service
+                period_service = get_period_aware_embedding_service()
+
+                # Extract year from document metadata if available
+                doc_year = None
+                if original_document.publication_date:
+                    doc_year = original_document.publication_date.year
+                elif force_period:
+                    # Try to parse year from force_period parameter
+                    import re
+                    year_match = re.search(r'\b(1[6-9]\d{2}|20[0-2]\d)\b', str(force_period))
+                    if year_match:
+                        doc_year = int(year_match.group(1))
+
+                # Get period-appropriate model selection with metadata for later storage
+                period_selection_info = period_service.select_model_for_period(
+                    year=doc_year,
+                    domain=model_preference,  # Use model_preference as domain hint
+                    text_sample=processing_version.content[:1000] if auto_detect_period else None
+                )
+                # Store the detected year in the selection info for result metadata
+                period_selection_info['period_detected'] = doc_year
+
+                app.logger.info(f"Period-aware model selection: {period_selection_info['model']} "
+                              f"(reason: {period_selection_info['selection_reason']}, "
+                              f"confidence: {period_selection_info['selection_confidence']})")
+
+                # Use local provider - the period_selection_info metadata tracks which model was selected
+                # In a full implementation, this would configure the embedding service to use
+                # the specific model (e.g., HistBERT for historical texts)
+                provider_priority = ['local']
+
+            elif embedding_method == 'openai':
                 provider_priority = ['openai', 'local']
             elif embedding_method == 'claude':
                 provider_priority = ['claude', 'local']
@@ -194,7 +231,7 @@ def generate_embeddings(document_uuid):
             
             job.status = 'completed'
             job.processing_time = processing_time
-            job.set_result_data({
+            result_data = {
                 'embedding_method': embedding_method,
                 'embedding_dimensions': dimension,
                 'chunk_count': chunk_count,
@@ -202,7 +239,21 @@ def generate_embeddings(document_uuid):
                 'model_used': model_name,
                 'total_embeddings': len(embeddings),
                 'content_length': len(content)
-            })
+            }
+
+            # Add period-aware selection metadata if available
+            if period_selection_info:
+                result_data['period_aware'] = {
+                    'selected_model': period_selection_info.get('model'),
+                    'selection_reason': period_selection_info.get('selection_reason'),
+                    'selection_confidence': period_selection_info.get('selection_confidence'),
+                    'era': period_selection_info.get('era'),
+                    'domain': period_selection_info.get('domain'),
+                    'handles_archaic': period_selection_info.get('handles_archaic', False),
+                    'detected_year': period_selection_info.get('period_detected')
+                }
+
+            job.set_result_data(result_data)
 
             # Track embedding generation with PROV-O
             from app.services.provenance_service import provenance_service
