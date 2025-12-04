@@ -284,7 +284,8 @@
     </div>
 </div>
 
-<!-- Delete All Confirmation Modal -->
+<!-- Delete All Confirmation Modal (Admin Only) -->
+{% if current_user.is_admin %}
 <div class="modal fade" id="deleteAllModal" tabindex="-1" aria-labelledby="deleteAllModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
@@ -323,13 +324,14 @@
         </div>
     </div>
 </div>
+{% endif %}
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     const confirmText = document.getElementById('confirmText');
     const confirmButton = document.getElementById('confirmDeleteAll');
 
-    // Enable button only when correct text is entered
+    // Enable button only when correct text is entered (admin only)
     if (confirmText && confirmButton) {
         confirmText.addEventListener('input', function() {
             confirmButton.disabled = this.value !== 'DELETE ALL';
