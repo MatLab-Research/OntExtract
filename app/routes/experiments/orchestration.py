@@ -616,12 +616,19 @@ def approve_orchestration_strategy(run_id):
 
                 # Also check configuration
                 config = experiment.configuration or {}
+                # Handle case where config is a JSON string
+                if isinstance(config, str):
+                    import json
+                    try:
+                        config = json.loads(config)
+                    except (json.JSONDecodeError, TypeError):
+                        config = {}
                 has_named_periods = bool(config.get('named_periods'))
 
                 if not existing_meta and not has_named_periods:
                     # Create one temporal period per document based on publication date
                     from app.models import Document
-                    documents = experiment.documents
+                    documents = experiment.documents.all()  # Convert to list for len()
 
                     for doc in documents:
                         if doc.publication_date:
