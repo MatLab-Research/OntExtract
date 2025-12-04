@@ -1579,9 +1579,37 @@ class ProvenanceService:
             )
 
         if term_id:
-            query = query.filter(
-                ProvActivity.activity_parameters['term_id'].astext == str(term_id)
-            )
+            # Find activities directly associated with this term
+            # AND activities that generated the source entities the term is derived from
+            from uuid import UUID
+            term_uuid = UUID(term_id) if isinstance(term_id, str) else term_id
+
+            # Get the term entity to find its derivation chain
+            term_entity = ProvEntity.query.filter_by(entity_type='term').filter(
+                ProvEntity.entity_value['term_id'].astext == str(term_id)
+            ).first()
+
+            # Collect all activity IDs that should be included
+            related_activity_ids = set()
+
+            # Include activities that generated source entities the term is derived from
+            if term_entity and term_entity.wasderivedfrom:
+                source_entity = ProvEntity.query.get(term_entity.wasderivedfrom)
+                if source_entity and source_entity.wasgeneratedby:
+                    related_activity_ids.add(source_entity.wasgeneratedby)
+
+            # Build the filter: term_id in parameters OR activity_id in related activities
+            if related_activity_ids:
+                query = query.filter(
+                    db.or_(
+                        ProvActivity.activity_parameters['term_id'].astext == str(term_id),
+                        ProvActivity.activity_id.in_(related_activity_ids)
+                    )
+                )
+            else:
+                query = query.filter(
+                    ProvActivity.activity_parameters['term_id'].astext == str(term_id)
+                )
 
         # Handle document filtering - support both single ID and list of IDs
         if document_ids:

@@ -340,6 +340,7 @@
 
     let cy; // Cytoscape instance
     let currentScenario = 'live';
+    let selectedNode = null; // Track currently selected node for highlight path
 
     // Filter parameters from server
     const filterParams = {
@@ -471,13 +472,19 @@
                         'edge-distances': 'node-position'
                     }
                 },
-                // Highlighted elements
+                // Highlighted nodes
                 {
-                    selector: '.highlighted',
+                    selector: 'node.highlighted',
                     style: {
                         'border-width': 4,
                         'border-color': '#FFD700',
-                        'background-color': '#FFF9C4',
+                        'background-color': '#FFF9C4'
+                    }
+                },
+                // Highlighted edges
+                {
+                    selector: 'edge.highlighted',
+                    style: {
                         'line-color': '#FFD700',
                         'target-arrow-color': '#FFD700',
                         'width': 5
@@ -502,7 +509,15 @@
 
         // Event handlers
         cy.on('tap', 'node', function (evt) {
+            selectedNode = evt.target;
             showNodeDetails(evt.target);
+        });
+
+        // Clear selection when clicking background
+        cy.on('tap', function (evt) {
+            if (evt.target === cy) {
+                selectedNode = null;
+            }
         });
 
         cy.on('mouseover', 'node', function (evt) {
@@ -782,26 +797,41 @@
         cy.layout(layout).run();
     }
 
-    // Highlight provenance path
+    // Highlight provenance path for selected node
     function highlightPath() {
         // Reset all highlights
         cy.elements().removeClass('highlighted');
 
-        // Find the drift analysis node and trace back its provenance
-        const driftNode = cy.$('#drift_analysis');
-        if (driftNode.length > 0) {
-            // Highlight the node itself
-            driftNode.addClass('highlighted');
-
-            // Recursively highlight predecessors
-            function highlightPredecessors(node) {
-                const incoming = node.incomers();
-                incoming.addClass('highlighted');
-                incoming.nodes().forEach(n => highlightPredecessors(n));
-            }
-
-            highlightPredecessors(driftNode);
+        // Use selected node, or prompt user to select one
+        if (!selectedNode) {
+            alert('Please click on a node first to select it, then click "Highlight Path" to trace its provenance.');
+            return;
         }
+
+        // Highlight the selected node
+        selectedNode.addClass('highlighted');
+
+        // Recursively highlight predecessors (trace back provenance)
+        function highlightPredecessors(node) {
+            const incoming = node.incomers();
+            incoming.addClass('highlighted');
+            incoming.nodes().forEach(n => highlightPredecessors(n));
+        }
+
+        highlightPredecessors(selectedNode);
+
+        // Update details panel to show what was highlighted
+        const nodeLabel = selectedNode.data('label').replace(/\n/g, ' ');
+        const highlightedNodes = cy.nodes('.highlighted').length;
+        const highlightedEdges = cy.edges('.highlighted').length;
+
+        document.getElementById('detailsPanel').innerHTML += `
+            <hr>
+            <p class="small text-info mb-0">
+                <i class="fas fa-route me-1"></i>
+                Showing provenance path: ${highlightedNodes} nodes, ${highlightedEdges} edges
+            </p>
+        `;
     }
 
     // Reset view
