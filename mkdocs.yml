@@ -75,6 +75,7 @@ nav:
       - Period-Aware Embeddings: how-to/period-aware-embeddings.md
       - View Results: how-to/view-results.md
       - Provenance Tracking: how-to/provenance-tracking.md
+      - Settings: how-to/settings.md
   - FAQ: faq.md
   - "↗ Back to OntExtract": "/"
 

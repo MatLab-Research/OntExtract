@@ -7,11 +7,14 @@ Uses LLM (Claude) to clean and improve document text quality by fixing:
 - Formatting problems (paragraph breaks, whitespace)
 - Scanning artifacts (headers, footers, page numbers)
 - Punctuation and quote normalization
+
+Supports both sequential and parallel chunk processing modes.
 """
 
 import os
 import logging
-from typing import Tuple, Dict, Any
+from typing import Tuple, Dict, Any, List
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 logger = logging.getLogger(__name__)
 
@@ -126,11 +129,30 @@ Return ONLY the cleaned text with no explanations, commentary, or additional for
             logger.error(f"Error cleaning text with Claude: {e}")
             raise
 
+    def _get_processing_settings(self) -> Tuple[bool, int]:
+        """
+        Get concurrent processing settings from AppSetting.
+
+        Returns:
+            Tuple of (concurrent_enabled, max_concurrent_chunks)
+        """
+        try:
+            from app.models.app_settings import AppSetting
+            concurrent_enabled = AppSetting.get_setting('concurrent_chunk_processing', default=True)
+            max_concurrent = AppSetting.get_setting('max_concurrent_chunks', default=3)
+            # Clamp max_concurrent to reasonable bounds
+            max_concurrent = max(1, min(10, int(max_concurrent)))
+            return concurrent_enabled, max_concurrent
+        except Exception as e:
+            logger.warning(f"Could not load processing settings, using defaults: {e}")
+            return True, 3
+
     def _clean_large_document(self, text: str, chunk_size: int, progress_callback=None) -> Tuple[str, Dict[str, Any]]:
         """
         Clean large documents by processing in chunks.
 
         Strategy: Split by paragraphs to maintain context and natural boundaries.
+        Supports both sequential and parallel processing based on settings.
 
         Args:
             text: The full text to clean
@@ -163,14 +185,34 @@ Return ONLY the cleaned text with no explanations, commentary, or additional for
             chunks_to_process.append('\n\n'.join(current_chunk))
 
         total_chunks = len(chunks_to_process)
-        logger.info(f"Processing {total_chunks} chunks for large document")
 
-        # Process each chunk
+        # Get processing settings
+        concurrent_enabled, max_concurrent = self._get_processing_settings()
+
+        if concurrent_enabled and total_chunks > 1:
+            logger.info(f"Processing {total_chunks} chunks in parallel (max {max_concurrent} concurrent)")
+            return self._clean_chunks_parallel(chunks_to_process, progress_callback, max_concurrent)
+        else:
+            logger.info(f"Processing {total_chunks} chunks sequentially")
+            return self._clean_chunks_sequential(chunks_to_process, progress_callback)
+
+    def _clean_chunks_sequential(self, chunks: List[str], progress_callback=None) -> Tuple[str, Dict[str, Any]]:
+        """
+        Process chunks sequentially (original behavior).
+
+        Args:
+            chunks: List of text chunks to clean
+            progress_callback: Optional callback function(current_chunk, total_chunks)
+
+        Returns:
+            Tuple of (cleaned_text, metadata_dict)
+        """
+        total_chunks = len(chunks)
         cleaned_paragraphs = []
         total_input_tokens = 0
         total_output_tokens = 0
 
-        for i, chunk_text in enumerate(chunks_to_process):
+        for i, chunk_text in enumerate(chunks):
             # Update progress before processing chunk
             if progress_callback:
                 progress_callback(i + 1, total_chunks)
@@ -185,15 +227,96 @@ Return ONLY the cleaned text with no explanations, commentary, or additional for
         # Combine all cleaned chunks
         cleaned_text = '\n\n'.join(cleaned_paragraphs)
 
+        original_length = sum(len(c) for c in chunks) + (len(chunks) - 1) * 2  # Account for \n\n separators
+
         metadata = {
             'model': 'claude-sonnet-4-5-20250929',
             'input_tokens': total_input_tokens,
             'output_tokens': total_output_tokens,
-            'original_length': len(text),
+            'original_length': original_length,
             'cleaned_length': len(cleaned_text),
             'chunks_processed': total_chunks,
-            'chunking_used': True
+            'chunking_used': True,
+            'processing_mode': 'sequential'
         }
 
-        logger.info(f"Large document cleaned: {total_chunks} chunks, {len(text)} -> {len(cleaned_text)} chars")
+        logger.info(f"Large document cleaned sequentially: {total_chunks} chunks")
+        return cleaned_text, metadata
+
+    def _clean_chunks_parallel(self, chunks: List[str], progress_callback=None, max_workers: int = 3) -> Tuple[str, Dict[str, Any]]:
+        """
+        Process chunks in parallel using ThreadPoolExecutor.
+
+        Maintains order by tracking chunk indices.
+
+        Args:
+            chunks: List of text chunks to clean
+            progress_callback: Optional callback function(current_chunk, total_chunks)
+            max_workers: Maximum concurrent API calls
+
+        Returns:
+            Tuple of (cleaned_text, metadata_dict)
+        """
+        total_chunks = len(chunks)
+        results = [None] * total_chunks  # Pre-allocate to maintain order
+        total_input_tokens = 0
+        total_output_tokens = 0
+        completed_count = 0
+
+        def process_chunk(index: int, chunk_text: str) -> Tuple[int, str, Dict[str, Any]]:
+            """Process a single chunk and return (index, cleaned_text, metadata)."""
+            cleaned_chunk, chunk_meta = self._clean_chunk(chunk_text)
+            return index, cleaned_chunk, chunk_meta
+
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            # Submit all chunks
+            futures = {
+                executor.submit(process_chunk, i, chunk): i
+                for i, chunk in enumerate(chunks)
+            }
+
+            # Process results as they complete
+            for future in as_completed(futures):
+                try:
+                    index, cleaned_chunk, chunk_meta = future.result()
+                    results[index] = cleaned_chunk
+
+                    # Update stats
+                    total_input_tokens += chunk_meta.get('input_tokens', 0)
+                    total_output_tokens += chunk_meta.get('output_tokens', 0)
+
+                    # Update progress (completed count, not index)
+                    completed_count += 1
+                    if progress_callback:
+                        progress_callback(completed_count, total_chunks)
+
+                except Exception as e:
+                    # Get the original chunk index for error reporting
+                    chunk_index = futures[future]
+                    logger.error(f"Error processing chunk {chunk_index}: {e}")
+                    raise RuntimeError(f"Failed to process chunk {chunk_index}: {e}")
+
+        # Verify all chunks were processed
+        if None in results:
+            missing = [i for i, r in enumerate(results) if r is None]
+            raise RuntimeError(f"Missing results for chunks: {missing}")
+
+        # Combine all cleaned chunks in order
+        cleaned_text = '\n\n'.join(results)
+
+        original_length = sum(len(c) for c in chunks) + (len(chunks) - 1) * 2  # Account for \n\n separators
+
+        metadata = {
+            'model': 'claude-sonnet-4-5-20250929',
+            'input_tokens': total_input_tokens,
+            'output_tokens': total_output_tokens,
+            'original_length': original_length,
+            'cleaned_length': len(cleaned_text),
+            'chunks_processed': total_chunks,
+            'chunking_used': True,
+            'processing_mode': 'parallel',
+            'max_concurrent': max_workers
+        }
+
+        logger.info(f"Large document cleaned in parallel: {total_chunks} chunks with {max_workers} workers")
         return cleaned_text, metadata

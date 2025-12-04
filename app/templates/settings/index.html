@@ -42,6 +42,13 @@
                         <i class="fas fa-history me-2"></i>Provenance
                     </button>
                 </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link {% if active_tab == 'processing' %}active{% endif %}"
+                            id="processing-tab" data-bs-toggle="tab" data-bs-target="#processing"
+                            type="button" role="tab">
+                        <i class="fas fa-microchip me-2"></i>Processing
+                    </button>
+                </li>
             </ul>
 
             <div class="tab-content mt-4" id="settingsTabContent">
@@ -338,6 +345,111 @@
                         </div>
                     </div>
                 </div>
+
+                <!-- Processing Tab -->
+                <div class="tab-pane fade {% if active_tab == 'processing' %}show active{% endif %}"
+                     id="processing" role="tabpanel">
+                    <div class="card">
+                        <div class="card-body">
+                            <h5 class="card-title">Text Cleanup Processing</h5>
+                            <p class="text-muted">
+                                Configure how document text is processed during LLM-based cleanup.
+                                Large documents are split into chunks for processing.
+                            </p>
+
+                            <form id="processing-settings-form">
+                                <!-- Concurrent Processing Toggle -->
+                                <div class="mb-4">
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input" type="checkbox"
+                                               id="concurrent_chunk_processing"
+                                               {% if settings.processing.concurrent_chunk_processing is not defined or settings.processing.concurrent_chunk_processing %}checked{% endif %}>
+                                        <label class="form-check-label" for="concurrent_chunk_processing">
+                                            <strong>Enable concurrent chunk processing</strong>
+                                        </label>
+                                    </div>
+                                    <div class="ms-4 mt-2">
+                                        <div class="alert alert-info py-2 mb-0">
+                                            <div class="row">
+                                                <div class="col-md-6">
+                                                    <strong><i class="fas fa-bolt me-1"></i>When enabled (default):</strong>
+                                                    <ul class="mb-0 small">
+                                                        <li>Multiple chunks processed simultaneously</li>
+                                                        <li>Faster overall processing time</li>
+                                                        <li>Higher concurrent API usage</li>
+                                                    </ul>
+                                                </div>
+                                                <div class="col-md-6">
+                                                    <strong><i class="fas fa-list-ol me-1"></i>When disabled:</strong>
+                                                    <ul class="mb-0 small">
+                                                        <li>Chunks processed one at a time</li>
+                                                        <li>Predictable, sequential progress</li>
+                                                        <li>Lower concurrent API usage</li>
+                                                    </ul>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <hr class="my-4">
+
+                                <!-- Max Concurrent Chunks -->
+                                <div class="mb-4" id="max-concurrent-section">
+                                    <label for="max_concurrent_chunks" class="form-label">
+                                        <strong>Maximum Concurrent Chunks</strong>
+                                        <span class="text-muted">(1 - 10)</span>
+                                    </label>
+                                    <div class="d-flex align-items-center gap-3">
+                                        <input type="range" class="form-range flex-grow-1" id="max_concurrent_chunks"
+                                               min="1" max="10" step="1"
+                                               value="{{ settings.processing.max_concurrent_chunks or 3 }}"
+                                               oninput="updateConcurrentDisplay(this.value)">
+                                        <span class="badge bg-primary fs-6" id="concurrent-display">{{ settings.processing.max_concurrent_chunks or 3 }}</span>
+                                    </div>
+                                    <small class="form-text text-muted">
+                                        Higher values = faster processing but more concurrent API calls.
+                                        <br><strong>Recommended: 3</strong> (balances speed and API rate limits)
+                                    </small>
+                                </div>
+
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-save me-2"></i>Save Changes
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+
+                    <!-- Processing Info -->
+                    <div class="card mt-4">
+                        <div class="card-body">
+                            <h5 class="card-title"><i class="fas fa-info-circle me-2"></i>How Text Cleanup Works</h5>
+                            <div class="row">
+                                <div class="col-md-4">
+                                    <h6><i class="fas fa-cut me-2 text-primary"></i>1. Chunking</h6>
+                                    <p class="small mb-0">
+                                        Documents over 8,000 characters are split by paragraph boundaries
+                                        to maintain natural context.
+                                    </p>
+                                </div>
+                                <div class="col-md-4">
+                                    <h6><i class="fas fa-cogs me-2 text-success"></i>2. Processing</h6>
+                                    <p class="small mb-0">
+                                        Each chunk is sent to Claude for OCR correction, spelling fixes,
+                                        and formatting improvements.
+                                    </p>
+                                </div>
+                                <div class="col-md-4">
+                                    <h6><i class="fas fa-object-group me-2 text-warning"></i>3. Reassembly</h6>
+                                    <p class="small mb-0">
+                                        Cleaned chunks are reassembled in order, preserving the
+                                        original document structure.
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -441,8 +553,13 @@ function updateConfidenceDisplay(value) {
     document.getElementById('confidence-display').textContent = parseFloat(value).toFixed(2);
 }
 
+// Update concurrent chunks display
+function updateConcurrentDisplay(value) {
+    document.getElementById('concurrent-display').textContent = value;
+}
+
 // Save settings forms
-['llm', 'nlp', 'provenance'].forEach(category => {
+['llm', 'nlp', 'provenance', 'processing'].forEach(category => {
     const form = document.getElementById(`${category}-settings-form`);
     if (form) {
         form.addEventListener('submit', async (e) => {

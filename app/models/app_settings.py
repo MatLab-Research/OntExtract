@@ -141,6 +141,12 @@ class AppSetting(db.Model):
              'When enabled, provenance records are permanently deleted with documents/terms/experiments. When disabled, records are marked as invalidated but preserved for audit trail.'),
             ('show_deleted_in_timeline', False, 'provenance', 'boolean',
              'Default visibility of invalidated items in timeline views (only relevant when purge_provenance_on_delete is disabled)'),
+
+            # Processing Settings
+            ('concurrent_chunk_processing', True, 'processing', 'boolean',
+             'Process document chunks in parallel during text cleanup. Faster but uses more API calls concurrently.'),
+            ('max_concurrent_chunks', 3, 'processing', 'integer',
+             'Maximum number of chunks to process simultaneously when concurrent processing is enabled (1-10).'),
         ]
 
         for key, value, category, data_type, description in defaults:
