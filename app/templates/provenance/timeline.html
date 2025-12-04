@@ -141,8 +141,8 @@
                     </div>
                 </div>
 
-                <!-- Row 2: Show limit and future search -->
-                <div class="row g-3">
+                <!-- Row 2: Show limit and include deleted -->
+                <div class="row g-3 align-items-center">
                     <!-- Limit -->
                     <div class="col-md-2">
                         <label class="form-label">Show</label>
@@ -154,9 +154,18 @@
                         </select>
                     </div>
 
-                    <!-- Placeholder for future search bar -->
-                    <div class="col-md-10">
-                        <!-- Future: Search bar will go here -->
+                    <!-- Include deleted items -->
+                    <div class="col-auto pt-4">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" name="include_deleted"
+                                   id="includeDeleted" value="true"
+                                   {% if include_deleted %}checked{% endif %}
+                                   onchange="this.form.submit()">
+                            <label class="form-check-label" for="includeDeleted" title="Show invalidated entities that were soft-deleted">
+                                <i class="fas fa-trash-restore me-1 text-muted"></i>
+                                Include deleted
+                            </label>
+                        </div>
                     </div>
                 </div>
             </form>

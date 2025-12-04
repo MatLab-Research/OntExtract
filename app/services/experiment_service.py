@@ -299,6 +299,16 @@ class ExperimentService(BaseService):
 
             experimental_versions_count = len(versions_to_delete)
 
+            # Handle provenance records (purge or invalidate based on settings)
+            # Only handle provenance for documents being deleted, not original documents
+            from app.services.provenance_service import provenance_service
+            doc_ids_to_delete = [v.id for v in versions_to_delete]
+            prov_result = provenance_service.delete_or_invalidate_experiment_provenance(
+                experiment_id=experiment_id,
+                document_ids=doc_ids_to_delete
+            )
+            logger.info(f"Provenance handling for experiment {experiment_id}: {prov_result}")
+
             # Delete ProcessingArtifactGroups for documents being deleted
             # Must do this BEFORE deleting documents to avoid FK constraint violation
             artifact_groups_deleted = 0

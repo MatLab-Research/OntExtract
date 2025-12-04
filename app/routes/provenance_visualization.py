@@ -107,6 +107,7 @@ def timeline():
     term_id = request.args.get('term_id')  # UUID string, not int
     activity_type = request.args.get('activity_type')
     limit = request.args.get('limit', 50, type=int)
+    include_deleted = request.args.get('include_deleted', '').lower() == 'true'
 
     # Convert document_uuid to document_id if provided
     if document_uuid and not document_id:
@@ -134,7 +135,8 @@ def timeline():
         document_ids=document_ids,
         activity_type=activity_type,
         term_id=term_id,
-        limit=limit
+        limit=limit,
+        include_invalidated=include_deleted
     )
 
     # Get experiments for filter dropdown
@@ -183,7 +185,8 @@ def timeline():
         selected_document_id=document_id,
         selected_activity_type=activity_type,
         selected_term_id=term_id,
-        version_count=len(document_ids) if document_ids else 0
+        version_count=len(document_ids) if document_ids else 0,
+        include_deleted=include_deleted
     )
 
 

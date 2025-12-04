@@ -1204,17 +1204,33 @@ document.getElementById('file-form').addEventListener('submit', async function(e
                     matchScore: result.match_score
                 };
 
-                // Create PDF-only metadata (exclude CrossRef fields)
-                uploadState.pdfExtractedData = {};
+                // Use PDF-extracted metadata from backend (includes title extracted from PDF)
+                uploadState.pdfExtractedData = result.pdf_extracted_metadata || {};
                 uploadState.provenance = {};
 
-                // Only keep fields that came from PDF or user input
-                for (const [key, value] of Object.entries(result.metadata)) {
-                    const prov = result.provenance[key];
-                    if (prov && (prov.source === 'file' || prov.source === 'user' || prov.source === 'pdf_analysis')) {
-                        uploadState.pdfExtractedData[key] = value;
-                        uploadState.provenance[key] = prov;
-                    }
+                // Add provenance for PDF-extracted fields
+                if (uploadState.pdfExtractedData.title) {
+                    uploadState.provenance['title'] = {
+                        source: 'pdf_analysis',
+                        confidence: 0.7,
+                        extraction_method: 'pdf_title_extraction'
+                    };
+                }
+                if (uploadState.pdfExtractedData.authors) {
+                    uploadState.provenance['authors'] = {
+                        source: 'pdf_analysis',
+                        confidence: 0.6,
+                        extraction_method: 'pdf_author_extraction'
+                    };
+                }
+
+                // Also keep filename from result
+                if (result.metadata.filename) {
+                    uploadState.pdfExtractedData.filename = result.metadata.filename;
+                    uploadState.provenance['filename'] = result.provenance?.filename || {
+                        source: 'file',
+                        confidence: 1.0
+                    };
                 }
 
                 // Use PDF-extracted data for the form
@@ -1278,7 +1294,7 @@ document.getElementById('file-form').addEventListener('submit', async function(e
                         // Show metadata review
                         setTimeout(() => {
                             console.log('Calling populateMetadataForm...');
-                            populateMetadataForm(result.metadata, uploadState.provenance);
+                            populateMetadataForm(uploadState.extractedMetadata, uploadState.provenance);
                             console.log('Calling showMetadataReview...');
                             showMetadataReview();
                             console.log('Metadata review should now be visible');
@@ -1287,7 +1303,7 @@ document.getElementById('file-form').addEventListener('submit', async function(e
                 } else {
                     // No progress messages, show review immediately
                     console.log('Calling populateMetadataForm...');
-                    populateMetadataForm(result.metadata, uploadState.provenance);
+                    populateMetadataForm(uploadState.extractedMetadata, uploadState.provenance);
                     console.log('Calling showMetadataReview...');
                     showMetadataReview();
                     console.log('Metadata review should now be visible');
@@ -1296,7 +1312,7 @@ document.getElementById('file-form').addEventListener('submit', async function(e
                 // Manual entry: hide loading and show review immediately
                 hideLoading();
                 console.log('Calling populateMetadataForm...');
-                populateMetadataForm(result.metadata, uploadState.provenance);
+                populateMetadataForm(uploadState.extractedMetadata, uploadState.provenance);
                 console.log('Calling showMetadataReview...');
                 showMetadataReview();
                 console.log('Metadata review should now be visible');

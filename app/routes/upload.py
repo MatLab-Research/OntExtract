@@ -381,6 +381,14 @@ def extract_metadata():
                         source_name = pdf_result.source  # 'semanticscholar', 'crossref', or 'pdf_analysis'
                         current_app.logger.info(f"PDF extraction successful via {source_name} using {extraction_method}")
 
+                        # Capture PDF-extracted title even when CrossRef succeeds (for low-confidence fallback)
+                        if crossref_metadata.get('extracted_title'):
+                            pdf_extracted_title = crossref_metadata['extracted_title']
+                            pdf_extracted_metadata = {'title': pdf_extracted_title}
+                            if crossref_metadata.get('extracted_authors'):
+                                pdf_extracted_metadata['authors'] = crossref_metadata['extracted_authors']
+                            current_app.logger.info(f"Captured PDF-extracted title for fallback: {pdf_extracted_title}")
+
                         # Track provenance (Semantic Scholar or CrossRef)
                         for key, value in crossref_metadata.items():
                             if value is not None:
@@ -639,7 +647,9 @@ def extract_metadata():
                     'extraction_method': extraction_method,
                     'confidence_level': confidence_level if crossref_metadata else None,
                     'match_score': match_score if crossref_metadata else None,
-                    'progress': progress_messages
+                    'progress': progress_messages,
+                    'pdf_extracted_title': pdf_extracted_title,
+                    'pdf_extracted_metadata': pdf_extracted_metadata
                 })
 
             except Exception as e:

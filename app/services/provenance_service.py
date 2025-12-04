@@ -1538,6 +1538,322 @@ class ProvenanceService:
         return activity, entity
 
     # ========================================================================
+    # PROVENANCE DELETION / INVALIDATION
+    # ========================================================================
+
+    @classmethod
+    def delete_or_invalidate_entity(
+        cls,
+        entity_id: uuid.UUID,
+        purge: bool = None,
+        deleted_by_user=None
+    ) -> Dict[str, Any]:
+        """
+        Delete or invalidate a provenance entity based on system settings.
+
+        If purge=True: Hard delete the entity and all relationships to/from it.
+        If purge=False: Set invalidatedattime to mark as deleted but preserve for audit.
+
+        Args:
+            entity_id: UUID of the ProvEntity to delete/invalidate
+            purge: Override system setting (None = use system setting)
+            deleted_by_user: User who initiated the deletion (for audit)
+
+        Returns:
+            Dict with 'success', 'action' ('purged' or 'invalidated'), and counts
+        """
+        from app.models.app_settings import AppSetting
+
+        # Determine whether to purge or invalidate
+        if purge is None:
+            purge = AppSetting.get_setting('purge_provenance_on_delete', default=True)
+
+        entity = ProvEntity.query.get(entity_id)
+        if not entity:
+            return {'success': False, 'error': 'Entity not found'}
+
+        if purge:
+            # Hard delete: remove entity and all relationships
+            relationships_deleted = ProvRelationship.query.filter(
+                db.or_(
+                    db.and_(
+                        ProvRelationship.subject_type == 'entity',
+                        ProvRelationship.subject_id == entity_id
+                    ),
+                    db.and_(
+                        ProvRelationship.object_type == 'entity',
+                        ProvRelationship.object_id == entity_id
+                    )
+                )
+            ).delete(synchronize_session=False)
+
+            db.session.delete(entity)
+            db.session.commit()
+
+            logger.info(f"Purged provenance entity {entity_id} and {relationships_deleted} relationships")
+            return {
+                'success': True,
+                'action': 'purged',
+                'entities_deleted': 1,
+                'relationships_deleted': relationships_deleted
+            }
+        else:
+            # Soft delete: set invalidatedattime
+            entity.invalidatedattime = datetime.utcnow()
+            db.session.commit()
+
+            logger.info(f"Invalidated provenance entity {entity_id}")
+            return {
+                'success': True,
+                'action': 'invalidated',
+                'entities_invalidated': 1
+            }
+
+    @classmethod
+    def delete_or_invalidate_document_provenance(
+        cls,
+        document_id: int,
+        purge: bool = None
+    ) -> Dict[str, Any]:
+        """
+        Delete or invalidate all provenance records for a document.
+
+        Args:
+            document_id: ID of the document being deleted
+            purge: Override system setting (None = use system setting)
+
+        Returns:
+            Dict with counts of affected records
+        """
+        from app.models.app_settings import AppSetting
+
+        if purge is None:
+            purge = AppSetting.get_setting('purge_provenance_on_delete', default=True)
+
+        # Find all entities related to this document
+        entities = ProvEntity.query.filter(
+            ProvEntity.entity_value['document_id'].astext == str(document_id)
+        ).all()
+
+        if not entities:
+            return {'success': True, 'entities_affected': 0}
+
+        entity_ids = [e.entity_id for e in entities]
+        total_relationships = 0
+
+        if purge:
+            # Delete relationships for all entities
+            for entity_id in entity_ids:
+                rel_count = ProvRelationship.query.filter(
+                    db.or_(
+                        db.and_(
+                            ProvRelationship.subject_type == 'entity',
+                            ProvRelationship.subject_id == entity_id
+                        ),
+                        db.and_(
+                            ProvRelationship.object_type == 'entity',
+                            ProvRelationship.object_id == entity_id
+                        )
+                    )
+                ).delete(synchronize_session=False)
+                total_relationships += rel_count
+
+            # Delete all entities
+            for entity in entities:
+                db.session.delete(entity)
+
+            db.session.commit()
+
+            logger.info(f"Purged {len(entities)} provenance entities and {total_relationships} relationships for document {document_id}")
+            return {
+                'success': True,
+                'action': 'purged',
+                'entities_deleted': len(entities),
+                'relationships_deleted': total_relationships
+            }
+        else:
+            # Invalidate all entities
+            for entity in entities:
+                entity.invalidatedattime = datetime.utcnow()
+
+            db.session.commit()
+
+            logger.info(f"Invalidated {len(entities)} provenance entities for document {document_id}")
+            return {
+                'success': True,
+                'action': 'invalidated',
+                'entities_invalidated': len(entities)
+            }
+
+    @classmethod
+    def delete_or_invalidate_term_provenance(
+        cls,
+        term_id: uuid.UUID,
+        purge: bool = None
+    ) -> Dict[str, Any]:
+        """
+        Delete or invalidate all provenance records for a term.
+
+        Args:
+            term_id: UUID of the term being deleted
+            purge: Override system setting (None = use system setting)
+
+        Returns:
+            Dict with counts of affected records
+        """
+        from app.models.app_settings import AppSetting
+
+        if purge is None:
+            purge = AppSetting.get_setting('purge_provenance_on_delete', default=True)
+
+        # Find all entities related to this term
+        entities = ProvEntity.query.filter(
+            ProvEntity.entity_value['term_id'].astext == str(term_id)
+        ).all()
+
+        if not entities:
+            return {'success': True, 'entities_affected': 0}
+
+        entity_ids = [e.entity_id for e in entities]
+        total_relationships = 0
+
+        if purge:
+            # Delete relationships for all entities
+            for entity_id in entity_ids:
+                rel_count = ProvRelationship.query.filter(
+                    db.or_(
+                        db.and_(
+                            ProvRelationship.subject_type == 'entity',
+                            ProvRelationship.subject_id == entity_id
+                        ),
+                        db.and_(
+                            ProvRelationship.object_type == 'entity',
+                            ProvRelationship.object_id == entity_id
+                        )
+                    )
+                ).delete(synchronize_session=False)
+                total_relationships += rel_count
+
+            # Delete all entities
+            for entity in entities:
+                db.session.delete(entity)
+
+            db.session.commit()
+
+            logger.info(f"Purged {len(entities)} provenance entities and {total_relationships} relationships for term {term_id}")
+            return {
+                'success': True,
+                'action': 'purged',
+                'entities_deleted': len(entities),
+                'relationships_deleted': total_relationships
+            }
+        else:
+            # Invalidate all entities
+            for entity in entities:
+                entity.invalidatedattime = datetime.utcnow()
+
+            db.session.commit()
+
+            logger.info(f"Invalidated {len(entities)} provenance entities for term {term_id}")
+            return {
+                'success': True,
+                'action': 'invalidated',
+                'entities_invalidated': len(entities)
+            }
+
+    @classmethod
+    def delete_or_invalidate_experiment_provenance(
+        cls,
+        experiment_id: int,
+        document_ids: List[int] = None,
+        purge: bool = None
+    ) -> Dict[str, Any]:
+        """
+        Delete or invalidate provenance records for an experiment and its documents.
+
+        Args:
+            experiment_id: ID of the experiment being deleted
+            document_ids: List of document IDs whose provenance should be affected
+            purge: Override system setting (None = use system setting)
+
+        Returns:
+            Dict with counts of affected records
+        """
+        from app.models.app_settings import AppSetting
+
+        if purge is None:
+            purge = AppSetting.get_setting('purge_provenance_on_delete', default=True)
+
+        total_entities = 0
+        total_relationships = 0
+
+        # Handle experiment's own provenance
+        exp_entities = ProvEntity.query.filter(
+            ProvEntity.entity_value['experiment_id'].astext == str(experiment_id)
+        ).all()
+
+        # Handle document provenance if document_ids provided
+        doc_entities = []
+        if document_ids:
+            for doc_id in document_ids:
+                doc_ents = ProvEntity.query.filter(
+                    ProvEntity.entity_value['document_id'].astext == str(doc_id)
+                ).all()
+                doc_entities.extend(doc_ents)
+
+        all_entities = exp_entities + doc_entities
+        if not all_entities:
+            return {'success': True, 'entities_affected': 0}
+
+        entity_ids = [e.entity_id for e in all_entities]
+
+        if purge:
+            # Delete relationships for all entities
+            for entity_id in entity_ids:
+                rel_count = ProvRelationship.query.filter(
+                    db.or_(
+                        db.and_(
+                            ProvRelationship.subject_type == 'entity',
+                            ProvRelationship.subject_id == entity_id
+                        ),
+                        db.and_(
+                            ProvRelationship.object_type == 'entity',
+                            ProvRelationship.object_id == entity_id
+                        )
+                    )
+                ).delete(synchronize_session=False)
+                total_relationships += rel_count
+
+            # Delete all entities
+            for entity in all_entities:
+                db.session.delete(entity)
+
+            total_entities = len(all_entities)
+            db.session.commit()
+
+            logger.info(f"Purged {total_entities} provenance entities and {total_relationships} relationships for experiment {experiment_id}")
+            return {
+                'success': True,
+                'action': 'purged',
+                'entities_deleted': total_entities,
+                'relationships_deleted': total_relationships
+            }
+        else:
+            # Invalidate all entities
+            for entity in all_entities:
+                entity.invalidatedattime = datetime.utcnow()
+
+            total_entities = len(all_entities)
+            db.session.commit()
+
+            logger.info(f"Invalidated {total_entities} provenance entities for experiment {experiment_id}")
+            return {
+                'success': True,
+                'action': 'invalidated',
+                'entities_invalidated': total_entities
+            }
+
+    # ========================================================================
     # QUERY HELPERS FOR TIMELINE UI
     # ========================================================================
 
@@ -1549,7 +1865,8 @@ class ProvenanceService:
         term_id: str = None,
         document_id: int = None,
         document_ids: List[int] = None,
-        limit: int = 100
+        limit: int = 100,
+        include_invalidated: bool = None
     ) -> List[Dict[str, Any]]:
         """
         Get chronological timeline of activities with entities and agents.
@@ -1562,10 +1879,15 @@ class ProvenanceService:
             document_id: Filter by single document (optional, deprecated - use document_ids)
             document_ids: Filter by multiple documents (optional) - for showing all versions
             limit: Maximum number of activities to return
+            include_invalidated: Include invalidated (deleted) entities. If None, uses system setting.
 
         Returns:
             List of timeline entries with full PROV-O context
         """
+        # Determine whether to include invalidated entities
+        if include_invalidated is None:
+            from app.models.app_settings import AppSetting
+            include_invalidated = AppSetting.get_setting('show_deleted_in_timeline', default=False)
         query = db.session.query(ProvActivity)\
             .order_by(ProvActivity.startedattime.desc())
 
@@ -1636,17 +1958,23 @@ class ProvenanceService:
         timeline = []
         for activity in activities:
             # Get generated entities
-            generated = ProvEntity.query.filter_by(wasgeneratedby=activity.activity_id).all()
+            gen_query = ProvEntity.query.filter_by(wasgeneratedby=activity.activity_id)
+            if not include_invalidated:
+                gen_query = gen_query.filter(ProvEntity.invalidatedattime.is_(None))
+            generated = gen_query.all()
 
             # Get used entities (via relationships)
             used_rels = ProvRelationship.query.filter_by(
                 relationship_type='used',
                 subject_id=activity.activity_id
             ).all()
-            used = [
-                ProvEntity.query.get(rel.object_id)
-                for rel in used_rels
-            ] if used_rels else []
+            used = []
+            for rel in used_rels:
+                entity = ProvEntity.query.get(rel.object_id)
+                if entity:
+                    # Filter out invalidated unless including them
+                    if include_invalidated or entity.invalidatedattime is None:
+                        used.append(entity)
 
             # Get agent
             agent = ProvAgent.query.get(activity.wasassociatedwith)
@@ -1657,12 +1985,24 @@ class ProvenanceService:
                 if entity.wasderivedfrom:
                     source_entity = ProvEntity.query.get(entity.wasderivedfrom)
                     if source_entity:
+                        # Include derived-from even if invalidated (for context)
                         derived_from.append({
                             'id': str(source_entity.entity_id),
                             'type': source_entity.entity_type,
                             'value': source_entity.entity_value,
-                            'for_entity_id': str(entity.entity_id)
+                            'for_entity_id': str(entity.entity_id),
+                            'invalidated': source_entity.invalidatedattime is not None
                         })
+
+            # Build entity data with invalidation status
+            def entity_to_dict(e):
+                return {
+                    'id': str(e.entity_id),
+                    'type': e.entity_type,
+                    'value': e.entity_value,
+                    'invalidated': e.invalidatedattime is not None,
+                    'invalidated_at': e.invalidatedattime.isoformat() if e.invalidatedattime else None
+                }
 
             timeline.append({
                 'activity': {
@@ -1678,22 +2018,8 @@ class ProvenanceService:
                     'type': agent.agent_type,
                     'name': agent.foaf_name
                 } if agent else None,
-                'generated': [
-                    {
-                        'id': str(e.entity_id),
-                        'type': e.entity_type,
-                        'value': e.entity_value
-                    }
-                    for e in generated
-                ],
-                'used': [
-                    {
-                        'id': str(e.entity_id),
-                        'type': e.entity_type,
-                        'value': e.entity_value
-                    }
-                    for e in used if e
-                ],
+                'generated': [entity_to_dict(e) for e in generated],
+                'used': [entity_to_dict(e) for e in used],
                 'derived_from': derived_from
             })
 

@@ -35,6 +35,13 @@
                         <i class="fas fa-file-alt me-2"></i>Prompt Templates
                     </button>
                 </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link {% if active_tab == 'provenance' %}active{% endif %}"
+                            id="provenance-tab" data-bs-toggle="tab" data-bs-target="#provenance"
+                            type="button" role="tab">
+                        <i class="fas fa-history me-2"></i>Provenance
+                    </button>
+                </li>
             </ul>
 
             <div class="tab-content mt-4" id="settingsTabContent">
@@ -222,6 +229,115 @@
                         </div>
                     </div>
                 </div>
+
+                <!-- Provenance Tab -->
+                <div class="tab-pane fade {% if active_tab == 'provenance' %}show active{% endif %}"
+                     id="provenance" role="tabpanel">
+                    <div class="card">
+                        <div class="card-body">
+                            <h5 class="card-title">Provenance Settings</h5>
+                            <p class="text-muted">
+                                Configure how provenance records are handled when documents, terms, or experiments are deleted.
+                                These settings affect the audit trail and data reproducibility.
+                            </p>
+
+                            <form id="provenance-settings-form">
+                                <!-- Purge vs Invalidate -->
+                                <div class="mb-4">
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input" type="checkbox"
+                                               id="purge_provenance_on_delete"
+                                               {% if settings.provenance.purge_provenance_on_delete is not defined or settings.provenance.purge_provenance_on_delete %}checked{% endif %}>
+                                        <label class="form-check-label" for="purge_provenance_on_delete">
+                                            <strong>Purge provenance records on delete</strong>
+                                        </label>
+                                    </div>
+                                    <div class="ms-4 mt-2">
+                                        <div class="alert alert-info py-2 mb-0">
+                                            <div class="row">
+                                                <div class="col-md-6">
+                                                    <strong><i class="fas fa-check-circle me-1"></i>When enabled (default):</strong>
+                                                    <ul class="mb-0 small">
+                                                        <li>Provenance records are permanently deleted</li>
+                                                        <li>Cleaner database, less storage</li>
+                                                        <li>No audit trail of deleted items</li>
+                                                    </ul>
+                                                </div>
+                                                <div class="col-md-6">
+                                                    <strong><i class="fas fa-history me-1"></i>When disabled:</strong>
+                                                    <ul class="mb-0 small">
+                                                        <li>Records are marked as "invalidated" but preserved</li>
+                                                        <li>Complete audit trail maintained</li>
+                                                        <li>Can view deleted items in timeline (see below)</li>
+                                                    </ul>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <hr class="my-4">
+
+                                <!-- Show Deleted in Timeline (only relevant when purge is disabled) -->
+                                <div class="mb-4" id="show-deleted-section">
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input" type="checkbox"
+                                               id="show_deleted_in_timeline"
+                                               {% if settings.provenance.show_deleted_in_timeline %}checked{% endif %}>
+                                        <label class="form-check-label" for="show_deleted_in_timeline">
+                                            <strong>Show deleted items in timeline by default</strong>
+                                        </label>
+                                    </div>
+                                    <small class="text-muted d-block ms-4 mt-1">
+                                        <i class="fas fa-info-circle me-1"></i>
+                                        When disabled, deleted items are hidden by default but can be shown via a checkbox on each timeline view.
+                                        This setting only applies when "Purge provenance records" is disabled.
+                                    </small>
+                                </div>
+
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-save me-2"></i>Save Changes
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+
+                    <!-- Provenance Impact Info -->
+                    <div class="card mt-4">
+                        <div class="card-body">
+                            <h5 class="card-title"><i class="fas fa-info-circle me-2"></i>What Gets Affected</h5>
+                            <div class="row">
+                                <div class="col-md-4">
+                                    <h6><i class="fas fa-file-alt me-2 text-primary"></i>Document Deletion</h6>
+                                    <ul class="small">
+                                        <li>Document upload records</li>
+                                        <li>Text extraction records</li>
+                                        <li>Processing operation records</li>
+                                        <li>Relationships to activities</li>
+                                    </ul>
+                                </div>
+                                <div class="col-md-4">
+                                    <h6><i class="fas fa-tags me-2 text-success"></i>Term Deletion</h6>
+                                    <ul class="small">
+                                        <li>Term creation records</li>
+                                        <li>Term update records</li>
+                                        <li>Version history records</li>
+                                        <li>Relationships to activities</li>
+                                    </ul>
+                                </div>
+                                <div class="col-md-4">
+                                    <h6><i class="fas fa-flask me-2 text-warning"></i>Experiment Deletion</h6>
+                                    <ul class="small">
+                                        <li>Experiment creation records</li>
+                                        <li>Experimental document versions</li>
+                                        <li>Processing artifacts</li>
+                                        <li><strong>Note:</strong> Original documents preserved</li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -326,7 +442,7 @@ function updateConfidenceDisplay(value) {
 }
 
 // Save settings forms
-['llm', 'nlp'].forEach(category => {
+['llm', 'nlp', 'provenance'].forEach(category => {
     const form = document.getElementById(`${category}-settings-form`);
     if (form) {
         form.addEventListener('submit', async (e) => {

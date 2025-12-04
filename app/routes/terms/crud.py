@@ -283,6 +283,10 @@ def delete_term(term_id):
     term_text = term.term_text
 
     try:
+        # Handle provenance records (purge or invalidate based on settings)
+        prov_result = provenance_service.delete_or_invalidate_term_provenance(term_id)
+        current_app.logger.info(f"Provenance handling for term {term_id}: {prov_result}")
+
         from app.models.semantic_drift import SemanticDriftActivity
 
         # Get all version IDs for this term

@@ -302,6 +302,11 @@ def delete_document(document_id):
         return redirect(url_for('text_input.document_detail', document_id=document_id))
 
     try:
+        # Handle provenance records (purge or invalidate based on settings)
+        from app.services.provenance_service import provenance_service
+        prov_result = provenance_service.delete_or_invalidate_document_provenance(document_id)
+        current_app.logger.info(f"Provenance handling for document {document_id}: {prov_result}")
+
         # Delete associated file
         document.delete_file()
 
@@ -369,6 +374,11 @@ def delete_document_by_uuid(document_uuid):
         return redirect(url_for('text_input.document_detail_by_uuid', document_uuid=document_uuid))
 
     try:
+        # Handle provenance records (purge or invalidate based on settings)
+        from app.services.provenance_service import provenance_service
+        prov_result = provenance_service.delete_or_invalidate_document_provenance(document.id)
+        current_app.logger.info(f"Provenance handling for document {document.id}: {prov_result}")
+
         # Delete associated file
         document.delete_file()
 
@@ -425,6 +435,12 @@ def delete_all_versions(base_document_id):
 
         deleted_count = 0
         document_title = base_document.title
+
+        # Handle provenance records for all versions (purge or invalidate based on settings)
+        from app.services.provenance_service import provenance_service
+        for document in all_versions:
+            prov_result = provenance_service.delete_or_invalidate_document_provenance(document.id)
+            current_app.logger.info(f"Provenance handling for document {document.id}: {prov_result}")
 
         # Delete all documents in the family
         for document in all_versions:

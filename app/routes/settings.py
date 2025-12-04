@@ -34,7 +34,7 @@ def index():
         return redirect(url_for('main.index'))
 
     # Get all categories
-    categories = ['prompts', 'nlp', 'processing', 'llm', 'ui']
+    categories = ['prompts', 'nlp', 'processing', 'llm', 'ui', 'provenance']
 
     # Get settings by category
     user_id = current_user.id if current_user.is_authenticated else None
