@@ -363,6 +363,137 @@ class UploadService:
                 progress=progress
             )
 
+    def extract_metadata_from_pdf_streaming(
+        self,
+        pdf_path: str,
+        progress_callback: Optional[callable] = None
+    ) -> MetadataExtractionResult:
+        """
+        Extract metadata from PDF with real-time progress streaming.
+
+        This is the streaming version of extract_metadata_from_pdf that calls
+        the progress_callback immediately when each step occurs, rather than
+        collecting messages and returning them at the end.
+
+        Args:
+            pdf_path: Path to PDF file
+            progress_callback: Function called with each progress message
+
+        Returns:
+            MetadataExtractionResult with extracted metadata
+        """
+        progress = []
+
+        def report_progress(message: str):
+            """Report progress both to callback and collect in list."""
+            progress.append(message)
+            if progress_callback:
+                progress_callback(message)
+
+        try:
+            # Analyze PDF with streaming progress
+            report_progress("Analyzing PDF document...")
+            pdf_info = pdf_analyzer.analyze(
+                pdf_path,
+                progress_callback=lambda msg: report_progress(msg)
+            )
+
+            # Try arXiv ID first (most reliable for arXiv papers)
+            if pdf_info.get('arxiv_id'):
+                report_progress("Querying Semantic Scholar with arXiv ID (this may take a moment)...")
+                result = self.semanticscholar.extract_from_arxiv_id(pdf_info['arxiv_id'])
+                if result:
+                    report_progress("Found paper in Semantic Scholar!")
+                    return MetadataExtractionResult(
+                        success=True,
+                        metadata=self._normalize_metadata(result),
+                        source='semanticscholar',
+                        progress=progress
+                    )
+                else:
+                    report_progress("Not found in Semantic Scholar (paper may be too recent)")
+
+            # Try DOI with Semantic Scholar (comprehensive coverage)
+            if pdf_info.get('doi'):
+                report_progress("Querying Semantic Scholar with DOI (this may take a moment)...")
+                result = self.semanticscholar.extract_from_doi(pdf_info['doi'])
+                if result:
+                    result['extracted_doi'] = pdf_info['doi']
+                    report_progress("Found paper in Semantic Scholar!")
+                    return MetadataExtractionResult(
+                        success=True,
+                        metadata=self._normalize_metadata(result),
+                        source='semanticscholar',
+                        progress=progress
+                    )
+                else:
+                    report_progress("Not found in Semantic Scholar")
+
+            # Try title search with CrossRef (with authors if available for better matching)
+            if pdf_info.get('title'):
+                authors = pdf_info.get('authors')
+                if authors:
+                    report_progress("Querying CrossRef with title and authors...")
+                else:
+                    report_progress("Querying CrossRef with title...")
+                result = self.crossref.extract_from_metadata(pdf_info['title'], authors=authors)
+                if result:
+                    # Check confidence
+                    confidence_level = result.get('confidence_level', 'high')
+                    if confidence_level == 'low':
+                        report_progress(f"Found possible match in CrossRef (low confidence)")
+                    else:
+                        report_progress("Found paper in CrossRef!")
+
+                    # Add PDF analysis info
+                    result['extracted_title'] = pdf_info['title']
+                    if authors:
+                        result['extracted_authors'] = authors
+                    result['extraction_method'] = 'title_from_pdf_with_authors' if authors else 'title_from_pdf'
+
+                    return MetadataExtractionResult(
+                        success=True,
+                        metadata=self._normalize_metadata(result),
+                        source='crossref',
+                        progress=progress
+                    )
+                else:
+                    report_progress("Not found in CrossRef")
+
+            # Fallback: return what we found from PDF
+            report_progress("Using extracted PDF metadata")
+            fallback_metadata = pdf_info.get('metadata', {})
+
+            # Include extracted metadata even if API lookups failed
+            if pdf_info.get('title') and 'title' not in fallback_metadata:
+                fallback_metadata['title'] = pdf_info['title']
+            if pdf_info.get('doi') and 'doi' not in fallback_metadata:
+                fallback_metadata['doi'] = pdf_info['doi']
+            if pdf_info.get('arxiv_id'):
+                fallback_metadata['arxiv_id'] = pdf_info['arxiv_id']
+            if pdf_info.get('authors') and 'authors' not in fallback_metadata:
+                fallback_metadata['authors'] = pdf_info['authors']
+            if pdf_info.get('abstract') and 'abstract' not in fallback_metadata:
+                fallback_metadata['abstract'] = pdf_info['abstract']
+
+            return MetadataExtractionResult(
+                success=False,
+                metadata=fallback_metadata,
+                source='pdf_analysis',
+                error="Could not find metadata using Semantic Scholar or CrossRef",
+                progress=progress
+            )
+
+        except Exception as e:
+            report_progress(f"Error: {str(e)}")
+            return MetadataExtractionResult(
+                success=False,
+                metadata={},
+                source='pdf_analysis',
+                error=f"Error analyzing PDF: {str(e)}",
+                progress=progress
+            )
+
     def extract_text_content(self, file_path: str, filename: str) -> Tuple[Optional[str], Optional[str], Optional[str]]:
         """
         Extract text content from file.

@@ -1165,10 +1165,12 @@ document.getElementById('file-form').addEventListener('submit', async function(e
     // Show initial progress
     const progressBar = document.getElementById('progress-bar');
     const currentStepDiv = document.getElementById('current-step');
+    const progressSteps = document.getElementById('progress-steps');
     progressBar.style.width = '10%';
     progressBar.setAttribute('aria-valuenow', 10);
     progressBar.textContent = '10%';
     currentStepDiv.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Uploading document...';
+    progressSteps.innerHTML = '';  // Clear any previous steps
 
     const formData = new FormData();
     formData.append('document_file', file);
@@ -1179,14 +1181,92 @@ document.getElementById('file-form').addEventListener('submit', async function(e
     formData.append('enable_crossref', 'true');
 
     try {
-        console.log('Uploading to: /upload/extract_metadata');
-        const response = await fetchWithTimeout('/upload/extract_metadata', {
+        console.log('Uploading to: /upload/extract_metadata_stream (streaming)');
+
+        // Use streaming endpoint for real-time progress updates
+        const response = await fetch('/upload/extract_metadata_stream', {
             method: 'POST',
             body: formData
-        }, 45000); // 45 second timeout
+        });
 
-        console.log('Response status:', response.status);
-        const result = await response.json();
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || 'Upload failed');
+        }
+
+        // Process the SSE stream
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = '';
+        let stepCount = 0;
+        let result = null;
+
+        while (true) {
+            const {value, done} = await reader.read();
+            if (done) break;
+
+            buffer += decoder.decode(value, {stream: true});
+
+            // Process complete SSE messages (each ends with \n\n)
+            const messages = buffer.split('\n\n');
+            buffer = messages.pop();  // Keep incomplete message in buffer
+
+            for (const message of messages) {
+                if (!message.trim() || !message.startsWith('data: ')) continue;
+
+                try {
+                    const data = JSON.parse(message.substring(6));
+                    console.log('SSE message:', data);
+
+                    if (data.type === 'progress') {
+                        stepCount++;
+                        // Move current step to completed steps
+                        if (stepCount > 1) {
+                            const prevStep = document.createElement('div');
+                            prevStep.className = 'progress-step';
+                            prevStep.innerHTML = `<i class="fas fa-check-circle text-success me-2"></i>${currentStepDiv.textContent.replace(/^\s*/, '')}`;
+                            progressSteps.appendChild(prevStep);
+                        }
+
+                        // Show new current step
+                        currentStepDiv.innerHTML = `<i class="fas fa-spinner fa-spin me-2"></i>${data.message}`;
+
+                        // Update progress bar (estimate based on typical steps)
+                        const estimatedProgress = Math.min(10 + (stepCount * 10), 90);
+                        progressBar.style.width = estimatedProgress + '%';
+                        progressBar.setAttribute('aria-valuenow', estimatedProgress);
+                        progressBar.textContent = estimatedProgress + '%';
+                    }
+                    else if (data.type === 'complete') {
+                        result = data.data;
+                        console.log('Extraction complete:', result);
+
+                        // Show final completion step
+                        if (stepCount > 0) {
+                            const prevStep = document.createElement('div');
+                            prevStep.className = 'progress-step';
+                            prevStep.innerHTML = `<i class="fas fa-check-circle text-success me-2"></i>${currentStepDiv.textContent.replace(/^\s*/, '')}`;
+                            progressSteps.appendChild(prevStep);
+                        }
+                        currentStepDiv.innerHTML = '<i class="fas fa-check-circle text-success me-2"></i>Metadata extraction complete!';
+                        progressBar.style.width = '100%';
+                        progressBar.setAttribute('aria-valuenow', 100);
+                        progressBar.textContent = '100%';
+                    }
+                    else if (data.type === 'error') {
+                        throw new Error(data.message);
+                    }
+                    // Ignore heartbeat messages
+                } catch (parseError) {
+                    console.warn('Failed to parse SSE message:', message, parseError);
+                }
+            }
+        }
+
+        if (!result) {
+            throw new Error('Stream ended without completion');
+        }
+
         console.log('Response data:', result);
         console.log('Progress array:', result.progress);
 
@@ -1247,76 +1327,15 @@ document.getElementById('file-form').addEventListener('submit', async function(e
 
             console.log('Updated uploadState:', uploadState);
 
-            // Only show progress animation if automatic extraction was enabled
-            if (enableCrossref) {
-                // Display progress messages with animation (progress card already visible)
-                console.log('Checking progress:', result.progress, result.progress ? result.progress.length : 'no progress');
-                if (result.progress && result.progress.length > 0) {
-                    console.log('INSIDE progress display block - will display', result.progress.length, 'messages');
-                    const progressSteps = document.getElementById('progress-steps');
-                    const currentStepDiv = document.getElementById('current-step');
-                    const progressBar = document.getElementById('progress-bar');
-
-                    progressSteps.innerHTML = '';  // Clear previous messages
-                    const totalSteps = result.progress.length;
-
-                    // Display messages one by one with delay and update progress bar
-                    for (let i = 0; i < result.progress.length; i++) {
-                        console.log('Setting timeout for message', i, ':', result.progress[i]);
-                        setTimeout(() => {
-                            // Add completed step
-                            if (i > 0) {
-                                const prevStep = document.createElement('div');
-                                prevStep.className = 'progress-step';
-                                prevStep.innerHTML = `<i class="fas fa-check-circle text-success me-2"></i>${result.progress[i-1]}`;
-                                progressSteps.appendChild(prevStep);
-                            }
-
-                            // Show current step
-                            currentStepDiv.innerHTML = `<i class="fas fa-spinner fa-spin me-2"></i>${result.progress[i]}`;
-
-                            // Update progress bar
-                            const percentage = ((i + 1) / totalSteps) * 100;
-                            progressBar.style.width = percentage + '%';
-                            progressBar.setAttribute('aria-valuenow', percentage);
-                            progressBar.textContent = Math.round(percentage) + '%';
-                        }, i * 300);  // 300ms delay between messages
-                    }
-
-                    // Show final step and complete progress
-                    setTimeout(() => {
-                        const lastStep = document.createElement('div');
-                        lastStep.className = 'progress-step';
-                        lastStep.innerHTML = `<i class="fas fa-check-circle text-success me-2"></i>${result.progress[result.progress.length - 1]}`;
-                        progressSteps.appendChild(lastStep);
-                        currentStepDiv.innerHTML = '<i class="fas fa-check-circle text-success me-2"></i>Metadata extraction complete!';
-
-                        // Show metadata review
-                        setTimeout(() => {
-                            console.log('Calling populateMetadataForm...');
-                            populateMetadataForm(uploadState.extractedMetadata, uploadState.provenance);
-                            console.log('Calling showMetadataReview...');
-                            showMetadataReview();
-                            console.log('Metadata review should now be visible');
-                        }, 500);
-                    }, totalSteps * 300 + 300);
-                } else {
-                    // No progress messages, show review immediately
-                    console.log('Calling populateMetadataForm...');
-                    populateMetadataForm(uploadState.extractedMetadata, uploadState.provenance);
-                    console.log('Calling showMetadataReview...');
-                    showMetadataReview();
-                    console.log('Metadata review should now be visible');
-                }
-            } else {
-                // Manual entry: hide loading and show review immediately
-                hideLoading();
+            // Progress has already been displayed in real-time via streaming
+            // Now show the metadata review form after a short delay
+            setTimeout(() => {
                 console.log('Calling populateMetadataForm...');
                 populateMetadataForm(uploadState.extractedMetadata, uploadState.provenance);
                 console.log('Calling showMetadataReview...');
                 showMetadataReview();
                 console.log('Metadata review should now be visible');
-            }
+            }, 500);
 
             // Show message about CrossRef search result
             if (result.message) {
