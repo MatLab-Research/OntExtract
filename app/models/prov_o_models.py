@@ -113,6 +113,10 @@ class ProvAgent(db.Model):
             )
             db.session.add(agent)
             db.session.commit()
+        elif agent.agent_type != 'Person':
+            # Fix legacy agents that were incorrectly typed
+            agent.agent_type = 'Person'
+            db.session.commit()
         return agent
 
 

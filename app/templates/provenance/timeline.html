@@ -23,10 +23,11 @@
             </div>
             <p class="text-muted mb-0">
                 W3C PROV-O relationships:
-                <span class="badge bg-light text-dark">prov:wasGeneratedBy</span>
-                <span class="badge bg-light text-dark">prov:used</span>
-                <span class="badge bg-light text-dark">prov:wasDerivedFrom</span>
-                <span class="badge bg-light text-dark">prov:wasAssociatedWith</span>
+                <span class="badge bg-secondary">prov:wasAssociatedWith</span>
+                <span class="badge bg-success">prov:used</span>
+                <span class="badge bg-success">prov:wasGeneratedBy</span>
+                <span class="badge bg-warning text-dark">prov:wasDerivedFrom</span>
+                <small class="ms-2">(green = clickable, source colors match term add page)</small>
             </p>
         </div>
         {% if current_user.is_admin %}
@@ -37,6 +38,43 @@
         </div>
         {% endif %}
     </div>
+
+    <!-- Active filters indicator -->
+    {% if selected_experiment_id or selected_document_id or selected_term_id or selected_activity_type %}
+    <div class="alert alert-info mb-4 d-flex align-items-center justify-content-between">
+        <div>
+            <i class="fas fa-filter me-2"></i>
+            <strong>Active filters:</strong>
+            {% if selected_experiment_id %}
+                {% for exp in experiments %}
+                    {% if exp.id == selected_experiment_id %}
+                        <span class="badge bg-primary ms-2"><i class="fas fa-flask me-1"></i>{{ exp.name }}</span>
+                    {% endif %}
+                {% endfor %}
+            {% endif %}
+            {% if selected_document_id %}
+                {% for doc in documents %}
+                    {% if doc.id == selected_document_id %}
+                        <span class="badge bg-success ms-2"><i class="fas fa-file-alt me-1"></i>{{ doc.title[:30] }}{% if doc.title|length > 30 %}...{% endif %}</span>
+                    {% endif %}
+                {% endfor %}
+            {% endif %}
+            {% if selected_term_id %}
+                {% for term in terms %}
+                    {% if term.id|string == selected_term_id %}
+                        <span class="badge bg-info ms-2"><i class="fas fa-anchor me-1"></i>{{ term.term_text }}</span>
+                    {% endif %}
+                {% endfor %}
+            {% endif %}
+            {% if selected_activity_type %}
+                <span class="badge bg-warning text-dark ms-2"><i class="fas fa-cog me-1"></i>{{ selected_activity_type.replace('_', ' ').title() }}</span>
+            {% endif %}
+        </div>
+        <a href="{{ url_for('provenance.timeline') }}" class="btn btn-outline-secondary btn-sm">
+            <i class="fas fa-times me-1"></i>Clear Filters
+        </a>
+    </div>
+    {% endif %}
 
     <!-- Filters -->
     <div class="card mb-4">
@@ -167,12 +205,12 @@
                                 </div>
                             </div>
                             <div class="card-body">
-                                <!-- Activity wasAssociatedWith Agent -->
+                                <!-- Activity prov:wasAssociatedWith Agent -->
                                 {% if item.agent %}
                                 <div class="mb-2">
                                     <strong>Activity <span class="text-muted small">prov:</span>wasAssociatedWith</strong>
                                     <span class="badge bg-secondary">
-                                        <i class="fas {{ 'fa-user' if item.agent.type == 'Person' else 'fa-robot' }}"></i>
+                                        <i class="fas {{ 'fa-user' if item.agent.type == 'Person' else 'fa-robot' }} me-1"></i>
                                         {{ item.agent.name }}
                                     </span>
                                 </div>
@@ -240,27 +278,27 @@
                                 </div>
                                 {% endif %}
 
-                                <!-- Activity used these Entities -->
+                                <!-- Activity prov:used these Entities -->
                                 {% if item.used %}
                                 <div class="mb-2">
                                     <strong>Activity <span class="text-muted small">prov:</span>used</strong>
                                     {% for entity in item.used %}
                                         {% if entity.type == 'term' and entity.value and entity.value.term_id %}
-                                            <a href="{{ url_for('terms.view_term', term_id=entity.value.term_id) }}" class="badge bg-info me-1 text-decoration-none">
+                                            <a href="{{ url_for('terms.view_term', term_id=entity.value.term_id) }}" class="badge bg-success me-1 text-decoration-none">
                                                 {{ entity.value.term_text or 'Term' }}
                                             </a>
                                         {% elif entity.type == 'document' and entity.value and entity.value.document_uuid %}
-                                            <a href="{{ url_for('text_input.document_detail', document_uuid=entity.value.document_uuid) }}" class="badge bg-info me-1 text-decoration-none">
+                                            <a href="{{ url_for('text_input.document_detail', document_uuid=entity.value.document_uuid) }}" class="badge bg-success me-1 text-decoration-none">
                                                 <i class="fas fa-file-alt me-1"></i>
                                                 {{ entity.value.title if entity.value.title else 'Document' }}
                                             </a>
                                         {% elif entity.type == 'experiment' and entity.value and entity.value.experiment_id %}
-                                            <a href="{{ url_for('experiments.view', experiment_id=entity.value.experiment_id) }}" class="badge bg-info me-1 text-decoration-none">
+                                            <a href="{{ url_for('experiments.view', experiment_id=entity.value.experiment_id) }}" class="badge bg-success me-1 text-decoration-none">
                                                 <i class="fas fa-flask me-1"></i>
                                                 {{ entity.value.name or 'Experiment' }}
                                             </a>
                                         {% else %}
-                                            <span class="badge bg-info me-1">
+                                            <span class="badge bg-secondary me-1">
                                                 {{ entity.type }}
                                             </span>
                                         {% endif %}
@@ -268,7 +306,7 @@
                                 </div>
                                 {% endif %}
 
-                                <!-- Entities wasGeneratedBy this Activity -->
+                                <!-- Entities prov:wasGeneratedBy this Activity -->
                                 {% if item.generated %}
                                 <div class="mb-2">
                                     <strong>Entities <span class="text-muted small">prov:</span>wasGeneratedBy</strong>
@@ -288,7 +326,7 @@
                                                 {{ entity.value.name or 'Experiment' }}
                                             </a>
                                         {% else %}
-                                            <span class="badge bg-success me-1">
+                                            <span class="badge bg-secondary me-1">
                                                 {{ entity.type }}
                                             </span>
                                         {% endif %}
@@ -296,17 +334,32 @@
                                 </div>
                                 {% endif %}
 
-                                <!-- Derived from sources (PROV-O: wasDerivedFrom) -->
+                                <!-- prov:wasDerivedFrom sources -->
                                 {% if item.derived_from %}
                                 <div class="mb-2">
                                     <strong><span class="text-muted small">prov:</span>wasDerivedFrom</strong>
                                     {% for source in item.derived_from %}
                                         {% if source.type == 'external_source' and source.value and source.value.source_name %}
-                                            <span class="badge bg-warning text-dark me-1">
-                                                <i class="fas fa-book me-1"></i>{{ source.value.source_name }}
-                                            </span>
+                                            {% set src_name = source.value.source_name|lower %}
+                                            {% if 'oed' in src_name or 'oxford' in src_name %}
+                                                <span class="badge bg-warning text-dark me-1">
+                                                    <i class="fas fa-book me-1"></i>{{ source.value.source_name }}
+                                                </span>
+                                            {% elif 'merriam' in src_name or 'webster' in src_name %}
+                                                <span class="badge bg-danger me-1">
+                                                    <i class="fas fa-book me-1"></i>{{ source.value.source_name }}
+                                                </span>
+                                            {% elif 'wordnet' in src_name %}
+                                                <span class="badge bg-success me-1">
+                                                    <i class="fas fa-sitemap me-1"></i>{{ source.value.source_name }}
+                                                </span>
+                                            {% else %}
+                                                <span class="badge bg-info me-1">
+                                                    <i class="fas fa-book me-1"></i>{{ source.value.source_name }}
+                                                </span>
+                                            {% endif %}
                                         {% else %}
-                                            <span class="badge bg-warning text-dark me-1">
+                                            <span class="badge bg-secondary me-1">
                                                 {{ source.type }}
                                             </span>
                                         {% endif %}
@@ -361,9 +414,10 @@
     z-index: 1;
 }
 
-/* Clickable badge links */
+/* Clickable badge links - green with hover effects */
 a.badge {
     transition: all 0.2s ease;
+    cursor: pointer;
 }
 
 a.badge:hover {
