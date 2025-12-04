@@ -67,8 +67,10 @@ nav:
       - Installation: getting-started/installation.md
       - First Login: getting-started/first-login.md
   - How-To Guides:
-      - Create Anchor Terms: how-to/create-anchor-terms.md
+      - Manage Your Library: how-to/manage-library.md
       - Upload Documents: how-to/upload-documents.md
+      - Manage References: how-to/manage-references.md
+      - Create Anchor Terms: how-to/create-anchor-terms.md
       - Create Temporal Experiment: how-to/create-temporal-experiment.md
       - LLM Orchestration: how-to/llm-orchestration.md
       - Process Documents: how-to/document-processing.md

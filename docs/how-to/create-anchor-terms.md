@@ -4,7 +4,7 @@ This guide explains how to create and manage anchor terms for tracking semantic 
 
 ## What Are Anchor Terms?
 
-Anchor terms are the key concepts you want to track across historical periods. They serve as reference points for analyzing how meanings change over time.
+Anchor terms are the key concepts you want to track across historical periods. They serve as current/modern reference points—"mile markers"—for where your semantic change analysis begins.
 
 **Examples:**
 - "agent" in AI/philosophy contexts
@@ -13,41 +13,66 @@ Anchor terms are the key concepts you want to track across historical periods. T
 
 ## Creating an Anchor Term
 
-### Step 1: Navigate to Anchor Terms
+OntExtract offers two ways to create anchor terms: using **Connected Services** (recommended) or **Manual Entry**.
 
-1. Click **Anchor Terms** in the main navigation
-2. Click **Add New Anchor Term**
+### Method 1: Connected Services (Recommended)
 
-![Anchor Terms List](../assets/images/screenshots/terms-list-content.png)
+Use authoritative lexicographic sources to establish well-documented anchor terms.
 
-### Step 2: Basic Information
+1. Navigate to **Library → Terms** and click **Add New Anchor Term**
+2. Select a service to search:
 
-Fill in the term details:
+| Service | Description |
+|---------|-------------|
+| **Merriam-Webster Dictionary** | Authoritative American English definitions |
+| **Merriam-Webster Thesaurus** | Synonyms and antonyms for context anchoring |
+| **Oxford English Dictionary** | Historical English definitions with temporal data |
+| **WordNet** | Lexical database with semantic relationships |
+
+3. Enter your search term when prompted
+4. Browse the results and click **Use This Definition**
+5. The form auto-populates with:
+   - Term text
+   - Meaning description
+   - Context anchors (related terms)
+   - Source citation
+6. Add a **Research Domain** if desired
+7. Click **Create Term**
+
+### Method 2: Manual Entry
+
+For terms not found in dictionaries or from custom sources:
+
+1. Click the **Manual Entry** tab
+2. Fill in the term details:
 
 | Field | Description | Example |
 |-------|-------------|---------|
 | **Term Text** | The word or phrase to track | "agent" |
-| **Domain** | Subject area | "Artificial Intelligence" |
-| **Part of Speech** | Grammatical category | noun, verb, adjective |
-| **Status** | Current state | draft, active, archived |
+| **Source Type** | Type of reference source | Corpus, Dictionary, Standard |
+| **Meaning Description** | Current baseline meaning | "An entity that acts autonomously..." |
+| **Context Anchors** | Related terms (comma-separated) | "autonomous, actor, entity" |
+| **Corpus Source** | Lexicographic source name | "Merriam-Webster" |
+| **Source Citation** | Full citation for provenance | "Merriam-Webster Dictionary, 2024" |
+| **Research Domain** | Subject area | "Artificial Intelligence" |
 | **Notes** | Additional context | "Focus on autonomous agent concept" |
 
-### Step 3: Save the Term
+3. Click **Create Term**
 
-Click **Create Term** to save. The term is now available for:
-- Association with experiments
-- Temporal version tracking
-- Cross-document analysis
+### Context Anchors
 
-## Term Versions (Coming Soon)
+Context anchors are related terms that help define the semantic space around your anchor term. You can:
 
-Anchor terms support temporal versioning to capture meaning changes:
+- Let services auto-populate them from definitions
+- Click the **Thesaurus** button to find synonyms
+- Enter them manually (comma-separated)
 
-- **Temporal Period** - The time range this definition applies to
-- **Meaning Description** - How the term was understood in that period
-- **Context Anchors** - Representative text passages
+## Term Versions
 
-> Note: Term versioning workflow is planned for post-JCDL release.
+Anchor terms support temporal versioning to capture meaning changes over time. Versions are created through:
+
+- **OED Temporal Timeline** - Select historical waypoints showing when new senses emerged
+- **Manual versioning** - Add versions with different temporal periods
 
 ## Associating Terms with Experiments
 
@@ -90,10 +115,11 @@ Assign appropriate domains to help organize terms:
 
 Click any term to see:
 
-- **Basic Information** - Term text, domain, status
-- **Temporal Versions** - Historical meaning snapshots
+- **Basic Information** - Term text, meaning description, research domain
+- **Source Information** - Corpus source and citation
+- **Context Anchors** - Related terms for semantic anchoring
+- **Temporal Versions** - Historical meaning snapshots (if created)
 - **Associated Experiments** - Where the term is used
-- **Context Anchors** - Source text references
 
 ## Editing Terms
 
@@ -106,22 +132,20 @@ Click any term to see:
 
 ## Deleting Terms
 
-Terms can only be deleted by administrators and only if:
-- Not associated with any active experiments
-- No temporal versions exist
+To delete a term:
 
-To archive instead of delete:
-1. Edit the term
-2. Change status to **Archived**
-3. Save changes
+1. Navigate to the term detail page
+2. Click **Delete Term**
+3. Confirm the deletion
+
+> **Note**: Terms associated with experiments should be removed from those experiments first.
 
 ## Term Search
 
 Find existing terms using:
 
 - **Search box** - Search by term text
-- **Domain filter** - Filter by subject area
-- **Status filter** - Show active, draft, or archived
+- **Domain filter** - Filter by research domain
 
 ## Related Guides
 
