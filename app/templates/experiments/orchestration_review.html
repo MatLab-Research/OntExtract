@@ -128,21 +128,34 @@
     }
 
     .period-card {
-        border: 1px solid #dee2e6;
+        border: 1px solid #444;
         border-radius: 8px;
         padding: 16px;
         margin-bottom: 12px;
-        background: white;
+        background: #2d2d2d;
+    }
+
+    .period-card h6 {
+        color: #fff;
+    }
+
+    .period-card p,
+    .period-card small {
+        color: #ccc;
     }
 
     .period-card.suggested {
         border-left: 4px solid #ffc107;
-        background: #fffdf5;
+        background: #3a3520;
     }
 
     .period-card.configured {
         border-left: 4px solid #28a745;
-        background: #f8fff9;
+        background: #1e3a1e;
+    }
+
+    .period-card.configured h6 {
+        color: #5cb85c !important;
     }
 
     .sticky-actions {
@@ -244,7 +257,7 @@
                                 </div>
                                 <small class="text-muted d-block mb-2">{{ period.temporal_start_year }} - {{ period.temporal_end_year }}</small>
                                 {% if period.description %}
-                                <p class="small mb-0" style="color: #666;">{{ period.description }}</p>
+                                <p class="small mb-0" style="color: #aaa;">{{ period.description }}</p>
                                 {% endif %}
                             </div>
                         </div>
@@ -269,7 +282,7 @@
                             <strong>Generate periods from document dates</strong>
                             <br>
                             <small class="text-muted">
-                                Creates temporal periods based on publication years of the {{ documents | length }} documents.
+                                Creates one temporal period per document based on publication year.
                             </small>
                         </label>
                     </div>
