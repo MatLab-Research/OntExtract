@@ -329,6 +329,14 @@ class PipelineService(BaseService):
             all_versions = []
             is_latest_version = True
 
+            # Check if document has completed LLM cleanup
+            from app.models import ProcessingJob
+            has_cleanup = ProcessingJob.query.filter_by(
+                document_id=document.id,
+                job_type='clean_text',
+                status='completed'
+            ).first() is not None
+
             return {
                 'experiment': experiment,
                 'document': document,
@@ -343,7 +351,8 @@ class PipelineService(BaseService):
                 'previous_doc_id': previous_doc_id,
                 'next_doc_id': next_doc_id,
                 'all_versions': all_versions,
-                'is_latest_version': is_latest_version
+                'is_latest_version': is_latest_version,
+                'has_cleanup': has_cleanup
             }
 
         except (NotFoundError, ValidationError):

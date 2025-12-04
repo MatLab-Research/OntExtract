@@ -271,9 +271,23 @@
                                 {{ document.content|length|int|filesizeformat if document.content else '0 bytes' }}
                             </span>
                         </h5>
+                        {% if has_cleanup %}
+                        <div class="d-flex align-items-center gap-2">
+                            <span class="badge bg-success">
+                                <i class="fas fa-check-circle me-1"></i>Cleaned
+                            </span>
+                            <button class="btn btn-outline-warning btn-sm" onclick="openTextCleanupModal('{{ document.uuid }}')"
+                                    data-bs-toggle="tooltip"
+                                    data-bs-custom-class="tooltip-light"
+                                    title="Text has already been cleaned. Running again will clean the already-processed text.">
+                                <i class="fas fa-redo me-1"></i>Re-clean
+                            </button>
+                        </div>
+                        {% else %}
                         <button class="btn btn-primary btn-sm" onclick="openTextCleanupModal('{{ document.uuid }}')">
                             <i class="fas fa-broom me-1"></i>Clean Text with LLM
                         </button>
+                        {% endif %}
                     </div>
                     {% if all_versions|length > 1 %}
                     <div class="d-flex align-items-center gap-2">
@@ -374,6 +388,12 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    // Initialize Bootstrap tooltips
+    var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+    tooltipTriggerList.map(function (tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl);
+    });
+
     // Store completed processing operations for duplicate prevention
     const completedOperations = {{ processing_operations_serialized|tojson }};
 
