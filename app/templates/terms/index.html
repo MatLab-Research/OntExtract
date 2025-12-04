@@ -77,11 +77,12 @@
                                 <tr>
                                     <th>Term</th>
                                     <th>Status</th>
-                                    <th>Research Domain</th>
-                                    <th>Source & Year</th>
+                                    <th class="text-nowrap">Domain</th>
+                                    <th class="text-nowrap">Source</th>
                                     <th>Versions</th>
-                                    <th>Created</th>
-                                    <th>Actions</th>
+                                    <th class="text-nowrap">Created</th>
+                                    <th>By</th>
+                                    <th class="text-nowrap">Actions</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -109,27 +110,23 @@
                                             <span class="text-muted">—</span>
                                         {% endif %}
                                     </td>
-                                    <td>
+                                    <td class="text-nowrap">
                                         {% set current_version = term.get_current_version() %}
                                         {% if current_version %}
                                             {% if current_version.corpus_source %}
-                                                <strong>{{ current_version.corpus_source }}</strong>
+                                                {{ current_version.corpus_source }}
                                             {% else %}
-                                                <strong>Manual Entry</strong>
+                                                Manual
                                             {% endif %}
                                             {% if current_version.temporal_start_year %}
-                                                <br><small class="text-muted">
-                                                    {% if current_version.temporal_end_year and current_version.temporal_end_year != current_version.temporal_start_year %}
-                                                        {{ current_version.temporal_start_year }}–{{ current_version.temporal_end_year }}
-                                                    {% else %}
-                                                        {{ current_version.temporal_start_year }}
-                                                    {% endif %}
+                                                <small class="text-muted">
+                                                    ({% if current_version.temporal_end_year and current_version.temporal_end_year != current_version.temporal_start_year %}{{ current_version.temporal_start_year }}–{{ current_version.temporal_end_year }}{% else %}{{ current_version.temporal_start_year }}{% endif %})
                                                 </small>
                                             {% elif current_version.temporal_period %}
-                                                <br><small class="text-muted">{{ current_version.temporal_period }}</small>
+                                                <small class="text-muted">({{ current_version.temporal_period }})</small>
                                             {% endif %}
                                         {% else %}
-                                            <span class="text-muted">No anchor version</span>
+                                            <span class="text-muted">—</span>
                                         {% endif %}
                                     </td>
                                     <td>
@@ -138,33 +135,32 @@
                                             <i class="fas fa-question-circle text-warning" title="Has provisional versions"></i>
                                         {% endif %}
                                     </td>
-                                    <td>
+                                    <td class="text-nowrap">
                                         <small>{{ term.created_at.strftime('%b %d, %Y') }}</small>
-                                        {% if term.creator %}
-                                            <br><small class="text-muted">by {{ term.creator.username }}</small>
-                                        {% endif %}
                                     </td>
                                     <td>
+                                        {% if term.creator %}
+                                            <small class="text-muted">{{ term.creator.username }}</small>
+                                        {% else %}
+                                            <small class="text-muted">—</small>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-nowrap">
                                         <div class="btn-group btn-group-sm" role="group">
-                                            <a href="{{ url_for('terms.view_term', term_id=term.id) }}" 
-                                               class="btn btn-outline-primary" title="View Details">
+                                            <a href="{{ url_for('terms.view_term', term_id=term.id) }}"
+                                               class="btn btn-outline-primary" title="View">
                                                 <i class="fas fa-eye"></i>
                                             </a>
                                             {% if term.created_by == current_user.id or current_user.is_admin %}
                                             <a href="{{ url_for('terms.edit_term', term_id=term.id) }}"
-                                               class="btn btn-outline-light" title="Edit Term">
+                                               class="btn btn-outline-secondary" title="Edit">
                                                 <i class="fas fa-edit"></i>
                                             </a>
                                             {% endif %}
-                                            <span class="d-inline-block" tabindex="0" data-bs-toggle="tooltip" data-bs-placement="top" data-bs-custom-class="tooltip-light" title="Coming soon">
-                                                <button class="btn btn-outline-secondary" disabled style="pointer-events: none;">
-                                                    <i class="fas fa-plus"></i>
-                                                </button>
-                                            </span>
                                             {% if current_user.is_admin %}
-                                            <button type="button" 
-                                                    class="btn btn-outline-danger" 
-                                                    title="Delete Term"
+                                            <button type="button"
+                                                    class="btn btn-outline-danger"
+                                                    title="Delete"
                                                     onclick="confirmDelete('{{ term.id }}', '{{ term.term_text }}')">
                                                 <i class="fas fa-trash"></i>
                                             </button>

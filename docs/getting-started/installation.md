@@ -172,6 +172,7 @@ ANTHROPIC_API_KEY=sk-ant-your-key-here  # Optional
 
 ```bash
 flask db upgrade
+flask seed-defaults   # Seed prompt templates and settings
 python init_admin.py  # Create admin user
 ```
 

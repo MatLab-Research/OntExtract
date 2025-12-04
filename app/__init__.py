@@ -379,3 +379,14 @@ def register_cli(app: Flask) -> None:
             
             _db.session.commit()
             click.echo(f"Created {len(demo_docs)} demo documents.")
+
+    @app.cli.command("seed-defaults")
+    def seed_defaults_command():
+        """Seed default prompt templates and app settings."""
+        from app.models.prompt_template import PromptTemplate
+        from app.models.app_settings import AppSetting
+
+        with app.app_context():
+            PromptTemplate.seed_defaults()
+            AppSetting.seed_defaults()
+            click.echo("Default prompt templates and settings seeded.")
