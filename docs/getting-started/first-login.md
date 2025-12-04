@@ -35,8 +35,9 @@ The top navigation bar provides access to:
 
 | Menu Item | Description |
 |-----------|-------------|
-| **Library** | Documents and Anchor Terms |
+| **Library** | Sources (documents and references) and Anchor Terms |
 | **Experiments** | Your analysis experiments |
+| **Provenance** | Timeline and graph views of processing history |
 | **Linked Data** | Ontology and semantic resources |
 | **Docs** | This documentation |
 
@@ -125,6 +126,7 @@ If available, browse the pre-loaded "Agent Temporal Evolution" experiment to see
 
 ## Next Steps
 
-- [Create Anchor Terms](../how-to/create-anchor-terms.md)
+- [Manage Your Library](../how-to/manage-library.md)
 - [Upload Documents](../how-to/upload-documents.md)
+- [Create Anchor Terms](../how-to/create-anchor-terms.md)
 - [Create Temporal Experiment](../how-to/create-temporal-experiment.md)

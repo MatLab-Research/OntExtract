@@ -208,6 +208,8 @@ For multiple documents:
 
 ## Related Guides
 
+- [Manage Your Library](manage-library.md)
+- [Manage References](manage-references.md)
 - [Process Documents](document-processing.md)
 - [Create Temporal Experiment](create-temporal-experiment.md)
 - [Create Anchor Terms](create-anchor-terms.md)
