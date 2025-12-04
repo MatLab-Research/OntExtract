@@ -142,28 +142,35 @@
                                 <h6 class="mb-3">
                                     <i class="fas fa-vector-square text-info me-2"></i>Embeddings
                                 </h6>
+                                {% set has_embeddings_local = processing_operations|selectattr('processing_type', 'equalto', 'embeddings')|selectattr('processing_method', 'equalto', 'local')|selectattr('status', 'equalto', 'completed')|list %}
+                                {% set has_embeddings_period = processing_operations|selectattr('processing_type', 'equalto', 'embeddings')|selectattr('processing_method', 'equalto', 'period_aware')|selectattr('status', 'equalto', 'completed')|list %}
+                                {% set has_embeddings_llm = llm_operations.get('period_aware_embedding', {}).get('status') == 'executed' %}
                                 <div class="form-check mb-2">
                                     <input class="form-check-input tool-checkbox" type="checkbox"
                                            value="embeddings_local" id="tool-embeddings-local"
-                                           {% if processing_operations|selectattr('processing_type', 'equalto', 'embeddings')|selectattr('processing_method', 'in', ['local', 'period_aware'])|selectattr('status', 'equalto', 'completed')|list %}disabled{% endif %}>
+                                           {% if has_embeddings_local or has_embeddings_period or has_embeddings_llm %}disabled{% endif %}>
                                     <label class="form-check-label" for="tool-embeddings-local">
                                         <strong>Local Embeddings</strong>
                                         <br><small class="text-muted">sentence-transformers (384 dims)</small>
-                                        {% if processing_operations|selectattr('processing_type', 'equalto', 'embeddings')|selectattr('processing_method', 'equalto', 'local')|selectattr('status', 'equalto', 'completed')|list %}
+                                        {% if has_embeddings_llm %}
+                                        <br><small class="text-success"><i class="fas fa-check-circle me-1"></i>Period-aware applied (LLM Orchestration)</small>
+                                        {% elif has_embeddings_local %}
                                         <br><small class="text-success"><i class="fas fa-check-circle me-1"></i>Already applied</small>
-                                        {% elif processing_operations|selectattr('processing_type', 'equalto', 'embeddings')|selectattr('processing_method', 'equalto', 'period_aware')|selectattr('status', 'equalto', 'completed')|list %}
-                                        <br><small class="text-success"><i class="fas fa-check-circle me-1"></i>Period-aware applied (LLM)</small>
+                                        {% elif has_embeddings_period %}
+                                        <br><small class="text-success"><i class="fas fa-check-circle me-1"></i>Period-aware applied</small>
                                         {% endif %}
                                     </label>
                                 </div>
                                 <div class="form-check mb-2">
                                     <input class="form-check-input tool-checkbox" type="checkbox"
                                            value="embeddings_period_aware" id="tool-embeddings-period-aware"
-                                           {% if processing_operations|selectattr('processing_type', 'equalto', 'embeddings')|selectattr('processing_method', 'equalto', 'period_aware')|selectattr('status', 'equalto', 'completed')|list %}disabled{% endif %}>
+                                           {% if has_embeddings_period or has_embeddings_llm %}disabled{% endif %}>
                                     <label class="form-check-label" for="tool-embeddings-period-aware">
                                         <strong>Period-Aware Embeddings</strong>
                                         <br><small class="text-muted">Historical/contemporary model selection</small>
-                                        {% if processing_operations|selectattr('processing_type', 'equalto', 'embeddings')|selectattr('processing_method', 'equalto', 'period_aware')|selectattr('status', 'equalto', 'completed')|list %}
+                                        {% if has_embeddings_llm %}
+                                        <br><small class="text-success"><i class="fas fa-check-circle me-1"></i>Already applied (LLM Orchestration)</small>
+                                        {% elif has_embeddings_period %}
                                         <br><small class="text-success"><i class="fas fa-check-circle me-1"></i>Already applied</small>
                                         {% endif %}
                                     </label>
@@ -191,28 +198,34 @@
                                     <i class="fas fa-tags text-success me-2"></i>Entity & Concept Extraction
                                 </h6>
                                 {% set has_entities = processing_operations|selectattr('processing_type', 'equalto', 'entities')|selectattr('status', 'equalto', 'completed')|list %}
+                                {% set has_entities_llm = llm_operations.get('extract_entities_spacy', {}).get('status') == 'executed' %}
                                 <div class="form-check mb-2">
                                     <input class="form-check-input tool-checkbox" type="checkbox"
                                            value="entities_spacy" id="tool-entities-spacy"
-                                           {% if has_entities %}disabled{% endif %}>
+                                           {% if has_entities or has_entities_llm %}disabled{% endif %}>
                                     <label class="form-check-label" for="tool-entities-spacy">
                                         <strong>Named Entities + Concepts</strong>
                                         <br><small class="text-muted">spaCy NER + noun phrase extraction</small>
-                                        {% if has_entities %}
-                                        <br><small class="text-success"><i class="fas fa-check-circle me-1"></i>Already applied{% if processing_operations|selectattr('processing_type', 'equalto', 'entities')|selectattr('processing_method', 'equalto', 'spacy_ner')|list %} (LLM){% endif %}</small>
+                                        {% if has_entities_llm %}
+                                        <br><small class="text-success"><i class="fas fa-check-circle me-1"></i>Already applied (LLM Orchestration)</small>
+                                        {% elif has_entities %}
+                                        <br><small class="text-success"><i class="fas fa-check-circle me-1"></i>Already applied</small>
                                         {% endif %}
                                     </label>
                                 </div>
                                 {% set has_definitions = processing_operations|selectattr('processing_type', 'equalto', 'definitions')|selectattr('status', 'equalto', 'completed')|list %}
+                                {% set has_definitions_llm = llm_operations.get('extract_definitions', {}).get('status') == 'executed' %}
                                 <div class="form-check mb-2">
                                     <input class="form-check-input tool-checkbox" type="checkbox"
                                            value="definitions_spacy" id="tool-definitions"
-                                           {% if has_definitions %}disabled{% endif %}>
+                                           {% if has_definitions or has_definitions_llm %}disabled{% endif %}>
                                     <label class="form-check-label" for="tool-definitions">
                                         <strong>Definition Extraction</strong>
                                         <br><small class="text-muted">spaCy pattern matching + dependency parsing</small>
-                                        {% if has_definitions %}
-                                        <br><small class="text-success"><i class="fas fa-check-circle me-1"></i>Already applied{% if processing_operations|selectattr('processing_type', 'equalto', 'definitions')|selectattr('processing_method', 'equalto', 'definition_extraction')|list %} (LLM){% endif %}</small>
+                                        {% if has_definitions_llm %}
+                                        <br><small class="text-success"><i class="fas fa-check-circle me-1"></i>Already applied (LLM Orchestration)</small>
+                                        {% elif has_definitions %}
+                                        <br><small class="text-success"><i class="fas fa-check-circle me-1"></i>Already applied</small>
                                         {% endif %}
                                     </label>
                                 </div>
@@ -224,23 +237,21 @@
                                     <i class="fas fa-clock text-secondary me-2"></i>Temporal Analysis
                                 </h6>
                                 {% set has_temporal = processing_operations|selectattr('processing_type', 'equalto', 'temporal')|selectattr('status', 'equalto', 'completed')|list %}
+                                {% set has_temporal_llm = llm_operations.get('extract_temporal', {}).get('status') == 'executed' %}
                                 <div class="form-check mb-2">
                                     <input class="form-check-input tool-checkbox" type="checkbox"
                                            value="temporal_spacy" id="tool-temporal"
-                                           {% if has_temporal %}disabled{% endif %}>
+                                           {% if has_temporal or has_temporal_llm %}disabled{% endif %}>
                                     <label class="form-check-label" for="tool-temporal">
                                         <strong>Temporal Extraction</strong>
                                         <br><small class="text-muted">spaCy + date parsing (dates, periods, markers)</small>
-                                        {% if has_temporal %}
-                                        <br><small class="text-success"><i class="fas fa-check-circle me-1"></i>Already applied{% if processing_operations|selectattr('processing_type', 'equalto', 'temporal')|selectattr('processing_method', 'equalto', 'temporal_extraction')|list %} (LLM){% endif %}</small>
+                                        {% if has_temporal_llm %}
+                                        <br><small class="text-success"><i class="fas fa-check-circle me-1"></i>Already applied (LLM Orchestration)</small>
+                                        {% elif has_temporal %}
+                                        <br><small class="text-success"><i class="fas fa-check-circle me-1"></i>Already applied</small>
                                         {% endif %}
                                     </label>
                                 </div>
-                                <p class="small text-muted mb-0">
-                                    <i class="fas fa-info-circle me-1"></i>
-                                    For corpus-wide term extraction and semantic evolution analysis, use the
-                                    <strong>Corpus Analysis</strong> section on the Pipeline Overview page.
-                                </p>
                             </div>
                         </div>
                     </div>
@@ -377,6 +388,52 @@
                     </div>
                 </div>
 
+                <!-- LLM Processing Results Card -->
+                {% if llm_operations %}
+                <div class="card mb-3">
+                    <div class="card-header bg-success bg-opacity-10">
+                        <h6 class="mb-0">
+                            <i class="fas fa-robot me-2 text-success"></i>LLM Orchestration Results
+                        </h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="list-group list-group-flush">
+                            {% for tool_name, tool_result in llm_operations.items() %}
+                            {% if tool_result.status == 'executed' %}
+                            <div class="list-group-item px-0 py-2">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <div>
+                                        {% if tool_name == 'extract_temporal' %}
+                                        <i class="fas fa-clock text-secondary me-2"></i>
+                                        <strong>Temporal</strong>
+                                        {% elif tool_name == 'extract_definitions' %}
+                                        <i class="fas fa-book text-primary me-2"></i>
+                                        <strong>Definitions</strong>
+                                        {% elif tool_name == 'extract_entities_spacy' %}
+                                        <i class="fas fa-tags text-success me-2"></i>
+                                        <strong>Entities</strong>
+                                        {% elif tool_name == 'period_aware_embedding' %}
+                                        <i class="fas fa-vector-square text-info me-2"></i>
+                                        <strong>Embeddings</strong>
+                                        {% else %}
+                                        <i class="fas fa-cog me-2"></i>
+                                        <strong>{{ tool_name }}</strong>
+                                        {% endif %}
+                                        <span class="badge bg-secondary ms-1">{{ tool_result.count or 0 }}</span>
+                                    </div>
+                                    <button class="btn btn-outline-primary btn-sm"
+                                            onclick="viewLLMResults('{{ tool_name }}')">
+                                        <i class="fas fa-eye me-1"></i>View
+                                    </button>
+                                </div>
+                            </div>
+                            {% endif %}
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+
                 <!-- Single Document Processing Panel -->
                 {% include 'experiments/single_document_processing_panel.html' %}
             </div>
@@ -387,6 +444,9 @@
 <!-- New experiment processing panel handles its own JavaScript -->
 
 <script>
+// Store LLM orchestration operations at global scope (used by viewLLMResults function)
+const llmOperations = {{ llm_operations|tojson }};
+
 document.addEventListener('DOMContentLoaded', function() {
     // Initialize Bootstrap tooltips
     var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
@@ -400,6 +460,24 @@ document.addEventListener('DOMContentLoaded', function() {
     // Helper function to check if a tool has already been completed
     // Supports both manual processing methods and LLM orchestration method keys
     function isToolCompleted(toolName) {
+        // First check LLM orchestration results
+        const llmToolMap = {
+            'segment_paragraph': null,  // Not done by LLM orchestration currently
+            'segment_sentence': null,   // Not done by LLM orchestration currently
+            'embeddings_local': 'period_aware_embedding',
+            'embeddings_openai': null,
+            'embeddings_period_aware': 'period_aware_embedding',
+            'entities_spacy': 'extract_entities_spacy',
+            'definitions_spacy': 'extract_definitions',
+            'temporal_spacy': 'extract_temporal'
+        };
+
+        const llmToolKey = llmToolMap[toolName];
+        if (llmToolKey && llmOperations[llmToolKey] && llmOperations[llmToolKey].status === 'executed') {
+            return true;
+        }
+
+        // Then check manual operations
         const toolMap = {
             'segment_paragraph': { type: 'segmentation', methods: ['paragraph', 'semantic'] },
             'segment_sentence': { type: 'segmentation', methods: ['sentence'] },
@@ -982,6 +1060,173 @@ function showArtifactsModal(processingId, processingType, artifacts) {
 
     // Clean up when modal is hidden
     document.getElementById('artifactsModal').addEventListener('hidden.bs.modal', function () {
+        this.remove();
+    });
+}
+
+function viewLLMResults(toolName) {
+    // Get the LLM operations data from the page
+    const toolResult = llmOperations[toolName];
+    if (!toolResult || !toolResult.results) {
+        showAlert('warning', 'No results data available for this tool.');
+        return;
+    }
+
+    const results = toolResult.results;
+    const data = results.data || [];
+    const metadata = results.metadata || {};
+
+    // Tool display names
+    const toolNames = {
+        'extract_temporal': 'Temporal Extraction',
+        'extract_definitions': 'Definition Extraction',
+        'extract_entities_spacy': 'Entity Extraction',
+        'period_aware_embedding': 'Period-Aware Embeddings'
+    };
+
+    let modalContent = `
+        <div class="modal fade" id="llmResultsModal" tabindex="-1">
+            <div class="modal-dialog modal-xl">
+                <div class="modal-content">
+                    <div class="modal-header bg-success bg-opacity-10">
+                        <h5 class="modal-title">
+                            <i class="fas fa-robot me-2"></i>${toolNames[toolName] || toolName}
+                            <span class="badge bg-secondary ms-2">${data.length} items</span>
+                        </h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+    `;
+
+    // Tool-specific rendering
+    if (toolName === 'extract_temporal') {
+        modalContent += `
+            <div class="table-responsive">
+                <table class="table table-sm table-striped">
+                    <thead>
+                        <tr>
+                            <th>Text</th>
+                            <th>Type</th>
+                            <th>Normalized</th>
+                            <th>Position</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+        `;
+        data.slice(0, 100).forEach(item => {
+            modalContent += `
+                <tr>
+                    <td><code>${item.text || ''}</code></td>
+                    <td><span class="badge bg-info">${item.type || ''}</span></td>
+                    <td>${item.normalized || ''}</td>
+                    <td><small class="text-muted">${item.start}-${item.end}</small></td>
+                </tr>
+            `;
+        });
+        if (data.length > 100) {
+            modalContent += `<tr><td colspan="4" class="text-center text-muted">... and ${data.length - 100} more</td></tr>`;
+        }
+        modalContent += '</tbody></table></div>';
+    } else if (toolName === 'extract_definitions') {
+        modalContent += `
+            <div class="list-group">
+        `;
+        data.slice(0, 50).forEach(item => {
+            modalContent += `
+                <div class="list-group-item">
+                    <div class="d-flex justify-content-between">
+                        <strong>${item.term || ''}</strong>
+                        <span class="badge bg-secondary">${item.pattern || ''}</span>
+                    </div>
+                    <p class="mb-1 mt-2">${item.definition || ''}</p>
+                    <small class="text-muted">From: "${(item.sentence || '').substring(0, 100)}..."</small>
+                </div>
+            `;
+        });
+        if (data.length > 50) {
+            modalContent += `<div class="list-group-item text-center text-muted">... and ${data.length - 50} more</div>`;
+        }
+        modalContent += '</div>';
+    } else if (toolName === 'extract_entities_spacy') {
+        // Group entities by type
+        const entityGroups = {};
+        data.forEach(item => {
+            const type = item.type || 'OTHER';
+            if (!entityGroups[type]) entityGroups[type] = [];
+            entityGroups[type].push(item);
+        });
+
+        modalContent += '<div class="row">';
+        Object.entries(entityGroups).forEach(([type, entities]) => {
+            modalContent += `
+                <div class="col-md-4 mb-3">
+                    <div class="card">
+                        <div class="card-header py-2">
+                            <strong>${type}</strong>
+                            <span class="badge bg-secondary float-end">${entities.length}</span>
+                        </div>
+                        <div class="card-body p-2" style="max-height: 200px; overflow-y: auto;">
+                            ${entities.slice(0, 20).map(e => `<span class="badge bg-light text-dark me-1 mb-1">${e.entity}</span>`).join('')}
+                            ${entities.length > 20 ? `<span class="text-muted">+${entities.length - 20} more</span>` : ''}
+                        </div>
+                    </div>
+                </div>
+            `;
+        });
+        modalContent += '</div>';
+    } else if (toolName === 'period_aware_embedding') {
+        modalContent += `
+            <div class="alert alert-info">
+                <i class="fas fa-info-circle me-2"></i>
+                Embeddings have been generated and stored for this document.
+            </div>
+            <p>Method: <code>${metadata.method || 'period_aware'}</code></p>
+            <p>Dimensions: <code>${metadata.dimensions || 'N/A'}</code></p>
+        `;
+    } else {
+        // Generic JSON display
+        modalContent += `<pre>${JSON.stringify(data.slice(0, 20), null, 2)}</pre>`;
+    }
+
+    // Show metadata if available
+    if (Object.keys(metadata).length > 0) {
+        modalContent += `
+            <hr>
+            <h6>Metadata</h6>
+            <div class="row">
+                ${Object.entries(metadata).slice(0, 8).map(([key, value]) => `
+                    <div class="col-md-3 mb-2">
+                        <small class="text-muted">${key}:</small><br>
+                        <strong>${typeof value === 'object' ? JSON.stringify(value) : value}</strong>
+                    </div>
+                `).join('')}
+            </div>
+        `;
+    }
+
+    modalContent += `
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+
+    // Remove existing modal if present
+    const existingModal = document.getElementById('llmResultsModal');
+    if (existingModal) {
+        existingModal.remove();
+    }
+
+    // Add modal to page and show
+    document.body.insertAdjacentHTML('beforeend', modalContent);
+    const modal = new bootstrap.Modal(document.getElementById('llmResultsModal'));
+    modal.show();
+
+    // Clean up when modal is hidden
+    document.getElementById('llmResultsModal').addEventListener('hidden.bs.modal', function () {
         this.remove();
     });
 }

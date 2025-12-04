@@ -607,8 +607,12 @@ def approve_orchestration_strategy(run_id):
                 has_named_periods = bool(config.get('named_periods'))
 
                 if not existing_meta and not has_named_periods:
+                    import json
                     # Use the periods provided from the frontend (user may have removed some)
                     created_count = 0
+                    periods = []
+                    period_documents = {}
+
                     for period_data in suggested_periods:
                         period_name = period_data.get('name', '')
                         document_id = period_data.get('document_id')
@@ -616,6 +620,7 @@ def approve_orchestration_strategy(run_id):
                         end_year = period_data.get('end_year')
 
                         if document_id and start_year:
+                            # Create DocumentTemporalMetadata record
                             meta = DocumentTemporalMetadata(
                                 document_id=document_id,
                                 experiment_id=experiment.id,
@@ -627,6 +632,33 @@ def approve_orchestration_strategy(run_id):
                             )
                             db.session.add(meta)
                             created_count += 1
+
+                            # Track for experiment.configuration
+                            if start_year not in periods:
+                                periods.append(start_year)
+                            year_str = str(start_year)
+                            if year_str not in period_documents:
+                                period_documents[year_str] = []
+                            period_documents[year_str].append({
+                                'id': document_id,
+                                'title': period_name,
+                                'date_source': 'publication_date'
+                            })
+
+                    # Update experiment.configuration so manage_temporal_terms page shows them
+                    periods = sorted(periods)
+                    config['time_periods'] = periods
+                    config['period_documents'] = period_documents
+                    config['period_metadata'] = {
+                        str(year): {'source': 'auto-generated', 'document_count': len(period_documents.get(str(year), []))}
+                        for year in periods
+                    }
+                    if periods:
+                        config['start_year'] = min(periods)
+                        config['end_year'] = max(periods)
+                        config['periods_source'] = 'orchestration'
+
+                    experiment.configuration = json.dumps(config) if isinstance(config, dict) else config
 
                     db.session.flush()
                     logger.info(f"Generated temporal metadata for {created_count} documents in experiment {experiment.id}")
@@ -742,6 +774,18 @@ def llm_orchestration_results(experiment_id, run_id):
                 extensions=['fenced_code', 'tables', 'nl2br']
             )
 
+        # Get temporal periods for temporal_evolution experiments
+        temporal_periods = []
+        if experiment.experiment_type == 'temporal_evolution':
+            import json
+            config = experiment.configuration or {}
+            if isinstance(config, str):
+                try:
+                    config = json.loads(config)
+                except (json.JSONDecodeError, TypeError):
+                    config = {}
+            temporal_periods = config.get('time_periods', [])
+
         return render_template(
             'experiments/llm_orchestration_results.html',
             experiment=experiment,
@@ -751,7 +795,8 @@ def llm_orchestration_results(experiment_id, run_id):
             document_count=document_count,
             document_lookup=document_lookup,
             insights_html=insights_html,
-            evolution_html=evolution_html
+            evolution_html=evolution_html,
+            temporal_periods=temporal_periods
         )
 
     except Exception as e:
