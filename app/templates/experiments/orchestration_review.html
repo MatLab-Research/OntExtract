@@ -66,8 +66,28 @@
     }
 
     .reasoning-card {
-        background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
-        border-left: 4px solid #0d6efd;
+        background: var(--llm-bg);
+        border: 1px solid var(--llm-border);
+        border-left: 4px solid var(--llm-accent);
+    }
+
+    .reasoning-card .card-header {
+        background: var(--llm-header-bg);
+        border-bottom: 1px solid var(--llm-border);
+        color: var(--llm-text);
+    }
+
+    .reasoning-card .card-header h5 {
+        color: var(--llm-accent);
+    }
+
+    .reasoning-card .card-body {
+        color: var(--llm-text);
+    }
+
+    .reasoning-card .card-body h6 {
+        color: var(--llm-accent);
+        font-weight: 600;
     }
 
     .confidence-badge {

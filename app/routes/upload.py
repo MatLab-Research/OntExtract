@@ -918,6 +918,8 @@ def create_reference():
         content = data.get('content')
         source = data.get('source')  # MW or OED
         source_type = data.get('source_type', 'dictionary')
+        experiment_id = data.get('experiment_id')
+        include_in_analysis = data.get('include_in_analysis', False)
 
         if not title or not content:
             return jsonify({'success': False, 'error': 'Title and content are required'}), 400
@@ -936,6 +938,12 @@ def create_reference():
 
         db.session.add(document)
         db.session.commit()
+
+        # If experiment_id provided, associate reference with experiment
+        if experiment_id:
+            experiment = Experiment.query.get(experiment_id)
+            if experiment and experiment.user_id == current_user.id:
+                experiment.add_reference(document, include_in_analysis=include_in_analysis)
 
         return jsonify({
             'success': True,

@@ -27,6 +27,39 @@
             --accent-color: #00bc8c;
             --warning-color: #f39c12;
             --danger-color: #e74c3c;
+
+            /* LLM Output styling - consistent AI-generated content appearance */
+            --llm-bg: #f5f0ff;
+            --llm-border: #d4c4f0;
+            --llm-text: #2d2d2d;
+            --llm-accent: #7c4dff;
+            --llm-header-bg: #ede4ff;
+        }
+
+        /* LLM Output container - use for AI-generated content */
+        .llm-output {
+            background-color: var(--llm-bg);
+            border: 1px solid var(--llm-border);
+            border-radius: 0.5rem;
+            color: var(--llm-text);
+        }
+
+        .llm-output-header {
+            background-color: var(--llm-header-bg);
+            border-bottom: 1px solid var(--llm-border);
+            padding: 0.75rem 1rem;
+            font-weight: 600;
+            color: var(--llm-accent);
+            border-radius: 0.5rem 0.5rem 0 0;
+        }
+
+        .llm-output-body {
+            padding: 1rem;
+        }
+
+        .llm-badge {
+            background-color: var(--llm-accent);
+            color: white;
         }
 
         body {
