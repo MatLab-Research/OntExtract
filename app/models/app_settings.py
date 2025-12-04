@@ -135,6 +135,12 @@ class AppSetting(db.Model):
 
             # NLP Tool Settings (used in processing_tools.py)
             ('definition_extraction_confidence_threshold', 0.70, 'nlp', 'float', 'Confidence threshold for definition extraction'),
+
+            # Provenance Settings
+            ('purge_provenance_on_delete', True, 'provenance', 'boolean',
+             'When enabled, provenance records are permanently deleted with documents/terms/experiments. When disabled, records are marked as invalidated but preserved for audit trail.'),
+            ('show_deleted_in_timeline', False, 'provenance', 'boolean',
+             'Default visibility of invalidated items in timeline views (only relevant when purge_provenance_on_delete is disabled)'),
         ]
 
         for key, value, category, data_type, description in defaults:
