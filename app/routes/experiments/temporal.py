@@ -75,7 +75,8 @@ def manage_temporal_terms(experiment_id):
             period_documents=data['period_documents'],
             period_metadata=data['period_metadata'],
             semantic_events=data['semantic_events'],
-            periods=data.get('periods', [])  # Full period objects for timeline view
+            periods=data.get('periods', []),  # Full period objects for timeline view
+            named_periods=data.get('named_periods', [])  # Named period ranges with start/end years
         )
 
     except ValidationError as e:
