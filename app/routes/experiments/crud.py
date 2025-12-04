@@ -376,8 +376,8 @@ def edit(experiment_id):
     terms = Term.query.order_by(Term.term_text).all()
 
     # Get IDs of documents and references already in the experiment
-    selected_doc_ids = [doc.id for doc in experiment.documents if doc.document_type == 'document']
-    selected_ref_ids = [doc.id for doc in experiment.documents if doc.document_type == 'reference']
+    selected_doc_ids = [doc.id for doc in experiment.documents]
+    selected_ref_ids = [ref.id for ref in experiment.references]
 
     # Get focus term ID from proper term_id foreign key column
     selected_term_ids = []

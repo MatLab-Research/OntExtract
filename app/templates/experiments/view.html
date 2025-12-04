@@ -159,9 +159,13 @@
                 <div class="card-body">
                     <div class="d-grid gap-2">
                         {% if experiment.get_document_count() > 0 %}
+                        <a href="{{ url_for('experiments.document_pipeline', experiment_id=experiment.id) }}?mode=llm"
+                           class="btn btn-success">
+                            <i class="fas fa-robot me-2"></i>Run LLM Analysis
+                        </a>
                         <a href="{{ url_for('experiments.document_pipeline', experiment_id=experiment.id) }}"
-                           class="btn btn-warning">
-                            <i class="fas fa-cogs me-2"></i>Document Pipeline
+                           class="btn btn-outline-secondary">
+                            <i class="fas fa-cogs me-2"></i>Manual Processing
                         </a>
                         {% endif %}
 
@@ -202,8 +206,8 @@
                 <div class="card-header py-2">
                     <h6 class="mb-0"><i class="fas fa-info-circle me-2"></i>Description</h6>
                 </div>
-                <div class="card-body">
-                    <p class="mb-0 small">{{ experiment.description }}</p>
+                <div class="card-body small">
+                    {{ experiment.description | markdown }}
                 </div>
             </div>
             {% endif %}

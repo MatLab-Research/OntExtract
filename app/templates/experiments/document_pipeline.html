@@ -679,6 +679,12 @@ document.addEventListener('DOMContentLoaded', function() {
     if (modeManual) modeManual.addEventListener('change', updateMode);
     if (modeLLM) modeLLM.addEventListener('change', updateMode);
 
+    // Check for ?mode=llm URL parameter to auto-select LLM mode
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('mode') === 'llm' && modeLLM) {
+        modeLLM.checked = true;
+    }
+
     // Initialize mode
     updateMode();
 });

@@ -146,7 +146,10 @@ class ExperimentService(BaseService):
 
             # Update documents if provided
             if data.document_ids is not None:
-                # Clear existing documents and add new ones
+                # Clear existing ExperimentDocument records (v2 table)
+                from app.models.experiment_document import ExperimentDocument
+                ExperimentDocument.query.filter_by(experiment_id=experiment.id).delete()
+                # Clear existing documents from many-to-many and add new ones
                 experiment.documents = []
                 self.flush()
                 self._add_documents_to_experiment(experiment, data.document_ids)

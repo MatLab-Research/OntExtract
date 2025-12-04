@@ -104,6 +104,16 @@ def create_app(config_name=None):
             except Exception:
                 return value
 
+    @app.template_filter('markdown')
+    def markdown_filter(text):
+        """Render markdown text to HTML."""
+        if not text:
+            return ''
+        import markdown as md
+        from markupsafe import Markup
+        html = md.markdown(text, extensions=['nl2br', 'tables'])
+        return Markup(html)
+
     @app.template_filter('activity_color')
     def activity_color_filter(activity_type):
         """Return Bootstrap color class for activity type."""
