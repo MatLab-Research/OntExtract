@@ -507,6 +507,7 @@ def delete_all_documents():
         current_app.logger.warning(f"Admin {current_user.id} initiating deletion of ALL {total_documents} documents")
 
         # Delete related records first (in order of dependencies)
+        # Must delete all tables with FK to documents before deleting documents
 
         # 1. Delete provenance entities
         provenance_count = ProvenanceEntity.query.filter(ProvenanceEntity.document_id.isnot(None)).count()
@@ -518,26 +519,61 @@ def delete_all_documents():
         ProcessingArtifact.query.delete(synchronize_session=False)
         current_app.logger.info(f"Deleted {artifact_count} processing artifacts")
 
-        # 3. Delete experiment document processing operations
+        # 3. Delete processing artifact groups
+        result = db.session.execute(text("DELETE FROM processing_artifact_groups"))
+        current_app.logger.info(f"Deleted {result.rowcount} processing artifact groups")
+
+        # 4. Delete experiment document processing operations
         processing_count = ExperimentDocumentProcessing.query.count()
         ExperimentDocumentProcessing.query.delete(synchronize_session=False)
         current_app.logger.info(f"Deleted {processing_count} experiment document processing operations")
 
-        # 4. Delete experiment-document relationships
+        # 5. Delete experiment-document relationships (both tables)
         exp_doc_count = ExperimentDocument.query.count()
         ExperimentDocument.query.delete(synchronize_session=False)
         current_app.logger.info(f"Deleted {exp_doc_count} experiment-document relationships")
 
-        # 5. Delete processing jobs
+        result = db.session.execute(text("DELETE FROM experiment_documents_v2"))
+        current_app.logger.info(f"Deleted {result.rowcount} experiment_documents_v2 records")
+
+        # 6. Delete experiment references
+        result = db.session.execute(text("DELETE FROM experiment_references"))
+        current_app.logger.info(f"Deleted {result.rowcount} experiment references")
+
+        # 7. Delete orchestration decisions
+        result = db.session.execute(text("DELETE FROM orchestration_decisions"))
+        current_app.logger.info(f"Deleted {result.rowcount} orchestration decisions")
+
+        # 8. Delete version changelog
+        result = db.session.execute(text("DELETE FROM version_changelog"))
+        current_app.logger.info(f"Deleted {result.rowcount} version changelog entries")
+
+        # 9. Delete document temporal metadata
+        result = db.session.execute(text("DELETE FROM document_temporal_metadata"))
+        current_app.logger.info(f"Deleted {result.rowcount} document temporal metadata")
+
+        # 10. Delete term disciplinary definitions
+        result = db.session.execute(text("DELETE FROM term_disciplinary_definitions"))
+        current_app.logger.info(f"Deleted {result.rowcount} term disciplinary definitions")
+
+        # 11. Delete semantic shift analysis
+        result = db.session.execute(text("DELETE FROM semantic_shift_analysis"))
+        current_app.logger.info(f"Deleted {result.rowcount} semantic shift analysis records")
+
+        # 12. Delete document processing index
+        result = db.session.execute(text("DELETE FROM document_processing_index"))
+        current_app.logger.info(f"Deleted {result.rowcount} document processing index records")
+
+        # 13. Delete processing jobs
         job_count = ProcessingJob.query.count()
         ProcessingJob.query.delete(synchronize_session=False)
         current_app.logger.info(f"Deleted {job_count} processing jobs")
 
-        # 6. Delete text segments
+        # 14. Delete text segments
         result = db.session.execute(text("DELETE FROM text_segments"))
         current_app.logger.info(f"Deleted {result.rowcount} text segments")
 
-        # 7. Delete document files from disk
+        # 15. Delete document files from disk
         documents = Document.query.all()
         deleted_files = 0
         for doc in documents:
@@ -547,7 +583,8 @@ def delete_all_documents():
             except Exception as e:
                 current_app.logger.error(f"Error deleting file for document {doc.id}: {str(e)}")
 
-        # 8. Finally, delete all documents
+        # 16. Finally, delete all documents (must clear self-references first)
+        db.session.execute(text("UPDATE documents SET source_document_id = NULL, parent_document_id = NULL"))
         Document.query.delete(synchronize_session=False)
 
         db.session.commit()

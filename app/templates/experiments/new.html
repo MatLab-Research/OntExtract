@@ -137,7 +137,8 @@
                                         {% for reference in references %}
                                         <div class="form-check reference-item mb-2">
                                             <input class="form-check-input reference-checkbox" type="checkbox"
-                                                   value="{{ reference.id }}" id="ref-{{ reference.id }}">
+                                                   value="{{ reference.id }}" id="ref-{{ reference.id }}"
+                                                   data-uuid="{{ reference.uuid }}">
                                             <label class="form-check-label" for="ref-{{ reference.id }}">
                                                 <strong>{{ reference.get_display_name() }}</strong>
                                                 <span class="text-muted">({{ reference.word_count or 0 }} words)</span>
@@ -279,23 +280,25 @@ document.addEventListener('DOMContentLoaded', function() {
         const type = typeSelect.value;
         const description = document.getElementById('experiment-description').value.trim();
 
-        // Collect selected documents
-        const documentIds = [];
+        // Collect selected documents (by UUID)
+        const documentUuids = [];
         document.querySelectorAll('.document-checkbox:checked').forEach(cb => {
-            documentIds.push(parseInt(cb.value));
+            const uuid = cb.dataset.uuid;
+            if (uuid) documentUuids.push(uuid);
         });
         // Also check for hidden inputs from single-document mode
-        document.querySelectorAll('input[name="document_ids[]"]').forEach(input => {
-            const id = parseInt(input.value);
-            if (!documentIds.includes(id)) {
-                documentIds.push(id);
+        document.querySelectorAll('input[name="document_uuids[]"]').forEach(input => {
+            const uuid = input.value;
+            if (uuid && !documentUuids.includes(uuid)) {
+                documentUuids.push(uuid);
             }
         });
 
-        // Collect selected references
-        const referenceIds = [];
+        // Collect selected references (by UUID)
+        const referenceUuids = [];
         document.querySelectorAll('.reference-checkbox:checked').forEach(cb => {
-            referenceIds.push(parseInt(cb.value));
+            const uuid = cb.dataset.uuid;
+            if (uuid) referenceUuids.push(uuid);
         });
 
         if (!name) {
@@ -303,7 +306,7 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
 
-        if (documentIds.length === 0 && referenceIds.length === 0) {
+        if (documentUuids.length === 0 && referenceUuids.length === 0) {
             alert('Please select at least one document or reference');
             return;
         }
@@ -330,8 +333,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 name: name,
                 description: description,
                 experiment_type: type,
-                document_ids: documentIds,
-                reference_ids: referenceIds,
+                document_uuids: documentUuids,
+                reference_uuids: referenceUuids,
                 configuration: configuration
             };
 
@@ -494,7 +497,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 const newRefHtml = `
                     <div class="form-check reference-item mb-2">
                         <input class="form-check-input reference-checkbox" type="checkbox"
-                               value="${result.document_id}" id="ref-${result.document_id}" checked>
+                               value="${result.document_id}" id="ref-${result.document_id}"
+                               data-uuid="${result.document_uuid}" checked>
                         <label class="form-check-label" for="ref-${result.document_id}">
                             <strong>${title}</strong>
                             <span class="text-muted">(${wordCount} words)</span>

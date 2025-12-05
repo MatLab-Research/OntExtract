@@ -32,9 +32,17 @@ logger = logging.getLogger(__name__)
 
 
 def _get_experiment_documents(experiment_id):
-    """Get all documents for an experiment with their IDs."""
+    """
+    Get all documents for an experiment with their IDs.
+
+    Documents in experiments are the experimental versions (v2) which store
+    processing artifacts directly. No additional version traversal needed.
+
+    Version chain: v1 (original) -> v2 (experimental, used in experiments)
+    """
     exp_docs = ExperimentDocument.query.filter_by(experiment_id=experiment_id).all()
     document_ids = [ed.document_id for ed in exp_docs]
+
     documents = Document.query.filter(Document.id.in_(document_ids)).all() if document_ids else []
     return documents, document_ids
 
@@ -130,7 +138,7 @@ def experiment_definitions_results(experiment_id):
     # 2. Get from ProcessingArtifact (if any exist)
     llm_artifacts = ProcessingArtifact.query.filter(
         ProcessingArtifact.document_id.in_(document_ids),
-        ProcessingArtifact.artifact_type == 'term_definition'
+        ProcessingArtifact.artifact_type == 'definition'
     ).order_by(ProcessingArtifact.document_id, ProcessingArtifact.artifact_index).all()
 
     for artifact in llm_artifacts:
