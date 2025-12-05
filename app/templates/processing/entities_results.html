@@ -44,6 +44,33 @@
     align-items: center;
     gap: 5px;
 }
+/* Entity type card styling */
+.entity-type-card {
+    border-width: 2px;
+}
+.entity-type-card .card-header {
+    border-radius: 0;
+}
+.entity-type-PERSON { border-color: #3b82f6; }
+.entity-type-ORG { border-color: #16a34a; }
+.entity-type-GPE { border-color: #f59e0b; }
+.entity-type-DATE { border-color: #ec4899; }
+.entity-type-LOC { border-color: #6366f1; }
+.entity-type-PRODUCT { border-color: #8b5cf6; }
+.entity-type-CARDINAL { border-color: #f97316; }
+.entity-type-NORP { border-color: #06b6d4; }
+.entity-type-WORK_OF_ART { border-color: #f43f5e; }
+.entity-type-LAW { border-color: #d97706; }
+.entity-type-CONCEPT { border-color: #64748b; }
+.entity-type-MONEY { border-color: #84cc16; }
+.entity-type-ORDINAL { border-color: #dc2626; }
+.entity-type-QUANTITY { border-color: #0284c7; }
+.entity-type-TIME { border-color: #eab308; }
+.entity-type-PERCENT { border-color: #7c3aed; }
+.entity-type-EVENT { border-color: #ea580c; }
+.entity-type-FAC { border-color: #a855f7; }
+.entity-type-LANGUAGE { border-color: #10b981; }
+.entity-type-UNKNOWN { border-color: #6b7280; }
 </style>
 {% endblock %}
 
@@ -82,45 +109,46 @@
                         <div class="card-body">
                             {% if entities %}
                                 <div class="row text-center mb-4">
-                                    <div class="col-md-3">
+                                    <div class="col-md-4">
                                         <div class="border rounded p-3">
                                             <h4 class="text-success mb-1">{{ total_entities }}</h4>
                                             <small class="text-muted">Total Entities</small>
                                         </div>
                                     </div>
-                                    <div class="col-md-3">
+                                    <div class="col-md-4">
                                         <div class="border rounded p-3">
                                             <h4 class="text-info mb-1">{{ entities_by_type|length }}</h4>
                                             <small class="text-muted">Entity Types</small>
                                         </div>
                                     </div>
-                                    <div class="col-md-3">
+                                    <div class="col-md-4">
                                         <div class="border rounded p-3">
                                             <h4 class="text-primary mb-1">spaCy NER</h4>
                                             <small class="text-muted">Method</small>
                                         </div>
                                     </div>
-                                    <div class="col-md-3">
-                                        <div class="border rounded p-3">
-                                            <h4 class="text-warning mb-1">{{ jobs|length }}</h4>
-                                            <small class="text-muted">Runs</small>
-                                        </div>
-                                    </div>
                                 </div>
 
-                                <!-- Entity Type Breakdown -->
+                                <!-- Entity Type Breakdown with Color-Coded Cards -->
                                 <h6 class="mb-3">Entity Breakdown by Type</h6>
                                 <div class="row">
                                     {% for entity_type, type_entities in entities_by_type.items() %}
-                                    <div class="col-md-6 mb-3">
-                                        <div class="card">
-                                            <div class="card-body">
-                                                <div class="d-flex justify-content-between align-items-center">
-                                                    <div>
-                                                        <h6 class="mb-0">{{ entity_type }}</h6>
-                                                        <small class="text-muted">{{ type_entities|length }} entities</small>
-                                                    </div>
-                                                    <span class="badge bg-secondary">{{ type_entities|length }}</span>
+                                    <div class="col-md-6 col-lg-4 mb-3">
+                                        <div class="card h-100 entity-type-card entity-type-{{ entity_type }}">
+                                            <div class="card-header entity-highlight entity-{{ entity_type }} py-2">
+                                                <strong>{{ entity_type }}</strong>
+                                                <span class="badge bg-dark float-end">{{ type_entities|length }}</span>
+                                            </div>
+                                            <div class="card-body" style="max-height: 150px; overflow-y: auto;">
+                                                <div class="d-flex flex-wrap gap-1">
+                                                    {% for entity in type_entities[:15] %}
+                                                    <span class="badge bg-light text-dark border" title="{{ entity.text }}">
+                                                        {{ entity.text[:20] }}{% if entity.text|length > 20 %}...{% endif %}
+                                                    </span>
+                                                    {% endfor %}
+                                                    {% if type_entities|length > 15 %}
+                                                    <span class="badge bg-secondary">+{{ type_entities|length - 15 }} more</span>
+                                                    {% endif %}
                                                 </div>
                                             </div>
                                         </div>
@@ -275,7 +303,47 @@
 {% block extra_js %}
 <script>
 function exportEntities() {
-    alert('Export feature coming soon!');
+    // Build CSV content from entity data
+    const entities = [
+        {% for entity in entities %}
+        {
+            text: {{ entity.text|tojson }},
+            type: {{ entity.entity_type|tojson }},
+            start: {{ entity.start_position|tojson }},
+            end: {{ entity.end_position|tojson }},
+            confidence: {{ entity.confidence|tojson }}
+        },
+        {% endfor %}
+    ];
+
+    if (entities.length === 0) {
+        alert('No entities to export');
+        return;
+    }
+
+    // Create CSV header and rows
+    const headers = ['Entity Text', 'Type', 'Start Position', 'End Position', 'Confidence'];
+    const rows = entities.map(e => [
+        `"${(e.text || '').replace(/"/g, '""')}"`,
+        e.type || '',
+        e.start !== null ? e.start : '',
+        e.end !== null ? e.end : '',
+        e.confidence !== null ? (e.confidence * 100).toFixed(1) + '%' : ''
+    ]);
+
+    const csvContent = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+
+    // Create download link
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', '{{ document.title|replace(" ", "_") }}_entities.csv');
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
 }
 </script>
 {% endblock %}

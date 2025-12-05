@@ -299,7 +299,7 @@ def delete_document(document_id):
         if request.is_json:
             return jsonify({'error': 'Permission denied'}), 403
         flash('You do not have permission to delete this document', 'error')
-        return redirect(url_for('text_input.document_detail', document_id=document_id))
+        return redirect(url_for('text_input.document_detail', document_uuid=document.uuid))
 
     try:
         # Handle provenance records (purge or invalidate based on settings)
@@ -327,7 +327,7 @@ def delete_document(document_id):
             return jsonify({'error': 'An error occurred while deleting the document'}), 500
 
         flash('An error occurred while deleting the document', 'error')
-        return redirect(url_for('text_input.document_detail', document_id=document_id))
+        return redirect(url_for('text_input.document_detail', document_uuid=document.uuid))
 
 
 @text_input_bp.route('/document/<uuid:document_uuid>/delete', methods=['POST'])

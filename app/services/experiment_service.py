@@ -75,20 +75,20 @@ class ExperimentService(BaseService):
 
             logger.info(f"Created experiment '{experiment.name}' (ID: {experiment.id})")
 
-            # Add documents to experiment
-            if data.document_ids:
-                self._add_documents_to_experiment(experiment, data.document_ids)
+            # Add documents to experiment (by UUID)
+            if data.document_uuids:
+                self._add_documents_by_uuid(experiment, data.document_uuids)
 
-            # Add references to experiment
-            if data.reference_ids:
-                self._add_references_to_experiment(experiment, data.reference_ids)
+            # Add references to experiment (by UUID)
+            if data.reference_uuids:
+                self._add_references_by_uuid(experiment, data.reference_uuids)
 
             # Commit transaction
             self.commit()
 
             logger.info(
                 f"Experiment {experiment.id} created with "
-                f"{len(data.document_ids)} documents and {len(data.reference_ids)} references"
+                f"{len(data.document_uuids)} documents and {len(data.reference_uuids)} references"
             )
 
             return experiment
@@ -507,26 +507,26 @@ class ExperimentService(BaseService):
 
     # Private helper methods
 
-    def _add_documents_to_experiment(
+    def _add_documents_by_uuid(
         self,
         experiment: Experiment,
-        document_ids: List[int]
+        document_uuids: List[str]
     ):
         """
-        Internal method to add documents to experiment
+        Add documents to experiment by UUID
 
         Creates experimental version (v2) for each document BEFORE adding to experiment.
         Original documents (v1) stay pristine.
 
         Args:
             experiment: Experiment instance
-            document_ids: List of document IDs
+            document_uuids: List of document UUIDs
         """
         from app.services.inheritance_versioning_service import InheritanceVersioningService
         from flask_login import current_user
 
-        for doc_id in document_ids:
-            document = Document.query.filter_by(id=doc_id, document_type='document').first()
+        for doc_uuid in document_uuids:
+            document = Document.query.filter_by(uuid=doc_uuid, document_type='document').first()
             if document:
                 # Create experimental version (v2) BEFORE adding to experiment
                 exp_version, created = InheritanceVersioningService.get_or_create_experiment_version(
@@ -540,31 +540,31 @@ class ExperimentService(BaseService):
 
                 if created:
                     logger.info(f"Created experimental version {exp_version.id} (v{exp_version.version_number}) "
-                               f"from document {document.id} for experiment {experiment.id}")
+                               f"from document {document.uuid} for experiment {experiment.id}")
                 else:
                     logger.debug(f"Using existing experimental version {exp_version.id} for experiment {experiment.id}")
             else:
-                logger.warning(f"Document {doc_id} not found, skipping")
+                logger.warning(f"Document with UUID {doc_uuid} not found, skipping")
 
-    def _add_references_to_experiment(
+    def _add_references_by_uuid(
         self,
         experiment: Experiment,
-        reference_ids: List[int]
+        reference_uuids: List[str]
     ):
         """
-        Internal method to add references to experiment
+        Add references to experiment by UUID
 
         Args:
             experiment: Experiment instance
-            reference_ids: List of reference IDs
+            reference_uuids: List of reference UUIDs
         """
-        for ref_id in reference_ids:
-            reference = Document.query.filter_by(id=ref_id, document_type='reference').first()
+        for ref_uuid in reference_uuids:
+            reference = Document.query.filter_by(uuid=ref_uuid, document_type='reference').first()
             if reference:
                 experiment.add_reference(reference, include_in_analysis=True)
-                logger.debug(f"Added reference {ref_id} to experiment {experiment.id}")
+                logger.debug(f"Added reference {ref_uuid} to experiment {experiment.id}")
             else:
-                logger.warning(f"Reference {ref_id} not found, skipping")
+                logger.warning(f"Reference with UUID {ref_uuid} not found, skipping")
 
 
 # Singleton instance for easy access

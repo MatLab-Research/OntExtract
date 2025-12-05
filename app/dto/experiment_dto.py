@@ -27,19 +27,17 @@ class CreateExperimentDTO(BaseDTO):
         description="Type of experiment to run"
     )
     term_id: Optional[str] = Field(None, description="Term ID (UUID) for temporal evolution experiments")
-    document_ids: List[int] = Field(default_factory=list, description="List of document IDs")
-    reference_ids: List[int] = Field(default_factory=list, description="List of reference IDs")
+    document_uuids: List[str] = Field(default_factory=list, description="List of document UUIDs")
+    reference_uuids: List[str] = Field(default_factory=list, description="List of reference UUIDs")
     configuration: Dict[str, Any] = Field(default_factory=dict, description="Experiment configuration")
 
-    @field_validator('document_ids', 'reference_ids')
+    @field_validator('reference_uuids')
     @classmethod
     def validate_has_documents(cls, v, info):
         """Ensure at least one document or reference is provided"""
-        # Check if this is the reference_ids field and document_ids exists
-        if info.field_name == 'reference_ids':
-            document_ids = info.data.get('document_ids', [])
-            if len(document_ids) == 0 and len(v) == 0:
-                raise ValueError('At least one document or reference must be selected')
+        document_uuids = info.data.get('document_uuids', [])
+        if len(document_uuids) == 0 and len(v) == 0:
+            raise ValueError('At least one document or reference must be selected')
         return v
 
     @field_validator('configuration')
@@ -63,8 +61,8 @@ class UpdateExperimentDTO(BaseDTO):
     description: Optional[str] = Field(None, max_length=2000)
     term_id: Optional[str] = Field(None, description="Term ID (UUID) for temporal evolution experiments")
     configuration: Optional[Dict[str, Any]] = None
-    document_ids: Optional[List[int]] = None
-    reference_ids: Optional[List[int]] = None
+    document_uuids: Optional[List[str]] = None
+    reference_uuids: Optional[List[str]] = None
 
 
 class ExperimentResponseDTO(ResponseDTO):

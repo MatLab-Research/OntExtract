@@ -3,14 +3,31 @@ Tool registry for document processing orchestration.
 
 Provides access to processing tools for experiment-level orchestration.
 Connects orchestration layer to DocumentProcessor implementations.
+
+All processing results are stored in the ProcessingArtifact table for unified
+storage regardless of whether processing was triggered manually or via LLM orchestration.
 """
 
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, List
+from datetime import datetime
 from app.services.processing_tools import DocumentProcessor, ProcessingResult
 from app.services.processing_registry_service import processing_registry_service
+from app import db
 import logging
 
 logger = logging.getLogger(__name__)
+
+
+# Artifact type mapping for each tool
+ARTIFACT_TYPE_MAP = {
+    "segment_paragraph": "text_segment",
+    "segment_sentence": "text_segment",
+    "extract_entities_spacy": "extracted_entity",
+    "extract_temporal": "temporal_marker",
+    "extract_causal": "causal_relation",
+    "extract_definitions": "definition",
+    "period_aware_embedding": "embedding_vector"
+}
 
 
 class ToolExecutor:
@@ -19,6 +36,8 @@ class ToolExecutor:
 
     Provides async interface for orchestration while using synchronous
     DocumentProcessor implementations under the hood.
+
+    All results are stored in ProcessingArtifact table for unified storage.
     """
 
     def __init__(self, tool_name: str, user_id: Optional[int] = None, experiment_id: Optional[int] = None):
@@ -75,22 +94,68 @@ class ToolExecutor:
         }
         return artifact_configs.get(tool_name, {"type": "unknown", "method_key": tool_name})
 
-    async def execute(self, document_text: str, document_id: Optional[int] = None,
-                      orchestration_run_id: Optional[str] = None, **kwargs) -> Dict[str, Any]:
+    def _store_artifacts(self, document_id: int, processing_id, result_data: List[Dict],
+                        artifact_type: str, metadata: Dict) -> int:
         """
-        Execute the tool on document text.
+        Store processing results as ProcessingArtifact records.
 
-        Automatically creates a ProcessingArtifactGroup record for successful operations
-        to track what processing was done during orchestration.
+        Args:
+            document_id: The document ID
+            processing_id: The ExperimentDocumentProcessing ID
+            result_data: List of result items from the processing tool
+            artifact_type: The type of artifact (text_segment, extracted_entity, etc.)
+            metadata: Base metadata to include with each artifact
+
+        Returns:
+            Number of artifacts created
+        """
+        from app.models.experiment_processing import ProcessingArtifact
+
+        count = 0
+        for idx, item in enumerate(result_data):
+            artifact = ProcessingArtifact(
+                processing_id=processing_id,
+                document_id=document_id,
+                artifact_type=artifact_type,
+                artifact_index=idx
+            )
+
+            # Set content based on artifact type
+            artifact.set_content(item)
+
+            # Set metadata (include base metadata plus any item-specific metadata)
+            item_metadata = metadata.copy()
+            if isinstance(item, dict):
+                # Extract specific metadata fields from the item
+                for key in ['confidence', 'method', 'model', 'dimensions', 'start', 'end']:
+                    if key in item:
+                        item_metadata[key] = item[key]
+            artifact.set_metadata(item_metadata)
+
+            db.session.add(artifact)
+            count += 1
+
+        return count
+
+    async def execute(self, document_text: str, document_id: Optional[int] = None,
+                      orchestration_run_id: Optional[str] = None,
+                      experiment_document_id: Optional[int] = None,
+                      **kwargs) -> Dict[str, Any]:
+        """
+        Execute the tool on document text and store results in database.
+
+        Results are stored in ProcessingArtifact table for unified storage,
+        whether called from LLM orchestration or manual processing.
 
         Args:
             document_text: Document content to process
-            document_id: Optional document ID for creating ProcessingArtifactGroup
+            document_id: Document ID for storing artifacts
             orchestration_run_id: Optional orchestration run ID for provenance tracking
+            experiment_document_id: Optional ExperimentDocument ID for linking processing
             **kwargs: Additional tool-specific parameters
 
         Returns:
-            Processing results in standardized format
+            Processing results summary (data is stored in DB, not returned in full)
         """
         processor = self._get_processor()
 
@@ -115,75 +180,112 @@ class ToolExecutor:
                 "tool": self.tool_name,
                 "status": "error",
                 "error": f"Unknown tool: {self.tool_name}",
-                "results": {}
+                "count": 0
             }
 
         # Execute the tool (synchronously)
         try:
             result: ProcessingResult = tool_method(document_text)
+            artifact_config = self._get_artifact_config(self.tool_name)
+            artifact_type = ARTIFACT_TYPE_MAP.get(self.tool_name, "unknown")
+            artifacts_created = 0
+            processing_id = None
 
-            # Create ProcessingArtifactGroup after successful execution
+            # Store results in database if we have a document_id
             if result.status == "success" and document_id is not None:
                 try:
-                    artifact_config = self._get_artifact_config(self.tool_name)
+                    from app.models.experiment_processing import ExperimentDocumentProcessing
 
-                    # Build metadata
-                    metadata = {
-                        'created_by': 'llm_orchestration',
+                    # Build metadata for the processing operation
+                    operation_metadata = {
                         'tool_name': self.tool_name,
                         'processing_params': kwargs
                     }
-
-                    # Add orchestration run ID if provided
                     if orchestration_run_id:
-                        metadata['orchestration_run_id'] = orchestration_run_id
-
-                    # Merge with any metadata from the processing result
+                        operation_metadata['orchestration_run_id'] = orchestration_run_id
                     if result.metadata:
-                        metadata.update(result.metadata)
+                        operation_metadata.update(result.metadata)
 
-                    # Create or get the artifact group
-                    group = processing_registry_service.create_or_get_group(
-                        document_id=document_id,
-                        artifact_type=artifact_config['type'],
-                        method_key=artifact_config['method_key'],
-                        metadata=metadata,
-                        include_in_composite=True
-                    )
+                    # Create ExperimentDocumentProcessing record if we have experiment_document_id
+                    if experiment_document_id:
+                        processing_record = ExperimentDocumentProcessing(
+                            experiment_document_id=experiment_document_id,
+                            processing_type=artifact_config['type'],
+                            processing_method=artifact_config['method_key'],
+                            status='completed',
+                            started_at=datetime.utcnow(),
+                            completed_at=datetime.utcnow()
+                        )
+                        processing_record.set_configuration(operation_metadata)
 
-                    logger.info(
-                        f"Created ProcessingArtifactGroup {group.id} for document {document_id}, "
-                        f"tool {self.tool_name}, type {artifact_config['type']}, "
-                        f"method {artifact_config['method_key']}"
-                    )
+                        # Set results summary
+                        result_count = len(result.data) if isinstance(result.data, list) else 1
+                        processing_record.set_results_summary({
+                            'count': result_count,
+                            'artifact_type': artifact_type,
+                            'method': artifact_config['method_key']
+                        })
 
-                except Exception as group_error:
-                    # Log error but don't fail the whole operation
+                        db.session.add(processing_record)
+                        db.session.flush()  # Get the ID
+                        processing_id = processing_record.id
+
+                        # Store individual artifacts
+                        if isinstance(result.data, list) and result.data:
+                            artifacts_created = self._store_artifacts(
+                                document_id=document_id,
+                                processing_id=processing_id,
+                                result_data=result.data,
+                                artifact_type=artifact_type,
+                                metadata=operation_metadata
+                            )
+
+                        db.session.commit()
+                        logger.info(
+                            f"Stored {artifacts_created} {artifact_type} artifacts for document {document_id}, "
+                            f"tool {self.tool_name}"
+                        )
+
+                    # Also create ProcessingArtifactGroup for backward compatibility
+                    try:
+                        group = processing_registry_service.create_or_get_group(
+                            document_id=document_id,
+                            artifact_type=artifact_config['type'],
+                            method_key=artifact_config['method_key'],
+                            metadata=operation_metadata,
+                            include_in_composite=True
+                        )
+                        logger.debug(f"Created ProcessingArtifactGroup {group.id}")
+                    except Exception as group_error:
+                        logger.warning(f"Failed to create ProcessingArtifactGroup: {group_error}")
+
+                except Exception as store_error:
                     logger.error(
-                        f"Failed to create ProcessingArtifactGroup for document {document_id}, "
-                        f"tool {self.tool_name}: {group_error}",
+                        f"Failed to store artifacts for document {document_id}, "
+                        f"tool {self.tool_name}: {store_error}",
                         exc_info=True
                     )
+                    db.session.rollback()
 
-            # Convert ProcessingResult to orchestration format
+            # Return summary (data is in DB, not returned in full to avoid JSON blob storage)
+            result_count = len(result.data) if isinstance(result.data, list) else 1
             return {
                 "tool": self.tool_name,
                 "status": result.status,
-                "results": {
-                    "data": result.data,
-                    "metadata": result.metadata,
-                    "provenance": result.provenance
-                },
-                "count": len(result.data) if isinstance(result.data, list) else 1,
+                "count": result_count,
+                "artifacts_stored": artifacts_created,
+                "processing_id": str(processing_id) if processing_id else None,
+                "metadata": result.metadata,
                 "success": result.status == "success"
             }
 
         except Exception as e:
+            logger.error(f"Error executing tool {self.tool_name}: {e}", exc_info=True)
             return {
                 "tool": self.tool_name,
                 "status": "error",
                 "error": str(e),
-                "results": {},
+                "count": 0,
                 "success": False
             }
 

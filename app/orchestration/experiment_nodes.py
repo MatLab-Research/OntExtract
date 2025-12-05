@@ -28,6 +28,7 @@ from .prompts import get_analyze_prompt, get_recommend_strategy_prompt, get_synt
 # Database imports for progress tracking
 from app import db
 from app.models.experiment_orchestration_run import ExperimentOrchestrationRun
+from app.models.experiment_document import ExperimentDocument
 
 logger = logging.getLogger(__name__)
 
@@ -316,8 +317,10 @@ async def execute_strategy_node(state: ExperimentOrchestrationState) -> Dict[str
     in parallel using the recommended (or modified) tools.
     Tracks execution provenance for PROV-O compliance.
 
+    Results are stored in ProcessingArtifact table for unified storage.
+
     Returns:
-        - processing_results: {doc_id: {tool: result, ...}}
+        - processing_results: {doc_id: {tool: result, ...}} (summaries only, data in DB)
         - execution_trace: List of execution events
         - version_mapping: {original_doc_id: new_version_id}
         - current_stage: "synthesizing"
@@ -325,6 +328,7 @@ async def execute_strategy_node(state: ExperimentOrchestrationState) -> Dict[str
     strategy = state.get('modified_strategy') or state['recommended_strategy']
     documents = state['documents']
     run_id = state['run_id']
+    experiment_id = state['experiment_id']
 
     processing_results = {}
     execution_trace = []
@@ -338,6 +342,21 @@ async def execute_strategy_node(state: ExperimentOrchestrationState) -> Dict[str
 
     # Build doc_id -> title mapping for better progress messages
     doc_titles = {doc['id']: doc.get('title', f"Document {doc['id']}")[:40] for doc in documents}
+
+    # Build doc_id -> experiment_document_id mapping for unified storage
+    # This links processing results to ExperimentDocument records
+    exp_doc_mapping = {}
+    for doc in documents:
+        doc_id = int(doc['id'])
+        exp_doc = ExperimentDocument.query.filter_by(
+            experiment_id=experiment_id,
+            document_id=doc_id
+        ).first()
+        if exp_doc:
+            exp_doc_mapping[doc['id']] = exp_doc.id
+            logger.debug(f"Mapped document {doc_id} to ExperimentDocument {exp_doc.id}")
+        else:
+            logger.warning(f"No ExperimentDocument found for experiment {experiment_id}, document {doc_id}")
 
     # Create new versions for this orchestration run
     if run_id:
@@ -375,12 +394,15 @@ async def execute_strategy_node(state: ExperimentOrchestrationState) -> Dict[str
                     logger.info(f"[Run {run_id}] Processing doc {doc_id} (version {version_doc_id}) with tool {tool_name}")
 
                     # Execute tool with 60 second timeout
-                    # Pass version document_id for artifact group creation
+                    # Pass version document_id and experiment_document_id for unified storage
+                    # Results are stored in ProcessingArtifact table
+                    exp_doc_id = exp_doc_mapping.get(doc_id)
                     result = await asyncio.wait_for(
                         tool.execute(
                             doc_content,
                             document_id=version_doc_id,
-                            orchestration_run_id=str(run_id)
+                            orchestration_run_id=str(run_id),
+                            experiment_document_id=exp_doc_id
                         ),
                         timeout=60.0
                     )
