@@ -10,7 +10,7 @@
         <span class="text-muted">({{ (selected_document.word_count or 0) | int }} words)</span>
     </div>
 </div>
-<input type="hidden" name="document_ids[]" value="{{ selected_document.id }}">
+<input type="hidden" name="document_uuids[]" value="{{ selected_document.uuid }}">
 {% else %}
 <div class="card border-warning bg-light mb-3">
     <div class="card-body text-warning">
