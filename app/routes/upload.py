@@ -86,7 +86,10 @@ def upload_document():
 
         access_date_str = request.form.get('access_date', '').strip()
         access_date = parse_flexible_date(access_date_str) if access_date_str else None
-        
+
+        # Experiment linking (optional)
+        experiment_id = request.form.get('experiment_id')
+
         # Save file
         file_handler = FileHandler()
         saved_path, file_size = file_handler.save_file(
@@ -239,8 +242,7 @@ def upload_document():
         except Exception as e:
             flash(f'Document uploaded but processing failed: {str(e)}', 'warning')
         
-        # Link to experiment if applicable
-        experiment_id = request.form.get('experiment_id')
+        # Link to experiment if applicable (experiment_id already extracted at top)
         if experiment_id:
             experiment = Experiment.query.get(experiment_id)
             if experiment and experiment.user_id == current_user.id:
