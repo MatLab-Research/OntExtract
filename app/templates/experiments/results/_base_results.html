@@ -1,0 +1,348 @@
+{% extends "base.html" %}
+{#
+    Base template for unified experiment results pages
+    Provides consistent dark theme styling and structure for:
+    - Definitions, Entities, Embeddings, Segments results
+    - Both LLM orchestration and manual processing outputs
+
+    Blocks available:
+    - results_title: Page title displayed in header
+    - results_icon: FontAwesome icon class (e.g., "fa-book")
+    - results_color: Theme color class (e.g., "info", "warning", "success")
+    - results_stats: Statistics cards section
+    - results_content: Main content area
+    - results_sidebar: Optional sidebar content
+    - results_js: Page-specific JavaScript
+#}
+
+{% block title %}{{ self.results_title() }} - {{ experiment.name }} - OntExtract{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* Dark theme results styling */
+    .results-page {
+        background-color: #1a1d21;
+        min-height: 100vh;
+        color: #e9ecef;
+    }
+
+    .results-card {
+        background-color: #212529;
+        border: 1px solid #343a40;
+        border-radius: 8px;
+    }
+
+    .results-card .card-header {
+        background-color: #2d3238;
+        border-bottom: 1px solid #343a40;
+        padding: 0.75rem 1rem;
+    }
+
+    .results-card .card-body {
+        background-color: #212529;
+    }
+
+    /* Accent color variants */
+    .results-card.accent-info .card-header {
+        border-left: 4px solid #0dcaf0;
+    }
+    .results-card.accent-warning .card-header {
+        border-left: 4px solid #ffc107;
+    }
+    .results-card.accent-success .card-header {
+        border-left: 4px solid #198754;
+    }
+    .results-card.accent-primary .card-header {
+        border-left: 4px solid #0d6efd;
+    }
+    .results-card.accent-danger .card-header {
+        border-left: 4px solid #dc3545;
+    }
+    .results-card.accent-purple .card-header {
+        border-left: 4px solid #6f42c1;
+    }
+
+    /* Stats cards */
+    .stat-card {
+        background-color: #2d3238;
+        border: 1px solid #343a40;
+        border-radius: 6px;
+        padding: 1rem;
+        text-align: center;
+    }
+
+    .stat-card .stat-value {
+        font-size: 1.75rem;
+        font-weight: 600;
+        margin-bottom: 0.25rem;
+    }
+
+    .stat-card .stat-label {
+        font-size: 0.8rem;
+        color: #adb5bd;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    /* Result item cards */
+    .result-item {
+        background-color: #2d3238;
+        border: 1px solid #3d4449;
+        border-radius: 6px;
+        margin-bottom: 0.75rem;
+        transition: border-color 0.2s;
+    }
+
+    .result-item:hover {
+        border-color: #4d5459;
+    }
+
+    .result-item .item-header {
+        background-color: #343a40;
+        padding: 0.5rem 1rem;
+        border-bottom: 1px solid #3d4449;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        border-radius: 6px 6px 0 0;
+    }
+
+    .result-item .item-body {
+        padding: 1rem;
+    }
+
+    .result-item .item-body p {
+        color: #dee2e6;
+        margin-bottom: 0;
+        line-height: 1.6;
+    }
+
+    /* Source text expandable section */
+    .source-text {
+        background-color: #1a1d21;
+        border: 1px solid #343a40;
+        border-radius: 4px;
+        padding: 0.75rem;
+        margin-top: 0.75rem;
+        font-size: 0.875rem;
+        color: #adb5bd;
+        max-height: 150px;
+        overflow-y: auto;
+    }
+
+    .source-text-toggle {
+        color: #6ea8fe;
+        font-size: 0.8rem;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.25rem;
+    }
+
+    .source-text-toggle:hover {
+        color: #9ec5fe;
+    }
+
+    /* Badges in dark theme */
+    .badge-dark {
+        background-color: #495057;
+        color: #e9ecef;
+    }
+
+    /* Breadcrumb styling */
+    .results-breadcrumb {
+        background-color: transparent;
+        padding: 0;
+        margin-bottom: 1rem;
+    }
+
+    .results-breadcrumb .breadcrumb-item a {
+        color: #6ea8fe;
+    }
+
+    .results-breadcrumb .breadcrumb-item.active {
+        color: #adb5bd;
+    }
+
+    .results-breadcrumb .breadcrumb-item + .breadcrumb-item::before {
+        color: #6c757d;
+    }
+
+    /* Scrollbar styling for dark theme */
+    .results-page ::-webkit-scrollbar {
+        width: 8px;
+        height: 8px;
+    }
+
+    .results-page ::-webkit-scrollbar-track {
+        background: #1a1d21;
+    }
+
+    .results-page ::-webkit-scrollbar-thumb {
+        background: #495057;
+        border-radius: 4px;
+    }
+
+    .results-page ::-webkit-scrollbar-thumb:hover {
+        background: #5c636a;
+    }
+
+    /* Processing source badges */
+    .source-badge {
+        font-size: 0.7rem;
+        padding: 0.2rem 0.5rem;
+        border-radius: 3px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .source-badge.llm {
+        background-color: #6f42c1;
+        color: white;
+    }
+
+    .source-badge.manual {
+        background-color: #0d6efd;
+        color: white;
+    }
+
+    /* Filter tabs */
+    .filter-tabs {
+        display: flex;
+        gap: 0.5rem;
+        margin-bottom: 1rem;
+    }
+
+    .filter-tab {
+        background-color: #343a40;
+        border: 1px solid #495057;
+        color: #adb5bd;
+        padding: 0.375rem 0.75rem;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 0.85rem;
+        transition: all 0.2s;
+    }
+
+    .filter-tab:hover {
+        background-color: #495057;
+        color: #e9ecef;
+    }
+
+    .filter-tab.active {
+        background-color: var(--accent-color, #0d6efd);
+        border-color: var(--accent-color, #0d6efd);
+        color: white;
+    }
+
+    /* Text colors for dark theme */
+    .text-muted-dark {
+        color: #8b939a !important;
+    }
+</style>
+{% block results_extra_css %}{% endblock %}
+{% endblock %}
+
+{% block content %}
+<div class="results-page">
+    <div class="container-fluid px-4 py-3">
+        <!-- Breadcrumb -->
+        <nav aria-label="breadcrumb" class="results-breadcrumb">
+            <ol class="breadcrumb mb-0">
+                <li class="breadcrumb-item"><a href="{{ url_for('experiments.index') }}">Experiments</a></li>
+                <li class="breadcrumb-item"><a href="{{ url_for('experiments.view', experiment_id=experiment.id) }}">{{ experiment.name | truncate(30) }}</a></li>
+                {% if document %}
+                <li class="breadcrumb-item"><a href="{{ url_for('experiments.process_document', experiment_id=experiment.id, document_uuid=document.uuid) }}">{{ document.title | truncate(25) }}</a></li>
+                {% endif %}
+                <li class="breadcrumb-item active">{% block results_title %}Results{% endblock %}</li>
+            </ol>
+        </nav>
+
+        <!-- Header -->
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <div>
+                <h2 class="mb-1">
+                    <i class="fas {% block results_icon %}fa-chart-bar{% endblock %} me-2 text-{% block results_color %}primary{% endblock %}"></i>
+                    {{ self.results_title() }}
+                </h2>
+                <p class="text-muted-dark mb-0">
+                    {{ experiment.name }}
+                    {% if document %} / {{ document.title | truncate(40) }}{% endif %}
+                </p>
+            </div>
+            <div class="d-flex gap-2">
+                {% block results_actions %}
+                <a href="{{ url_for('experiments.process_document', experiment_id=experiment.id, document_uuid=document.uuid) if document else url_for('experiments.view', experiment_id=experiment.id) }}"
+                   class="btn btn-outline-light btn-sm">
+                    <i class="fas fa-arrow-left me-1"></i> Back
+                </a>
+                {% endblock %}
+            </div>
+        </div>
+
+        <!-- Stats Row -->
+        {% block results_stats %}{% endblock %}
+
+        <!-- Main Content -->
+        <div class="row">
+            <!-- Main Column -->
+            <div class="{% block main_col_class %}col-lg-9{% endblock %}">
+                {% block results_content %}{% endblock %}
+            </div>
+
+            <!-- Sidebar -->
+            <div class="{% block sidebar_col_class %}col-lg-3{% endblock %}">
+                {% block results_sidebar %}{% endblock %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Toggle source text visibility
+function toggleSourceText(id) {
+    const sourceDiv = document.getElementById('source-' + id);
+    const toggleBtn = document.getElementById('toggle-' + id);
+
+    if (sourceDiv.style.display === 'none') {
+        sourceDiv.style.display = 'block';
+        toggleBtn.innerHTML = '<i class="fas fa-chevron-up me-1"></i>Hide source';
+    } else {
+        sourceDiv.style.display = 'none';
+        toggleBtn.innerHTML = '<i class="fas fa-chevron-down me-1"></i>Show source';
+    }
+}
+
+// Filter results by source type
+function filterBySource(source) {
+    const items = document.querySelectorAll('.result-item');
+    const tabs = document.querySelectorAll('.filter-tab');
+
+    tabs.forEach(tab => {
+        tab.classList.toggle('active', tab.dataset.source === source);
+    });
+
+    items.forEach(item => {
+        if (source === 'all' || item.dataset.source === source) {
+            item.style.display = 'block';
+        } else {
+            item.style.display = 'none';
+        }
+    });
+
+    updateVisibleCount();
+}
+
+// Update visible count display
+function updateVisibleCount() {
+    const visible = document.querySelectorAll('.result-item[style="display: block"], .result-item:not([style*="display"])').length;
+    const countEl = document.getElementById('visible-count');
+    if (countEl) {
+        countEl.textContent = visible;
+    }
+}
+</script>
+{% block results_js %}{% endblock %}
+{% endblock %}

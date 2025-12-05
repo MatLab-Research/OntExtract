@@ -1538,30 +1538,74 @@ def view_embeddings_results(document_uuid):
         # Sort by created_at desc
         jobs.sort(key=lambda j: (j.created_at is None, j.created_at), reverse=True)
 
-        # Get embedding statistics from ProcessingArtifact (new system)
+        # Get embeddings from multiple sources
+        from app.services.inheritance_versioning_service import InheritanceVersioningService
+        base_doc_id = InheritanceVersioningService._get_base_document_id(document)
+
+        # Query all versions that derive from the base document
+        all_versions = Document.query.filter_by(source_document_id=base_doc_id).all()
+        all_version_ids = [v.id for v in all_versions]
+
+        # Always include the base document itself
+        if base_doc_id not in all_version_ids:
+            all_version_ids.append(base_doc_id)
+
+        embeddings_info = []
+
+        # 1. Get from LLM orchestration results
+        from .orchestration_results_helper import get_embeddings_from_orchestration
+        for doc_id in all_version_ids:
+            orch_embeddings = get_embeddings_from_orchestration(doc_id)
+            if orch_embeddings:
+                metadata = orch_embeddings.get('metadata', {})
+                embeddings_info.append({
+                    'document_id': doc_id,
+                    'method': metadata.get('method', 'period_aware'),
+                    'model': metadata.get('model', 'unknown'),
+                    'dimensions': metadata.get('dimensions', 'N/A'),
+                    'chunk_count': orch_embeddings.get('count', 0),
+                    'source': 'llm',
+                    'data': orch_embeddings.get('data', [])
+                })
+
+        # 2. Get from ProcessingArtifact (new experiment processing)
         from app.models.experiment_processing import ProcessingArtifact
 
         # Get document-level embeddings (artifact_index = -1)
         document_embeddings = ProcessingArtifact.query.filter(
-            ProcessingArtifact.document_id == document.id,
+            ProcessingArtifact.document_id.in_(all_version_ids),
             ProcessingArtifact.artifact_type == 'embedding_vector',
             ProcessingArtifact.artifact_index == -1
         ).all()
 
         # Get segment-level embeddings (artifact_index >= 0)
         segment_embeddings = ProcessingArtifact.query.filter(
-            ProcessingArtifact.document_id == document.id,
+            ProcessingArtifact.document_id.in_(all_version_ids),
             ProcessingArtifact.artifact_type == 'embedding_vector',
             ProcessingArtifact.artifact_index >= 0
         ).order_by(ProcessingArtifact.artifact_index).all()
 
-        total_embeddings = len(document_embeddings) + len(segment_embeddings)
+        # Add artifact-based embeddings to info
+        for emb in document_embeddings + segment_embeddings:
+            metadata = emb.get_metadata()
+            embeddings_info.append({
+                'document_id': emb.document_id,
+                'method': metadata.get('method', 'unknown'),
+                'model': metadata.get('model', 'unknown'),
+                'dimensions': metadata.get('dimensions', 'N/A'),
+                'chunk_count': 1,
+                'source': 'artifact',
+                'artifact': emb
+            })
+
+        total_embeddings = len(embeddings_info)
 
         from flask import render_template
         return render_template('processing/embeddings_results.html',
                              document=document,
                              jobs=jobs,
                              embedding_count=total_embeddings,
+                             embeddings_info=embeddings_info,
                              document_embeddings=document_embeddings,
                              segment_embeddings=segment_embeddings)
 
@@ -1613,8 +1657,7 @@ def view_entities_results(document_uuid):
 
         jobs.sort(key=lambda j: (j.created_at is None, j.created_at), reverse=True)
 
-        # Get entities from database (old ExtractedEntity table)
-        # ExtractedEntity doesn't have document_id, must query through ProcessingJob
+        # Get entities from multiple sources
         from app.services.inheritance_versioning_service import InheritanceVersioningService
         base_doc_id = InheritanceVersioningService._get_base_document_id(document)
 
@@ -1626,49 +1669,73 @@ def view_entities_results(document_uuid):
         if base_doc_id not in all_version_ids:
             all_version_ids.append(base_doc_id)
 
-        # Get entity extraction jobs from all versions
+        entities = []
+
+        # 1. Get from LLM orchestration results (ExperimentOrchestrationRun.processing_results)
+        from .orchestration_results_helper import get_entities_from_orchestration
+        for doc_id in all_version_ids:
+            orch_entities = get_entities_from_orchestration(doc_id)
+            # Convert to entity-like dicts for template compatibility
+            for ent in orch_entities:
+                entities.append({
+                    'entity_text': ent.get('text', ''),
+                    'text': ent.get('text', ''),
+                    'entity_type': ent.get('entity_type', 'UNKNOWN'),
+                    'start_position': ent.get('start'),
+                    'end_position': ent.get('end'),
+                    'confidence_score': ent.get('confidence', 0),
+                    'confidence': ent.get('confidence', 0),
+                    'context': ent.get('context', ''),
+                    'source': 'llm'
+                })
+
+        # 2. Get entities from old ExtractedEntity table (via ProcessingJob)
         entity_jobs = ProcessingJob.query.filter(
             ProcessingJob.document_id.in_(all_version_ids),
             ProcessingJob.job_type == 'entity_extraction'
         ).all()
 
-        # Get all entities from those jobs
-        old_entities = []
         for job in entity_jobs:
             job_entities = ExtractedEntity.query.filter_by(processing_job_id=job.id).all()
-            old_entities.extend(job_entities)
+            for ent in job_entities:
+                entities.append({
+                    'entity_text': ent.entity_text,
+                    'text': ent.entity_text,
+                    'entity_type': ent.entity_type or 'UNKNOWN',
+                    'start_position': getattr(ent, 'start_position', None),
+                    'end_position': getattr(ent, 'end_position', None),
+                    'confidence_score': getattr(ent, 'confidence_score', 0),
+                    'confidence': getattr(ent, 'confidence_score', 0),
+                    'context': getattr(ent, 'context', ''),
+                    'source': 'manual'
+                })
 
-        # Also get entities from ProcessingArtifact (new experiment processing)
+        # 3. Get entities from ProcessingArtifact (new experiment processing)
         from app.models.experiment_processing import ProcessingArtifact
         new_artifacts = ProcessingArtifact.query.filter(
             ProcessingArtifact.document_id.in_(all_version_ids),
             ProcessingArtifact.artifact_type == 'extracted_entity'
         ).order_by(ProcessingArtifact.artifact_index).all()
 
-        # Create wrapper class to make ProcessingArtifact look like ExtractedEntity
-        class EntityWrapper:
-            def __init__(self, artifact):
-                content_data = artifact.get_content()
-                metadata = artifact.get_metadata()
-                self.entity_text = content_data.get('entity', '')
-                self.text = self.entity_text  # Alias for template compatibility
-                self.entity_type = content_data.get('entity_type', 'UNKNOWN')
-                self.start_position = content_data.get('start_char')
-                self.end_position = content_data.get('end_char')
-                self.confidence_score = content_data.get('confidence', 0)
-                self.confidence = self.confidence_score  # Alias for template compatibility
-                self.context = content_data.get('context', '')
-                self.artifact = artifact
-
-        # Combine old and new entities
-        entities = list(old_entities)
         for artifact in new_artifacts:
-            entities.append(EntityWrapper(artifact))
+            content_data = artifact.get_content()
+            metadata = artifact.get_metadata()
+            entities.append({
+                'entity_text': content_data.get('entity', ''),
+                'text': content_data.get('entity', ''),
+                'entity_type': content_data.get('entity_type', 'UNKNOWN'),
+                'start_position': content_data.get('start_char'),
+                'end_position': content_data.get('end_char'),
+                'confidence_score': content_data.get('confidence', 0),
+                'confidence': content_data.get('confidence', 0),
+                'context': content_data.get('context', ''),
+                'source': 'artifact'
+            })
 
         # Group entities by type
         entities_by_type = {}
         for entity in entities:
-            entity_type = entity.entity_type or 'UNKNOWN'
+            entity_type = entity.get('entity_type', 'UNKNOWN')
             if entity_type not in entities_by_type:
                 entities_by_type[entity_type] = []
             entities_by_type[entity_type].append(entity)
@@ -1680,11 +1747,13 @@ def view_entities_results(document_uuid):
         }
 
         for entity in entities:
-            if entity.start_position is not None and entity.end_position is not None:
+            start_pos = entity.get('start_position')
+            end_pos = entity.get('end_position')
+            if start_pos is not None and end_pos is not None:
                 displacy_data['ents'].append({
-                    'start': entity.start_position,
-                    'end': entity.end_position,
-                    'label': entity.entity_type or 'UNKNOWN'
+                    'start': start_pos,
+                    'end': end_pos,
+                    'label': entity.get('entity_type', 'UNKNOWN')
                 })
 
         from flask import render_template
@@ -1975,15 +2044,22 @@ def view_definitions_results(document_uuid):
 
         jobs.sort(key=lambda j: (j.created_at is None, j.created_at), reverse=True)
 
-        # Get definitions from ProcessingArtifact (new experiment processing)
+        # Get definitions from multiple sources
+        definitions = []
+
+        # 1. Get from LLM orchestration results (ExperimentOrchestrationRun.processing_results)
+        from .orchestration_results_helper import get_definitions_from_orchestration
+        for doc_id in all_version_ids:
+            orch_definitions = get_definitions_from_orchestration(doc_id)
+            definitions.extend(orch_definitions)
+
+        # 2. Get definitions from ProcessingArtifact (if any exist)
         from app.models.experiment_processing import ProcessingArtifact
         artifacts = ProcessingArtifact.query.filter(
             ProcessingArtifact.document_id.in_(all_version_ids),
             ProcessingArtifact.artifact_type == 'term_definition'
         ).order_by(ProcessingArtifact.artifact_index).all()
 
-        # Extract definitions data from artifacts
-        definitions = []
         for artifact in artifacts:
             content = artifact.get_content()
             metadata = artifact.get_metadata()
@@ -1995,13 +2071,14 @@ def view_definitions_results(document_uuid):
                 'sentence': content.get('sentence', ''),
                 'start_char': metadata.get('start_char'),
                 'end_char': metadata.get('end_char'),
-                'method': metadata.get('method', 'unknown')
+                'method': metadata.get('method', 'artifact'),
+                'source': 'artifact'
             })
 
         # Group definitions by pattern type
         definitions_by_pattern = {}
         for defn in definitions:
-            pattern = defn['pattern']
+            pattern = defn.get('pattern', 'unknown')
             if pattern not in definitions_by_pattern:
                 definitions_by_pattern[pattern] = []
             definitions_by_pattern[pattern].append(defn)
@@ -2076,7 +2153,15 @@ def view_temporal_results(document_uuid):
 
         jobs.sort(key=lambda j: (j.created_at is None, j.created_at), reverse=True)
 
-        # Get temporal expressions from ProcessingArtifact (new experiment processing)
+        temporal_expressions = []
+
+        # 1. Get from LLM orchestration results
+        from .orchestration_results_helper import get_temporal_from_orchestration
+        for doc_id in all_version_ids:
+            orch_temporal = get_temporal_from_orchestration(doc_id)
+            temporal_expressions.extend(orch_temporal)
+
+        # 2. Get temporal expressions from ProcessingArtifact (new experiment processing)
         from app.models.experiment_processing import ProcessingArtifact
         artifacts = ProcessingArtifact.query.filter(
             ProcessingArtifact.document_id.in_(all_version_ids),
@@ -2084,7 +2169,6 @@ def view_temporal_results(document_uuid):
         ).order_by(ProcessingArtifact.artifact_index).all()
 
         # Extract temporal data from artifacts
-        temporal_expressions = []
         for artifact in artifacts:
             content = artifact.get_content()
             metadata = artifact.get_metadata()
@@ -2096,7 +2180,8 @@ def view_temporal_results(document_uuid):
                 'start_char': metadata.get('start_char'),
                 'end_char': metadata.get('end_char'),
                 'method': metadata.get('method', 'unknown'),
-                'context': content.get('context', '')
+                'context': content.get('context', ''),
+                'source': 'artifact'
             })
 
         # Group expressions by type

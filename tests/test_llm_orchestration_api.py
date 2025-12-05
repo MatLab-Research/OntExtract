@@ -9,11 +9,14 @@ Coverage:
 - POST /orchestration/approve-strategy/<run_id> - Approve strategy
 - GET  /experiments/<id>/orchestration/llm-results/<run_id> - Results page
 - GET  /experiments/<id>/orchestration/llm-provenance/<run_id> - PROV-O download
+
+Note: Orchestration now uses Celery tasks instead of threading.Thread.
+Tests mock the Celery task .delay() method to prevent actual background execution.
 """
 
 import pytest
 import json
-from unittest.mock import patch, Mock
+from unittest.mock import patch, Mock, MagicMock
 from uuid import uuid4
 
 from app.models import Experiment, Document
@@ -123,18 +126,19 @@ def completed_run(db_session, experiment_with_docs, test_user):
 class TestStartOrchestration:
     """Test POST /experiments/<id>/orchestration/analyze"""
 
-    @patch('threading.Thread')
+    @patch('app.tasks.orchestration.run_orchestration_task.delay')
     def test_start_orchestration_success(
         self,
-        mock_thread,
+        mock_celery_delay,
         auth_client,
         experiment_with_docs,
         db_session
     ):
-        """Test starting orchestration successfully via background thread."""
-        # Mock thread to prevent actual background execution
-        mock_thread_instance = Mock()
-        mock_thread.return_value = mock_thread_instance
+        """Test starting orchestration successfully via Celery task."""
+        # Mock Celery task to prevent actual background execution
+        mock_async_result = MagicMock()
+        mock_async_result.id = 'test-task-id'
+        mock_celery_delay.return_value = mock_async_result
 
         response = auth_client.post(
             f'/experiments/{experiment_with_docs.id}/orchestration/analyze',
@@ -146,8 +150,8 @@ class TestStartOrchestration:
         data = json.loads(response.data)
         assert data['success'] is True
         assert 'run_id' in data
-        assert data['status'] == 'analyzing'  # Initial status when thread started
-        mock_thread_instance.start.assert_called_once()
+        assert data['status'] == 'analyzing'  # Initial status when task queued
+        mock_celery_delay.assert_called_once()
 
     def test_start_orchestration_requires_auth(
         self,
@@ -178,16 +182,16 @@ class TestStartOrchestration:
         data = json.loads(response.data)
         assert data['success'] is False
 
-    @patch('threading.Thread')
+    @patch('app.tasks.orchestration.run_orchestration_task.delay')
     def test_start_orchestration_workflow_error(
         self,
-        mock_thread,
+        mock_celery_delay,
         auth_client,
         experiment_with_docs
     ):
-        """Test error handling when thread creation fails."""
-        # Mock thread that raises error when created
-        mock_thread.side_effect = Exception('Thread creation error')
+        """Test error handling when Celery task dispatch fails."""
+        # Mock Celery task that raises error when called
+        mock_celery_delay.side_effect = Exception('Celery task error')
 
         response = auth_client.post(
             f'/experiments/{experiment_with_docs.id}/orchestration/analyze',
@@ -200,17 +204,18 @@ class TestStartOrchestration:
         assert data['success'] is False
         assert 'error' in data
 
-    @patch('threading.Thread')
+    @patch('app.tasks.orchestration.run_orchestration_task.delay')
     def test_start_orchestration_auto_approve(
         self,
-        mock_thread,
+        mock_celery_delay,
         auth_client,
         experiment_with_docs
     ):
-        """Test orchestration with auto-approval (no review) via background thread."""
-        # Mock thread to prevent actual background execution
-        mock_thread_instance = Mock()
-        mock_thread.return_value = mock_thread_instance
+        """Test orchestration with auto-approval (no review) via Celery task."""
+        # Mock Celery task to prevent actual background execution
+        mock_async_result = MagicMock()
+        mock_async_result.id = 'test-task-id'
+        mock_celery_delay.return_value = mock_async_result
 
         response = auth_client.post(
             f'/experiments/{experiment_with_docs.id}/orchestration/analyze',
@@ -220,11 +225,11 @@ class TestStartOrchestration:
 
         assert response.status_code == 200
         data = json.loads(response.data)
-        assert data['status'] == 'analyzing'  # Initial status when thread started
+        assert data['status'] == 'analyzing'  # Initial status when task queued
         assert 'run_id' in data
 
-        # Verify background thread was started
-        mock_thread_instance.start.assert_called_once()
+        # Verify Celery task was dispatched
+        mock_celery_delay.assert_called_once()
 
 
 # ==============================================================================
@@ -316,17 +321,18 @@ class TestOrchestrationStatus:
 class TestApproveStrategy:
     """Test POST /orchestration/approve-strategy/<run_id>"""
 
-    @patch('threading.Thread')
+    @patch('app.tasks.orchestration.run_execution_phase_task.delay')
     def test_approve_strategy_success(
         self,
-        mock_thread,
+        mock_celery_delay,
         auth_client,
         reviewing_run
     ):
-        """Test approving strategy successfully - starts background execution."""
-        # Mock thread to prevent actual background execution
-        mock_thread_instance = Mock()
-        mock_thread.return_value = mock_thread_instance
+        """Test approving strategy successfully - starts Celery execution task."""
+        # Mock Celery task to prevent actual background execution
+        mock_async_result = MagicMock()
+        mock_async_result.id = 'test-task-id'
+        mock_celery_delay.return_value = mock_async_result
 
         response = auth_client.post(
             f'/experiments/orchestration/approve-strategy/{reviewing_run.id}',
@@ -341,7 +347,7 @@ class TestApproveStrategy:
         data = json.loads(response.data)
         assert data['success'] is True
         assert data['status'] == 'executing'  # Returns immediately with executing status
-        mock_thread_instance.start.assert_called_once()
+        mock_celery_delay.assert_called_once()
 
     def test_approve_strategy_requires_auth(
         self,
@@ -387,25 +393,23 @@ class TestApproveStrategy:
         data = json.loads(response.data)
         assert 'Cannot approve strategy' in data['error']
 
-    @patch('app.routes.experiments.orchestration.workflow_executor')
+    @patch('app.tasks.orchestration.run_execution_phase_task.delay')
     def test_approve_strategy_with_modifications(
         self,
-        mock_executor,
+        mock_celery_delay,
         auth_client,
-        reviewing_run
+        reviewing_run,
+        db_session
     ):
         """Test approving strategy with user modifications."""
         modified_strategy = {
             '1': ['extract_entities_spacy', 'extract_temporal', 'extract_definitions']
         }
 
-        mock_executor.execute_processing_phase.return_value = {
-            'status': 'completed',
-            'run_id': str(reviewing_run.id),
-            'processing_results': {},
-            'cross_document_insights': 'Test',
-            'execution_time': 100.0
-        }
+        # Mock Celery task to prevent actual background execution
+        mock_async_result = MagicMock()
+        mock_async_result.id = 'test-task-id'
+        mock_celery_delay.return_value = mock_async_result
 
         response = auth_client.post(
             f'/experiments/orchestration/approve-strategy/{reviewing_run.id}',
@@ -419,10 +423,11 @@ class TestApproveStrategy:
 
         assert response.status_code == 200
 
-        # Verify modified strategy was passed to executor
-        call_args = mock_executor.execute_processing_phase.call_args
-        assert call_args[1]['modified_strategy'] == modified_strategy
-        assert call_args[1]['review_notes'] == 'Added definitions extraction'
+        # Verify modified strategy was stored in database and passed to Celery task
+        db_session.refresh(reviewing_run)
+        assert reviewing_run.modified_strategy == modified_strategy
+        assert reviewing_run.review_notes == 'Added definitions extraction'
+        mock_celery_delay.assert_called_once()
 
     def test_reject_strategy(
         self,
@@ -449,17 +454,17 @@ class TestApproveStrategy:
         assert reviewing_run.status == 'cancelled'
         assert 'Not suitable' in reviewing_run.review_notes
 
-    @patch('threading.Thread')
-    def test_approve_strategy_thread_error(
+    @patch('app.tasks.orchestration.run_execution_phase_task.delay')
+    def test_approve_strategy_celery_error(
         self,
-        mock_thread,
+        mock_celery_delay,
         auth_client,
         reviewing_run
     ):
-        """Test error handling when thread creation fails."""
+        """Test error handling when Celery task dispatch fails."""
         # Errors during background execution are handled asynchronously,
-        # but thread creation errors are caught immediately
-        mock_thread.side_effect = Exception('Thread creation failed')
+        # but task dispatch errors are caught immediately
+        mock_celery_delay.side_effect = Exception('Celery task dispatch failed')
 
         response = auth_client.post(
             f'/experiments/orchestration/approve-strategy/{reviewing_run.id}',
@@ -677,10 +682,12 @@ class TestProvenanceDownload:
 class TestFullOrchestrationWorkflow:
     """Test complete orchestration workflow through API."""
 
-    @patch('threading.Thread')
+    @patch('app.tasks.orchestration.run_execution_phase_task.delay')
+    @patch('app.tasks.orchestration.run_orchestration_task.delay')
     def test_full_workflow_api(
         self,
-        mock_thread,
+        mock_orchestration_delay,
+        mock_execution_delay,
         auth_client,
         client,
         experiment_with_docs,
@@ -688,13 +695,15 @@ class TestFullOrchestrationWorkflow:
     ):
         """Test full workflow: start → poll → approve → results → provenance.
 
-        Note: With background thread execution, the API returns immediately with
+        Note: With Celery task execution, the API returns immediately with
         'analyzing' or 'executing' status. Actual workflow completion happens
         asynchronously. This test simulates completion by updating DB directly.
         """
-        # Mock thread to prevent actual background execution
-        mock_thread_instance = Mock()
-        mock_thread.return_value = mock_thread_instance
+        # Mock Celery tasks to prevent actual background execution
+        mock_async_result = MagicMock()
+        mock_async_result.id = 'test-task-id'
+        mock_orchestration_delay.return_value = mock_async_result
+        mock_execution_delay.return_value = mock_async_result
 
         # Step 1: Start orchestration
         start_response = auth_client.post(
@@ -707,9 +716,9 @@ class TestFullOrchestrationWorkflow:
         start_data = json.loads(start_response.data)
         run_id = start_data['run_id']
         assert start_data['status'] == 'analyzing'
-        mock_thread_instance.start.assert_called()
+        mock_orchestration_delay.assert_called()
 
-        # Simulate what the background thread does - update run status in DB
+        # Simulate what the Celery task does - update run status in DB
         run = ExperimentOrchestrationRun.query.get(run_id)
         run.status = 'reviewing'
         run.experiment_goal = 'Test goal'
@@ -736,7 +745,7 @@ class TestFullOrchestrationWorkflow:
         approve_data = json.loads(approve_response.data)
         assert approve_data['status'] == 'executing'  # Returns immediately
 
-        # Simulate background thread completion
+        # Simulate Celery task completion
         db_session.refresh(run)
         run.status = 'completed'
         run.cross_document_insights = 'Test insights'

@@ -1,0 +1,203 @@
+{% extends "experiments/results/_base_results.html" %}
+
+{% block results_title %}Definitions{% endblock %}
+{% block results_icon %}fa-book{% endblock %}
+{% block results_color %}info{% endblock %}
+
+{% block results_extra_css %}
+<style>
+    .definition-term {
+        font-weight: 600;
+        color: #0dcaf0;
+        font-size: 1.1rem;
+    }
+
+    .definition-text {
+        color: #dee2e6;
+        line-height: 1.6;
+        margin-top: 0.5rem;
+    }
+
+    .pattern-badge {
+        font-size: 0.7rem;
+        padding: 0.2rem 0.5rem;
+        border-radius: 3px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .pattern-is_defined_as { background-color: #0d6efd; color: white; }
+    .pattern-refers_to { background-color: #6f42c1; color: white; }
+    .pattern-means { background-color: #198754; color: white; }
+    .pattern-unknown { background-color: #6c757d; color: white; }
+
+    .confidence-bar {
+        height: 4px;
+        border-radius: 2px;
+        background-color: #343a40;
+        width: 60px;
+    }
+
+    .confidence-fill {
+        height: 100%;
+        border-radius: 2px;
+        background-color: #198754;
+    }
+
+    .year-badge {
+        background-color: #495057;
+        color: #adb5bd;
+        font-size: 0.75rem;
+        padding: 0.2rem 0.5rem;
+        border-radius: 3px;
+    }
+</style>
+{% endblock %}
+
+{% block results_stats %}
+<div class="row mb-4 g-3">
+    <div class="col-md-3">
+        <div class="stat-card">
+            <div class="stat-value text-info">{{ total_definitions }}</div>
+            <div class="stat-label">Total Definitions</div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="stat-card">
+            <div class="stat-value text-purple" style="color: #6f42c1;">{{ llm_count }}</div>
+            <div class="stat-label">LLM Extracted</div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="stat-card">
+            <div class="stat-value text-primary">{{ manual_count }}</div>
+            <div class="stat-label">Manual Processing</div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="stat-card">
+            <div class="stat-value text-secondary">{{ documents | length }}</div>
+            <div class="stat-label">Documents</div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block main_col_class %}col-lg-8{% endblock %}
+{% block sidebar_col_class %}col-lg-4{% endblock %}
+
+{% block results_content %}
+<div class="results-card accent-info mb-4">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="mb-0">
+            <i class="fas fa-book me-2"></i>Extracted Definitions
+            <span class="badge bg-info ms-2">{{ total_definitions }}</span>
+        </h5>
+        <div class="filter-tabs" style="--accent-color: #0dcaf0;">
+            <button class="filter-tab active" data-source="all" onclick="filterBySource('all')">All</button>
+            <button class="filter-tab" data-source="llm" onclick="filterBySource('llm')">LLM</button>
+            <button class="filter-tab" data-source="manual" onclick="filterBySource('manual')">Manual</button>
+        </div>
+    </div>
+    <div class="card-body">
+        {% if definitions %}
+            {% for defn in definitions %}
+            <div class="result-item" data-source="{{ defn.source }}">
+                <div class="item-header">
+                    <div class="d-flex align-items-center gap-2">
+                        <span class="definition-term">{{ defn.term }}</span>
+                        <span class="pattern-badge pattern-{{ defn.pattern | lower | replace(' ', '_') }}">{{ defn.pattern }}</span>
+                        {% if defn.document_year %}
+                        <span class="year-badge">{{ defn.document_year }}</span>
+                        {% endif %}
+                    </div>
+                    <div class="d-flex align-items-center gap-3">
+                        {% if defn.confidence %}
+                        <div class="d-flex align-items-center gap-1">
+                            <small class="text-muted">{{ (defn.confidence * 100) | round }}%</small>
+                            <div class="confidence-bar">
+                                <div class="confidence-fill" style="width: {{ (defn.confidence * 100) | round }}%"></div>
+                            </div>
+                        </div>
+                        {% endif %}
+                        <span class="source-badge {{ defn.source }}">{{ defn.source }}</span>
+                    </div>
+                </div>
+                <div class="item-body">
+                    <p class="definition-text">{{ defn.definition }}</p>
+                    {% if defn.sentence %}
+                    <div class="mt-2">
+                        <span class="source-text-toggle" id="toggle-{{ defn.id }}" onclick="toggleSourceText('{{ defn.id }}')">
+                            <i class="fas fa-chevron-down me-1"></i>Show source
+                        </span>
+                        <div class="source-text" id="source-{{ defn.id }}" style="display: none;">
+                            <strong>Source sentence:</strong><br>
+                            {{ defn.sentence }}
+                        </div>
+                    </div>
+                    {% endif %}
+                    <div class="mt-2 text-muted-dark small">
+                        <i class="fas fa-file-alt me-1"></i>
+                        {% if defn.document_uuid %}
+                        <a href="{{ url_for('experiments.process_document', experiment_id=experiment.id, document_uuid=defn.document_uuid) }}" class="text-info text-decoration-none">
+                            {{ defn.document_title | truncate(40) }}
+                        </a>
+                        {% else %}
+                        {{ defn.document_title | truncate(40) }}
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        {% else %}
+            <div class="text-center py-5">
+                <i class="fas fa-book fa-3x text-muted mb-3"></i>
+                <p class="text-muted">No definitions have been extracted yet.</p>
+                <p class="text-muted small">Run LLM orchestration or manual definition extraction on your documents.</p>
+            </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block results_sidebar %}
+<div class="results-card accent-info mb-4">
+    <div class="card-header">
+        <h6 class="mb-0"><i class="fas fa-file-alt me-2"></i>By Document</h6>
+    </div>
+    <div class="card-body">
+        {% if definitions_by_document %}
+            {% for doc_id, data in definitions_by_document.items() %}
+            <div class="d-flex justify-content-between align-items-center py-2 {% if not loop.last %}border-bottom border-secondary{% endif %}">
+                <div>
+                    <a href="{{ url_for('experiments.process_document', experiment_id=experiment.id, document_uuid=data.document.uuid) if data.document else '#' }}"
+                       class="text-info text-decoration-none small">
+                        {{ data.document.title | truncate(25) if data.document else 'Unknown' }}
+                    </a>
+                    {% if data.document and data.document.publication_date %}
+                    <small class="text-muted d-block">{{ data.document.publication_date.year }}</small>
+                    {% endif %}
+                </div>
+                <span class="badge bg-info">{{ data.definitions | length }}</span>
+            </div>
+            {% endfor %}
+        {% else %}
+            <p class="text-muted small mb-0">No definitions found</p>
+        {% endif %}
+    </div>
+</div>
+
+<div class="results-card accent-info">
+    <div class="card-header">
+        <h6 class="mb-0"><i class="fas fa-info-circle me-2"></i>About Definitions</h6>
+    </div>
+    <div class="card-body">
+        <p class="text-muted small mb-2">
+            Definitions are extracted using pattern matching and LLM analysis to identify term-definition pairs.
+        </p>
+        <p class="text-muted small mb-0">
+            <strong>Patterns detected:</strong> "is defined as", "refers to", "means", and custom patterns.
+        </p>
+    </div>
+</div>
+{% endblock %}

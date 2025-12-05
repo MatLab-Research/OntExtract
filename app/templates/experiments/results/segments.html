@@ -1,0 +1,339 @@
+{% extends "experiments/results/_base_results.html" %}
+
+{% block results_title %}Segments{% endblock %}
+{% block results_icon %}fa-align-left{% endblock %}
+{% block results_color %}warning{% endblock %}
+
+{% block results_extra_css %}
+<style>
+    .segment-card {
+        background-color: #2d3238;
+        border: 1px solid #3d4449;
+        border-left: 4px solid #ffc107;
+        border-radius: 4px;
+        margin-bottom: 0.75rem;
+        transition: border-color 0.2s;
+    }
+
+    .segment-card:hover {
+        border-color: #ffc107;
+        border-left-color: #ffc107;
+    }
+
+    .segment-header {
+        background-color: #343a40;
+        padding: 0.5rem 1rem;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        border-radius: 0 4px 0 0;
+    }
+
+    .segment-number {
+        background-color: #ffc107;
+        color: #212529;
+        font-weight: 600;
+        padding: 0.2rem 0.5rem;
+        border-radius: 3px;
+        font-size: 0.8rem;
+    }
+
+    .segment-content {
+        padding: 1rem;
+        color: #dee2e6;
+        line-height: 1.6;
+        max-height: 200px;
+        overflow-y: auto;
+    }
+
+    .segment-content.collapsed {
+        max-height: 80px;
+        overflow: hidden;
+    }
+
+    .segment-expand-btn {
+        color: #ffc107;
+        font-size: 0.8rem;
+        cursor: pointer;
+        border: none;
+        background: none;
+        padding: 0.25rem 0.5rem;
+    }
+
+    .segment-expand-btn:hover {
+        color: #ffda6a;
+    }
+
+    .segment-meta {
+        display: flex;
+        gap: 1rem;
+        font-size: 0.75rem;
+        color: #adb5bd;
+    }
+
+    .method-badge {
+        font-size: 0.7rem;
+        padding: 0.15rem 0.4rem;
+        border-radius: 3px;
+        text-transform: uppercase;
+    }
+
+    .method-paragraph { background-color: #ffc107; color: #212529; }
+    .method-sentence { background-color: #0dcaf0; color: #212529; }
+    .method-semantic { background-color: #6f42c1; color: white; }
+    .method-langextract { background-color: #198754; color: white; }
+    .method-unknown { background-color: #6c757d; color: white; }
+
+    .year-badge {
+        background-color: #495057;
+        color: #adb5bd;
+        font-size: 0.75rem;
+        padding: 0.2rem 0.5rem;
+        border-radius: 3px;
+    }
+
+    .document-group {
+        margin-bottom: 2rem;
+    }
+
+    .document-group-header {
+        background-color: #212529;
+        padding: 0.75rem 1rem;
+        border-radius: 6px 6px 0 0;
+        border-bottom: 2px solid #ffc107;
+        margin-bottom: 0.5rem;
+    }
+
+    .document-group-title {
+        color: #ffc107;
+        font-weight: 600;
+        font-size: 1rem;
+    }
+</style>
+{% endblock %}
+
+{% block results_stats %}
+<div class="row mb-4 g-3">
+    <div class="col-md-3">
+        <div class="stat-card">
+            <div class="stat-value text-warning">{{ total_segments }}</div>
+            <div class="stat-label">Total Segments</div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="stat-card">
+            <div class="stat-value text-info">{{ segments_by_document | length }}</div>
+            <div class="stat-label">Documents</div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="stat-card">
+            <div class="stat-value text-success">{{ avg_words | round | int }}</div>
+            <div class="stat-label">Avg Words/Segment</div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="stat-card">
+            <div class="stat-value text-secondary">{{ avg_length | round | int }}</div>
+            <div class="stat-label">Avg Characters</div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block main_col_class %}col-lg-9{% endblock %}
+{% block sidebar_col_class %}col-lg-3{% endblock %}
+
+{% block results_content %}
+<div class="results-card accent-warning mb-4">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="mb-0">
+            <i class="fas fa-align-left me-2"></i>Document Segments
+            <span class="badge bg-warning text-dark ms-2">{{ total_segments }}</span>
+        </h5>
+        <div class="d-flex gap-2">
+            <select class="form-select form-select-sm bg-dark text-light border-secondary" id="documentFilter" onchange="filterByDocument(this.value)" style="width: auto;">
+                <option value="all">All Documents</option>
+                {% for doc_id, data in segments_by_document.items() %}
+                <option value="{{ doc_id }}">{{ data.document.title | truncate(25) if data.document else 'Unknown' }}</option>
+                {% endfor %}
+            </select>
+            <button class="btn btn-sm btn-outline-warning" onclick="toggleAllSegments()" id="toggleAllBtn">
+                <i class="fas fa-expand-alt me-1"></i>Expand All
+            </button>
+        </div>
+    </div>
+    <div class="card-body">
+        {% if segments_by_document %}
+            {% for doc_id, data in segments_by_document.items() %}
+            <div class="document-group" data-document-id="{{ doc_id }}">
+                <div class="document-group-header">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <span class="document-group-title">
+                                {% if data.document %}
+                                <a href="{{ url_for('experiments.process_document', experiment_id=experiment.id, document_uuid=data.document.uuid) }}"
+                                   class="text-warning text-decoration-none">
+                                    {{ data.document.title }}
+                                </a>
+                                {% else %}
+                                Document {{ doc_id }}
+                                {% endif %}
+                            </span>
+                            {% if data.document and data.document.publication_date %}
+                            <span class="year-badge ms-2">{{ data.document.publication_date.year }}</span>
+                            {% endif %}
+                        </div>
+                        <span class="badge bg-warning text-dark">{{ data.segments | length }} segments</span>
+                    </div>
+                </div>
+
+                {% for segment in data.segments %}
+                <div class="segment-card">
+                    <div class="segment-header">
+                        <div class="d-flex align-items-center gap-2">
+                            <span class="segment-number">#{{ segment.segment_number }}</span>
+                            <span class="method-badge method-{{ segment.method | lower }}">{{ segment.method }}</span>
+                        </div>
+                        <div class="segment-meta">
+                            <span><i class="fas fa-font me-1"></i>{{ segment.word_count }} words</span>
+                            <span><i class="fas fa-text-width me-1"></i>{{ segment.character_count }} chars</span>
+                        </div>
+                    </div>
+                    <div class="segment-content collapsed" id="segment-content-{{ segment.id }}">
+                        {{ segment.content }}
+                    </div>
+                    {% if segment.character_count > 150 %}
+                    <div class="px-3 pb-2">
+                        <button class="segment-expand-btn" onclick="toggleSegment('{{ segment.id }}')" id="segment-btn-{{ segment.id }}">
+                            <i class="fas fa-chevron-down me-1"></i>Show more
+                        </button>
+                    </div>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            </div>
+            {% endfor %}
+        {% else %}
+            <div class="text-center py-5">
+                <i class="fas fa-align-left fa-3x text-muted mb-3"></i>
+                <p class="text-muted">No segments have been created yet.</p>
+                <p class="text-muted small">Run segmentation processing on your documents.</p>
+            </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block results_sidebar %}
+<div class="results-card accent-warning mb-4">
+    <div class="card-header">
+        <h6 class="mb-0"><i class="fas fa-file-alt me-2"></i>Document Summary</h6>
+    </div>
+    <div class="card-body">
+        {% if segments_by_document %}
+            {% for doc_id, data in segments_by_document.items() %}
+            <div class="d-flex justify-content-between align-items-center py-2 {% if not loop.last %}border-bottom border-secondary{% endif %}">
+                <div>
+                    <a href="{{ url_for('experiments.process_document', experiment_id=experiment.id, document_uuid=data.document.uuid) if data.document else '#' }}"
+                       class="text-warning text-decoration-none small">
+                        {{ data.document.title | truncate(20) if data.document else 'Unknown' }}
+                    </a>
+                    {% if data.document and data.document.publication_date %}
+                    <small class="text-muted d-block">{{ data.document.publication_date.year }}</small>
+                    {% endif %}
+                </div>
+                <span class="badge bg-warning text-dark">{{ data.segments | length }}</span>
+            </div>
+            {% endfor %}
+        {% else %}
+            <p class="text-muted small mb-0">No segments found</p>
+        {% endif %}
+    </div>
+</div>
+
+<div class="results-card accent-warning">
+    <div class="card-header">
+        <h6 class="mb-0"><i class="fas fa-info-circle me-2"></i>Segmentation Methods</h6>
+    </div>
+    <div class="card-body">
+        <div class="mb-2">
+            <span class="method-badge method-paragraph me-2">paragraph</span>
+            <small class="text-muted">Natural paragraph breaks</small>
+        </div>
+        <div class="mb-2">
+            <span class="method-badge method-sentence me-2">sentence</span>
+            <small class="text-muted">Individual sentences</small>
+        </div>
+        <div class="mb-2">
+            <span class="method-badge method-semantic me-2">semantic</span>
+            <small class="text-muted">Meaning-based chunks</small>
+        </div>
+        <div>
+            <span class="method-badge method-langextract me-2">langextract</span>
+            <small class="text-muted">LLM-guided extraction</small>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block results_js %}
+<script>
+let allExpanded = false;
+
+function toggleSegment(segmentId) {
+    const content = document.getElementById('segment-content-' + segmentId);
+    const btn = document.getElementById('segment-btn-' + segmentId);
+
+    if (content.classList.contains('collapsed')) {
+        content.classList.remove('collapsed');
+        btn.innerHTML = '<i class="fas fa-chevron-up me-1"></i>Show less';
+    } else {
+        content.classList.add('collapsed');
+        btn.innerHTML = '<i class="fas fa-chevron-down me-1"></i>Show more';
+    }
+}
+
+function toggleAllSegments() {
+    const contents = document.querySelectorAll('.segment-content');
+    const buttons = document.querySelectorAll('.segment-expand-btn');
+    const toggleBtn = document.getElementById('toggleAllBtn');
+
+    allExpanded = !allExpanded;
+
+    contents.forEach(content => {
+        if (allExpanded) {
+            content.classList.remove('collapsed');
+        } else {
+            content.classList.add('collapsed');
+        }
+    });
+
+    buttons.forEach(btn => {
+        if (allExpanded) {
+            btn.innerHTML = '<i class="fas fa-chevron-up me-1"></i>Show less';
+        } else {
+            btn.innerHTML = '<i class="fas fa-chevron-down me-1"></i>Show more';
+        }
+    });
+
+    if (allExpanded) {
+        toggleBtn.innerHTML = '<i class="fas fa-compress-alt me-1"></i>Collapse All';
+    } else {
+        toggleBtn.innerHTML = '<i class="fas fa-expand-alt me-1"></i>Expand All';
+    }
+}
+
+function filterByDocument(docId) {
+    const groups = document.querySelectorAll('.document-group');
+
+    groups.forEach(group => {
+        if (docId === 'all' || group.dataset.documentId === docId) {
+            group.style.display = 'block';
+        } else {
+            group.style.display = 'none';
+        }
+    });
+}
+</script>
+{% endblock %}

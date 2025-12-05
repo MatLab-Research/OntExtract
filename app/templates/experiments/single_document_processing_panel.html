@@ -65,64 +65,71 @@
     </div>
 </div>
 
-<!-- Quick Access to Processing Results -->
+<!-- Document Processing Results -->
 <div class="card mt-3">
     <div class="card-header">
         <h6 class="mb-0">
-            <i class="fas fa-external-link-alt me-2"></i>View Processing Results
+            <i class="fas fa-file-alt me-2"></i>Processing Results
         </h6>
     </div>
     <div class="card-body">
-        <p class="small text-muted mb-3">Direct links to detailed results pages</p>
+        <p class="small text-muted mb-3">View extraction results for this document</p>
         <div class="d-grid gap-2">
-            {% set has_embeddings = processing_operations|selectattr('processing_type', 'equalto', 'embeddings')|selectattr('status', 'equalto', 'completed')|list %}
-            <a href="/process/document/{{ document.uuid }}/results/embeddings"
-               id="result-link-embeddings"
-               class="btn btn-sm btn-outline-info {% if not has_embeddings %}disabled{% endif %}"
-               target="_blank"
-               {% if not has_embeddings %}style="pointer-events: none; opacity: 0.5;"{% endif %}>
-                <i class="fas fa-vector-square me-1"></i>Embeddings
-                {% if has_embeddings %}<span class="badge bg-info ms-2">Available</span>{% endif %}
+            {# Check for definitions - from LLM orchestration or manual processing #}
+            {% set has_definitions = llm_operations.get('extract_definitions', {}).get('status') == 'executed' or
+                                     processing_operations|selectattr('processing_type', 'equalto', 'definitions')|selectattr('status', 'equalto', 'completed')|list %}
+            {% set def_count = llm_operations.get('extract_definitions', {}).get('count', 0) %}
+            <a href="/process/document/{{ document.uuid }}/results/definitions"
+               id="result-link-definitions"
+               class="btn btn-sm {% if has_definitions %}btn-info{% else %}btn-outline-secondary{% endif %}"
+               target="_blank">
+                <i class="fas fa-book me-1"></i>Definitions
+                {% if has_definitions and def_count %}<span class="badge bg-light text-dark ms-1">{{ def_count }}</span>{% endif %}
             </a>
 
-            {% set has_entities = processing_operations|selectattr('processing_type', 'equalto', 'entities')|selectattr('status', 'equalto', 'completed')|list %}
+            {# Check for entities #}
+            {% set has_entities = llm_operations.get('extract_entities_spacy', {}).get('status') == 'executed' or
+                                  processing_operations|selectattr('processing_type', 'equalto', 'entities')|selectattr('status', 'equalto', 'completed')|list %}
+            {% set ent_count = llm_operations.get('extract_entities_spacy', {}).get('count', 0) %}
             <a href="/process/document/{{ document.uuid }}/results/entities"
                id="result-link-entities"
-               class="btn btn-sm btn-outline-success {% if not has_entities %}disabled{% endif %}"
-               target="_blank"
-               {% if not has_entities %}style="pointer-events: none; opacity: 0.5;"{% endif %}>
+               class="btn btn-sm {% if has_entities %}btn-success{% else %}btn-outline-secondary{% endif %}"
+               target="_blank">
                 <i class="fas fa-tags me-1"></i>Entities
-                {% if has_entities %}<span class="badge bg-success ms-2">Available</span>{% endif %}
+                {% if has_entities and ent_count %}<span class="badge bg-light text-dark ms-1">{{ ent_count }}</span>{% endif %}
             </a>
 
+            {# Check for embeddings #}
+            {% set has_embeddings = llm_operations.get('period_aware_embedding', {}).get('status') == 'executed' or
+                                    processing_operations|selectattr('processing_type', 'equalto', 'embeddings')|selectattr('status', 'equalto', 'completed')|list %}
+            {% set emb_count = llm_operations.get('period_aware_embedding', {}).get('count', 0) %}
+            <a href="/process/document/{{ document.uuid }}/results/embeddings"
+               id="result-link-embeddings"
+               class="btn btn-sm {% if has_embeddings %}btn-primary{% else %}btn-outline-secondary{% endif %}"
+               target="_blank">
+                <i class="fas fa-project-diagram me-1"></i>Embeddings
+                {% if has_embeddings and emb_count %}<span class="badge bg-light text-dark ms-1">{{ emb_count }}</span>{% endif %}
+            </a>
+
+            {# Check for segments #}
             {% set has_segments = processing_operations|selectattr('processing_type', 'equalto', 'segmentation')|selectattr('status', 'equalto', 'completed')|list %}
             <a href="/process/document/{{ document.uuid }}/results/segments"
                id="result-link-segments"
-               class="btn btn-sm btn-outline-warning {% if not has_segments %}disabled{% endif %}"
-               target="_blank"
-               {% if not has_segments %}style="pointer-events: none; opacity: 0.5;"{% endif %}>
-                <i class="fas fa-cut me-1"></i>Segments
-                {% if has_segments %}<span class="badge bg-warning ms-2">Available</span>{% endif %}
+               class="btn btn-sm {% if has_segments %}btn-warning{% else %}btn-outline-secondary{% endif %}"
+               target="_blank">
+                <i class="fas fa-align-left me-1"></i>Segments
             </a>
 
-            {% set has_definitions = processing_operations|selectattr('processing_type', 'equalto', 'definitions')|selectattr('status', 'equalto', 'completed')|list %}
-            <a href="/process/document/{{ document.uuid }}/results/definitions"
-               id="result-link-definitions"
-               class="btn btn-sm btn-outline-primary {% if not has_definitions %}disabled{% endif %}"
-               target="_blank"
-               {% if not has_definitions %}style="pointer-events: none; opacity: 0.5;"{% endif %}>
-                <i class="fas fa-book me-1"></i>Definitions
-                {% if has_definitions %}<span class="badge bg-primary ms-2">Available</span>{% endif %}
-            </a>
-
-            {% set has_temporal = processing_operations|selectattr('processing_type', 'equalto', 'temporal')|selectattr('status', 'equalto', 'completed')|list %}
+            {# Check for temporal markers #}
+            {% set has_temporal = llm_operations.get('extract_temporal', {}).get('status') == 'executed' or
+                                  processing_operations|selectattr('processing_type', 'equalto', 'temporal')|selectattr('status', 'equalto', 'completed')|list %}
+            {% set temp_count = llm_operations.get('extract_temporal', {}).get('count', 0) %}
             <a href="/process/document/{{ document.uuid }}/results/temporal"
                id="result-link-temporal"
-               class="btn btn-sm btn-outline-secondary {% if not has_temporal %}disabled{% endif %}"
-               target="_blank"
-               {% if not has_temporal %}style="pointer-events: none; opacity: 0.5;"{% endif %}>
+               class="btn btn-sm {% if has_temporal %}btn-secondary{% else %}btn-outline-secondary{% endif %}"
+               target="_blank">
                 <i class="fas fa-clock me-1"></i>Temporal Markers
-                {% if has_temporal %}<span class="badge bg-secondary ms-2">Available</span>{% endif %}
+                {% if has_temporal and temp_count %}<span class="badge bg-light text-dark ms-1">{{ temp_count }}</span>{% endif %}
             </a>
         </div>
     </div>

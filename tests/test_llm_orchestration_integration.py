@@ -336,19 +336,20 @@ class TestErrorRecovery:
 class TestStrategyModification:
     """Test user modification of recommended strategies."""
 
-    @patch('threading.Thread')
+    @patch('app.tasks.orchestration.run_execution_phase_task.delay')
     def test_modify_strategy_add_tools(
         self,
-        mock_thread,
+        mock_celery_delay,
         auth_client,
         multi_doc_experiment,
         db_session,
         test_user
     ):
         """Test adding additional tools to recommended strategy."""
-        # Mock thread to prevent actual background execution
-        mock_thread_instance = Mock()
-        mock_thread.return_value = mock_thread_instance
+        # Mock Celery task to prevent actual background execution
+        mock_async_result = MagicMock()
+        mock_async_result.id = 'test-task-id'
+        mock_celery_delay.return_value = mock_async_result
 
         # Create a run in 'reviewing' state to test strategy modification
         run = ExperimentOrchestrationRun(
@@ -394,7 +395,7 @@ class TestStrategyModification:
         assert run.modified_strategy == modified_strategy
         assert run.review_notes == 'Added temporal extraction for historical analysis'
         assert run.strategy_approved is True
-        mock_thread_instance.start.assert_called_once()
+        mock_celery_delay.assert_called_once()
 
     def test_modify_strategy_remove_tools(
         self,
