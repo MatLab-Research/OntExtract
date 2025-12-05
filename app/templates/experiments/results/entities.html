@@ -1,0 +1,283 @@
+{% extends "experiments/results/_base_results.html" %}
+
+{% block results_title %}Entities{% endblock %}
+{% block results_icon %}fa-tags{% endblock %}
+{% block results_color %}success{% endblock %}
+
+{% block results_extra_css %}
+<style>
+    .entity-text {
+        font-weight: 600;
+        color: #dee2e6;
+    }
+
+    .entity-type-badge {
+        font-size: 0.7rem;
+        padding: 0.2rem 0.5rem;
+        border-radius: 3px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        font-weight: 600;
+    }
+
+    .entity-type-PERSON { background-color: #0d6efd; color: white; }
+    .entity-type-ORG { background-color: #198754; color: white; }
+    .entity-type-GPE { background-color: #dc3545; color: white; }
+    .entity-type-DATE { background-color: #ffc107; color: #212529; }
+    .entity-type-LOC { background-color: #6f42c1; color: white; }
+    .entity-type-EVENT { background-color: #20c997; color: white; }
+    .entity-type-WORK_OF_ART { background-color: #fd7e14; color: white; }
+    .entity-type-CONCEPT { background-color: #0dcaf0; color: #212529; }
+    .entity-type-UNKNOWN { background-color: #6c757d; color: white; }
+
+    .entity-context {
+        font-style: italic;
+        color: #adb5bd;
+        font-size: 0.9rem;
+    }
+
+    .entity-type-filter {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+        margin-bottom: 1rem;
+    }
+
+    .entity-type-btn {
+        background-color: #343a40;
+        border: 1px solid #495057;
+        color: #adb5bd;
+        padding: 0.25rem 0.75rem;
+        border-radius: 20px;
+        cursor: pointer;
+        font-size: 0.8rem;
+        transition: all 0.2s;
+    }
+
+    .entity-type-btn:hover {
+        background-color: #495057;
+        color: #e9ecef;
+    }
+
+    .entity-type-btn.active {
+        border-color: transparent;
+    }
+
+    .entity-type-btn.active.btn-PERSON { background-color: #0d6efd; color: white; }
+    .entity-type-btn.active.btn-ORG { background-color: #198754; color: white; }
+    .entity-type-btn.active.btn-GPE { background-color: #dc3545; color: white; }
+    .entity-type-btn.active.btn-DATE { background-color: #ffc107; color: #212529; }
+    .entity-type-btn.active.btn-LOC { background-color: #6f42c1; color: white; }
+    .entity-type-btn.active.btn-EVENT { background-color: #20c997; color: white; }
+    .entity-type-btn.active.btn-CONCEPT { background-color: #0dcaf0; color: #212529; }
+
+    .year-badge {
+        background-color: #495057;
+        color: #adb5bd;
+        font-size: 0.75rem;
+        padding: 0.2rem 0.5rem;
+        border-radius: 3px;
+    }
+</style>
+{% endblock %}
+
+{% block results_stats %}
+<div class="row mb-4 g-3">
+    <div class="col-md-3">
+        <div class="stat-card">
+            <div class="stat-value text-success">{{ total_entities }}</div>
+            <div class="stat-label">Total Entities</div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="stat-card">
+            <div class="stat-value text-info">{{ entities_by_type | length }}</div>
+            <div class="stat-label">Entity Types</div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="stat-card">
+            <div class="stat-value text-warning">{{ entities_by_document | length }}</div>
+            <div class="stat-label">Documents</div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="stat-card">
+            <div class="stat-value text-secondary">
+                {% set llm_count = entities | selectattr('source', 'equalto', 'llm') | list | length %}
+                {{ llm_count }}
+            </div>
+            <div class="stat-label">LLM Extracted</div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block main_col_class %}col-lg-8{% endblock %}
+{% block sidebar_col_class %}col-lg-4{% endblock %}
+
+{% block results_content %}
+<div class="results-card accent-success mb-4">
+    <div class="card-header">
+        <h5 class="mb-0">
+            <i class="fas fa-tags me-2"></i>Extracted Entities
+            <span class="badge bg-success ms-2">{{ total_entities }}</span>
+        </h5>
+    </div>
+    <div class="card-body">
+        <!-- Entity Type Filter -->
+        <div class="entity-type-filter">
+            <button class="entity-type-btn active" onclick="filterByEntityType('all')" data-type="all">
+                All ({{ total_entities }})
+            </button>
+            {% for entity_type, type_entities in entities_by_type.items() | sort %}
+            <button class="entity-type-btn btn-{{ entity_type }}" onclick="filterByEntityType('{{ entity_type }}')" data-type="{{ entity_type }}">
+                {{ entity_type }} ({{ type_entities | length }})
+            </button>
+            {% endfor %}
+        </div>
+
+        <!-- Source Filter -->
+        <div class="filter-tabs mb-3" style="--accent-color: #198754;">
+            <button class="filter-tab active" data-source="all" onclick="filterBySource('all')">All Sources</button>
+            <button class="filter-tab" data-source="llm" onclick="filterBySource('llm')">LLM</button>
+            <button class="filter-tab" data-source="manual" onclick="filterBySource('manual')">Manual</button>
+        </div>
+
+        {% if entities %}
+            {% for entity in entities %}
+            <div class="result-item" data-source="{{ entity.source }}" data-entity-type="{{ entity.entity_type }}">
+                <div class="item-header">
+                    <div class="d-flex align-items-center gap-2">
+                        <span class="entity-text">{{ entity.text }}</span>
+                        <span class="entity-type-badge entity-type-{{ entity.entity_type }}">{{ entity.entity_type }}</span>
+                        {% if entity.document_year %}
+                        <span class="year-badge">{{ entity.document_year }}</span>
+                        {% endif %}
+                    </div>
+                    <div class="d-flex align-items-center gap-2">
+                        {% if entity.confidence %}
+                        <small class="text-muted">{{ (entity.confidence * 100) | round }}%</small>
+                        {% endif %}
+                        <span class="source-badge {{ entity.source }}">{{ entity.source }}</span>
+                    </div>
+                </div>
+                <div class="item-body">
+                    {% if entity.context %}
+                    <p class="entity-context mb-2">"...{{ entity.context }}..."</p>
+                    {% endif %}
+                    <div class="text-muted-dark small">
+                        <i class="fas fa-file-alt me-1"></i>
+                        {% if entity.document_uuid %}
+                        <a href="{{ url_for('experiments.process_document', experiment_id=experiment.id, document_uuid=entity.document_uuid) }}" class="text-success text-decoration-none">
+                            {{ entity.document_title | truncate(40) }}
+                        </a>
+                        {% else %}
+                        {{ entity.document_title | truncate(40) }}
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        {% else %}
+            <div class="text-center py-5">
+                <i class="fas fa-tags fa-3x text-muted mb-3"></i>
+                <p class="text-muted">No entities have been extracted yet.</p>
+                <p class="text-muted small">Run LLM orchestration or manual entity extraction on your documents.</p>
+            </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block results_sidebar %}
+<div class="results-card accent-success mb-4">
+    <div class="card-header">
+        <h6 class="mb-0"><i class="fas fa-chart-pie me-2"></i>By Entity Type</h6>
+    </div>
+    <div class="card-body">
+        {% if entities_by_type %}
+            {% for entity_type, type_entities in entities_by_type.items() | sort(attribute='1|length', reverse=true) %}
+            <div class="d-flex justify-content-between align-items-center py-2 {% if not loop.last %}border-bottom border-secondary{% endif %}">
+                <span class="entity-type-badge entity-type-{{ entity_type }}">{{ entity_type }}</span>
+                <span class="badge bg-secondary">{{ type_entities | length }}</span>
+            </div>
+            {% endfor %}
+        {% else %}
+            <p class="text-muted small mb-0">No entities found</p>
+        {% endif %}
+    </div>
+</div>
+
+<div class="results-card accent-success mb-4">
+    <div class="card-header">
+        <h6 class="mb-0"><i class="fas fa-file-alt me-2"></i>By Document</h6>
+    </div>
+    <div class="card-body">
+        {% if entities_by_document %}
+            {% for doc_id, data in entities_by_document.items() %}
+            <div class="d-flex justify-content-between align-items-center py-2 {% if not loop.last %}border-bottom border-secondary{% endif %}">
+                <div>
+                    <a href="{{ url_for('experiments.process_document', experiment_id=experiment.id, document_uuid=data.document.uuid) if data.document else '#' }}"
+                       class="text-success text-decoration-none small">
+                        {{ data.document.title | truncate(20) if data.document else 'Unknown' }}
+                    </a>
+                    {% if data.document and data.document.publication_date %}
+                    <small class="text-muted d-block">{{ data.document.publication_date.year }}</small>
+                    {% endif %}
+                </div>
+                <span class="badge bg-success">{{ data.entities | length }}</span>
+            </div>
+            {% endfor %}
+        {% else %}
+            <p class="text-muted small mb-0">No entities found</p>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block results_js %}
+<script>
+// Entity type filtering
+let currentEntityType = 'all';
+let currentSource = 'all';
+
+function filterByEntityType(entityType) {
+    currentEntityType = entityType;
+
+    // Update button states
+    document.querySelectorAll('.entity-type-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.type === entityType);
+    });
+
+    applyFilters();
+}
+
+function filterBySource(source) {
+    currentSource = source;
+
+    // Update tab states
+    document.querySelectorAll('.filter-tab').forEach(tab => {
+        tab.classList.toggle('active', tab.dataset.source === source);
+    });
+
+    applyFilters();
+}
+
+function applyFilters() {
+    const items = document.querySelectorAll('.result-item');
+
+    items.forEach(item => {
+        const itemSource = item.dataset.source;
+        const itemType = item.dataset.entityType;
+
+        const sourceMatch = currentSource === 'all' || itemSource === currentSource;
+        const typeMatch = currentEntityType === 'all' || itemType === currentEntityType;
+
+        item.style.display = sourceMatch && typeMatch ? 'block' : 'none';
+    });
+
+    updateVisibleCount();
+}
+</script>
+{% endblock %}

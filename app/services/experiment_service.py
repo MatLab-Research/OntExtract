@@ -263,33 +263,28 @@ class ExperimentService(BaseService):
 
             # Get all documents associated with this experiment BEFORE deleting associations
             from app.models.document import Document
-            experiment_doc_ids = [ed.document_id for ed in ExperimentDocument.query.filter_by(
+            experiment_doc_entries = ExperimentDocument.query.filter_by(
                 experiment_id=experiment_id
-            ).all()]
+            ).all()
+            experiment_doc_ids = [ed.document_id for ed in experiment_doc_entries]
 
-            # Delete all ExperimentDocument associations
-            exp_docs_deleted = ExperimentDocument.query.filter_by(
-                experiment_id=experiment_id
-            ).delete()
-
-            # Delete experimental version documents (they are specific to this experiment)
-            # Must do this BEFORE clearing relationships to avoid constraint violation
-
+            # Identify versions to delete BEFORE we delete associations
+            # (need to check other_experiments while associations still exist)
             versions_to_delete = []
 
-            # 1. Experimental versions (created specifically for this experiment)
+            # 1. Experimental versions (created specifically for this experiment via experiment_id field)
             experimental_versions = Document.query.filter_by(
                 experiment_id=experiment_id,
                 version_type='experimental'
             ).all()
             versions_to_delete.extend(experimental_versions)
 
-            # 2. Processed versions (e.g., cleaned with LLM) that are ONLY in this experiment
-            # These should be deleted because they were created as part of this experiment's workflow
+            # 2. Non-original versions that were associated with this experiment
+            # These include 'processed' and 'experimental' versions that may not have experiment_id set
             for doc_id in experiment_doc_ids:
                 doc = Document.query.get(doc_id)
-                if doc and doc.version_type == 'processed' and doc.source_document_id:
-                    # Check if this processed version is ONLY in this experiment
+                if doc and doc.version_type != 'original' and doc not in versions_to_delete:
+                    # Check if this version is ONLY in this experiment (not shared)
                     other_experiments = ExperimentDocument.query.filter(
                         ExperimentDocument.document_id == doc_id,
                         ExperimentDocument.experiment_id != experiment_id
@@ -298,7 +293,12 @@ class ExperimentService(BaseService):
                     if other_experiments == 0:
                         # Only in this experiment, safe to delete
                         versions_to_delete.append(doc)
-                        logger.info(f"Will delete processed version {doc_id} (only in experiment {experiment_id})")
+                        logger.info(f"Will delete {doc.version_type} version {doc_id} (only in experiment {experiment_id})")
+
+            # NOW delete all ExperimentDocument associations (after we've identified versions to delete)
+            exp_docs_deleted = ExperimentDocument.query.filter_by(
+                experiment_id=experiment_id
+            ).delete()
 
             experimental_versions_count = len(versions_to_delete)
 

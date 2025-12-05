@@ -1,0 +1,242 @@
+{% extends "experiments/results/_base_results.html" %}
+
+{% block results_title %}Embeddings{% endblock %}
+{% block results_icon %}fa-project-diagram{% endblock %}
+{% block results_color %}primary{% endblock %}
+
+{% block results_extra_css %}
+<style>
+    .embedding-card {
+        background-color: #2d3238;
+        border: 1px solid #3d4449;
+        border-radius: 8px;
+        padding: 1.25rem;
+        margin-bottom: 1rem;
+        transition: border-color 0.2s;
+    }
+
+    .embedding-card:hover {
+        border-color: #0d6efd;
+    }
+
+    .embedding-method {
+        font-weight: 600;
+        color: #0d6efd;
+        font-size: 1rem;
+        text-transform: uppercase;
+    }
+
+    .embedding-stat {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .embedding-stat-value {
+        font-size: 1.5rem;
+        font-weight: 600;
+        color: #e9ecef;
+    }
+
+    .embedding-stat-label {
+        font-size: 0.75rem;
+        color: #adb5bd;
+        text-transform: uppercase;
+    }
+
+    .model-badge {
+        background-color: #343a40;
+        color: #dee2e6;
+        padding: 0.25rem 0.5rem;
+        border-radius: 4px;
+        font-size: 0.8rem;
+        font-family: monospace;
+    }
+
+    .dimension-indicator {
+        width: 100%;
+        height: 8px;
+        background-color: #1a1d21;
+        border-radius: 4px;
+        overflow: hidden;
+    }
+
+    .dimension-fill {
+        height: 100%;
+        background: linear-gradient(90deg, #0d6efd 0%, #6f42c1 100%);
+        border-radius: 4px;
+    }
+
+    .year-badge {
+        background-color: #495057;
+        color: #adb5bd;
+        font-size: 0.75rem;
+        padding: 0.2rem 0.5rem;
+        border-radius: 3px;
+    }
+</style>
+{% endblock %}
+
+{% block results_stats %}
+<div class="row mb-4 g-3">
+    <div class="col-md-3">
+        <div class="stat-card">
+            <div class="stat-value text-primary">{{ total_embeddings }}</div>
+            <div class="stat-label">Total Embedding Vectors</div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="stat-card">
+            <div class="stat-value text-info">{{ embeddings_info | length }}</div>
+            <div class="stat-label">Documents Embedded</div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="stat-card">
+            {% set methods = embeddings_info | map(attribute='method') | unique | list %}
+            <div class="stat-value text-warning">{{ methods | length }}</div>
+            <div class="stat-label">Methods Used</div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="stat-card">
+            {% set llm_count = embeddings_info | selectattr('source', 'equalto', 'llm') | list | length %}
+            <div class="stat-value text-purple" style="color: #6f42c1;">{{ llm_count }}</div>
+            <div class="stat-label">LLM Generated</div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block main_col_class %}col-lg-12{% endblock %}
+{% block sidebar_col_class %}d-none{% endblock %}
+
+{% block results_content %}
+<div class="results-card accent-primary mb-4">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="mb-0">
+            <i class="fas fa-project-diagram me-2"></i>Document Embeddings
+            <span class="badge bg-primary ms-2">{{ embeddings_info | length }} documents</span>
+        </h5>
+        <div class="filter-tabs" style="--accent-color: #0d6efd;">
+            <button class="filter-tab active" data-source="all" onclick="filterBySource('all')">All</button>
+            <button class="filter-tab" data-source="llm" onclick="filterBySource('llm')">LLM</button>
+            <button class="filter-tab" data-source="manual" onclick="filterBySource('manual')">Manual</button>
+        </div>
+    </div>
+    <div class="card-body">
+        {% if embeddings_info %}
+        <div class="row">
+            {% for info in embeddings_info %}
+            <div class="col-md-6 col-lg-4">
+                <div class="embedding-card result-item" data-source="{{ info.source }}">
+                    <div class="d-flex justify-content-between align-items-start mb-3">
+                        <div>
+                            <h6 class="mb-1">
+                                {% if info.document_uuid %}
+                                <a href="{{ url_for('experiments.process_document', experiment_id=experiment.id, document_uuid=info.document_uuid) }}"
+                                   class="text-decoration-none text-light">
+                                    {{ info.document_title | truncate(30) }}
+                                </a>
+                                {% else %}
+                                {{ info.document_title | truncate(30) }}
+                                {% endif %}
+                            </h6>
+                            {% if info.document_year %}
+                            <span class="year-badge">{{ info.document_year }}</span>
+                            {% endif %}
+                        </div>
+                        <span class="source-badge {{ info.source }}">{{ info.source }}</span>
+                    </div>
+
+                    <div class="d-flex align-items-center gap-2 mb-3">
+                        <span class="embedding-method">{{ info.method }}</span>
+                        <span class="model-badge">{{ info.model }}</span>
+                    </div>
+
+                    <div class="row g-3 mb-3">
+                        <div class="col-6">
+                            <div class="embedding-stat">
+                                <div>
+                                    <div class="embedding-stat-value">{{ info.dimensions }}</div>
+                                    <div class="embedding-stat-label">Dimensions</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="embedding-stat">
+                                <div>
+                                    <div class="embedding-stat-value">{{ info.chunk_count }}</div>
+                                    <div class="embedding-stat-label">Chunks</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Dimension visualization -->
+                    <div class="dimension-indicator">
+                        {% set dim_percent = (info.dimensions | int / 4096 * 100) | round if info.dimensions != 'N/A' else 0 %}
+                        <div class="dimension-fill" style="width: {{ [dim_percent, 100] | min }}%"></div>
+                    </div>
+                    <small class="text-muted-dark">
+                        {% if info.dimensions != 'N/A' %}
+                        {{ info.dimensions }} / 4096 max dimensions
+                        {% else %}
+                        Dimensions unknown
+                        {% endif %}
+                    </small>
+
+                    {% if info.created_at %}
+                    <div class="mt-2 text-muted-dark small">
+                        <i class="fas fa-clock me-1"></i>
+                        {{ info.created_at.strftime('%Y-%m-%d %H:%M') if info.created_at else 'N/A' }}
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+            <div class="text-center py-5">
+                <i class="fas fa-project-diagram fa-3x text-muted mb-3"></i>
+                <p class="text-muted">No embeddings have been generated yet.</p>
+                <p class="text-muted small">Run LLM orchestration or manual embedding generation on your documents.</p>
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+{% if embeddings_info %}
+<div class="results-card accent-primary">
+    <div class="card-header">
+        <h5 class="mb-0"><i class="fas fa-info-circle me-2"></i>About Embeddings</h5>
+    </div>
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-4">
+                <h6 class="text-primary">What are Embeddings?</h6>
+                <p class="text-muted small">
+                    Embeddings are dense vector representations of text that capture semantic meaning.
+                    Similar texts have similar embeddings, enabling semantic search and comparison.
+                </p>
+            </div>
+            <div class="col-md-4">
+                <h6 class="text-primary">Embedding Methods</h6>
+                <ul class="text-muted small ps-3">
+                    <li><strong>local</strong>: Sentence transformers (fast, local)</li>
+                    <li><strong>openai</strong>: OpenAI text-embedding-3-small</li>
+                    <li><strong>period_aware</strong>: Historical language models</li>
+                </ul>
+            </div>
+            <div class="col-md-4">
+                <h6 class="text-primary">Usage</h6>
+                <p class="text-muted small">
+                    Embeddings enable semantic similarity search, document clustering,
+                    and cross-temporal comparison of concept meanings.
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
