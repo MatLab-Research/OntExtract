@@ -6,6 +6,12 @@ and OpenAI embeddings for the experiment-centric processing architecture.
 """
 
 import os
+
+# Set offline mode for HuggingFace Hub BEFORE any imports
+# This prevents network calls when models are already cached locally
+os.environ["HF_HUB_OFFLINE"] = "1"
+os.environ["TRANSFORMERS_OFFLINE"] = "1"
+
 import logging
 from typing import List, Dict, Any, Optional
 import numpy as np
@@ -19,6 +25,7 @@ class ExperimentEmbeddingService:
     def __init__(self):
         self.openai_client = None
         self.local_model = None
+        self._model_cache = {}  # Cache for period-specific models
 
         # Initialize OpenAI client if API key is available
         try:
@@ -32,15 +39,11 @@ class ExperimentEmbeddingService:
         except ImportError:
             logger.warning("OpenAI package not available")
 
-        # Initialize local model
+        # Initialize local model (offline mode set at module level)
         try:
             from sentence_transformers import SentenceTransformer
-
-            # Configure offline mode to avoid HuggingFace Hub requests
-            os.environ["HF_HUB_OFFLINE"] = "1"
-            os.environ["TRANSFORMERS_OFFLINE"] = "1"
-
             self.local_model = SentenceTransformer('all-MiniLM-L6-v2')
+            self._model_cache['all-MiniLM-L6-v2'] = self.local_model
             logger.info("Local sentence transformer model loaded (offline mode)")
         except ImportError:
             logger.warning("sentence-transformers package not available")
@@ -127,10 +130,12 @@ class ExperimentEmbeddingService:
 
         Uses PeriodAwareEmbeddingService to select the appropriate model based on
         the document's historical period:
-        - Pre-1850: Historical model for archaic language
-        - 1850-1950: Industrial era model
-        - 1950-2000: Modern model (all-MiniLM-L6-v2)
-        - 2000+: Contemporary model (all-roberta-large-v1, 1024 dims)
+        - Pre-1850: Historical model for archaic language (all-mpnet-base-v2, 768 dims)
+        - 1850-1950: Industrial era model (all-mpnet-base-v2, 768 dims)
+        - 1950-2000: Modern model (all-MiniLM-L6-v2, 384 dims)
+        - 2000+: Contemporary model (all-mpnet-base-v2, 768 dims)
+
+        Models are cached after first load for efficient subsequent embeddings.
         """
         try:
             from app.services.period_aware_embedding_service import get_period_aware_embedding_service
@@ -169,9 +174,15 @@ class ExperimentEmbeddingService:
                 model_name_short = selected_model.replace('sentence-transformers/', '')
 
                 if model_name_short != 'all-MiniLM-L6-v2' and self.local_model:
-                    # Load the period-specific model
-                    logger.info(f"Loading period-specific model: {selected_model}")
-                    period_model = SentenceTransformer(selected_model)
+                    # Check if model is already cached
+                    if model_name_short in self._model_cache:
+                        period_model = self._model_cache[model_name_short]
+                        logger.debug(f"Using cached model: {model_name_short}")
+                    else:
+                        # Load and cache the period-specific model
+                        logger.info(f"Loading and caching period-specific model: {selected_model}")
+                        period_model = SentenceTransformer(selected_model)
+                        self._model_cache[model_name_short] = period_model
                     embedding = period_model.encode(text)
                     actual_model = model_name_short
                 else:

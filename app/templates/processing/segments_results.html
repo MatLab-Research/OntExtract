@@ -251,8 +251,8 @@
                                    class="btn btn-outline-primary" target="_blank">
                                     <i class="fas fa-stream me-1"></i>View Full Timeline
                                 </a>
-                                <button class="btn btn-outline-secondary" onclick="alert('Export feature coming soon!')">
-                                    <i class="fas fa-download me-1"></i>Export Segments
+                                <button class="btn btn-outline-secondary" onclick="exportSegments()">
+                                    <i class="fas fa-download me-1"></i>Export Segments (CSV)
                                 </button>
                             </div>
                         </div>
@@ -275,6 +275,62 @@ function toggleSegment(index) {
         fullText.style.display = 'none';
         event.target.textContent = 'Show more';
     }
+}
+
+function exportSegments() {
+    // Build segment data from template
+    const segments = [
+        {% for segment in segments %}
+        {
+            segment_number: {{ segment.segment_number|tojson }},
+            method: {{ segment.segmentation_method|default('unknown')|tojson }},
+            content: {{ segment.content|tojson }},
+            word_count: {{ segment.word_count|default(0)|tojson }},
+            character_count: {{ segment.character_count|default(0)|tojson }}
+        },
+        {% endfor %}
+    ];
+
+    if (segments.length === 0) {
+        alert('No segments to export');
+        return;
+    }
+
+    // CSV escape function
+    const escapeCSV = (field) => {
+        if (field === null || field === undefined) return '';
+        const str = String(field);
+        if (str.includes(',') || str.includes('"') || str.includes('\n') || str.includes('\r')) {
+            return `"${str.replace(/"/g, '""')}"`;
+        }
+        return str;
+    };
+
+    // Build CSV
+    const headers = ['Segment Number', 'Method', 'Content', 'Word Count', 'Character Count'];
+    const rows = segments.map(seg => [
+        escapeCSV(seg.segment_number),
+        escapeCSV(seg.method),
+        escapeCSV(seg.content),
+        escapeCSV(seg.word_count),
+        escapeCSV(seg.character_count)
+    ].join(','));
+
+    // Add UTF-8 BOM for Excel compatibility
+    const BOM = '\uFEFF';
+    const csvContent = BOM + [headers.join(','), ...rows].join('\n');
+
+    // Create download
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', '{{ document.title|replace(" ", "_")|replace("/", "-") }}_segments.csv');
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
 }
 
 function filterSegments(method, button) {

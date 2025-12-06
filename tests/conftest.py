@@ -151,6 +151,21 @@ def admin_user(db_session):
     return user
 
 
+@pytest.fixture
+def admin_client(app, db_session, admin_user):
+    """
+    Provide an authenticated admin test client.
+    Uses Flask-Login to simulate a logged-in admin user.
+    """
+    client = app.test_client()
+
+    with client.session_transaction() as sess:
+        sess['_user_id'] = str(admin_user.id)
+        sess['_fresh'] = True
+
+    return client
+
+
 # ==============================================================================
 # Document Fixtures
 # ==============================================================================
@@ -285,6 +300,194 @@ def entity_extraction_experiment(db_session, test_user):
         configuration='{"entity_types": ["PERSON", "ORG", "GPE", "DATE"]}'
     )
     db_session.add(experiment)
+    db_session.commit()
+    return experiment
+
+
+# ==============================================================================
+# Experiment with Documents Fixtures
+# ==============================================================================
+
+@pytest.fixture
+def experiment_with_documents(db_session, test_user, sample_documents):
+    """
+    Create an experiment with linked documents for testing results routes.
+    """
+    from app.models.experiment_document import ExperimentDocument
+
+    experiment = Experiment(
+        name='Experiment with Documents',
+        description='Test experiment with linked documents',
+        experiment_type='temporal_evolution',
+        user_id=test_user.id,
+        status='completed',
+        configuration='{"terms": ["algorithm"], "periods": ["1980-2000"]}'
+    )
+    db_session.add(experiment)
+    db_session.flush()  # Get experiment ID
+
+    # Link documents to experiment
+    for doc in sample_documents:
+        exp_doc = ExperimentDocument(
+            experiment_id=experiment.id,
+            document_id=doc.id
+        )
+        db_session.add(exp_doc)
+
+    db_session.commit()
+    return experiment
+
+
+@pytest.fixture
+def experiment_with_processing(db_session, test_user, sample_documents):
+    """
+    Create an experiment with documents and processing artifacts.
+    This simulates an experiment that has been processed with embeddings,
+    definitions, entities, and temporal markers.
+    """
+    from app.models.experiment_document import ExperimentDocument
+    from app.models.experiment_processing import ProcessingArtifact, ExperimentDocumentProcessing, DocumentProcessingIndex
+    from datetime import date
+    import json
+
+    # Create experiment
+    experiment = Experiment(
+        name='Processed Experiment',
+        description='Test experiment with processing artifacts',
+        experiment_type='temporal_evolution',
+        user_id=test_user.id,
+        status='completed',
+        configuration='{"terms": ["algorithm"], "periods": ["1980-2000"]}'
+    )
+    db_session.add(experiment)
+    db_session.flush()
+
+    # Link documents and add processing artifacts
+    for i, doc in enumerate(sample_documents):
+        # Set publication date for period-aware testing
+        doc.publication_date = date(1990 + i * 5, 1, 1)  # 1990, 1995, 2000, 2005, 2010
+
+        # Link document to experiment
+        exp_doc = ExperimentDocument(
+            experiment_id=experiment.id,
+            document_id=doc.id
+        )
+        db_session.add(exp_doc)
+        db_session.flush()
+
+        # Create processing record
+        processing = ExperimentDocumentProcessing(
+            experiment_document_id=exp_doc.id,
+            processing_type='embeddings',
+            processing_method='period_aware',
+            status='completed',
+            started_at=datetime.utcnow(),
+            completed_at=datetime.utcnow()
+        )
+        db_session.add(processing)
+        db_session.flush()
+
+        # Create DocumentProcessingIndex entry (for FK cascade testing)
+        doc_proc_index = DocumentProcessingIndex(
+            document_id=doc.id,
+            experiment_id=experiment.id,
+            processing_id=processing.id,
+            processing_type='embeddings',
+            processing_method='period_aware',
+            status='completed'
+        )
+        db_session.add(doc_proc_index)
+
+        # Create embedding artifact
+        embedding_artifact = ProcessingArtifact(
+            processing_id=processing.id,
+            document_id=doc.id,
+            artifact_type='embedding_vector',
+            artifact_index=0
+        )
+        embedding_artifact.set_content({
+            'vector': [0.1] * 768,
+            'method': 'period_aware',
+            'model': 'all-mpnet-base-v2',
+            'dimensions': 768
+        })
+        embedding_artifact.set_metadata({
+            'method': 'period_aware',
+            'model': 'all-mpnet-base-v2',
+            'dimensions': 768,
+            'period_category': 'modern_1950_2000' if doc.publication_date.year >= 1950 else 'historical_1850_1950',
+            'document_year': doc.publication_date.year,
+            'selection_confidence': 0.8,
+            'era': 'modern'
+        })
+        db_session.add(embedding_artifact)
+
+        # Create definition artifact
+        definition_artifact = ProcessingArtifact(
+            processing_id=processing.id,
+            document_id=doc.id,
+            artifact_type='term_definition',
+            artifact_index=0
+        )
+        definition_artifact.set_content({
+            'term': 'algorithm',
+            'definition': 'A step-by-step procedure for solving a problem',
+            'pattern': 'copula',
+            'confidence': 0.85,
+            'sentence': 'An algorithm is a step-by-step procedure for solving a problem.'
+        })
+        definition_artifact.set_metadata({'method': 'pattern_matching+dependency_parsing'})
+        db_session.add(definition_artifact)
+
+        # Create entity artifact
+        entity_artifact = ProcessingArtifact(
+            processing_id=processing.id,
+            document_id=doc.id,
+            artifact_type='extracted_entity',
+            artifact_index=0
+        )
+        entity_artifact.set_content({
+            'entity': 'computer science',
+            'type': 'FIELD',
+            'start': 10,
+            'end': 26,
+            'confidence': 0.9
+        })
+        entity_artifact.set_metadata({'method': 'spacy_ner'})
+        db_session.add(entity_artifact)
+
+        # Create temporal artifact
+        temporal_artifact = ProcessingArtifact(
+            processing_id=processing.id,
+            document_id=doc.id,
+            artifact_type='temporal_marker',
+            artifact_index=0
+        )
+        temporal_artifact.set_content({
+            'text': f'{1990 + i * 5}',
+            'type': 'DATE',
+            'normalized': f'{1990 + i * 5}-01-01',
+            'confidence': 0.95,
+            'start': 50,
+            'end': 54
+        })
+        temporal_artifact.set_metadata({'method': 'spacy_ner_plus_regex'})
+        db_session.add(temporal_artifact)
+
+        # Create segment artifact
+        segment_artifact = ProcessingArtifact(
+            processing_id=processing.id,
+            document_id=doc.id,
+            artifact_type='text_segment',
+            artifact_index=0
+        )
+        segment_artifact.set_content({
+            'text': doc.content[:200],
+            'segment_type': 'paragraph'
+        })
+        segment_artifact.set_metadata({'method': 'paragraph', 'word_count': 50})
+        db_session.add(segment_artifact)
+
     db_session.commit()
     return experiment
 

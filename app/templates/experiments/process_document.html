@@ -518,10 +518,11 @@ document.addEventListener('DOMContentLoaded', function() {
     if (runLocalToolsBtn) {
         runLocalToolsBtn.addEventListener('click', async function() {
             // Optimal pipeline order: segment → embeddings → extract entities/definitions → temporal
+            // Uses period_aware embeddings for better temporal evolution analysis
             const localTools = [
                 'segment_paragraph',
                 'segment_sentence',
-                'embeddings_local',
+                'embeddings_period_aware',
                 'entities_spacy',
                 'definitions_spacy',
                 'temporal_spacy'
@@ -545,10 +546,11 @@ document.addEventListener('DOMContentLoaded', function() {
     if (runAllToolsBtn) {
         runAllToolsBtn.addEventListener('click', async function() {
             // Optimal pipeline order: segment → embeddings → extract entities/definitions → temporal
+            // Uses period_aware (local) + OpenAI embeddings for comprehensive analysis
             const allTools = [
                 'segment_paragraph',
                 'segment_sentence',
-                'embeddings_local',
+                'embeddings_period_aware',
                 'embeddings_openai',
                 'entities_spacy',
                 'definitions_spacy',

@@ -1625,9 +1625,14 @@ def view_embeddings_results(document_uuid):
                              fallback_used=period_aware_emb.get('fallback_used', False) if period_aware_emb else False)
 
     except Exception as e:
-        from flask import render_template
+        from flask import render_template, abort
+        from werkzeug.exceptions import HTTPException
+        # Re-raise 404 and other HTTP exceptions properly
+        if isinstance(e, HTTPException):
+            raise
+        # For non-HTTP exceptions, show error page
         return render_template('processing/error.html',
-                             document=document,
+                             document=None,
                              error=str(e)), 500
 
 @processing_bp.route('/document/<string:document_uuid>/results/entities', methods=['GET'])

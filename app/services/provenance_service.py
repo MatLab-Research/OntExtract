@@ -401,6 +401,90 @@ class ProvenanceService:
         return activity, entity
 
     @classmethod
+    def track_reference_creation(
+        cls,
+        document,
+        user,
+        source: str,
+        experiment=None,
+        source_metadata: Dict[str, Any] = None
+    ) -> tuple[ProvActivity, ProvEntity]:
+        """
+        Track reference document creation from dictionary or other source.
+
+        Args:
+            document: Document instance (the reference)
+            user: User who created the reference
+            source: Source identifier (MW, OED, etc.)
+            experiment: Optional experiment this reference was created for
+            source_metadata: Optional metadata from the source API
+        """
+        agent = cls.get_or_create_user_agent(user.id, user.username)
+
+        # Create source agent (MW, OED, etc.)
+        source_agent_name = f'{source.lower()}_api' if source else 'manual_entry'
+        source_agent = ProvAgent.query.filter_by(foaf_name=source_agent_name).first()
+        if not source_agent:
+            source_descriptions = {
+                'mw_api': {'description': 'Merriam-Webster Dictionary API', 'url': 'https://www.merriam-webster.com'},
+                'oed_api': {'description': 'Oxford English Dictionary API', 'url': 'https://www.oed.com'},
+                'manual_entry': {'description': 'Manual user entry', 'url': None}
+            }
+            desc = source_descriptions.get(source_agent_name, {'description': f'{source} source', 'url': None})
+            source_agent = ProvAgent(
+                agent_type='SoftwareAgent',
+                foaf_name=source_agent_name,
+                agent_metadata={
+                    'tool_type': 'dictionary_api',
+                    **desc
+                }
+            )
+            db.session.add(source_agent)
+            db.session.flush()
+
+        activity = ProvActivity(
+            activity_type='reference_creation',
+            startedattime=document.created_at or datetime.utcnow(),
+            endedattime=document.created_at or datetime.utcnow(),
+            wasassociatedwith=agent.agent_id,
+            activity_parameters=_serialize_value({
+                'document_id': document.id,
+                'document_uuid': document.uuid,
+                'source': source,
+                'source_type': 'dictionary',
+                'experiment_id': experiment.id if experiment else None,
+                'experiment_name': experiment.name if experiment else None,
+                'context': 'experiment_creation' if experiment else 'standalone'
+            }),
+            activity_status='completed'
+        )
+        db.session.add(activity)
+        db.session.flush()
+
+        entity = ProvEntity(
+            entity_type='document',
+            generatedattime=document.created_at or datetime.utcnow(),
+            wasgeneratedby=activity.activity_id,
+            wasattributedto=source_agent.agent_id,  # Attribute to the source
+            entity_value=_serialize_value({
+                'document_id': document.id,
+                'document_uuid': document.uuid,
+                'title': document.title,
+                'document_type': document.document_type,
+                'source': source,
+                'source_metadata': source_metadata,
+                'word_count': document.word_count
+            })
+        )
+        db.session.add(entity)
+        db.session.commit()
+
+        logger.info(f"Tracked reference creation: {document.title} from {source}" +
+                   (f" for experiment {experiment.name}" if experiment else ""))
+
+        return activity, entity
+
+    @classmethod
     def track_metadata_extraction(
         cls,
         document,
@@ -1823,6 +1907,13 @@ class ProvenanceService:
                     )
                 ).delete(synchronize_session=False)
                 total_relationships += rel_count
+
+            # Clear wasderivedfrom self-references BEFORE deleting entities
+            # This handles the self-referential FK constraint on prov_entities
+            for entity_id in entity_ids:
+                ProvEntity.query.filter(
+                    ProvEntity.wasderivedfrom == entity_id
+                ).update({'wasderivedfrom': None}, synchronize_session=False)
 
             # Delete all entities
             for entity in all_entities:

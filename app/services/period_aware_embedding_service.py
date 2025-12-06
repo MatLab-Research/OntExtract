@@ -7,6 +7,12 @@ the period-aware approach where historical texts use models trained on historica
 """
 
 import os
+
+# Set offline mode for HuggingFace Hub BEFORE any imports
+# This prevents network calls when models are already cached locally
+os.environ["HF_HUB_OFFLINE"] = "1"
+os.environ["TRANSFORMERS_OFFLINE"] = "1"
+
 import logging
 import numpy as np
 from typing import List, Dict, Any, Optional, Tuple, Union
@@ -63,10 +69,10 @@ class PeriodAwareEmbeddingService:
             'era': 'modern'
         },
         'contemporary_2000plus': {
-            'model': 'sentence-transformers/all-roberta-large-v1',
-            'description': 'RoBERTa-large model (1024 dims) - highest quality for contemporary text',
+            'model': 'sentence-transformers/all-mpnet-base-v2',
+            'description': 'MPNet model (768 dims) - consistent with other periods, fast on CPU',
             'handles_archaic': False,
-            'dimension': 1024,
+            'dimension': 768,
             'era': 'contemporary'
         },
         # Domain-specific models

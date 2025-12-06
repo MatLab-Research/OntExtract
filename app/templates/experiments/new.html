@@ -478,14 +478,24 @@ document.addEventListener('DOMContentLoaded', function() {
     async function createReference(data, btn) {
         try {
             const title = `${data.term} (${data.source.toUpperCase()}) - Sense ${data.senseNumber}`;
+            const source = data.source.toUpperCase();
+            // Build entry URL based on source
+            const entryUrl = source === 'MW'
+                ? `https://www.merriam-webster.com/dictionary/${encodeURIComponent(data.term)}`
+                : source === 'OED'
+                    ? `https://www.oed.com/search/dictionary/?q=${encodeURIComponent(data.term)}`
+                    : null;
+
             const response = await fetch('/upload/create_reference', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({
                     title: title,
                     content: data.definition,
-                    source: data.source.toUpperCase(),
-                    source_type: 'dictionary'
+                    source: source,
+                    source_type: 'dictionary',
+                    term: data.term,
+                    entry_url: entryUrl
                 })
             });
 

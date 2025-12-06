@@ -500,6 +500,34 @@ def delete_all_documents():
         from app.models.provenance import ProvenanceEntity
         from app.models.experiment_document import ExperimentDocument
         from app.models.experiment_processing import ExperimentDocumentProcessing, ProcessingArtifact
+        from app.models import Experiment
+
+        # Check if there are any experiments - documents cannot be deleted while experiments exist
+        experiments_with_docs = db.session.execute(
+            text('''
+                SELECT DISTINCT e.id, e.name
+                FROM experiments e
+                WHERE EXISTS (
+                    SELECT 1 FROM experiment_documents_v2 ed WHERE ed.experiment_id = e.id
+                ) OR EXISTS (
+                    SELECT 1 FROM experiment_documents ed2 WHERE ed2.experiment_id = e.id
+                )
+                LIMIT 5
+            ''')
+        ).fetchall()
+
+        if experiments_with_docs:
+            exp_names = ', '.join([f'"{exp.name}"' for exp in experiments_with_docs[:3]])
+            total_experiments = Experiment.query.count()
+            if len(experiments_with_docs) > 3:
+                exp_names += f' and {total_experiments - 3} more'
+
+            return jsonify({
+                'success': False,
+                'error': f'Cannot delete documents: {total_experiments} experiment(s) still reference documents. '
+                         f'Please delete experiments first: {exp_names}',
+                'experiments': [{'id': exp.id, 'name': exp.name} for exp in experiments_with_docs]
+            }), 409
 
         # Get count for logging
         total_documents = Document.query.count()
@@ -523,12 +551,16 @@ def delete_all_documents():
         result = db.session.execute(text("DELETE FROM processing_artifact_groups"))
         current_app.logger.info(f"Deleted {result.rowcount} processing artifact groups")
 
-        # 4. Delete experiment document processing operations
+        # 4. Delete document processing index FIRST (has FK to experiment_document_processing)
+        result = db.session.execute(text("DELETE FROM document_processing_index"))
+        current_app.logger.info(f"Deleted {result.rowcount} document processing index records")
+
+        # 5. Delete experiment document processing operations
         processing_count = ExperimentDocumentProcessing.query.count()
         ExperimentDocumentProcessing.query.delete(synchronize_session=False)
         current_app.logger.info(f"Deleted {processing_count} experiment document processing operations")
 
-        # 5. Delete experiment-document relationships (both tables)
+        # 6. Delete experiment-document relationships (both tables)
         exp_doc_count = ExperimentDocument.query.count()
         ExperimentDocument.query.delete(synchronize_session=False)
         current_app.logger.info(f"Deleted {exp_doc_count} experiment-document relationships")
@@ -536,33 +568,29 @@ def delete_all_documents():
         result = db.session.execute(text("DELETE FROM experiment_documents_v2"))
         current_app.logger.info(f"Deleted {result.rowcount} experiment_documents_v2 records")
 
-        # 6. Delete experiment references
+        # 7. Delete experiment references
         result = db.session.execute(text("DELETE FROM experiment_references"))
         current_app.logger.info(f"Deleted {result.rowcount} experiment references")
 
-        # 7. Delete orchestration decisions
+        # 8. Delete orchestration decisions
         result = db.session.execute(text("DELETE FROM orchestration_decisions"))
         current_app.logger.info(f"Deleted {result.rowcount} orchestration decisions")
 
-        # 8. Delete version changelog
+        # 9. Delete version changelog
         result = db.session.execute(text("DELETE FROM version_changelog"))
         current_app.logger.info(f"Deleted {result.rowcount} version changelog entries")
 
-        # 9. Delete document temporal metadata
+        # 10. Delete document temporal metadata
         result = db.session.execute(text("DELETE FROM document_temporal_metadata"))
         current_app.logger.info(f"Deleted {result.rowcount} document temporal metadata")
 
-        # 10. Delete term disciplinary definitions
+        # 11. Delete term disciplinary definitions
         result = db.session.execute(text("DELETE FROM term_disciplinary_definitions"))
         current_app.logger.info(f"Deleted {result.rowcount} term disciplinary definitions")
 
-        # 11. Delete semantic shift analysis
+        # 12. Delete semantic shift analysis
         result = db.session.execute(text("DELETE FROM semantic_shift_analysis"))
         current_app.logger.info(f"Deleted {result.rowcount} semantic shift analysis records")
-
-        # 12. Delete document processing index
-        result = db.session.execute(text("DELETE FROM document_processing_index"))
-        current_app.logger.info(f"Deleted {result.rowcount} document processing index records")
 
         # 13. Delete processing jobs
         job_count = ProcessingJob.query.count()

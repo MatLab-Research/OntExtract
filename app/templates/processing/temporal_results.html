@@ -440,27 +440,44 @@ function exportAsJSON() {
 function exportAsCSV() {
     const expressions = {{ temporal_expressions|tojson }};
 
+    if (expressions.length === 0) {
+        alert('No temporal expressions to export');
+        return;
+    }
+
+    // CSV escape function
+    const escapeCSV = (field) => {
+        if (field === null || field === undefined) return '';
+        const str = String(field);
+        if (str.includes(',') || str.includes('"') || str.includes('\n') || str.includes('\r')) {
+            return `"${str.replace(/"/g, '""')}"`;
+        }
+        return str;
+    };
+
     // CSV headers
-    let csv = 'Text,Type,Normalized,Method,Confidence,Position Start,Position End\n';
+    const headers = ['Text', 'Type', 'Normalized', 'Source', 'Method', 'Confidence', 'Start Position', 'End Position'];
 
     // CSV rows
-    expressions.forEach(expr => {
-        const row = [
-            `"${(expr.text || '').replace(/"/g, '""')}"`,
-            expr.type || '',
-            `"${(expr.normalized || '').replace(/"/g, '""')}"`,
-            expr.method || '',
-            expr.confidence || '',
-            expr.start_char || '',
-            expr.end_char || ''
-        ].join(',');
-        csv += row + '\n';
-    });
+    const rows = expressions.map(expr => [
+        escapeCSV(expr.text),
+        escapeCSV(expr.type),
+        escapeCSV(expr.normalized),
+        escapeCSV(expr.source),
+        escapeCSV(expr.method),
+        expr.confidence !== null && expr.confidence !== undefined ? (expr.confidence * 100).toFixed(1) + '%' : '',
+        expr.start_char !== null && expr.start_char !== undefined ? expr.start_char : '',
+        expr.end_char !== null && expr.end_char !== undefined ? expr.end_char : ''
+    ].join(','));
 
-    const dataBlob = new Blob([csv], {type: 'text/csv'});
+    // Add UTF-8 BOM for Excel compatibility
+    const BOM = '\uFEFF';
+    const csvContent = BOM + [headers.join(','), ...rows].join('\n');
+
+    const dataBlob = new Blob([csvContent], {type: 'text/csv;charset=utf-8;'});
     const link = document.createElement('a');
     link.href = window.URL.createObjectURL(dataBlob);
-    link.download = 'temporal_expressions_{{ document.uuid }}.csv';
+    link.download = '{{ document.title|replace(" ", "_")|replace("/", "-") }}_temporal.csv';
     link.click();
 }
 </script>
