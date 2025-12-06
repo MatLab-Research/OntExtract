@@ -1807,13 +1807,30 @@ def view_segments_results(document_uuid):
         class SegmentWrapper:
             def __init__(self, artifact):
                 content_data = artifact.get_content()
-                metadata = artifact.get_metadata()
+                metadata = artifact.get_metadata() or {}
                 self.segment_number = artifact.artifact_index + 1
-                self.content = content_data.get('text', '')
+
+                # Content can be a string (segment text) or dict with 'text' key
+                if isinstance(content_data, str):
+                    self.content = content_data
+                else:
+                    self.content = content_data.get('text', '') if content_data else ''
+
                 self.word_count = metadata.get('word_count', len(self.content.split()))
                 self.character_count = len(self.content)
-                # Get segmentation method from content or metadata
-                self.segmentation_method = content_data.get('segment_type', metadata.get('method', 'unknown'))
+
+                # Determine segmentation method from tool_name in metadata
+                # tool_name will be 'segment_paragraph' or 'segment_sentence'
+                tool_name = metadata.get('tool_name', '')
+                if 'paragraph' in tool_name.lower():
+                    self.segmentation_method = 'paragraph'
+                elif 'sentence' in tool_name.lower():
+                    self.segmentation_method = 'sentence'
+                else:
+                    # Fallback: check other metadata fields
+                    self.segmentation_method = content_data.get('segment_type') if isinstance(content_data, dict) else None
+                    if not self.segmentation_method:
+                        self.segmentation_method = metadata.get('method', 'unknown')
 
         # Combine old and new segments, adding segmentation_method to old segments
         segments = []

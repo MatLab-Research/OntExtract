@@ -27,6 +27,10 @@
                 </div>
             </div>
 
+            {# Calculate segment type counts at template level for use in both stats and sidebar #}
+            {% set paragraph_count = segments | selectattr('segmentation_method', 'equalto', 'paragraph') | list | length %}
+            {% set sentence_count = segments | selectattr('segmentation_method', 'equalto', 'sentence') | list | length %}
+
             <div class="row">
                 <div class="col-lg-8">
                     <!-- Statistics Card -->
@@ -45,25 +49,20 @@
                                     </div>
                                     <div class="col-md-3">
                                         <div class="border rounded p-3">
-                                            <h4 class="text-info mb-1" id="stat-avg-chars">{{ avg_length|int }}</h4>
-                                            <small class="text-muted">Avg Characters</small>
+                                            <h4 class="text-primary mb-1" id="stat-paragraphs">{{ paragraph_count }}</h4>
+                                            <small class="text-muted"><i class="fas fa-paragraph me-1"></i>Paragraphs</small>
                                         </div>
                                     </div>
                                     <div class="col-md-3">
                                         <div class="border rounded p-3">
-                                            <h4 class="text-primary mb-1" id="stat-avg-words">{{ avg_words|int }}</h4>
+                                            <h4 class="text-info mb-1" id="stat-sentences">{{ sentence_count }}</h4>
+                                            <small class="text-muted"><i class="fas fa-align-left me-1"></i>Sentences</small>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <div class="border rounded p-3">
+                                            <h4 class="text-secondary mb-1" id="stat-avg-words">{{ avg_words|int }}</h4>
                                             <small class="text-muted">Avg Words</small>
-                                        </div>
-                                    </div>
-                                    <div class="col-md-3">
-                                        <div class="border rounded p-3">
-                                            {% if jobs %}
-                                                {% set params = jobs[0].get_parameters() %}
-                                                <h4 class="text-success mb-1" id="stat-method">{{ params.get('method', 'N/A')|title }}</h4>
-                                            {% else %}
-                                                <h4 class="text-success mb-1" id="stat-method">N/A</h4>
-                                            {% endif %}
-                                            <small class="text-muted">Method</small>
                                         </div>
                                     </div>
                                 </div>
@@ -125,7 +124,20 @@
                                      data-char-count="{{ segment.character_count if segment.character_count else 0 }}">
                                     <div class="card-header bg-light">
                                         <div class="d-flex justify-content-between align-items-center">
-                                            <span class="badge bg-warning">Segment {{ segment.segment_number }}</span>
+                                            <div>
+                                                <span class="badge bg-warning">Segment {{ segment.segment_number }}</span>
+                                                {% if segment.segmentation_method == 'paragraph' %}
+                                                <span class="badge bg-primary ms-1" title="Paragraph segmentation">
+                                                    <i class="fas fa-paragraph"></i> Paragraph
+                                                </span>
+                                                {% elif segment.segmentation_method == 'sentence' %}
+                                                <span class="badge bg-info ms-1" title="Sentence segmentation">
+                                                    <i class="fas fa-align-left"></i> Sentence
+                                                </span>
+                                                {% elif segment.segmentation_method and segment.segmentation_method != 'unknown' %}
+                                                <span class="badge bg-secondary ms-1">{{ segment.segmentation_method }}</span>
+                                                {% endif %}
+                                            </div>
                                             <small class="text-muted">
                                                 {% if segment.word_count %}{{ segment.word_count }} words{% endif %}
                                                 {% if segment.character_count %} | {{ segment.character_count }} chars{% endif %}
@@ -155,6 +167,39 @@
                 </div>
 
                 <div class="col-lg-4">
+                    <!-- Segment Type Filter -->
+                    <div class="card mb-4">
+                        <div class="card-header">
+                            <h6 class="mb-0"><i class="fas fa-filter me-2"></i>Filter by Type</h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="list-group">
+                                <button type="button" class="list-group-item list-group-item-action filter-btn active" data-method="all" onclick="filterSegments('all', this)">
+                                    <div class="d-flex w-100 justify-content-between align-items-center">
+                                        <span><i class="fas fa-list me-2"></i>All Segments</span>
+                                        <span class="badge bg-warning">{{ segments|length }}</span>
+                                    </div>
+                                </button>
+                                {% if paragraph_count > 0 %}
+                                <button type="button" class="list-group-item list-group-item-action filter-btn" data-method="paragraph" onclick="filterSegments('paragraph', this)">
+                                    <div class="d-flex w-100 justify-content-between align-items-center">
+                                        <span><i class="fas fa-paragraph me-2 text-primary"></i>Paragraphs</span>
+                                        <span class="badge bg-primary">{{ paragraph_count }}</span>
+                                    </div>
+                                </button>
+                                {% endif %}
+                                {% if sentence_count > 0 %}
+                                <button type="button" class="list-group-item list-group-item-action filter-btn" data-method="sentence" onclick="filterSegments('sentence', this)">
+                                    <div class="d-flex w-100 justify-content-between align-items-center">
+                                        <span><i class="fas fa-align-left me-2 text-info"></i>Sentences</span>
+                                        <span class="badge bg-info">{{ sentence_count }}</span>
+                                    </div>
+                                </button>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+
                     <!-- Processing History -->
                     <div class="card mb-4">
                         <div class="card-header">
@@ -162,46 +207,35 @@
                         </div>
                         <div class="card-body">
                             {% if jobs|length >= 1 %}
-                                <p class="small text-muted mb-3">
-                                    {% if jobs|length > 1 %}
-                                    Document segmented {{ jobs|length }} times - Click to filter
-                                    {% else %}
-                                    Click "Show All" to reset filter
-                                    {% endif %}
-                                </p>
                                 <div class="list-group">
-                                    <button type="button" class="list-group-item list-group-item-action filter-btn active" data-method="all" onclick="filterSegments('all', this)">
-                                        <div class="d-flex w-100 justify-content-between">
-                                            <h6 class="mb-1">
-                                                Show All
-                                                <span class="badge bg-primary ms-2">{{ segments|length }} segments</span>
-                                            </h6>
-                                        </div>
-                                    </button>
                                     {% for job in jobs %}
                                     {% set params = job.get_parameters() %}
-                                    {% set method = params.get('method', 'paragraph') %}
-                                    <button type="button" class="list-group-item list-group-item-action filter-btn" data-method="{{ method }}" onclick="filterSegments('{{ method }}', this)">
+                                    {% set method = params.get('method', params.get('processing_type', 'unknown')) %}
+                                    <div class="list-group-item">
                                         <div class="d-flex w-100 justify-content-between">
                                             <h6 class="mb-1">
-                                                {{ method|title }} Method
+                                                {% if 'paragraph' in method %}
+                                                <i class="fas fa-paragraph text-primary me-1"></i>
+                                                {% elif 'sentence' in method %}
+                                                <i class="fas fa-align-left text-info me-1"></i>
+                                                {% endif %}
+                                                {{ method|title }}
                                                 {% if loop.first %}
-                                                <span class="badge bg-info ms-2">Latest</span>
+                                                <span class="badge bg-success ms-2">Latest</span>
                                                 {% endif %}
                                             </h6>
-                                            <small>{{ job.created_at.strftime('%m/%d %H:%M') if job.created_at else 'N/A' }}</small>
+                                            <small class="text-muted">{{ job.created_at.strftime('%m/%d %H:%M') if job.created_at else 'N/A' }}</small>
                                         </div>
-                                        <p class="mb-1 small">
-                                            <span class="badge bg-secondary">{{ method }}</span>
-                                            <span class="badge {{ 'bg-success' if job.status == 'completed' else 'bg-warning' }} ms-1">
+                                        <small class="text-muted">
+                                            <span class="badge {{ 'bg-success' if job.status == 'completed' else 'bg-warning' }}">
                                                 {{ job.status }}
                                             </span>
-                                        </p>
-                                    </button>
+                                        </small>
+                                    </div>
                                     {% endfor %}
                                 </div>
                             {% else %}
-                                <p class="text-muted">No processing history</p>
+                                <p class="text-muted mb-0">No processing history</p>
                             {% endif %}
                         </div>
                     </div>
@@ -259,7 +293,8 @@ function filterSegments(method, button) {
 
     let visibleCount = 0;
     let totalWords = 0;
-    let totalChars = 0;
+    let paragraphCount = 0;
+    let sentenceCount = 0;
 
     if (method === 'all') {
         // Show all segments
@@ -267,7 +302,9 @@ function filterSegments(method, button) {
             segment.style.display = 'block';
             visibleCount++;
             totalWords += parseInt(segment.getAttribute('data-word-count') || 0);
-            totalChars += parseInt(segment.getAttribute('data-char-count') || 0);
+            const segMethod = segment.getAttribute('data-method');
+            if (segMethod === 'paragraph') paragraphCount++;
+            if (segMethod === 'sentence') sentenceCount++;
         });
         filterIndicator.style.display = 'none';
     } else {
@@ -278,7 +315,8 @@ function filterSegments(method, button) {
                 segment.style.display = 'block';
                 visibleCount++;
                 totalWords += parseInt(segment.getAttribute('data-word-count') || 0);
-                totalChars += parseInt(segment.getAttribute('data-char-count') || 0);
+                if (segmentMethod === 'paragraph') paragraphCount++;
+                if (segmentMethod === 'sentence') sentenceCount++;
             } else {
                 segment.style.display = 'none';
             }
@@ -295,21 +333,18 @@ function filterSegments(method, button) {
     // Update statistics
     document.getElementById('stat-total-segments').textContent = visibleCount;
 
+    // Update paragraph and sentence counts
+    const paragraphStat = document.getElementById('stat-paragraphs');
+    const sentenceStat = document.getElementById('stat-sentences');
+    if (paragraphStat) paragraphStat.textContent = paragraphCount;
+    if (sentenceStat) sentenceStat.textContent = sentenceCount;
+
+    // Update average words
     if (visibleCount > 0) {
         const avgWords = Math.round(totalWords / visibleCount);
-        const avgChars = Math.round(totalChars / visibleCount);
         document.getElementById('stat-avg-words').textContent = avgWords;
-        document.getElementById('stat-avg-chars').textContent = avgChars;
     } else {
         document.getElementById('stat-avg-words').textContent = '0';
-        document.getElementById('stat-avg-chars').textContent = '0';
-    }
-
-    // Update method display
-    if (method === 'all') {
-        document.getElementById('stat-method').textContent = 'All';
-    } else {
-        document.getElementById('stat-method').textContent = method.charAt(0).toUpperCase() + method.slice(1);
     }
 }
 </script>
