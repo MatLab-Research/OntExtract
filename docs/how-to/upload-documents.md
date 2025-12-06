@@ -13,6 +13,32 @@ Documents are the foundation of temporal evolution analysis. OntExtract supports
 - **Word Documents** (.docx) - Microsoft Word format
 - **HTML** - Web pages with text content
 
+## Document Versions
+
+OntExtract treats each upload as a separate document record. You can upload multiple versions of the same work:
+
+- **Different formats** - PDF and Word versions of the same paper
+- **Different versions** - Preprint (v1) and final published version
+- **Updated copies** - A cleaner scan or OCR-corrected version
+
+### How Versions Are Handled
+
+- Documents with the same DOI or title are **not automatically linked**
+- Each upload creates an independent document record
+- You choose which version(s) to include in each experiment
+- Provenance tracking records which specific document version was processed
+
+### Best Practices
+
+| Scenario | Recommendation |
+|----------|----------------|
+| Better quality scan available | Upload new version, use it for new experiments |
+| Preprint vs published | Upload both if content differs significantly |
+| PDF and Word of same content | Upload whichever extracts text better |
+| Duplicate by accident | Delete the unwanted copy from Documents list |
+
+To identify duplicates, sort by DOI or title in the Documents view.
+
 ## Upload Methods
 
 ### Method 1: Single Document Upload

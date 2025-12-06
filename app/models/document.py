@@ -35,7 +35,7 @@ class Document(db.Model):
 
     journal = db.Column(db.String(200))  # Journal or conference name
     publisher = db.Column(db.String(200))  # Publisher name
-    doi = db.Column(db.String(100), unique=True)  # Digital Object Identifier
+    doi = db.Column(db.String(100), index=True)  # Digital Object Identifier (not unique - same DOI can have multiple file versions)
     isbn = db.Column(db.String(20))  # ISBN for books
     document_subtype = db.Column(db.String(50))  # article, book, conference_paper, etc.
     abstract = db.Column(db.Text)  # Document abstract or summary

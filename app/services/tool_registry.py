@@ -76,8 +76,8 @@ TOOL_REGISTRY: Dict[str, ToolDefinition] = {
         description="Extract term definitions and explanations",
         status=ToolStatus.IMPLEMENTED,  # ✅ IMPLEMENTED
         category="extraction",
-        dependencies=["spacy"],
-        notes="Multiple definition patterns + appositive constructions"
+        dependencies=["spacy", "transformers"],
+        notes="Zero-shot sentence classification (BART) + pattern matching + spaCy dependency parsing"
     ),
     "period_aware_embedding": ToolDefinition(
         name="period_aware_embedding",

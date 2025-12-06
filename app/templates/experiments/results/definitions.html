@@ -64,8 +64,8 @@
     </div>
     <div class="col-md-3">
         <div class="stat-card">
-            <div class="stat-value text-purple" style="color: #6f42c1;">{{ llm_count }}</div>
-            <div class="stat-label">LLM Extracted</div>
+            <div class="stat-value text-purple" style="color: #6f42c1;">{{ auto_count }}</div>
+            <div class="stat-label">Auto Extracted</div>
         </div>
     </div>
     <div class="col-md-3">
@@ -95,14 +95,16 @@
         </h5>
         <div class="filter-tabs" style="--accent-color: #0dcaf0;">
             <button class="filter-tab active" data-source="all" onclick="filterBySource('all')">All</button>
-            <button class="filter-tab" data-source="llm" onclick="filterBySource('llm')">LLM</button>
+            <button class="filter-tab" data-source="auto" onclick="filterBySource('auto')">Auto</button>
             <button class="filter-tab" data-source="manual" onclick="filterBySource('manual')">Manual</button>
         </div>
     </div>
     <div class="card-body">
         {% if definitions %}
             {% for defn in definitions %}
-            <div class="result-item" data-source="{{ defn.source }}">
+            {# Group zeroshot/pattern sources under "auto" for filtering #}
+            {% set filter_source = 'auto' if defn.source in ['zeroshot', 'pattern'] else defn.source %}
+            <div class="result-item" data-source="{{ filter_source }}">
                 <div class="item-header">
                     <div class="d-flex align-items-center gap-2">
                         <span class="definition-term">{{ defn.term }}</span>
@@ -120,7 +122,14 @@
                             </div>
                         </div>
                         {% endif %}
-                        <span class="source-badge {{ defn.source }}">{{ defn.source }}</span>
+                        {# Display user-friendly source labels #}
+                        {% if defn.source == 'zeroshot' %}
+                        <span class="source-badge auto" title="Zero-shot sentence filtering + Pattern Matching">ZeroShot</span>
+                        {% elif defn.source == 'pattern' %}
+                        <span class="source-badge auto" title="Pattern Matching + spaCy">Pattern</span>
+                        {% else %}
+                        <span class="source-badge {{ defn.source }}">{{ defn.source | capitalize }}</span>
+                        {% endif %}
                     </div>
                 </div>
                 <div class="item-body">
@@ -153,7 +162,7 @@
             <div class="text-center py-5">
                 <i class="fas fa-book fa-3x text-muted mb-3"></i>
                 <p class="text-muted">No definitions have been extracted yet.</p>
-                <p class="text-muted small">Run LLM orchestration or manual definition extraction on your documents.</p>
+                <p class="text-muted small">Run orchestrated analysis or manual definition extraction on your documents.</p>
             </div>
         {% endif %}
     </div>
@@ -193,10 +202,14 @@
     </div>
     <div class="card-body">
         <p class="text-muted small mb-2">
-            Definitions are extracted using pattern matching and LLM analysis to identify term-definition pairs.
+            Definitions are extracted using a hybrid approach:
         </p>
+        <ul class="text-muted small mb-2 ps-3">
+            <li><strong>ZeroShot:</strong> BART model filters definition sentences before pattern extraction</li>
+            <li><strong>Pattern:</strong> Regex patterns + spaCy dependency parsing</li>
+        </ul>
         <p class="text-muted small mb-0">
-            <strong>Patterns detected:</strong> "is defined as", "refers to", "means", and custom patterns.
+            <strong>Patterns detected:</strong> "is defined as", "refers to", "means", appositives, and strict acronym expansions.
         </p>
     </div>
 </div>

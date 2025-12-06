@@ -7,7 +7,7 @@ Quick start guide for running OntExtract using Docker Compose.
 - Docker Engine 20.10+
 - Docker Compose 2.0+
 - 4GB RAM minimum
-- 10GB free disk space
+- 15GB free disk space (includes pre-downloaded ML models)
 
 **For Windows Users**: Docker Desktop with WSL2 integration enabled
 - Open Docker Desktop → Settings → Resources → WSL Integration
@@ -221,12 +221,23 @@ For production use:
 ### Minimum
 - **CPU**: 2 cores
 - **RAM**: 4GB
-- **Disk**: 10GB
+- **Disk**: 15GB
 
 ### Recommended
 - **CPU**: 4+ cores
 - **RAM**: 8GB+
-- **Disk**: 20GB+
+- **Disk**: 25GB+
+
+### Pre-downloaded Models
+
+The Docker image includes pre-downloaded ML models to avoid first-run delays:
+
+| Model | Size | Purpose |
+|-------|------|---------|
+| `en_core_web_sm` (spaCy) | ~12MB | Sentence segmentation, NER |
+| `facebook/bart-large-mnli` | ~1.6GB | Zero-shot classification for definition extraction |
+
+These models are downloaded during image build, not at runtime.
 
 ---
 
@@ -278,6 +289,9 @@ source venv/bin/activate
 # Install Python dependencies
 pip install -r requirements.txt
 python -m spacy download en_core_web_sm
+
+# Download BART model for definition extraction (~1.6GB)
+python -c "from transformers import pipeline; pipeline('zero-shot-classification', model='facebook/bart-large-mnli')"
 
 # Configure PostgreSQL
 sudo -u postgres psql -c "CREATE DATABASE ontextract_db;"

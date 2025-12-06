@@ -79,7 +79,7 @@ def experiment_definitions_results(experiment_id):
             definitions=[],
             definitions_by_document={},
             total_definitions=0,
-            llm_count=0,
+            auto_count=0,
             manual_count=0
         )
 
@@ -88,7 +88,7 @@ def experiment_definitions_results(experiment_id):
 
     definitions = []
     definitions_by_document = {}
-    llm_count = 0
+    auto_count = 0  # Count of automated extractions (DeftEval, pattern, spaCy)
 
     # 1. Get LLM orchestration results from processing_results JSON
     orchestration_results = _get_orchestration_results(experiment_id)
@@ -106,10 +106,25 @@ def experiment_definitions_results(experiment_id):
         if 'extract_definitions' in doc_results:
             tool_result = doc_results['extract_definitions']
             if tool_result.get('status') == 'executed' and 'results' in tool_result:
-                data = tool_result['results'].get('data', [])
+                results = tool_result['results']
+                data = results.get('data', [])
+                # Get actual extraction method from metadata
+                # Method is typically: "zero_shot_filtering+pattern_matching+dependency_parsing"
+                extraction_metadata = results.get('metadata', {})
+                extraction_method = extraction_metadata.get('method', 'pattern_matching')
+                classifier_used = extraction_metadata.get('classifier_used', False)
+                classifier_model = extraction_metadata.get('classifier_model', '')
+
+                # Determine source label based on actual method
+                if classifier_used and classifier_model:
+                    # Zero-shot classification was used to filter sentences
+                    source_label = 'zeroshot'
+                else:
+                    source_label = 'pattern'
+
                 for idx, defn in enumerate(data):
                     definition = {
-                        'id': f"llm_{doc_id}_{idx}",
+                        'id': f"auto_{doc_id}_{idx}",
                         'term': defn.get('term', ''),
                         'definition': defn.get('definition', ''),
                         'pattern': defn.get('pattern', 'unknown'),
@@ -117,15 +132,15 @@ def experiment_definitions_results(experiment_id):
                         'sentence': defn.get('sentence', ''),
                         'start_char': defn.get('start'),
                         'end_char': defn.get('end'),
-                        'method': 'llm_orchestration',
-                        'source': 'llm',
+                        'method': extraction_method,
+                        'source': source_label,
                         'document_id': doc_id,
                         'document_title': doc_title,
                         'document_uuid': doc_uuid,
                         'document_year': doc_year
                     }
                     definitions.append(definition)
-                    llm_count += 1
+                    auto_count += 1
 
                     # Group by document
                     if doc_id not in definitions_by_document:
@@ -148,6 +163,13 @@ def experiment_definitions_results(experiment_id):
         doc = doc_lookup.get(artifact.document_id)
         doc_title = doc.title if doc else f"Document {artifact.document_id}"
 
+        # Determine source from artifact metadata
+        artifact_method = metadata.get('method', 'pattern_matching')
+        if 'zero_shot' in artifact_method.lower() or 'zeroshot' in artifact_method.lower():
+            artifact_source = 'zeroshot'
+        else:
+            artifact_source = 'pattern'
+
         definition = {
             'id': f"artifact_{artifact.id}",
             'term': content.get('term', ''),
@@ -157,15 +179,15 @@ def experiment_definitions_results(experiment_id):
             'sentence': content.get('sentence', ''),
             'start_char': metadata.get('start_char'),
             'end_char': metadata.get('end_char'),
-            'method': metadata.get('method', 'artifact'),
-            'source': 'llm',
+            'method': artifact_method,
+            'source': artifact_source,
             'document_id': artifact.document_id,
             'document_title': doc_title,
             'document_uuid': str(doc.uuid) if doc else None,
             'document_year': doc.publication_date.year if doc and doc.publication_date else None
         }
         definitions.append(definition)
-        llm_count += 1
+        auto_count += 1
 
         if artifact.document_id not in definitions_by_document:
             definitions_by_document[artifact.document_id] = {
@@ -225,7 +247,7 @@ def experiment_definitions_results(experiment_id):
         definitions=definitions,
         definitions_by_document=definitions_by_document,
         total_definitions=len(definitions),
-        llm_count=llm_count,
+        auto_count=auto_count,
         manual_count=manual_count
     )
 

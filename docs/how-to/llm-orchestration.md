@@ -61,6 +61,19 @@ After approval, the system processes documents:
 - Progress tracked in real-time
 - Results stored as ProcessingArtifacts with PROV-O provenance
 
+**Available Processing Tools:**
+
+- **Entity Extraction** (spaCy): Named entities (PERSON, ORG, GPE) + noun phrase concepts
+- **Temporal Extraction** (spaCy + regex): Dates, periods, historical markers, relative expressions
+- **Definition Extraction** (hybrid):
+  - Zero-shot classification (`facebook/bart-large-mnli`) for sentence scoring
+  - Pattern matching for 8 definition types (explicit, copula, acronym, appositive, etc.)
+  - Strict acronym validation requiring first-letter matching
+  - Quality filters to reject citations, reference lists, and nonsense patterns
+- **Text Segmentation**: Structure-aware document splitting
+- **Embedding Generation** (sentence-transformers): Period-aware semantic vectors
+- **LLM Text Cleanup** (Claude): Modernize OCR errors while preserving historical terminology
+
 ### Stage 5: Synthesize
 
 The LLM analyzes results across all documents:

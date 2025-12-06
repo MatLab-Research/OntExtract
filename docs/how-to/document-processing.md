@@ -138,6 +138,59 @@ Entity extraction creates artifacts with:
 
 **Note**: Accuracy depends on domain alignment with training corpora. Historical and technical texts may require validation.
 
+## Definition Extraction
+
+Extract term definitions using hybrid zero-shot classification and pattern matching.
+
+### Approach
+
+OntExtract uses a multi-method approach combining:
+
+1. **Zero-shot classification** (`facebook/bart-large-mnli`)
+   - Scores sentences for definition likelihood
+   - Used for confidence boosting, not filtering
+   - Zero-shot can misclassify some definition sentences, so all patterns are checked
+
+2. **Pattern matching** - Detects 8 definition types:
+   - **explicit_definition**: "X is defined as Y"
+   - **explicit_reference**: "X refers to Y"
+   - **meaning**: "X means Y"
+   - **copula**: "X is a Y"
+   - **acronym**: "IRA (Information Retrieval Agent)" with strict validation
+   - **also_known_as**: "X (also known as Y)"
+   - **ie_explanation**: "X (i.e., Y)"
+   - **appositive**: Dependency parsing for noun appositives
+
+3. **Strict acronym validation**:
+   - Pattern: 2-6 uppercase letters with capitalized word expansion
+   - Requires expansion first letters to match acronym (e.g., "IRA" must expand to words starting with I, R, A)
+   - Rejects expansions containing years (likely citations)
+   - Eliminates nonsense patterns
+
+4. **Quality filters**:
+   - Reject academic citations (e.g., "et al., 2015")
+   - Reject reference lists (year ranges, multiple years)
+   - Reject terms with more than 3 words
+   - Length validation (10-200 characters)
+
+### How to Run
+
+1. Select documents in Document Pipeline
+2. Check **Definition Extraction** in Processing Operations
+3. Click **Run Selected Operations**
+
+### Results
+
+Definition extraction creates artifacts with:
+- Term being defined
+- Definition text
+- Pattern type (explicit, acronym, etc.)
+- Confidence score (0.65-0.90 depending on pattern)
+- Character positions in source document
+- Source sentence for context
+
+Results are labeled "Auto" in the UI with source badges showing "ZeroShot" or "Pattern".
+
 ## Batch Processing
 
 Process multiple documents efficiently:

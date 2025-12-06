@@ -23,6 +23,10 @@ RUN pip install --no-cache-dir --upgrade pip && \
 # Download spaCy model
 RUN python -m spacy download en_core_web_sm
 
+# Download BART model for zero-shot classification (definition extraction)
+# This adds ~1.6GB but avoids first-run download delay
+RUN python -c "from transformers import pipeline; pipeline('zero-shot-classification', model='facebook/bart-large-mnli')"
+
 # Copy application code
 COPY . .
 

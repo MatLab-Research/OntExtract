@@ -30,7 +30,7 @@ OntExtract implements a 5-stage workflow for document analysis.
 |------|---------|---------------------------|
 | Named Entity Recognition | Extract people, places, organizations | SpaCy with historical text models |
 | Temporal Expression Extraction | Identify dates, periods, durations | Historical date format handling |
-| Definition Extraction | Find concept definitions | Pattern matching for archaic phrasing |
+| Definition Extraction | Find concept definitions | Hybrid zero-shot + pattern matching with strict acronym validation |
 | Text Segmentation | Break documents into logical sections | Structure-aware splitting |
 | Embedding Generation | Create semantic vectors | Period-specific embedding models |
 | LLM Text Cleanup | Modernize OCR errors and spelling | Preservation of historical terminology |

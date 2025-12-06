@@ -55,6 +55,8 @@ Track how term meanings change across historical periods using timeline visualiz
 - **Segmentation** - Split documents into paragraphs or sentences
 - **Embeddings** - Generate vector representations for similarity analysis
 - **Entity Extraction** - Identify named entities and concepts
+- **Definition Extraction** - Extract term definitions using hybrid zero-shot + pattern matching
+- **Temporal Extraction** - Find dates, periods, and historical markers
 
 ### LLM Orchestration
 In API-enhanced mode, the LLM analyzes your experiment and recommends processing strategies through a 5-stage workflow: Analyze → Recommend → Review → Execute → Synthesize.

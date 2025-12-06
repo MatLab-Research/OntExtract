@@ -711,27 +711,26 @@ class DocumentProcessor:
             confidence_threshold = AppSetting.get_setting(
                 'definition_extraction_confidence_threshold',
                 user_id=self.user_id,
-                default=0.70  # Default: 70% confidence
+                default=0.45  # Default: 45% confidence (zero-shot scores are typically lower)
             )
 
-            # Try to load transformer model for definition extraction
-            transformer_available = False
-            definition_extractor = None
+            # Try to load zero-shot classifier for definition sentence filtering
+            classifier_available = False
+            definition_classifier = None
 
             try:
                 from transformers import pipeline
-                # Use DeftEval model trained specifically on definition extraction
-                # Replaces zero-shot with task-specific model (SemEval-2020 Task 6)
-                definition_extractor = pipeline(
-                    "token-classification",
-                    model="DFKI-SLT/bert-defmod-deft",
-                    aggregation_strategy="simple",
+                # Use zero-shot classification to identify definition sentences
+                # This pre-filters sentences before pattern extraction
+                definition_classifier = pipeline(
+                    "zero-shot-classification",
+                    model="facebook/bart-large-mnli",
                     device=-1  # CPU (-1), use 0 for GPU
                 )
-                transformer_available = True
+                classifier_available = True
             except (ImportError, Exception):
                 # Fall back to pattern-only approach
-                transformer_available = False
+                classifier_available = False
 
             # Load spaCy model for sentence segmentation and dependency parsing
             try:
@@ -757,9 +756,10 @@ class DocumentProcessor:
                 # Copula definitions (be careful with these - higher false positive rate)
                 (r'([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)\s+is\s+(?:a|an|the)\s+(.+?)(?:[.;]|$)', 'copula', 0.65),
 
-                # Acronym expansions
-                (r'([A-Z]{2,})\s+\(([^)]+)\)', 'acronym', 0.85),
-                (r'([^(]+)\s+\(([A-Z]{2,})\)', 'acronym_reverse', 0.85),
+                # Acronym expansions - STRICT patterns only
+                # Pattern: "IRA (Information Retrieval Agent)" - acronym before expansion
+                # Requires: 2-6 uppercase letters, expansion must start with matching letters
+                (r'\b([A-Z]{2,6})\s+\(([A-Z][a-z]+(?:\s+[A-Z]?[a-z]+)*)\)', 'acronym', 0.85),
 
                 # Also known as patterns
                 (r'([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)\s+\(also\s+known\s+as\s+([^)]+)\)', 'also_known_as', 0.80),
@@ -778,94 +778,46 @@ class DocumentProcessor:
                 # Fallback: simple sentence splitting
                 sentences = re.split(r'[.!?]+\s+', text)
 
-            # Extract definitions using transformer (if available)
-            transformer_definitions = []
+            # Use zero-shot classification to score sentences (for confidence boosting, not filtering)
+            # Zero-shot often misclassifies definition-containing sentences as "example"
+            # so we don't use it for filtering, only for confidence adjustment
+            sentence_scores = {}
+            classifier_used_for_boost = False
 
-            if transformer_available and definition_extractor:
+            if classifier_available and definition_classifier:
                 try:
-                    # DeftEval model extracts term/definition pairs directly
-                    # Process text in chunks (model has token limit)
-                    max_length = 512  # BERT token limit
-                    chunks = []
-                    chunk_size = 2000  # Characters per chunk (rough approximation)
+                    # Score each sentence
+                    for sent in sentences:
+                        if len(sent) < 20 or len(sent) > 500:
+                            continue
 
-                    for i in range(0, len(text), chunk_size):
-                        chunk = text[i:i+chunk_size]
-                        if len(chunk) > 20:  # Skip very short chunks
-                            chunks.append((i, chunk))
+                        result = definition_classifier(
+                            sent,
+                            candidate_labels=['definition', 'example', 'statement'],
+                            multi_label=False
+                        )
 
-                    # Extract from each chunk
-                    for offset, chunk in chunks:
-                        results = definition_extractor(chunk)
+                        # Store the definition probability for confidence boosting
+                        def_idx = result['labels'].index('definition')
+                        sentence_scores[sent] = result['scores'][def_idx]
 
-                        # Group consecutive entities into term-definition pairs
-                        current_term = None
-                        current_def = None
-
-                        for entity in results:
-                            label = entity.get('entity_group', entity.get('entity', ''))
-                            word = entity.get('word', '')
-                            score = entity.get('score', 0)
-
-                            # Skip low-confidence extractions
-                            if score < confidence_threshold:
-                                continue
-
-                            if 'TERM' in label.upper():
-                                # Save previous pair if exists
-                                if current_term and current_def:
-                                    transformer_definitions.append({
-                                        'term': current_term.strip(),
-                                        'definition': current_def.strip(),
-                                        'pattern': 'transformer_direct',
-                                        'confidence': min(score, 0.95),
-                                        'start': offset + entity.get('start', 0),
-                                        'end': offset + entity.get('end', 0)
-                                    })
-                                # Start new term
-                                current_term = word
-                                current_def = None
-                            elif 'DEFINITION' in label.upper() or 'GLOSS' in label.upper():
-                                if current_def:
-                                    current_def += ' ' + word
-                                else:
-                                    current_def = word
-
-                        # Save final pair
-                        if current_term and current_def:
-                            transformer_definitions.append({
-                                'term': current_term.strip(),
-                                'definition': current_def.strip(),
-                                'pattern': 'transformer_direct',
-                                'confidence': 0.90
-                            })
+                    classifier_used_for_boost = True
 
                 except Exception as e:
-                    # If transformer fails, continue with pattern-only
+                    # If classifier fails, proceed without it
                     pass
 
             seen_terms = set()
 
-            # Add transformer-extracted definitions first (highest quality)
-            for defn in transformer_definitions:
-                term_key = defn['term'].lower()
-
-                # Filter: Only keep terms with 1-3 words (single words or short phrases)
-                term_word_count = len(defn['term'].split())
-                if term_word_count > 3:
-                    continue
-
-                if term_key not in seen_terms and len(defn['term']) > 1 and len(defn['definition']) > 10:
-                    seen_terms.add(term_key)
-                    definitions.append(defn)
-
-            # Also apply pattern-based extraction to catch anything transformer missed
+            # Always use all sentences - pattern validation handles quality
             candidate_sentences = sentences
 
             # Apply patterns to candidate sentences
             for sent in candidate_sentences:
                 for pattern, pattern_type, confidence in definition_patterns:
-                    matches = re.finditer(pattern, sent, re.IGNORECASE)
+                    # Use IGNORECASE for most patterns, but not for acronym (needs exact case matching)
+                    flags = 0 if pattern_type == 'acronym' else re.IGNORECASE
+                    matches = re.finditer(pattern, sent, flags)
 
                     for match in matches:
                         term = match.group(1).strip()
@@ -927,15 +879,31 @@ class DocumentProcessor:
                                 continue
 
                         # Additional validation for acronym patterns
-                        if pattern_type in ['acronym', 'acronym_reverse']:
-                            # Ensure it's actually an expansion, not a citation
-                            # Good: "OED (Oxford English Dictionary)"
-                            # Bad: "example (Smith, 2015)"
-                            if re.search(r'\d{4}', definition_text):  # Contains a year
+                        if pattern_type == 'acronym':
+                            # Strict acronym validation
+                            # Good: "IRA (Information Retrieval Agent)"
+                            # Bad: "AI (LNAI Volume 478)"
+
+                            # Contains a year - likely citation
+                            if re.search(r'\d{4}', definition_text):
                                 continue
-                            # Must have at least 3 words in expansion
+
+                            # Must have at least 2 words in expansion
                             words = definition_text.split()
-                            if len(words) < 3:
+                            if len(words) < 2:
+                                continue
+
+                            # Expansion should start with letters matching acronym
+                            # E.g., "IRA" should expand to "Information Retrieval Agent"
+                            acronym_letters = list(term.upper())
+                            expansion_words = [w for w in words if w[0].isupper()]
+                            if len(expansion_words) >= len(acronym_letters):
+                                # Check if first letters match
+                                first_letters = [w[0].upper() for w in expansion_words[:len(acronym_letters)]]
+                                if first_letters != acronym_letters:
+                                    continue
+                            else:
+                                # Not enough capitalized words to match acronym
                                 continue
 
                         # Pattern-based confidence (transformer extractions already added above)
@@ -993,26 +961,22 @@ class DocumentProcessor:
 
             # Build method string based on what was used
             method_parts = []
-            if transformer_available:
-                method_parts.append("defteval_direct_extraction")
+            if classifier_available:
+                method_parts.append("zero_shot_filtering")
             method_parts.append("pattern_matching")
             if nlp:
                 method_parts.append("dependency_parsing")
 
-            # Count transformer vs pattern extractions
-            transformer_count = sum(1 for d in definitions if d.get('pattern') == 'transformer_direct')
-            pattern_count = len(definitions) - transformer_count
-
             metadata = {
                 "total_definitions": len(definitions),
-                "transformer_extracted": transformer_count,
-                "pattern_extracted": pattern_count,
+                "sentences_scored": len(sentence_scores) if classifier_used_for_boost else 0,
+                "total_sentences_analyzed": len(candidate_sentences),
                 "pattern_types": pattern_counts,
                 "unique_patterns": len(pattern_counts),
                 "unique_terms": len(seen_terms),
                 "method": "+".join(method_parts),
-                "transformer_model": "DFKI-SLT/bert-defmod-deft" if transformer_available else None,
-                "transformer_used": transformer_available,
+                "classifier_model": "facebook/bart-large-mnli" if classifier_available else None,
+                "classifier_used": classifier_used_for_boost,
                 "confidence_threshold": confidence_threshold,
                 "text_length": len(text)
             }

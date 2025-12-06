@@ -29,7 +29,19 @@ Each document's processing results are stored as artifacts.
 | **Entities** | Named entities with types and confidence scores |
 | **Embeddings** | Vector representations (viewable as similarity scores) |
 | **Temporal Expressions** | Dates, periods, and durations found in text |
-| **Definitions** | Extracted concept definitions |
+| **Definitions** | Extracted concept definitions with pattern types |
+
+### Definition Results
+
+Definition artifacts include:
+
+- **Term** - The word or phrase being defined
+- **Definition text** - The extracted definition content
+- **Pattern type** - How it was detected (explicit_definition, explicit_reference, meaning, copula, acronym, also_known_as, ie_explanation, appositive)
+- **Confidence** - Score from 0.65-0.90 depending on pattern reliability
+- **Source badge** - "ZeroShot" (with ML scoring) or "Pattern" (regex only)
+
+Acronym definitions show strict validation: "IRA (Information Retrieval Agent)" passes because expansion letters match the acronym.
 
 ### Artifact Details
 

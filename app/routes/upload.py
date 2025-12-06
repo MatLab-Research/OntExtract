@@ -695,7 +695,7 @@ def extract_metadata_stream():
         return jsonify({'error': upload_result.error}), 400
 
     temp_path = upload_result.temp_path
-    original_filename = upload_result.original_filename
+    original_filename = upload_result.filename
 
     # Create a queue for progress messages
     progress_queue = queue.Queue()
@@ -1088,6 +1088,19 @@ def save_document():
     except Exception as e:
         db.session.rollback()
         current_app.logger.error(f"Error saving document: {str(e)}")
+
+        # Check for duplicate DOI error
+        error_str = str(e)
+        if 'ix_documents_doi' in error_str or 'duplicate key' in error_str.lower():
+            # Extract DOI from error message if possible
+            import re
+            doi_match = re.search(r'\(doi\)=\(([^)]+)\)', error_str)
+            doi_value = doi_match.group(1) if doi_match else 'this DOI'
+            return jsonify({
+                'error': f'A document with DOI {doi_value} already exists in the database. '
+                         'Please check the Documents page for the existing document.'
+            }), 409  # 409 Conflict
+
         return jsonify({'error': str(e)}), 500
 
 
