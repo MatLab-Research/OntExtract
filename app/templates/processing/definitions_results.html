@@ -116,7 +116,8 @@
                                 </div>
                             {% else %}
                                 <div class="alert alert-info">
-                                    <i class="fas fa-info-circle me-2"></i>No definitions extracted yet. Run the definition extraction tool to identify term definitions in this document.
+                                    <i class="fas fa-info-circle me-2"></i>
+                                    <strong>No definitions found.</strong> Definition extraction works best on documents that explicitly define terminology, such as glossaries, textbook introductions, or standards documents. Research papers that use but do not define terms may return few or no results.
                                 </div>
                             {% endif %}
                         </div>
@@ -126,8 +127,8 @@
                     {% if definitions %}
                     <div class="alert alert-info mb-4" role="alert">
                         <i class="fas fa-info-circle me-2"></i>
-                        <strong>Note:</strong> Uses transformer-based semantic similarity (sentence-transformers) with high confidence threshold.
-                        Results may be conservative. Future versions will include adjustable thresholds and LLM-enhanced validation.
+                        <strong>Method:</strong> Pattern matching with strict validation. Detects explicit definitions, acronym expansions, and appositive constructions.
+                        Definition extraction works best on documents that explicitly define terminology.
                     </div>
                     {% endif %}
 

@@ -75,28 +75,14 @@
     <div class="card-body">
         <p class="small text-muted mb-3">View extraction results for this document</p>
         <div class="d-grid gap-2">
-            {# Check for definitions - from LLM orchestration or manual processing #}
-            {% set has_definitions = llm_operations.get('extract_definitions', {}).get('status') == 'executed' or
-                                     processing_operations|selectattr('processing_type', 'equalto', 'definitions')|selectattr('status', 'equalto', 'completed')|list %}
-            {% set def_count = llm_operations.get('extract_definitions', {}).get('count', 0) %}
-            <a href="/process/document/{{ document.uuid }}/results/definitions"
-               id="result-link-definitions"
-               class="btn btn-sm {% if has_definitions %}btn-info{% else %}btn-outline-secondary{% endif %}"
+            {# Check for segments #}
+            {% set has_segments = processing_operations|selectattr('processing_type', 'equalto', 'segmentation')|selectattr('status', 'equalto', 'completed')|list %}
+            <a href="/process/document/{{ document.uuid }}/results/segments"
+               id="result-link-segments"
+               class="btn btn-sm {% if has_segments %}btn-warning{% else %}btn-outline-secondary disabled{% endif %}"
+               {% if not has_segments %}aria-disabled="true"{% endif %}
                target="_blank">
-                <i class="fas fa-book me-1"></i>Definitions
-                {% if has_definitions and def_count %}<span class="badge bg-light text-dark ms-1">{{ def_count }}</span>{% endif %}
-            </a>
-
-            {# Check for entities #}
-            {% set has_entities = llm_operations.get('extract_entities_spacy', {}).get('status') == 'executed' or
-                                  processing_operations|selectattr('processing_type', 'equalto', 'entities')|selectattr('status', 'equalto', 'completed')|list %}
-            {% set ent_count = llm_operations.get('extract_entities_spacy', {}).get('count', 0) %}
-            <a href="/process/document/{{ document.uuid }}/results/entities"
-               id="result-link-entities"
-               class="btn btn-sm {% if has_entities %}btn-success{% else %}btn-outline-secondary{% endif %}"
-               target="_blank">
-                <i class="fas fa-tags me-1"></i>Entities
-                {% if has_entities and ent_count %}<span class="badge bg-light text-dark ms-1">{{ ent_count }}</span>{% endif %}
+                <i class="fas fa-cut {% if has_segments %}text-dark{% else %}text-warning{% endif %} me-1"></i>Segments
             </a>
 
             {# Check for embeddings #}
@@ -105,19 +91,37 @@
             {% set emb_count = llm_operations.get('period_aware_embedding', {}).get('count', 0) %}
             <a href="/process/document/{{ document.uuid }}/results/embeddings"
                id="result-link-embeddings"
-               class="btn btn-sm {% if has_embeddings %}btn-primary{% else %}btn-outline-secondary{% endif %}"
+               class="btn btn-sm {% if has_embeddings %}btn-info{% else %}btn-outline-secondary disabled{% endif %}"
+               {% if not has_embeddings %}aria-disabled="true"{% endif %}
                target="_blank">
-                <i class="fas fa-project-diagram me-1"></i>Embeddings
+                <i class="fas fa-vector-square {% if has_embeddings %}text-white{% else %}text-info{% endif %} me-1"></i>Embeddings
                 {% if has_embeddings and emb_count %}<span class="badge bg-light text-dark ms-1">{{ emb_count }}</span>{% endif %}
             </a>
 
-            {# Check for segments #}
-            {% set has_segments = processing_operations|selectattr('processing_type', 'equalto', 'segmentation')|selectattr('status', 'equalto', 'completed')|list %}
-            <a href="/process/document/{{ document.uuid }}/results/segments"
-               id="result-link-segments"
-               class="btn btn-sm {% if has_segments %}btn-warning{% else %}btn-outline-secondary{% endif %}"
+            {# Check for entities #}
+            {% set has_entities = llm_operations.get('extract_entities_spacy', {}).get('status') == 'executed' or
+                                  processing_operations|selectattr('processing_type', 'equalto', 'entities')|selectattr('status', 'equalto', 'completed')|list %}
+            {% set ent_count = llm_operations.get('extract_entities_spacy', {}).get('count', 0) %}
+            <a href="/process/document/{{ document.uuid }}/results/entities"
+               id="result-link-entities"
+               class="btn btn-sm {% if has_entities %}btn-success{% else %}btn-outline-secondary disabled{% endif %}"
+               {% if not has_entities %}aria-disabled="true"{% endif %}
                target="_blank">
-                <i class="fas fa-align-left me-1"></i>Segments
+                <i class="fas fa-tags {% if has_entities %}text-white{% else %}text-success{% endif %} me-1"></i>Entities
+                {% if has_entities and ent_count %}<span class="badge bg-light text-dark ms-1">{{ ent_count }}</span>{% endif %}
+            </a>
+
+            {# Check for definitions - from LLM orchestration or manual processing #}
+            {% set has_definitions = llm_operations.get('extract_definitions', {}).get('status') == 'executed' or
+                                     processing_operations|selectattr('processing_type', 'equalto', 'definitions')|selectattr('status', 'equalto', 'completed')|list %}
+            {% set def_count = llm_operations.get('extract_definitions', {}).get('count', 0) %}
+            <a href="/process/document/{{ document.uuid }}/results/definitions"
+               id="result-link-definitions"
+               class="btn btn-sm {% if has_definitions %}btn-primary{% else %}btn-outline-secondary disabled{% endif %}"
+               {% if not has_definitions %}aria-disabled="true"{% endif %}
+               target="_blank">
+                <i class="fas fa-book {% if has_definitions %}text-white{% else %}text-primary{% endif %} me-1"></i>Definitions
+                {% if has_definitions and def_count %}<span class="badge bg-light text-dark ms-1">{{ def_count }}</span>{% endif %}
             </a>
 
             {# Check for temporal markers #}
@@ -126,9 +130,10 @@
             {% set temp_count = llm_operations.get('extract_temporal', {}).get('count', 0) %}
             <a href="/process/document/{{ document.uuid }}/results/temporal"
                id="result-link-temporal"
-               class="btn btn-sm {% if has_temporal %}btn-secondary{% else %}btn-outline-secondary{% endif %}"
+               class="btn btn-sm {% if has_temporal %}btn-secondary{% else %}btn-outline-secondary disabled{% endif %}"
+               {% if not has_temporal %}aria-disabled="true"{% endif %}
                target="_blank">
-                <i class="fas fa-clock me-1"></i>Temporal Markers
+                <i class="fas fa-clock text-muted me-1"></i>Temporal
                 {% if has_temporal and temp_count %}<span class="badge bg-light text-dark ms-1">{{ temp_count }}</span>{% endif %}
             </a>
         </div>

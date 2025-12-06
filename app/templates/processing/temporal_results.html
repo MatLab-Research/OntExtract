@@ -4,231 +4,399 @@
 
 {% block extra_css %}
 <style>
-.temporal-card {
-    border-left: 3px solid #f59e0b;
-    margin-bottom: 1rem;
+/* Dark theme consistent with experiment results pages */
+.results-page {
+    background-color: #212529;
+    min-height: 100vh;
+    color: #e9ecef;
 }
-.temporal-text {
+
+.stat-card {
+    background-color: #2d3238;
+    border-radius: 8px;
+    padding: 1.25rem;
+    text-align: center;
+    border: 1px solid #495057;
+}
+
+.stat-value {
+    font-size: 2rem;
     font-weight: 700;
-    color: #ffffff;
-    font-size: 1.15rem;
+    line-height: 1.2;
 }
-.context-box {
-    background-color: #f9fafb;
-    color: #6b7280;
+
+.stat-label {
+    font-size: 0.85rem;
+    color: #adb5bd;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.results-card {
+    background-color: #2d3238;
+    border: 1px solid #495057;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.results-card .card-header {
+    background-color: #343a40;
+    border-bottom: 1px solid #495057;
+    padding: 1rem 1.25rem;
+}
+
+.results-card .card-body {
+    padding: 1.25rem;
+}
+
+.results-card.accent-warning {
+    border-left: 4px solid #ffc107;
+}
+
+.result-item {
+    background-color: #343a40;
+    border: 1px solid #495057;
+    border-radius: 6px;
+    margin-bottom: 0.75rem;
+    padding: 1rem;
+    transition: all 0.2s;
+}
+
+.result-item:hover {
+    border-color: #ffc107;
+    transform: translateX(2px);
+}
+
+.item-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 0.5rem;
+}
+
+.item-body {
+    padding-top: 0.5rem;
+}
+
+.temporal-text {
+    font-weight: 600;
+    color: #dee2e6;
+}
+
+.temporal-type-badge {
+    font-size: 0.7rem;
+    padding: 0.2rem 0.5rem;
+    border-radius: 3px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    font-weight: 600;
+}
+
+.temporal-type-DATE { background-color: #ffc107; color: #212529; }
+.temporal-type-YEAR { background-color: #fd7e14; color: white; }
+.temporal-type-DECADE { background-color: #dc3545; color: white; }
+.temporal-type-CENTURY { background-color: #6f42c1; color: white; }
+.temporal-type-PERIOD { background-color: #0d6efd; color: white; }
+.temporal-type-HISTORICAL_PERIOD { background-color: #198754; color: white; }
+.temporal-type-RELATIVE { background-color: #20c997; color: white; }
+.temporal-type-TEMPORAL_MARKER { background-color: #0dcaf0; color: #212529; }
+.temporal-type-UNKNOWN { background-color: #6c757d; color: white; }
+
+.normalized-badge {
+    background-color: #495057;
+    color: #ffc107;
+    font-size: 0.75rem;
+    padding: 0.2rem 0.5rem;
+    border-radius: 3px;
+    font-family: monospace;
+}
+
+.source-badge {
+    font-size: 0.7rem;
+    padding: 0.2rem 0.5rem;
+    border-radius: 3px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.source-badge.spacy {
+    background-color: #17a2b8;
+    color: white;
+}
+
+.source-badge.artifact {
+    background-color: #6c757d;
+    color: white;
+}
+
+.temporal-context {
+    font-style: italic;
+    color: #adb5bd;
     font-size: 0.9rem;
 }
-.context-box strong {
-    color: #374151;
+
+.temporal-type-filter {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
 }
-.normalized-badge {
-    background-color: #fef3c7;
-    color: #92400e;
-    padding: 0.25rem 0.5rem;
-    border-radius: 0.25rem;
-    font-size: 0.75rem;
-    font-weight: 500;
-    display: inline-block;
+
+.temporal-type-btn {
+    background-color: #343a40;
+    border: 1px solid #495057;
+    color: #adb5bd;
+    padding: 0.25rem 0.75rem;
+    border-radius: 20px;
+    cursor: pointer;
+    font-size: 0.8rem;
+    transition: all 0.2s;
+}
+
+.temporal-type-btn:hover {
+    background-color: #495057;
+    color: #e9ecef;
+}
+
+.temporal-type-btn.active {
+    background-color: #ffc107;
+    color: #212529;
+    border-color: transparent;
+}
+
+.text-muted-dark {
+    color: #6c757d;
+}
+
+a.text-warning {
+    color: #ffc107 !important;
+}
+
+a.text-warning:hover {
+    color: #ffda6a !important;
 }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="container-fluid mt-4">
-    <div class="row">
-        <div class="col-12">
-            <nav aria-label="breadcrumb">
-                <ol class="breadcrumb">
-                    <li class="breadcrumb-item"><a href="{{ url_for('text_input.document_list') }}">Documents</a></li>
-                    <li class="breadcrumb-item">{{ document.title }}</li>
-                    <li class="breadcrumb-item active">Temporal Extraction Results</li>
-                </ol>
-            </nav>
+<div class="results-page">
+    <div class="container-fluid py-4">
+        <!-- Breadcrumb -->
+        <nav aria-label="breadcrumb" class="mb-4">
+            <ol class="breadcrumb" style="background: transparent;">
+                <li class="breadcrumb-item"><a href="{{ url_for('text_input.document_list') }}" class="text-warning">Documents</a></li>
+                <li class="breadcrumb-item text-muted">{{ document.title | truncate(30) }}</li>
+                <li class="breadcrumb-item active text-light">Temporal Results</li>
+            </ol>
+        </nav>
 
-            <div class="d-flex justify-content-between align-items-start mb-4">
-                <div>
-                    <h2><i class="fas fa-clock me-2 text-warning"></i>Temporal Extraction Results</h2>
-                    <p class="text-muted">{{ document.title }}</p>
+        <!-- Header -->
+        <div class="d-flex justify-content-between align-items-start mb-4">
+            <div>
+                <h2 class="text-light mb-2">
+                    <i class="fas fa-clock text-warning me-2"></i>Temporal Extraction Results
+                </h2>
+                <p class="text-muted mb-0">{{ document.title }}</p>
+            </div>
+            <div class="d-flex gap-2">
+                <a href="{{ url_for('provenance.timeline', document_uuid=document.uuid) }}"
+                   class="btn btn-outline-secondary" target="_blank">
+                    <i class="fas fa-history me-1"></i>Provenance
+                </a>
+            </div>
+        </div>
+
+        <!-- Stats Row -->
+        <div class="row mb-4 g-3">
+            <div class="col-md-3">
+                <div class="stat-card">
+                    <div class="stat-value text-warning">{{ total_expressions }}</div>
+                    <div class="stat-label">Total Expressions</div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stat-card">
+                    <div class="stat-value text-info">{{ expressions_by_type|length }}</div>
+                    <div class="stat-label">Expression Types</div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stat-card">
+                    <div class="stat-value text-success">{{ jobs|length }}</div>
+                    <div class="stat-label">Extraction Jobs</div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stat-card">
+                    <div class="stat-value text-secondary">
+                        {% set spacy_count = temporal_expressions | selectattr('source', 'equalto', 'spacy') | list | length %}
+                        {{ spacy_count }}
+                    </div>
+                    <div class="stat-label">spaCy Extracted</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Extraction Method Information -->
+        <div class="alert" style="background-color: #2d3238; border: 1px solid #495057; color: #adb5bd;" role="alert">
+            <div class="d-flex">
+                <div class="me-3">
+                    <i class="fas fa-info-circle text-warning fa-lg"></i>
                 </div>
                 <div>
-                    <a href="{{ url_for('provenance.timeline', document_uuid=document.uuid) }}"
-                       class="btn btn-outline-secondary" target="_blank">
-                        <i class="fas fa-history me-1"></i>View Provenance
-                    </a>
+                    <h6 class="alert-heading text-light mb-2">Extraction Methodology</h6>
+                    <p class="mb-2">
+                        Temporal expressions are extracted using a hybrid approach combining <strong class="text-light">spaCy's Named Entity Recognition</strong> (DATE entities) with <strong class="text-light">rule-based pattern matching</strong> for years, decades, centuries, historical periods, and relative temporal markers. Where possible, expressions are normalized to ISO 8601 format or standardized date ranges.
+                    </p>
+                    <p class="mb-0 small">
+                        <em>Future enhancements:</em> Subsequent versions will incorporate LLM-based validation to improve extraction precision, contextual disambiguation for ambiguous expressions, and temporal relation extraction to identify event ordering and duration relationships within the document.
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <div class="row">
+            <!-- Main Content -->
+            <div class="col-lg-8">
+                <div class="results-card accent-warning mb-4">
+                    <div class="card-header">
+                        <h5 class="mb-0 text-light">
+                            <i class="fas fa-clock me-2"></i>Extracted Temporal Expressions
+                            <span class="badge bg-warning text-dark ms-2">{{ total_expressions }}</span>
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        {% if temporal_expressions %}
+                            <!-- Type Filter -->
+                            <div class="temporal-type-filter">
+                                <button class="temporal-type-btn active" onclick="filterByType('all')" data-type="all">
+                                    All ({{ total_expressions }})
+                                </button>
+                                {% for expr_type, exprs in expressions_by_type.items() | sort %}
+                                <button class="temporal-type-btn" onclick="filterByType('{{ expr_type }}')" data-type="{{ expr_type }}">
+                                    {{ expr_type }} ({{ exprs|length }})
+                                </button>
+                                {% endfor %}
+                            </div>
+
+                            <!-- Expressions List -->
+                            <div id="expressions-container">
+                                {% for expr in temporal_expressions %}
+                                <div class="result-item" data-type="{{ expr.type }}">
+                                    <div class="item-header">
+                                        <div class="d-flex align-items-center gap-2 flex-wrap">
+                                            <span class="temporal-text">{{ expr.text }}</span>
+                                            <span class="temporal-type-badge temporal-type-{{ expr.type }}">{{ expr.type }}</span>
+                                            {% if expr.normalized and expr.normalized != expr.text %}
+                                            <span class="normalized-badge" title="Normalized form">{{ expr.normalized }}</span>
+                                            {% endif %}
+                                        </div>
+                                        <div class="d-flex align-items-center gap-2">
+                                            {% if expr.confidence %}
+                                            <small class="text-muted">{{ (expr.confidence * 100) | round }}%</small>
+                                            {% endif %}
+                                            <span class="source-badge {{ expr.source }}">{{ expr.source }}</span>
+                                        </div>
+                                    </div>
+                                    <div class="item-body">
+                                        {% if expr.context %}
+                                        <p class="temporal-context mb-2">"...{{ expr.context }}..."</p>
+                                        {% endif %}
+                                        <div class="text-muted-dark small">
+                                            <span class="badge bg-secondary me-2">{{ expr.method }}</span>
+                                            {% if expr.start_char is not none %}
+                                            <span class="text-muted">pos: {{ expr.start_char }}-{{ expr.end_char }}</span>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        {% else %}
+                            <div class="text-center py-5">
+                                <i class="fas fa-clock fa-3x text-muted mb-3"></i>
+                                <p class="text-muted">No temporal expressions have been extracted from this document yet.</p>
+                                <p class="text-muted small">Run LLM orchestration or manual temporal extraction.</p>
+                            </div>
+                        {% endif %}
+                    </div>
                 </div>
             </div>
 
-            <div class="row">
-                <div class="col-lg-8">
-                    <!-- Statistics Card -->
-                    <div class="card mb-4">
-                        <div class="card-header bg-warning text-dark">
-                            <h5 class="mb-0"><i class="fas fa-chart-bar me-2"></i>Temporal Extraction Statistics</h5>
-                        </div>
-                        <div class="card-body">
-                            {% if temporal_expressions %}
-                                <div class="row text-center mb-4">
-                                    <div class="col-md-4">
-                                        <div class="border rounded p-3">
-                                            <h4 class="text-warning mb-1">{{ total_expressions }}</h4>
-                                            <small class="text-muted">Total Expressions</small>
-                                        </div>
-                                    </div>
-                                    <div class="col-md-4">
-                                        <div class="border rounded p-3">
-                                            <h4 class="text-info mb-1">{{ expressions_by_type|length }}</h4>
-                                            <small class="text-muted">Expression Types</small>
-                                        </div>
-                                    </div>
-                                    <div class="col-md-4">
-                                        <div class="border rounded p-3">
-                                            <h4 class="text-primary mb-1">{{ jobs|length }}</h4>
-                                            <small class="text-muted">Extraction Jobs</small>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <!-- Type Distribution -->
-                                <div class="mb-3">
-                                    <h6>Expression Types</h6>
-                                    <div class="d-flex flex-wrap gap-2">
-                                        {% for expr_type, exprs in expressions_by_type.items() %}
-                                        <span class="badge bg-warning text-dark">
-                                            {{ expr_type }}: {{ exprs|length }}
-                                        </span>
-                                        {% endfor %}
-                                    </div>
-                                </div>
-                            {% else %}
-                                <div class="alert alert-info">
-                                    <i class="fas fa-info-circle me-2"></i>
-                                    No temporal expressions have been extracted from this document yet.
-                                </div>
-                            {% endif %}
-                        </div>
+            <!-- Sidebar -->
+            <div class="col-lg-4">
+                <!-- By Type -->
+                <div class="results-card accent-warning mb-4">
+                    <div class="card-header">
+                        <h6 class="mb-0 text-light"><i class="fas fa-chart-pie me-2"></i>By Expression Type</h6>
                     </div>
-
-                    <!-- Temporal Expressions List -->
-                    {% if temporal_expressions %}
-                    <div class="card">
-                        <div class="card-header">
-                            <h5 class="mb-0">
-                                <i class="fas fa-clock me-2"></i>Extracted Temporal Expressions
-                                <span class="badge bg-warning text-dark ms-2">{{ total_expressions }}</span>
-                            </h5>
-                        </div>
-                        <div class="card-body">
-                            <!-- Type Filter -->
-                            <div class="mb-3">
-                                <label class="form-label">Filter by Type:</label>
-                                <div class="btn-group btn-group-sm" role="group">
-                                    <button type="button" class="btn btn-outline-secondary active" onclick="filterByType('all')">
-                                        All ({{ total_expressions }})
-                                    </button>
-                                    {% for expr_type, exprs in expressions_by_type.items() %}
-                                    <button type="button" class="btn btn-outline-secondary" onclick="filterByType('{{ expr_type }}')">
-                                        {{ expr_type }} ({{ exprs|length }})
-                                    </button>
-                                    {% endfor %}
-                                </div>
+                    <div class="card-body">
+                        {% if expressions_by_type %}
+                            {% for expr_type, exprs in expressions_by_type.items() | sort(attribute='1|length', reverse=true) %}
+                            <div class="d-flex justify-content-between align-items-center py-2 {% if not loop.last %}border-bottom border-secondary{% endif %}">
+                                <span class="temporal-type-badge temporal-type-{{ expr_type }}">{{ expr_type }}</span>
+                                <span class="badge bg-secondary">{{ exprs|length }}</span>
                             </div>
-
-                            <!-- Expressions -->
-                            <div id="expressions-container">
-                                {% for expr in temporal_expressions %}
-                                <div class="card temporal-card mb-3" data-type="{{ expr.type }}">
-                                    <div class="card-body">
-                                        <div class="d-flex justify-content-between align-items-center mb-2">
-                                            <div class="temporal-text">{{ expr.text }}</div>
-                                            {% if expr.normalized %}
-                                            <span class="normalized-badge ms-3">
-                                                <i class="fas fa-calendar-alt me-1"></i>{{ expr.normalized }}
-                                            </span>
-                                            {% endif %}
-                                        </div>
-                                        <div class="d-flex gap-2 flex-wrap align-items-center">
-                                            <span class="badge bg-warning text-dark">
-                                                {{ expr.type }}
-                                            </span>
-                                            <span class="badge bg-secondary">
-                                                {{ expr.method }}
-                                            </span>
-                                            {% if expr.start_char is not none %}
-                                            <span class="badge bg-info text-dark">
-                                                <i class="fas fa-map-marker-alt me-1"></i>{{ expr.start_char }}-{{ expr.end_char }}
-                                            </span>
-                                            {% endif %}
-                                        </div>
-                                        {% if expr.context %}
-                                        <div class="context-box p-2 rounded small mt-2">
-                                            <strong>Context:</strong> {{ expr.context }}
-                                        </div>
-                                        {% endif %}
-                                    </div>
-                                </div>
-                                {% endfor %}
-                            </div>
-                        </div>
+                            {% endfor %}
+                        {% else %}
+                            <p class="text-muted small mb-0">No expressions found</p>
+                        {% endif %}
                     </div>
-                    {% endif %}
                 </div>
 
-                <!-- Sidebar -->
-                <div class="col-lg-4">
-                    <!-- Processing Jobs -->
-                    <div class="card mb-4">
-                        <div class="card-header">
-                            <h5 class="mb-0"><i class="fas fa-tasks me-2"></i>Extraction Jobs</h5>
-                        </div>
-                        <div class="card-body">
-                            {% if jobs %}
-                                {% for job in jobs %}
-                                <div class="d-flex justify-content-between align-items-center mb-2 pb-2 border-bottom">
-                                    <div>
-                                        <div class="small">
-                                            {% if job.job_type == 'temporal' or job.job_type == 'temporal_extraction' %}
-                                            <i class="fas fa-clock text-warning me-1"></i>Temporal Extraction
-                                            {% else %}
-                                            <i class="fas fa-cog me-1"></i>{{ job.job_type }}
-                                            {% endif %}
-                                        </div>
-                                        <div class="text-muted" style="font-size: 0.75rem;">
-                                            {{ job.created_at.strftime('%Y-%m-%d %H:%M') if job.created_at else 'N/A' }}
-                                        </div>
-                                    </div>
-                                    <div>
-                                        {% if job.status == 'completed' %}
-                                        <span class="badge bg-success">Completed</span>
-                                        {% elif job.status == 'running' %}
-                                        <span class="badge bg-warning">Running</span>
-                                        {% elif job.status == 'failed' %}
-                                        <span class="badge bg-danger">Failed</span>
+                <!-- Extraction Jobs -->
+                <div class="results-card accent-warning mb-4">
+                    <div class="card-header">
+                        <h6 class="mb-0 text-light"><i class="fas fa-tasks me-2"></i>Extraction Jobs</h6>
+                    </div>
+                    <div class="card-body">
+                        {% if jobs %}
+                            {% for job in jobs %}
+                            <div class="d-flex justify-content-between align-items-center py-2 {% if not loop.last %}border-bottom border-secondary{% endif %}">
+                                <div>
+                                    <div class="small text-light">
+                                        {% if job.job_type == 'temporal' or job.job_type == 'temporal_extraction' %}
+                                        <i class="fas fa-clock text-warning me-1"></i>Temporal Extraction
                                         {% else %}
-                                        <span class="badge bg-secondary">{{ job.status }}</span>
+                                        <i class="fas fa-cog me-1"></i>{{ job.job_type }}
                                         {% endif %}
                                     </div>
+                                    <div class="text-muted" style="font-size: 0.75rem;">
+                                        {{ job.created_at.strftime('%Y-%m-%d %H:%M') if job.created_at else 'N/A' }}
+                                    </div>
                                 </div>
-                                {% endfor %}
-                            {% else %}
-                                <p class="text-muted small mb-0">No extraction jobs recorded.</p>
-                            {% endif %}
-                        </div>
-                    </div>
-
-                    <!-- Export Options -->
-                    <div class="card">
-                        <div class="card-header">
-                            <h5 class="mb-0"><i class="fas fa-download me-2"></i>Export</h5>
-                        </div>
-                        <div class="card-body">
-                            <div class="d-grid gap-2">
-                                <button class="btn btn-outline-primary btn-sm" onclick="exportAsJSON()">
-                                    <i class="fas fa-file-code me-1"></i>Export as JSON
-                                </button>
-                                <button class="btn btn-outline-success btn-sm" onclick="exportAsCSV()">
-                                    <i class="fas fa-file-csv me-1"></i>Export as CSV
-                                </button>
+                                <div>
+                                    {% if job.status == 'completed' %}
+                                    <span class="badge bg-success">Completed</span>
+                                    {% elif job.status == 'running' %}
+                                    <span class="badge bg-warning">Running</span>
+                                    {% elif job.status == 'failed' %}
+                                    <span class="badge bg-danger">Failed</span>
+                                    {% else %}
+                                    <span class="badge bg-secondary">{{ job.status }}</span>
+                                    {% endif %}
+                                </div>
                             </div>
+                            {% endfor %}
+                        {% else %}
+                            <p class="text-muted small mb-0">No extraction jobs recorded.</p>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Export Options -->
+                <div class="results-card accent-warning mb-4">
+                    <div class="card-header">
+                        <h6 class="mb-0 text-light"><i class="fas fa-download me-2"></i>Export</h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="d-grid gap-2">
+                            <button class="btn btn-outline-warning btn-sm" onclick="exportAsJSON()">
+                                <i class="fas fa-file-code me-1"></i>Export as JSON
+                            </button>
+                            <button class="btn btn-outline-warning btn-sm" onclick="exportAsCSV()">
+                                <i class="fas fa-file-csv me-1"></i>Export as CSV
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -240,17 +408,18 @@
 <script>
 // Filter expressions by type
 function filterByType(type) {
-    const cards = document.querySelectorAll('.temporal-card');
-    const buttons = document.querySelectorAll('.btn-group button');
+    const items = document.querySelectorAll('.result-item');
+    const buttons = document.querySelectorAll('.temporal-type-btn');
 
-    buttons.forEach(btn => btn.classList.remove('active'));
-    event.target.classList.add('active');
+    buttons.forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.type === type);
+    });
 
-    cards.forEach(card => {
-        if (type === 'all' || card.dataset.type === type) {
-            card.style.display = 'block';
+    items.forEach(item => {
+        if (type === 'all' || item.dataset.type === type) {
+            item.style.display = 'block';
         } else {
-            card.style.display = 'none';
+            item.style.display = 'none';
         }
     });
 }
@@ -272,15 +441,16 @@ function exportAsCSV() {
     const expressions = {{ temporal_expressions|tojson }};
 
     // CSV headers
-    let csv = 'Text,Type,Normalized,Method,Position Start,Position End\n';
+    let csv = 'Text,Type,Normalized,Method,Confidence,Position Start,Position End\n';
 
     // CSV rows
     expressions.forEach(expr => {
         const row = [
             `"${(expr.text || '').replace(/"/g, '""')}"`,
             expr.type || '',
-            expr.normalized || '',
+            `"${(expr.normalized || '').replace(/"/g, '""')}"`,
             expr.method || '',
+            expr.confidence || '',
             expr.start_char || '',
             expr.end_char || ''
         ].join(',');

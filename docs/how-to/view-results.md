@@ -39,9 +39,11 @@ Definition artifacts include:
 - **Definition text** - The extracted definition content
 - **Pattern type** - How it was detected (explicit_definition, explicit_reference, meaning, copula, acronym, also_known_as, ie_explanation, appositive)
 - **Confidence** - Score from 0.65-0.90 depending on pattern reliability
-- **Source badge** - "ZeroShot" (with ML scoring) or "Pattern" (regex only)
+- **Source badge** - "Pattern" (default) or "ZeroShot" (if enabled via `ENABLE_ZERO_SHOT_DEFINITIONS=true`)
 
 Acronym definitions show strict validation: "IRA (Information Retrieval Agent)" passes because expansion letters match the acronym.
+
+**Note**: Definition extraction works best on documents that explicitly define terminology, such as glossaries, textbook introductions, or standards documents. Research papers that use but do not define terms may return few or no results.
 
 ### Artifact Details
 

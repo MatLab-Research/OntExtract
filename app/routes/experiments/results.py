@@ -7,6 +7,7 @@ Combines data from both LLM orchestration and manual processing paths.
 Routes:
 - GET /experiments/<id>/results/definitions - View all definitions
 - GET /experiments/<id>/results/entities - View all entities
+- GET /experiments/<id>/results/temporal - View all temporal expressions
 - GET /experiments/<id>/results/embeddings - View embeddings info
 - GET /experiments/<id>/results/segments - View all segments
 """
@@ -63,10 +64,8 @@ def experiment_definitions_results(experiment_id):
     """
     View all definition extraction results for an experiment.
 
-    Combines data from:
-    - ExperimentOrchestrationRun.processing_results (LLM orchestration)
-    - ProcessingArtifact (if used)
-    - ProcessingJob (manual processing)
+    All definition data is stored in ProcessingArtifact table (artifact_type='term_definition'),
+    regardless of whether processing was triggered via LLM orchestration or manual processing.
     """
     experiment = Experiment.query.get_or_404(experiment_id)
     documents, document_ids = _get_experiment_documents(experiment_id)
@@ -88,99 +87,56 @@ def experiment_definitions_results(experiment_id):
 
     definitions = []
     definitions_by_document = {}
-    auto_count = 0  # Count of automated extractions (DeftEval, pattern, spaCy)
+    auto_count = 0  # Count of automated extractions (pattern matching, etc.)
 
-    # 1. Get LLM orchestration results from processing_results JSON
-    orchestration_results = _get_orchestration_results(experiment_id)
-    for doc_id_str, doc_results in orchestration_results.items():
-        doc_id = int(doc_id_str)
-        if doc_id not in document_ids:
-            continue
-
-        doc = doc_lookup.get(doc_id)
-        doc_title = doc.title if doc else f"Document {doc_id}"
-        doc_uuid = str(doc.uuid) if doc else None
-        doc_year = doc.publication_date.year if doc and doc.publication_date else None
-
-        # Check for extract_definitions results
-        if 'extract_definitions' in doc_results:
-            tool_result = doc_results['extract_definitions']
-            if tool_result.get('status') == 'executed' and 'results' in tool_result:
-                results = tool_result['results']
-                data = results.get('data', [])
-                # Get actual extraction method from metadata
-                # Method is typically: "zero_shot_filtering+pattern_matching+dependency_parsing"
-                extraction_metadata = results.get('metadata', {})
-                extraction_method = extraction_metadata.get('method', 'pattern_matching')
-                classifier_used = extraction_metadata.get('classifier_used', False)
-                classifier_model = extraction_metadata.get('classifier_model', '')
-
-                # Determine source label based on actual method
-                if classifier_used and classifier_model:
-                    # Zero-shot classification was used to filter sentences
-                    source_label = 'zeroshot'
-                else:
-                    source_label = 'pattern'
-
-                for idx, defn in enumerate(data):
-                    definition = {
-                        'id': f"auto_{doc_id}_{idx}",
-                        'term': defn.get('term', ''),
-                        'definition': defn.get('definition', ''),
-                        'pattern': defn.get('pattern', 'unknown'),
-                        'confidence': defn.get('confidence', 0),
-                        'sentence': defn.get('sentence', ''),
-                        'start_char': defn.get('start'),
-                        'end_char': defn.get('end'),
-                        'method': extraction_method,
-                        'source': source_label,
-                        'document_id': doc_id,
-                        'document_title': doc_title,
-                        'document_uuid': doc_uuid,
-                        'document_year': doc_year
-                    }
-                    definitions.append(definition)
-                    auto_count += 1
-
-                    # Group by document
-                    if doc_id not in definitions_by_document:
-                        definitions_by_document[doc_id] = {
-                            'document': doc,
-                            'definitions': []
-                        }
-                    definitions_by_document[doc_id]['definitions'].append(definition)
-
-    # 2. Get from ProcessingArtifact (if any exist)
-    llm_artifacts = ProcessingArtifact.query.filter(
+    # Get all definitions from ProcessingArtifact table
+    # This is the unified storage for both orchestrated and manual processing
+    definition_artifacts = ProcessingArtifact.query.filter(
         ProcessingArtifact.document_id.in_(document_ids),
-        ProcessingArtifact.artifact_type == 'definition'
+        ProcessingArtifact.artifact_type == 'term_definition'
     ).order_by(ProcessingArtifact.document_id, ProcessingArtifact.artifact_index).all()
 
-    for artifact in llm_artifacts:
+    for artifact in definition_artifacts:
         content = artifact.get_content()
         metadata = artifact.get_metadata()
 
         doc = doc_lookup.get(artifact.document_id)
         doc_title = doc.title if doc else f"Document {artifact.document_id}"
 
-        # Determine source from artifact metadata
-        artifact_method = metadata.get('method', 'pattern_matching')
-        if 'zero_shot' in artifact_method.lower() or 'zeroshot' in artifact_method.lower():
-            artifact_source = 'zeroshot'
+        # Handle both dict and string content
+        if isinstance(content, str):
+            term = ''
+            definition_text = content
+            pattern = 'unknown'
+            confidence = 0
+            sentence = ''
         else:
-            artifact_source = 'pattern'
+            term = content.get('term', '')
+            definition_text = content.get('definition', '')
+            pattern = content.get('pattern', 'unknown')
+            confidence = content.get('confidence', 0)
+            sentence = content.get('sentence', '')
+
+        # Get method from metadata
+        artifact_method = metadata.get('method', 'pattern_matching') if isinstance(metadata, dict) else 'pattern_matching'
+
+        # Determine source label based on method
+        if 'zero_shot' in artifact_method.lower() or 'zeroshot' in artifact_method.lower():
+            source_label = 'zeroshot'
+        else:
+            source_label = 'pattern'
 
         definition = {
             'id': f"artifact_{artifact.id}",
-            'term': content.get('term', ''),
-            'definition': content.get('definition', ''),
-            'pattern': content.get('pattern', 'unknown'),
-            'confidence': content.get('confidence', 0),
-            'sentence': content.get('sentence', ''),
-            'start_char': metadata.get('start_char'),
-            'end_char': metadata.get('end_char'),
+            'term': term,
+            'definition': definition_text,
+            'pattern': pattern,
+            'confidence': confidence,
+            'sentence': sentence,
+            'start_char': metadata.get('start_char') if isinstance(metadata, dict) else None,
+            'end_char': metadata.get('end_char') if isinstance(metadata, dict) else None,
             'method': artifact_method,
-            'source': artifact_source,
+            'source': source_label,
             'document_id': artifact.document_id,
             'document_title': doc_title,
             'document_uuid': str(doc.uuid) if doc else None,
@@ -196,7 +152,7 @@ def experiment_definitions_results(experiment_id):
             }
         definitions_by_document[artifact.document_id]['definitions'].append(definition)
 
-    # 3. Get manual processing definitions from ProcessingJob
+    # Also check ProcessingJob for older manual definitions (backward compatibility)
     manual_jobs = ProcessingJob.query.filter(
         ProcessingJob.document_id.in_(document_ids),
         ProcessingJob.job_type == 'definition_extraction',
@@ -257,10 +213,8 @@ def experiment_entities_results(experiment_id):
     """
     View all entity extraction results for an experiment.
 
-    Combines data from:
-    - ExperimentOrchestrationRun.processing_results (LLM orchestration)
-    - ProcessingArtifact (if used)
-    - ExtractedEntity table (older processing)
+    All entity data is stored in ProcessingArtifact table (artifact_type='extracted_entity'),
+    regardless of whether processing was triggered via LLM orchestration or manual processing.
     """
     experiment = Experiment.query.get_or_404(experiment_id)
     documents, document_ids = _get_experiment_documents(experiment_id)
@@ -299,59 +253,36 @@ def experiment_entities_results(experiment_id):
             }
         entities_by_document[doc_id]['entities'].append(entity_data)
 
-    # 1. Get LLM orchestration results from processing_results JSON
-    orchestration_results = _get_orchestration_results(experiment_id)
-    for doc_id_str, doc_results in orchestration_results.items():
-        doc_id = int(doc_id_str)
-        if doc_id not in document_ids:
-            continue
-
-        doc = doc_lookup.get(doc_id)
-        doc_title = doc.title if doc else f"Document {doc_id}"
-        doc_uuid = str(doc.uuid) if doc else None
-        doc_year = doc.publication_date.year if doc and doc.publication_date else None
-
-        # Check for extract_entities_spacy results
-        if 'extract_entities_spacy' in doc_results:
-            tool_result = doc_results['extract_entities_spacy']
-            if tool_result.get('status') == 'executed' and 'results' in tool_result:
-                data = tool_result['results'].get('data', [])
-                for idx, ent in enumerate(data):
-                    entity = {
-                        'id': f"llm_{doc_id}_{idx}",
-                        'text': ent.get('entity', ent.get('text', '')),
-                        'entity_type': ent.get('entity_type', ent.get('label', 'UNKNOWN')),
-                        'start_position': ent.get('start'),
-                        'end_position': ent.get('end'),
-                        'confidence': ent.get('confidence', 0),
-                        'context': ent.get('context', ''),
-                        'source': 'llm',
-                        'document_id': doc_id,
-                        'document_title': doc_title,
-                        'document_uuid': doc_uuid,
-                        'document_year': doc_year
-                    }
-                    add_entity(entity)
-
-    # 2. Get from ProcessingArtifact (if any exist)
-    llm_artifacts = ProcessingArtifact.query.filter(
+    # Get all entities from ProcessingArtifact table
+    # This is the unified storage for both orchestrated and manual processing
+    entity_artifacts = ProcessingArtifact.query.filter(
         ProcessingArtifact.document_id.in_(document_ids),
         ProcessingArtifact.artifact_type == 'extracted_entity'
     ).order_by(ProcessingArtifact.document_id, ProcessingArtifact.artifact_index).all()
 
-    for artifact in llm_artifacts:
+    for artifact in entity_artifacts:
         content = artifact.get_content()
+        metadata = artifact.get_metadata()
         doc = doc_lookup.get(artifact.document_id)
+
+        # Handle both dict and string content
+        if isinstance(content, str):
+            entity_text = content
+            entity_type = 'UNKNOWN'
+        else:
+            entity_text = content.get('entity', content.get('text', ''))
+            # spaCy stores type in 'type' key
+            entity_type = content.get('type', content.get('entity_type', content.get('label', 'UNKNOWN')))
 
         entity = {
             'id': f"artifact_{artifact.id}",
-            'text': content.get('entity', ''),
-            'entity_type': content.get('entity_type', 'UNKNOWN'),
-            'start_position': content.get('start_char'),
-            'end_position': content.get('end_char'),
-            'confidence': content.get('confidence', 0),
-            'context': content.get('context', ''),
-            'source': 'llm',
+            'text': entity_text,
+            'entity_type': entity_type,
+            'start_position': content.get('start') if isinstance(content, dict) else None,
+            'end_position': content.get('end') if isinstance(content, dict) else None,
+            'confidence': content.get('confidence', 0.85) if isinstance(content, dict) else 0.85,
+            'context': content.get('context', '') if isinstance(content, dict) else '',
+            'source': 'spacy',
             'document_id': artifact.document_id,
             'document_title': doc.title if doc else f"Document {artifact.document_id}",
             'document_uuid': str(doc.uuid) if doc else None,
@@ -359,7 +290,7 @@ def experiment_entities_results(experiment_id):
         }
         add_entity(entity)
 
-    # 3. Get entities from ExtractedEntity table (older processing)
+    # Also check ExtractedEntity table for older processing (backward compatibility)
     entity_jobs = ProcessingJob.query.filter(
         ProcessingJob.document_id.in_(document_ids),
         ProcessingJob.job_type == 'entity_extraction'
@@ -404,6 +335,117 @@ def experiment_entities_results(experiment_id):
         entities_by_type=entities_by_type,
         entities_by_document=entities_by_document,
         total_entities=len(entities)
+    )
+
+
+@experiments_bp.route('/<int:experiment_id>/results/temporal')
+def experiment_temporal_results(experiment_id):
+    """
+    View all temporal extraction results for an experiment.
+
+    All temporal data is stored in ProcessingArtifact table (artifact_type='temporal_marker'),
+    regardless of whether processing was triggered via LLM orchestration or manual processing.
+    """
+    experiment = Experiment.query.get_or_404(experiment_id)
+    documents, document_ids = _get_experiment_documents(experiment_id)
+
+    if not document_ids:
+        return render_template(
+            'experiments/results/temporal.html',
+            experiment=experiment,
+            documents=[],
+            temporal_expressions=[],
+            expressions_by_type={},
+            expressions_by_document={},
+            total_expressions=0
+        )
+
+    # Build document lookup
+    doc_lookup = {doc.id: doc for doc in documents}
+
+    temporal_expressions = []
+    expressions_by_type = {}
+    expressions_by_document = {}
+
+    def add_expression(expr_data):
+        """Helper to add expression and update groupings."""
+        temporal_expressions.append(expr_data)
+        expr_type = expr_data['type']
+        if expr_type not in expressions_by_type:
+            expressions_by_type[expr_type] = []
+        expressions_by_type[expr_type].append(expr_data)
+
+        doc_id = expr_data['document_id']
+        if doc_id not in expressions_by_document:
+            expressions_by_document[doc_id] = {
+                'document': doc_lookup.get(doc_id),
+                'expressions': []
+            }
+        expressions_by_document[doc_id]['expressions'].append(expr_data)
+
+    # Get all temporal expressions from ProcessingArtifact table
+    # This is the unified storage for both orchestrated and manual processing
+    temporal_artifacts = ProcessingArtifact.query.filter(
+        ProcessingArtifact.document_id.in_(document_ids),
+        ProcessingArtifact.artifact_type == 'temporal_marker'
+    ).order_by(ProcessingArtifact.document_id, ProcessingArtifact.artifact_index).all()
+
+    for artifact in temporal_artifacts:
+        content = artifact.get_content()
+        metadata = artifact.get_metadata()
+        doc = doc_lookup.get(artifact.document_id)
+
+        # Handle both dict and string content
+        if isinstance(content, str):
+            expr_text = content
+            expr_type = 'UNKNOWN'
+            normalized = None
+            confidence = 0.75
+        else:
+            expr_text = content.get('text', '')
+            expr_type = content.get('type', 'UNKNOWN')
+            normalized = content.get('normalized')
+            confidence = content.get('confidence', 0.75)
+
+        # Get position from content first, fall back to metadata
+        start_pos = content.get('start') if isinstance(content, dict) else None
+        end_pos = content.get('end') if isinstance(content, dict) else None
+        if start_pos is None and isinstance(metadata, dict):
+            start_pos = metadata.get('start_char')
+            end_pos = metadata.get('end_char')
+
+        expression = {
+            'id': f"artifact_{artifact.id}",
+            'text': expr_text,
+            'type': expr_type,
+            'normalized': normalized,
+            'start_position': start_pos,
+            'end_position': end_pos,
+            'confidence': confidence,
+            'context': content.get('context', '') if isinstance(content, dict) else '',
+            'method': metadata.get('method', 'spacy_ner_plus_regex') if isinstance(metadata, dict) else 'spacy_ner_plus_regex',
+            'source': 'spacy',
+            'document_id': artifact.document_id,
+            'document_title': doc.title if doc else f"Document {artifact.document_id}",
+            'document_uuid': str(doc.uuid) if doc else None,
+            'document_year': doc.publication_date.year if doc and doc.publication_date else None
+        }
+        add_expression(expression)
+
+    # Sort expressions by document year then by position
+    temporal_expressions.sort(key=lambda e: (
+        e.get('document_year') or 9999,
+        e.get('start_position') or 0
+    ))
+
+    return render_template(
+        'experiments/results/temporal.html',
+        experiment=experiment,
+        documents=documents,
+        temporal_expressions=temporal_expressions,
+        expressions_by_type=expressions_by_type,
+        expressions_by_document=expressions_by_document,
+        total_expressions=len(temporal_expressions)
     )
 
 
@@ -615,14 +657,32 @@ def experiment_segments_results(experiment_id):
         metadata = artifact.get_metadata()
         doc = doc_lookup.get(artifact.document_id)
 
-        segment_text = content.get('text', '')
+        # Handle both dict and string content formats
+        if isinstance(content, str):
+            segment_text = content
+        elif isinstance(content, dict):
+            segment_text = content.get('text', '')
+        else:
+            segment_text = ''
+        # Get segment type from content dict or fallback to metadata
+        segment_type = 'unknown'
+        metadata_method = metadata.get('method', 'unknown') if isinstance(metadata, dict) else 'unknown'
+        if isinstance(content, dict):
+            segment_type = content.get('segment_type', metadata_method)
+        else:
+            segment_type = metadata_method
+
+        # Calculate word count
+        default_word_count = len(segment_text.split()) if segment_text else 0
+        word_count = metadata.get('word_count', default_word_count) if isinstance(metadata, dict) else default_word_count
+
         segment = {
             'id': f"artifact_{artifact.id}",
             'segment_number': artifact.artifact_index + 1,
             'content': segment_text,
-            'word_count': metadata.get('word_count', len(segment_text.split()) if segment_text else 0),
+            'word_count': word_count,
             'character_count': len(segment_text) if segment_text else 0,
-            'method': content.get('segment_type', metadata.get('method', 'unknown')),
+            'method': segment_type,
             'source': 'artifact',
             'document_id': artifact.document_id,
             'document_title': doc.title if doc else f"Document {artifact.document_id}",

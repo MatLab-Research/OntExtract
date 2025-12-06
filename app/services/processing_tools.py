@@ -13,6 +13,7 @@ from typing import List, Dict, Any, Optional
 from dataclasses import dataclass, asdict
 from datetime import datetime
 import uuid
+import os
 
 
 @dataclass
@@ -714,23 +715,24 @@ class DocumentProcessor:
                 default=0.45  # Default: 45% confidence (zero-shot scores are typically lower)
             )
 
-            # Try to load zero-shot classifier for definition sentence filtering
+            # Zero-shot classifier disabled - too slow on CPU for large documents
+            # Pattern matching with strict validation provides good results
+            # To re-enable: set ENABLE_ZERO_SHOT_DEFINITIONS=true in environment
             classifier_available = False
             definition_classifier = None
 
-            try:
-                from transformers import pipeline
-                # Use zero-shot classification to identify definition sentences
-                # This pre-filters sentences before pattern extraction
-                definition_classifier = pipeline(
-                    "zero-shot-classification",
-                    model="facebook/bart-large-mnli",
-                    device=-1  # CPU (-1), use 0 for GPU
-                )
-                classifier_available = True
-            except (ImportError, Exception):
-                # Fall back to pattern-only approach
-                classifier_available = False
+            if os.environ.get('ENABLE_ZERO_SHOT_DEFINITIONS', '').lower() == 'true':
+                try:
+                    from transformers import pipeline
+                    # Use zero-shot classification to score definition sentences
+                    definition_classifier = pipeline(
+                        "zero-shot-classification",
+                        model="facebook/bart-large-mnli",
+                        device=-1  # CPU (-1), use 0 for GPU
+                    )
+                    classifier_available = True
+                except (ImportError, Exception):
+                    classifier_available = False
 
             # Load spaCy model for sentence segmentation and dependency parsing
             try:
@@ -859,6 +861,34 @@ class DocumentProcessor:
                         if re.match(r'^(e\.g\.|for example|such as|including|like)', definition_text, re.IGNORECASE):
                             continue
 
+                        # REJECT: Run-together words (PDF extraction artifacts)
+                        # E.g., "byAgent", "ofmle-solver", "andTatsunori"
+                        # Detect: lowercase followed immediately by uppercase, or common words without spaces
+                        if re.search(r'[a-z][A-Z]', term) or re.search(r'[a-z][A-Z]', definition_text):
+                            continue
+
+                        # REJECT: Stop words or function words as terms
+                        stop_terms = {'which', 'that', 'this', 'these', 'those', 'what', 'who', 'whom',
+                                     'where', 'when', 'why', 'how', 'the', 'a', 'an', 'is', 'are', 'was',
+                                     'were', 'be', 'been', 'being', 'have', 'has', 'had', 'do', 'does',
+                                     'did', 'will', 'would', 'could', 'should', 'may', 'might', 'must',
+                                     'shall', 'can', 'your', 'my', 'his', 'her', 'its', 'our', 'their'}
+                        if term.lower() in stop_terms:
+                            continue
+
+                        # REJECT: Terms that look like variable placeholders (e.g., "where COMMAND", "where title here")
+                        if term.lower().startswith('where '):
+                            continue
+
+                        # REJECT: All-caps terms (usually placeholders or labels, not definitional terms)
+                        # Exception: acronym patterns are expected to be all-caps
+                        if term.isupper() and pattern_type != 'acronym':
+                            continue
+
+                        # REJECT: Terms starting with possessive pronouns (instruction text, not definitions)
+                        if re.match(r'^(your|my|his|her|its|our|their)\s', term, re.IGNORECASE):
+                            continue
+
                         # Avoid duplicate terms (keep first occurrence)
                         term_key = term.lower()
                         if term_key in seen_terms:
@@ -934,6 +964,34 @@ class DocumentProcessor:
                             # Only keep terms with 1-3 words
                             term_word_count = len(term_phrase.split())
                             if term_word_count > 3:
+                                continue
+
+                            # REJECT: Run-together words (PDF extraction artifacts)
+                            if re.search(r'[a-z][A-Z]', term_phrase) or re.search(r'[a-z][A-Z]', definition_phrase):
+                                continue
+
+                            # REJECT: Single character terms or definitions
+                            if len(term_phrase.strip()) < 3 or len(definition_phrase.strip()) < 5:
+                                continue
+
+                            # REJECT: Terms that are just author names (contains comma-separated names pattern)
+                            if re.search(r'[A-Z][a-z]+\s*,\s*and\s*[A-Z]', term_phrase):
+                                continue
+
+                            # REJECT: arXiv references or citation artifacts
+                            if re.search(r'arXiv|arxiv|\d{4}\.\d+', term_phrase) or re.search(r'arXiv|arxiv|\d{4}\.\d+', definition_phrase):
+                                continue
+
+                            # REJECT: Stop words as the main term
+                            main_term = term.lower()
+                            stop_terms = {'which', 'that', 'this', 'these', 'those', 'what', 'who', 'where',
+                                         'when', 'why', 'how', 'the', 'a', 'an', 'it', 'they', 'we', 'you'}
+                            if main_term in stop_terms:
+                                continue
+
+                            # REJECT: Definition is just author names or citations
+                            if re.match(r'^[A-Z][a-z]+\s+[A-Z]', definition_phrase) and ',' in definition_phrase:
+                                # Looks like "FirstName LastName, ..." - likely author list
                                 continue
 
                             if (len(term_phrase) > 2 and len(definition_phrase) > 10 and

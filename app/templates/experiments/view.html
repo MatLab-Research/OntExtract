@@ -179,6 +179,11 @@
                             <span><i class="fas fa-align-left me-2"></i>Segments</span>
                             <i class="fas fa-chevron-right"></i>
                         </a>
+                        <a href="{{ url_for('experiments.experiment_temporal_results', experiment_id=experiment.id) }}"
+                           class="btn btn-sm btn-outline-secondary d-flex align-items-center justify-content-between">
+                            <span><i class="fas fa-clock me-2"></i>Temporal</span>
+                            <i class="fas fa-chevron-right"></i>
+                        </a>
                     </div>
                 </div>
             </div>

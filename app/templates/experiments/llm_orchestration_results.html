@@ -88,6 +88,10 @@
                            class="btn btn-warning btn-sm">
                             <i class="fas fa-align-left me-1"></i>All Segments
                         </a>
+                        <a href="{{ url_for('experiments.experiment_temporal_results', experiment_id=experiment.id) }}"
+                           class="btn btn-secondary btn-sm">
+                            <i class="fas fa-clock me-1"></i>All Temporal
+                        </a>
                     </div>
                 </div>
             </div>

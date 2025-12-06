@@ -1,0 +1,368 @@
+{% extends "experiments/results/_base_results.html" %}
+
+{% block results_title %}Temporal Expressions{% endblock %}
+{% block results_icon %}fa-clock{% endblock %}
+{% block results_color %}warning{% endblock %}
+
+{% block results_extra_css %}
+<style>
+    .temporal-text {
+        font-weight: 600;
+        color: #dee2e6;
+    }
+
+    .temporal-type-badge {
+        font-size: 0.7rem;
+        padding: 0.2rem 0.5rem;
+        border-radius: 3px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        font-weight: 600;
+    }
+
+    .temporal-type-DATE { background-color: #ffc107; color: #212529; }
+    .temporal-type-YEAR { background-color: #fd7e14; color: white; }
+    .temporal-type-DECADE { background-color: #dc3545; color: white; }
+    .temporal-type-CENTURY { background-color: #6f42c1; color: white; }
+    .temporal-type-PERIOD { background-color: #0d6efd; color: white; }
+    .temporal-type-HISTORICAL_PERIOD { background-color: #198754; color: white; }
+    .temporal-type-RELATIVE { background-color: #20c997; color: white; }
+    .temporal-type-TEMPORAL_MARKER { background-color: #0dcaf0; color: #212529; }
+    .temporal-type-UNKNOWN { background-color: #6c757d; color: white; }
+
+    .normalized-badge {
+        background-color: #495057;
+        color: #ffc107;
+        font-size: 0.75rem;
+        padding: 0.2rem 0.5rem;
+        border-radius: 3px;
+        font-family: monospace;
+    }
+
+    .temporal-context {
+        font-style: italic;
+        color: #adb5bd;
+        font-size: 0.9rem;
+    }
+
+    .temporal-type-filter {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+        margin-bottom: 1rem;
+    }
+
+    .temporal-type-btn {
+        background-color: #343a40;
+        border: 1px solid #495057;
+        color: #adb5bd;
+        padding: 0.25rem 0.75rem;
+        border-radius: 20px;
+        cursor: pointer;
+        font-size: 0.8rem;
+        transition: all 0.2s;
+    }
+
+    .temporal-type-btn:hover {
+        background-color: #495057;
+        color: #e9ecef;
+    }
+
+    .temporal-type-btn.active {
+        background-color: #ffc107;
+        color: #212529;
+        border-color: transparent;
+    }
+
+    .year-badge {
+        background-color: #495057;
+        color: #adb5bd;
+        font-size: 0.75rem;
+        padding: 0.2rem 0.5rem;
+        border-radius: 3px;
+    }
+</style>
+{% endblock %}
+
+{% block results_stats %}
+<div class="row mb-4 g-3">
+    <div class="col-md-3">
+        <div class="stat-card">
+            <div class="stat-value text-warning">{{ total_expressions }}</div>
+            <div class="stat-label">Total Expressions</div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="stat-card">
+            <div class="stat-value text-info">{{ expressions_by_type | length }}</div>
+            <div class="stat-label">Expression Types</div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="stat-card">
+            <div class="stat-value text-success">{{ expressions_by_document | length }}</div>
+            <div class="stat-label">Documents</div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="stat-card">
+            <div class="stat-value text-secondary">
+                {% set spacy_count = temporal_expressions | selectattr('source', 'equalto', 'spacy') | list | length %}
+                {{ spacy_count }}
+            </div>
+            <div class="stat-label">spaCy Extracted</div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block main_col_class %}col-lg-8{% endblock %}
+{% block sidebar_col_class %}col-lg-4{% endblock %}
+
+{% block results_content %}
+<!-- Extraction Method Information -->
+<div class="alert mb-4" style="background-color: #2d3238; border: 1px solid #495057; color: #adb5bd;" role="alert">
+    <div class="d-flex">
+        <div class="me-3">
+            <i class="fas fa-info-circle text-warning fa-lg"></i>
+        </div>
+        <div>
+            <h6 class="alert-heading text-light mb-2">Extraction Methodology</h6>
+            <p class="mb-2">
+                Temporal expressions are extracted using a hybrid approach combining <strong class="text-light">spaCy's Named Entity Recognition</strong> (DATE entities) with <strong class="text-light">rule-based pattern matching</strong> for years, decades, centuries, historical periods, and relative temporal markers. Where possible, expressions are normalized to ISO 8601 format or standardized date ranges.
+            </p>
+            <p class="mb-0 small">
+                <em>Future enhancements:</em> Subsequent versions will incorporate LLM-based validation to improve extraction precision, contextual disambiguation for ambiguous expressions, and temporal relation extraction to identify event ordering and duration relationships within the document.
+            </p>
+        </div>
+    </div>
+</div>
+
+<div class="results-card accent-warning mb-4">
+    <div class="card-header">
+        <h5 class="mb-0">
+            <i class="fas fa-clock me-2"></i>Extracted Temporal Expressions
+            <span class="badge bg-warning text-dark ms-2">{{ total_expressions }}</span>
+        </h5>
+    </div>
+    <div class="card-body">
+        <!-- Expression Type Filter -->
+        <div class="temporal-type-filter">
+            <button class="temporal-type-btn active" onclick="filterByExprType('all')" data-type="all">
+                All ({{ total_expressions }})
+            </button>
+            {% for expr_type, type_exprs in expressions_by_type.items() | sort %}
+            <button class="temporal-type-btn" onclick="filterByExprType('{{ expr_type }}')" data-type="{{ expr_type }}">
+                {{ expr_type }} ({{ type_exprs | length }})
+            </button>
+            {% endfor %}
+        </div>
+
+        <!-- Source Filter -->
+        <div class="filter-tabs mb-3" style="--accent-color: #ffc107;">
+            <button class="filter-tab active" data-source="all" onclick="filterBySource('all')">All Sources</button>
+            <button class="filter-tab" data-source="spacy" onclick="filterBySource('spacy')">spaCy</button>
+            <button class="filter-tab" data-source="manual" onclick="filterBySource('manual')">Manual</button>
+        </div>
+
+        {% if temporal_expressions %}
+            {% for expr in temporal_expressions %}
+            <div class="result-item" data-source="{{ expr.source }}" data-expr-type="{{ expr.type }}">
+                <div class="item-header">
+                    <div class="d-flex align-items-center gap-2">
+                        <span class="temporal-text">{{ expr.text }}</span>
+                        <span class="temporal-type-badge temporal-type-{{ expr.type }}">{{ expr.type }}</span>
+                        {% if expr.normalized and expr.normalized != expr.text %}
+                        <span class="normalized-badge" title="Normalized form">{{ expr.normalized }}</span>
+                        {% endif %}
+                        {% if expr.document_year %}
+                        <span class="year-badge">{{ expr.document_year }}</span>
+                        {% endif %}
+                    </div>
+                    <div class="d-flex align-items-center gap-2">
+                        {% if expr.confidence %}
+                        <small class="text-muted">{{ (expr.confidence * 100) | round }}%</small>
+                        {% endif %}
+                        <span class="source-badge {{ expr.source }}">{{ expr.source }}</span>
+                    </div>
+                </div>
+                <div class="item-body">
+                    {% if expr.context %}
+                    <p class="temporal-context mb-2">"...{{ expr.context }}..."</p>
+                    {% endif %}
+                    <div class="text-muted-dark small">
+                        <i class="fas fa-file-alt me-1"></i>
+                        {% if expr.document_uuid %}
+                        <a href="{{ url_for('experiments.process_document', experiment_id=experiment.id, document_uuid=expr.document_uuid) }}" class="text-warning text-decoration-none">
+                            {{ expr.document_title | truncate(40) }}
+                        </a>
+                        {% else %}
+                        {{ expr.document_title | truncate(40) }}
+                        {% endif %}
+                        {% if expr.start_position is not none %}
+                        <span class="ms-2 text-muted">pos: {{ expr.start_position }}-{{ expr.end_position }}</span>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        {% else %}
+            <div class="text-center py-5">
+                <i class="fas fa-clock fa-3x text-muted mb-3"></i>
+                <p class="text-muted">No temporal expressions have been extracted yet.</p>
+                <p class="text-muted small">Run LLM orchestration or manual temporal extraction on your documents.</p>
+            </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block results_sidebar %}
+<div class="results-card accent-warning mb-4">
+    <div class="card-header">
+        <h6 class="mb-0"><i class="fas fa-chart-pie me-2"></i>By Expression Type</h6>
+    </div>
+    <div class="card-body">
+        {% if expressions_by_type %}
+            {% for expr_type, type_exprs in expressions_by_type.items() | sort(attribute='1|length', reverse=true) %}
+            <div class="d-flex justify-content-between align-items-center py-2 {% if not loop.last %}border-bottom border-secondary{% endif %}">
+                <span class="temporal-type-badge temporal-type-{{ expr_type }}">{{ expr_type }}</span>
+                <span class="badge bg-secondary">{{ type_exprs | length }}</span>
+            </div>
+            {% endfor %}
+        {% else %}
+            <p class="text-muted small mb-0">No expressions found</p>
+        {% endif %}
+    </div>
+</div>
+
+<div class="results-card accent-warning mb-4">
+    <div class="card-header">
+        <h6 class="mb-0"><i class="fas fa-file-alt me-2"></i>By Document</h6>
+    </div>
+    <div class="card-body">
+        {% if expressions_by_document %}
+            {% for doc_id, data in expressions_by_document.items() %}
+            <div class="d-flex justify-content-between align-items-center py-2 {% if not loop.last %}border-bottom border-secondary{% endif %}">
+                <div>
+                    <a href="{{ url_for('experiments.process_document', experiment_id=experiment.id, document_uuid=data.document.uuid) if data.document else '#' }}"
+                       class="text-warning text-decoration-none small">
+                        {{ data.document.title | truncate(20) if data.document else 'Unknown' }}
+                    </a>
+                    {% if data.document and data.document.publication_date %}
+                    <small class="text-muted d-block">{{ data.document.publication_date.year }}</small>
+                    {% endif %}
+                </div>
+                <span class="badge bg-warning text-dark">{{ data.expressions | length }}</span>
+            </div>
+            {% endfor %}
+        {% else %}
+            <p class="text-muted small mb-0">No expressions found</p>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Export Options -->
+<div class="results-card accent-warning mb-4">
+    <div class="card-header">
+        <h6 class="mb-0"><i class="fas fa-download me-2"></i>Export</h6>
+    </div>
+    <div class="card-body">
+        <div class="d-grid gap-2">
+            <button class="btn btn-outline-warning btn-sm" onclick="exportAsJSON()">
+                <i class="fas fa-file-code me-1"></i>Export as JSON
+            </button>
+            <button class="btn btn-outline-warning btn-sm" onclick="exportAsCSV()">
+                <i class="fas fa-file-csv me-1"></i>Export as CSV
+            </button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block results_js %}
+<script>
+// Expression type filtering
+let currentExprType = 'all';
+let currentSource = 'all';
+
+function filterByExprType(exprType) {
+    currentExprType = exprType;
+
+    // Update button states
+    document.querySelectorAll('.temporal-type-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.type === exprType);
+    });
+
+    applyFilters();
+}
+
+function filterBySource(source) {
+    currentSource = source;
+
+    // Update tab states
+    document.querySelectorAll('.filter-tab').forEach(tab => {
+        tab.classList.toggle('active', tab.dataset.source === source);
+    });
+
+    applyFilters();
+}
+
+function applyFilters() {
+    const items = document.querySelectorAll('.result-item');
+
+    items.forEach(item => {
+        const itemSource = item.dataset.source;
+        const itemType = item.dataset.exprType;
+
+        const sourceMatch = currentSource === 'all' || itemSource === currentSource;
+        const typeMatch = currentExprType === 'all' || itemType === currentExprType;
+
+        item.style.display = sourceMatch && typeMatch ? 'block' : 'none';
+    });
+
+    updateVisibleCount();
+}
+
+// Export as JSON
+function exportAsJSON() {
+    const expressions = {{ temporal_expressions | tojson }};
+    const dataStr = JSON.stringify(expressions, null, 2);
+    const dataBlob = new Blob([dataStr], {type: 'application/json'});
+
+    const link = document.createElement('a');
+    link.href = window.URL.createObjectURL(dataBlob);
+    link.download = 'temporal_expressions_experiment_{{ experiment.id }}.json';
+    link.click();
+}
+
+// Export as CSV
+function exportAsCSV() {
+    const expressions = {{ temporal_expressions | tojson }};
+
+    // CSV headers
+    let csv = 'Text,Type,Normalized,Document,Year,Position Start,Position End,Confidence\n';
+
+    // CSV rows
+    expressions.forEach(expr => {
+        const row = [
+            `"${(expr.text || '').replace(/"/g, '""')}"`,
+            expr.type || '',
+            `"${(expr.normalized || '').replace(/"/g, '""')}"`,
+            `"${(expr.document_title || '').replace(/"/g, '""')}"`,
+            expr.document_year || '',
+            expr.start_position || '',
+            expr.end_position || '',
+            expr.confidence || ''
+        ].join(',');
+        csv += row + '\n';
+    });
+
+    const dataBlob = new Blob([csv], {type: 'text/csv'});
+    const link = document.createElement('a');
+    link.href = window.URL.createObjectURL(dataBlob);
+    link.download = 'temporal_expressions_experiment_{{ experiment.id }}.csv';
+    link.click();
+}
+</script>
+{% endblock %}

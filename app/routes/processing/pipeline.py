@@ -2000,7 +2000,7 @@ def view_definitions_results(document_uuid):
 
         artifacts = ProcessingArtifact.query.filter(
             ProcessingArtifact.document_id.in_(all_version_ids),
-            ProcessingArtifact.artifact_type == 'definition'
+            ProcessingArtifact.artifact_type == 'term_definition'
         ).order_by(ProcessingArtifact.artifact_index).all()
 
         for artifact in artifacts:
@@ -2096,7 +2096,8 @@ def view_temporal_results(document_uuid):
 
         jobs.sort(key=lambda j: (j.created_at is None, j.created_at), reverse=True)
 
-        # Get temporal expressions from ProcessingArtifact table (unified storage)
+        # Get temporal expressions from ProcessingArtifact table
+        # This is the unified storage for both orchestrated and manual processing
         temporal_expressions = []
         from app.models.experiment_processing import ProcessingArtifact
 
@@ -2105,20 +2106,39 @@ def view_temporal_results(document_uuid):
             ProcessingArtifact.artifact_type == 'temporal_marker'
         ).order_by(ProcessingArtifact.artifact_index).all()
 
-        # Extract temporal data from artifacts
         for artifact in artifacts:
             content = artifact.get_content()
             metadata = artifact.get_metadata()
+
+            # Handle both dict and string content
+            if isinstance(content, str):
+                expr_text = content
+                expr_type = 'UNKNOWN'
+                normalized = None
+                confidence = 0.75
+            else:
+                expr_text = content.get('text', '')
+                expr_type = content.get('type', 'UNKNOWN')
+                normalized = content.get('normalized')
+                confidence = content.get('confidence', 0.75)
+
+            # Get position from content first, fall back to metadata
+            start_char = content.get('start') if isinstance(content, dict) else None
+            end_char = content.get('end') if isinstance(content, dict) else None
+            if start_char is None and isinstance(metadata, dict):
+                start_char = metadata.get('start_char')
+                end_char = metadata.get('end_char')
+
             temporal_expressions.append({
-                'text': content.get('text', ''),
-                'type': content.get('type', 'UNKNOWN'),
-                'normalized': content.get('normalized'),
-                'confidence': content.get('confidence', 0),
-                'start_char': metadata.get('start_char'),
-                'end_char': metadata.get('end_char'),
-                'method': metadata.get('method', 'unknown'),
-                'context': content.get('context', ''),
-                'source': 'artifact'
+                'text': expr_text,
+                'type': expr_type,
+                'normalized': normalized,
+                'confidence': confidence,
+                'start_char': start_char,
+                'end_char': end_char,
+                'method': metadata.get('method', 'spacy_ner_plus_regex') if isinstance(metadata, dict) else 'spacy_ner_plus_regex',
+                'context': content.get('context', '') if isinstance(content, dict) else '',
+                'source': 'spacy'
             })
 
         # Group expressions by type

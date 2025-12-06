@@ -104,10 +104,10 @@
     <div class="col-md-3">
         <div class="stat-card">
             <div class="stat-value text-secondary">
-                {% set llm_count = entities | selectattr('source', 'equalto', 'llm') | list | length %}
-                {{ llm_count }}
+                {% set spacy_count = entities | selectattr('source', 'equalto', 'spacy') | list | length %}
+                {{ spacy_count }}
             </div>
-            <div class="stat-label">LLM Extracted</div>
+            <div class="stat-label">spaCy Extracted</div>
         </div>
     </div>
 </div>
@@ -140,7 +140,7 @@
         <!-- Source Filter -->
         <div class="filter-tabs mb-3" style="--accent-color: #198754;">
             <button class="filter-tab active" data-source="all" onclick="filterBySource('all')">All Sources</button>
-            <button class="filter-tab" data-source="llm" onclick="filterBySource('llm')">LLM</button>
+            <button class="filter-tab" data-source="spacy" onclick="filterBySource('spacy')">spaCy</button>
             <button class="filter-tab" data-source="manual" onclick="filterBySource('manual')">Manual</button>
         </div>
 

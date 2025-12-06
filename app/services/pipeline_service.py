@@ -1203,7 +1203,7 @@ class PipelineService(BaseService):
                 artifact = ProcessingArtifact(
                     processing_id=processing_op.id,
                     document_id=exp_doc.document_id,
-                    artifact_type='temporal_expression',
+                    artifact_type='temporal_marker',  # Must match extraction_tools.py ARTIFACT_TYPE_MAP
                     artifact_index=i
                 )
                 artifact.set_content({

@@ -140,18 +140,19 @@ Entity extraction creates artifacts with:
 
 ## Definition Extraction
 
-Extract term definitions using hybrid zero-shot classification and pattern matching.
+Extract term definitions using pattern matching with strict validation.
 
 ### Approach
 
-OntExtract uses a multi-method approach combining:
+OntExtract uses pattern matching to identify definitions in text:
 
-1. **Zero-shot classification** (`facebook/bart-large-mnli`)
-   - Scores sentences for definition likelihood
-   - Used for confidence boosting, not filtering
-   - Zero-shot can misclassify some definition sentences, so all patterns are checked
+1. **Zero-shot classification** (optional, disabled by default)
+   - Uses `facebook/bart-large-mnli` model (~1.6GB)
+   - Too slow on CPU for large documents (10+ minutes per document)
+   - Enable with environment variable: `ENABLE_ZERO_SHOT_DEFINITIONS=true`
+   - When enabled, scores sentences for confidence boosting
 
-2. **Pattern matching** - Detects 8 definition types:
+2. **Pattern matching** (default, fast) - Detects 8 definition types:
    - **explicit_definition**: "X is defined as Y"
    - **explicit_reference**: "X refers to Y"
    - **meaning**: "X means Y"
@@ -189,7 +190,9 @@ Definition extraction creates artifacts with:
 - Character positions in source document
 - Source sentence for context
 
-Results are labeled "Auto" in the UI with source badges showing "ZeroShot" or "Pattern".
+Results are labeled "Auto" in the UI with a "Pattern" source badge. If zero-shot is enabled, definitions may show "ZeroShot" badge.
+
+**Note**: Definition extraction works best on documents that explicitly define terminology, such as glossaries, textbook introductions, or standards documents. Research papers that use but do not define terms may return few or no results.
 
 ## Batch Processing
 

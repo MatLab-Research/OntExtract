@@ -19,13 +19,14 @@ logger = logging.getLogger(__name__)
 
 
 # Artifact type mapping for each tool
+# These must match the artifact_type values used in manual processing routes
 ARTIFACT_TYPE_MAP = {
     "segment_paragraph": "text_segment",
     "segment_sentence": "text_segment",
     "extract_entities_spacy": "extracted_entity",
     "extract_temporal": "temporal_marker",
     "extract_causal": "causal_relation",
-    "extract_definitions": "definition",
+    "extract_definitions": "term_definition",  # Must match pipeline.py/pipeline_service.py
     "period_aware_embedding": "embedding_vector"
 }
 
