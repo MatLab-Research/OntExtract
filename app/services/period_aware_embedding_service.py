@@ -39,31 +39,32 @@ class PeriodAwareEmbeddingService:
     """
     
     # Period-appropriate embedding models as specified in JCDL paper
+    # Each period uses a different model optimized for that era's language patterns
     PERIOD_MODELS = {
         'historical_pre1850': {
-            'model': 'sentence-transformers/all-MiniLM-L6-v2',  # Fallback - would use historical-bert in production
-            'description': 'General model for pre-1850 texts (archaic language)',
+            'model': 'sentence-transformers/all-mpnet-base-v2',
+            'description': 'MPNet model (768 dims) - better for archaic vocabulary and older language patterns',
             'handles_archaic': True,
-            'dimension': 384,
+            'dimension': 768,
             'era': 'pre-industrial'
         },
         'historical_1850_1950': {
-            'model': 'sentence-transformers/all-MiniLM-L6-v2',  # Would use HistBERT in production
-            'description': 'Model for 19th-early 20th century texts',
+            'model': 'sentence-transformers/all-mpnet-base-v2',
+            'description': 'MPNet model (768 dims) - handles industrial-era vocabulary and formal writing styles',
             'handles_archaic': True,
-            'dimension': 384,
+            'dimension': 768,
             'era': 'industrial'
         },
         'modern_1950_2000': {
             'model': 'sentence-transformers/all-MiniLM-L6-v2',
-            'description': 'Standard model for mid-20th century texts',
+            'description': 'MiniLM model (384 dims) - optimized for modern standardized language',
             'handles_archaic': False,
             'dimension': 384,
             'era': 'modern'
         },
         'contemporary_2000plus': {
             'model': 'sentence-transformers/all-roberta-large-v1',
-            'description': 'Contemporary model for modern language patterns',
+            'description': 'RoBERTa-large model (1024 dims) - highest quality for contemporary text',
             'handles_archaic': False,
             'dimension': 1024,
             'era': 'contemporary'
@@ -161,10 +162,12 @@ class PeriodAwareEmbeddingService:
             else:
                 model_key = 'contemporary_2000plus'
                 reason = 'Contemporary text with current language patterns'
-            
+
             model_info = self.PERIOD_MODELS[model_key].copy()
             model_info['selection_reason'] = reason
             model_info['selection_confidence'] = 0.8
+            model_info['period_category'] = model_key  # Add period category for UI display
+            model_info['document_year'] = year  # Include the year used for selection
             return model_info
         
         # Analyze text sample if provided
@@ -174,17 +177,20 @@ class PeriodAwareEmbeddingService:
                 model_info = self.PERIOD_MODELS['historical_1850_1950'].copy()
                 model_info['selection_reason'] = 'Archaic language patterns detected in text'
                 model_info['selection_confidence'] = 0.7
+                model_info['period_category'] = 'historical_1850_1950'
                 return model_info
             elif analysis['likely_technical']:
                 model_info = self.PERIOD_MODELS['domain_scientific'].copy()
                 model_info['selection_reason'] = 'Technical vocabulary detected'
                 model_info['selection_confidence'] = 0.6
+                model_info['period_category'] = 'domain_scientific'
                 return model_info
-        
+
         # Default fallback
         model_info = self.PERIOD_MODELS['modern_1950_2000'].copy()
         model_info['selection_reason'] = 'Default model - insufficient metadata for period detection'
         model_info['selection_confidence'] = 0.5
+        model_info['period_category'] = 'modern_1950_2000'
         return model_info
     
     def generate_period_aware_embedding(self, 
@@ -225,7 +231,12 @@ class PeriodAwareEmbeddingService:
                 'dimension': len(embedding) if embedding else model_selection['dimension'],
                 'period_detected': year,
                 'domain_detected': domain,
-                'generated_at': datetime.utcnow().isoformat()
+                'generated_at': datetime.utcnow().isoformat(),
+                # Pass through additional metadata for UI display
+                'period_category': model_selection.get('period_category'),
+                'document_year': model_selection.get('document_year', year),
+                'handles_archaic': model_selection.get('handles_archaic', False),
+                'era': model_selection.get('era')
             }
             
             logger.info(f"Generated period-aware embedding using {model_selection['model']}")

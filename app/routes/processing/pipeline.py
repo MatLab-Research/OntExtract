@@ -1561,7 +1561,7 @@ def view_embeddings_results(document_uuid):
 
         for emb in artifact_embeddings:
             content = emb.get_content()
-            metadata = emb.get_metadata()
+            metadata = emb.get_metadata() or {}
             embeddings.append({
                 'document_id': emb.document_id,
                 'index': emb.artifact_index,
@@ -1571,7 +1571,20 @@ def view_embeddings_results(document_uuid):
                 'dimensions': metadata.get('dimensions', len(content.get('vector', []))),
                 'text': content.get('text', '')[:500],  # Truncate for display
                 'vector': content.get('vector', []),
-                'source': 'artifact'
+                'source': 'artifact',
+                # Period-aware metadata
+                'period_category': metadata.get('period_category'),
+                'document_year': metadata.get('document_year'),
+                'selection_reason': metadata.get('selection_reason'),
+                'selection_confidence': metadata.get('selection_confidence'),
+                # Extended period-aware metadata
+                'model_full': metadata.get('model_full'),
+                'model_description': metadata.get('model_description'),
+                'expected_dimension': metadata.get('expected_dimension'),
+                'handles_archaic': metadata.get('handles_archaic'),
+                'era': metadata.get('era'),
+                'intended_model': metadata.get('intended_model'),
+                'fallback_used': metadata.get('fallback_used', False)
             })
 
         # Compute statistics
@@ -1581,6 +1594,9 @@ def view_embeddings_results(document_uuid):
 
         # Get consistent metadata from first embedding
         first_emb = embeddings[0] if embeddings else {}
+
+        # Check if any embedding is period-aware
+        period_aware_emb = next((e for e in embeddings if e.get('period_category')), None)
 
         from flask import render_template
         return render_template('processing/embeddings_results.html',
@@ -1592,7 +1608,21 @@ def view_embeddings_results(document_uuid):
                              segment_level_count=len(segment_level),
                              method=first_emb.get('method', 'N/A'),
                              model=first_emb.get('model', 'N/A'),
-                             dimensions=first_emb.get('dimensions', 'N/A'))
+                             dimensions=first_emb.get('dimensions', 'N/A'),
+                             # Period-aware info
+                             is_period_aware=period_aware_emb is not None,
+                             period_category=period_aware_emb.get('period_category') if period_aware_emb else None,
+                             document_year=period_aware_emb.get('document_year') if period_aware_emb else None,
+                             selection_reason=period_aware_emb.get('selection_reason') if period_aware_emb else None,
+                             selection_confidence=period_aware_emb.get('selection_confidence') if period_aware_emb else None,
+                             # Extended period-aware info
+                             model_full=period_aware_emb.get('model_full') if period_aware_emb else None,
+                             model_description=period_aware_emb.get('model_description') if period_aware_emb else None,
+                             expected_dimension=period_aware_emb.get('expected_dimension') if period_aware_emb else None,
+                             handles_archaic=period_aware_emb.get('handles_archaic') if period_aware_emb else None,
+                             era=period_aware_emb.get('era') if period_aware_emb else None,
+                             intended_model=period_aware_emb.get('intended_model') if period_aware_emb else None,
+                             fallback_used=period_aware_emb.get('fallback_used', False) if period_aware_emb else False)
 
     except Exception as e:
         from flask import render_template

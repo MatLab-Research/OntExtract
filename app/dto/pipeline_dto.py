@@ -47,7 +47,7 @@ class StartProcessingDTO(BaseDTO):
         # Common methods across processing types
         valid_methods = [
             # Embeddings
-            'local', 'openai', 'sentence_transformers', 'gemini',
+            'local', 'openai', 'sentence_transformers', 'gemini', 'period_aware',
             # Segmentation
             'paragraph', 'sentence', 'semantic',
             # Entities, Temporal, Definitions

@@ -66,7 +66,9 @@
                                 <h6 class="mb-3">Embedding Details</h6>
                                 <dl class="row">
                                     <dt class="col-sm-4">Method</dt>
-                                    <dd class="col-sm-8"><span class="badge bg-secondary">{{ method }}</span></dd>
+                                    <dd class="col-sm-8">
+                                        <span class="badge bg-secondary">{{ method }}</span>
+                                    </dd>
 
                                     <dt class="col-sm-4">Model</dt>
                                     <dd class="col-sm-8"><code>{{ model }}</code></dd>
@@ -74,6 +76,92 @@
                                     <dt class="col-sm-4">Dimensions</dt>
                                     <dd class="col-sm-8">{{ dimensions }}</dd>
                                 </dl>
+
+                                {% if is_period_aware %}
+                                <div class="alert alert-warning mt-3 mb-0">
+                                    <h6 class="alert-heading mb-2">
+                                        <i class="fas fa-clock me-2"></i>Period-Aware Model Selection
+                                        {% if fallback_used %}
+                                        <span class="badge bg-secondary ms-2">Fallback Used</span>
+                                        {% endif %}
+                                    </h6>
+
+                                    <!-- What makes this period-aware -->
+                                    <div class="mb-3 p-2 rounded" style="background-color: rgba(0,0,0,0.1);">
+                                        <strong class="d-block mb-1">Model Selection Applied:</strong>
+                                        {% if model_description %}
+                                        <p class="mb-1">{{ model_description }}</p>
+                                        {% endif %}
+                                        <small class="text-muted">
+                                            {% if era %}Era: <strong>{{ era | title }}</strong> | {% endif %}
+                                            {% if handles_archaic %}Handles archaic language: <strong>Yes</strong>{% else %}Standard language model{% endif %}
+                                        </small>
+                                    </div>
+
+                                    {% if fallback_used and intended_model %}
+                                    <div class="alert alert-secondary mb-2 py-2">
+                                        <small>
+                                            <strong>Intended model:</strong> <code>{{ intended_model }}</code> ({{ expected_dimension }} dims)<br>
+                                            <strong>Actual model:</strong> <code>{{ model }}</code> ({{ dimensions }} dims)<br>
+                                            <em>The intended model was not available. Using fallback model instead.</em>
+                                        </small>
+                                    </div>
+                                    {% elif model_full and model_full != model %}
+                                    <div class="mb-2">
+                                        <small class="text-muted">
+                                            Full model path: <code>{{ model_full }}</code>
+                                        </small>
+                                    </div>
+                                    {% endif %}
+
+                                    <dl class="row mb-0 small">
+                                        <dt class="col-sm-4">Period Category</dt>
+                                        <dd class="col-sm-8">
+                                            <span class="badge
+                                                {% if period_category == 'historical_pre1850' %}bg-danger
+                                                {% elif period_category == 'historical_1850_1950' %}bg-orange text-white
+                                                {% elif period_category == 'modern_1950_2000' %}bg-info
+                                                {% else %}bg-success{% endif %}"
+                                                {% if period_category == 'historical_1850_1950' %}style="background-color: #fd7e14 !important;"{% endif %}>
+                                                {{ period_category | replace('_', ' ') | title }}
+                                            </span>
+                                        </dd>
+
+                                        {% if document_year %}
+                                        <dt class="col-sm-4">Document Year</dt>
+                                        <dd class="col-sm-8">{{ document_year }}</dd>
+                                        {% endif %}
+
+                                        {% if selection_reason %}
+                                        <dt class="col-sm-4">Selection Reason</dt>
+                                        <dd class="col-sm-8">{{ selection_reason }}</dd>
+                                        {% endif %}
+
+                                        {% if expected_dimension and expected_dimension != dimensions %}
+                                        <dt class="col-sm-4">Expected Dimensions</dt>
+                                        <dd class="col-sm-8">{{ expected_dimension }} <small class="text-muted">(vs {{ dimensions }} actual)</small></dd>
+                                        {% endif %}
+
+                                        {% if selection_confidence %}
+                                        <dt class="col-sm-4">Confidence</dt>
+                                        <dd class="col-sm-8">
+                                            <div class="progress" style="height: 15px; background-color: rgba(0,0,0,0.15);">
+                                                <div class="progress-bar {% if fallback_used %}bg-secondary{% else %}bg-info{% endif %}" role="progressbar"
+                                                     style="width: {{ (selection_confidence * 100) | int }}%;"
+                                                     aria-valuenow="{{ (selection_confidence * 100) | int }}"
+                                                     aria-valuemin="0" aria-valuemax="100">
+                                                    {{ (selection_confidence * 100) | int }}%
+                                                </div>
+                                            </div>
+                                        </dd>
+                                        {% endif %}
+                                    </dl>
+                                    <p class="mb-0 mt-2 text-muted small">
+                                        <em>Period-aware embeddings select models optimized for the document's historical era,
+                                        improving semantic similarity calculations for temporal analysis.</em>
+                                    </p>
+                                </div>
+                                {% endif %}
                             {% else %}
                                 <div class="alert alert-info">
                                     <i class="fas fa-info-circle me-2"></i>No embeddings found for this document.
@@ -124,9 +212,29 @@
                                             {% if emb.level == 'segment' %}
                                             <span class="badge bg-light text-dark ms-1">Chunk {{ emb.index + 1 }}</span>
                                             {% endif %}
+                                            {% if emb.period_category %}
+                                            <span class="badge ms-1" style="background-color: #fd7e14;" title="{{ emb.selection_reason }}">
+                                                <i class="fas fa-clock me-1"></i>{{ emb.period_category | replace('_', ' ') | title }}
+                                            </span>
+                                            {% if emb.fallback_used %}
+                                            <span class="badge bg-secondary ms-1" title="Using fallback model">Fallback</span>
+                                            {% endif %}
+                                            {% endif %}
                                         </div>
                                         <small class="text-muted">Doc ID: {{ emb.document_id }}</small>
                                     </div>
+
+                                    {% if emb.period_category %}
+                                    <div class="mb-2 small">
+                                        <span class="text-muted">Model:</span> <code>{{ emb.model }}</code>
+                                        {% if emb.model_description %}
+                                        <span class="text-muted ms-2">- {{ emb.model_description }}</span>
+                                        {% endif %}
+                                        {% if emb.fallback_used and emb.intended_model %}
+                                        <br><span class="text-muted">Intended:</span> <code class="text-secondary">{{ emb.intended_model }}</code>
+                                        {% endif %}
+                                    </div>
+                                    {% endif %}
 
                                     {% if emb.text %}
                                     <div class="mb-2">
@@ -180,10 +288,22 @@
                                     <i class="fas fa-ruler me-2"></i>
                                     <strong>{{ dimensions }}</strong> dimensions per vector
                                 </li>
-                                <li>
+                                <li class="mb-2">
                                     <i class="fas fa-cog me-2"></i>
                                     Method: <strong>{{ method }}</strong>
                                 </li>
+                                {% if is_period_aware %}
+                                <li class="mb-2">
+                                    <i class="fas fa-clock text-warning me-2"></i>
+                                    Period: <strong>{{ period_category | replace('_', ' ') | title }}</strong>
+                                </li>
+                                {% if document_year %}
+                                <li>
+                                    <i class="fas fa-calendar text-warning me-2"></i>
+                                    Year: <strong>{{ document_year }}</strong>
+                                </li>
+                                {% endif %}
+                                {% endif %}
                             </ul>
                             {% else %}
                             <p class="text-muted mb-0">No embeddings available</p>
@@ -245,7 +365,18 @@ function exportEmbeddings() {
             model: {{ emb.model|tojson }},
             dimensions: {{ emb.dimensions|tojson }},
             text: {{ emb.text|tojson }},
-            vector: {{ emb.vector|tojson }}
+            vector: {{ emb.vector|tojson }},
+            period_category: {{ emb.period_category|tojson }},
+            document_year: {{ emb.document_year|tojson }},
+            selection_reason: {{ emb.selection_reason|tojson }},
+            selection_confidence: {{ emb.selection_confidence|tojson }},
+            model_full: {{ emb.model_full|tojson }},
+            model_description: {{ emb.model_description|tojson }},
+            expected_dimension: {{ emb.expected_dimension|tojson }},
+            handles_archaic: {{ emb.handles_archaic|tojson }},
+            era: {{ emb.era|tojson }},
+            intended_model: {{ emb.intended_model|tojson }},
+            fallback_used: {{ emb.fallback_used|tojson }}
         },
         {% endfor %}
     ];

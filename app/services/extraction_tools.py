@@ -128,7 +128,11 @@ class ToolExecutor:
             item_metadata = metadata.copy()
             if isinstance(item, dict):
                 # Extract specific metadata fields from the item
-                for key in ['confidence', 'method', 'model', 'dimensions', 'start', 'end']:
+                # Includes period-aware embedding fields for proper UI display
+                for key in ['confidence', 'method', 'model', 'dimensions', 'start', 'end',
+                           'period_category', 'document_year', 'selection_reason',
+                           'selection_confidence', 'model_full', 'model_description',
+                           'expected_dimension', 'handles_archaic', 'era']:
                     if key in item:
                         item_metadata[key] = item[key]
             artifact.set_metadata(item_metadata)

@@ -234,10 +234,6 @@ def view(experiment_id):
         experiment_id=experiment_id
     ).order_by(ExperimentOrchestrationRun.started_at.desc()).first()
 
-    # Get all documents in this experiment
-    experiment_docs = list(experiment.documents)
-    doc_ids = [doc.id for doc in experiment_docs]
-
     # --- Processing Summary ---
     # Use the same data sources as document_pipeline: ExperimentDocumentProcessing & DocumentProcessingIndex
     from app.models.experiment_processing import ExperimentDocumentProcessing, DocumentProcessingIndex
@@ -245,34 +241,49 @@ def view(experiment_id):
 
     processing_summary = {}  # artifact_type -> count
 
+    # Get experiment documents and group by root to find latest versions
+    # This matches the logic in pipeline_service.get_pipeline_overview()
+    exp_docs = ExperimentDocument.query.filter_by(experiment_id=experiment_id).all()
+
+    # Group documents by root to show only latest version
+    doc_families = {}
+    for exp_doc in exp_docs:
+        doc = exp_doc.document
+        # Get root document ID (either the document itself or its source)
+        root_id = doc.source_document_id if doc.source_document_id else doc.id
+        if root_id not in doc_families:
+            doc_families[root_id] = []
+        doc_families[root_id].append((exp_doc, doc))
+
+    # For each family, select only the latest version
+    latest_exp_docs = []
+    for root_id, family_members in doc_families.items():
+        # Sort by version_number (desc) and pick the first one
+        family_members.sort(key=lambda x: x[1].version_number or 0, reverse=True)
+        latest_exp_docs.append(family_members[0])  # (exp_doc, doc) tuple
+
     # --- Document Details with Versions and Cross-Experiment Usage ---
     documents_enhanced = []
-    for doc in experiment_docs:
-        # Count how many OTHER experiments use this document
-        other_exp_count = doc.experiments.count() - 1  # Exclude current experiment
-
-        # Get ExperimentDocument for this doc+experiment
-        exp_doc = ExperimentDocument.query.filter_by(
-            experiment_id=experiment_id,
-            document_id=doc.id
-        ).first()
+    for exp_doc, doc in latest_exp_docs:
+        # Count how many OTHER experiments use the root document
+        root_doc = doc.source_document if doc.source_document_id else doc
+        other_exp_count = root_doc.experiments.count() - 1  # Exclude current experiment
 
         # Collect processing operations from both systems
         operations_list = []
 
-        if exp_doc:
-            # 1. Check manual processing operations (from process_document page buttons)
-            manual_ops = ExperimentDocumentProcessing.query.filter_by(
-                experiment_document_id=exp_doc.id,
-                status='completed'
-            ).all()
+        # 1. Check manual processing operations (from process_document page buttons)
+        manual_ops = ExperimentDocumentProcessing.query.filter_by(
+            experiment_document_id=exp_doc.id,
+            status='completed'
+        ).all()
 
-            for op in manual_ops:
-                operations_list.append({
-                    'type': op.processing_type,
-                    'method': op.processing_method,
-                    'source': 'manual'
-                })
+        for op in manual_ops:
+            operations_list.append({
+                'type': op.processing_type,
+                'method': op.processing_method,
+                'source': 'manual'
+            })
 
         # 2. Check DocumentProcessingIndex (experiment-specific processing)
         index_entries = DocumentProcessingIndex.query.filter_by(
@@ -288,7 +299,7 @@ def view(experiment_id):
                 'source': 'experiment'
             })
 
-        # 3. Check orchestration results if available
+        # 3. Check orchestration results if available (use versioned doc ID)
         if recent_orchestration and recent_orchestration.processing_results:
             doc_id_str = str(doc.id)
             if doc_id_str in recent_orchestration.processing_results:

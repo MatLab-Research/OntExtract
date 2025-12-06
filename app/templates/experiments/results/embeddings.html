@@ -93,16 +93,16 @@
     </div>
     <div class="col-md-3">
         <div class="stat-card">
-            {% set methods = embeddings_info | map(attribute='method') | unique | list %}
-            <div class="stat-value text-warning">{{ methods | length }}</div>
-            <div class="stat-label">Methods Used</div>
+            {% set period_aware_count = embeddings_info | selectattr('period_category') | list | length %}
+            <div class="stat-value" style="color: #fd7e14;">{{ period_aware_count }}</div>
+            <div class="stat-label">Period-Aware</div>
         </div>
     </div>
     <div class="col-md-3">
         <div class="stat-card">
-            {% set llm_count = embeddings_info | selectattr('source', 'equalto', 'llm') | list | length %}
-            <div class="stat-value text-purple" style="color: #6f42c1;">{{ llm_count }}</div>
-            <div class="stat-label">LLM Generated</div>
+            {% set methods = embeddings_info | map(attribute='method') | unique | list %}
+            <div class="stat-value text-warning">{{ methods | length }}</div>
+            <div class="stat-label">Methods Used</div>
         </div>
     </div>
 </div>
@@ -118,18 +118,13 @@
             <i class="fas fa-project-diagram me-2"></i>Document Embeddings
             <span class="badge bg-primary ms-2">{{ embeddings_info | length }} documents</span>
         </h5>
-        <div class="filter-tabs" style="--accent-color: #0d6efd;">
-            <button class="filter-tab active" data-source="all" onclick="filterBySource('all')">All</button>
-            <button class="filter-tab" data-source="llm" onclick="filterBySource('llm')">LLM</button>
-            <button class="filter-tab" data-source="manual" onclick="filterBySource('manual')">Manual</button>
-        </div>
     </div>
     <div class="card-body">
         {% if embeddings_info %}
         <div class="row">
             {% for info in embeddings_info %}
             <div class="col-md-6 col-lg-4">
-                <div class="embedding-card result-item" data-source="{{ info.source }}">
+                <div class="embedding-card">
                     <div class="d-flex justify-content-between align-items-start mb-3">
                         <div>
                             <h6 class="mb-1">
@@ -146,7 +141,10 @@
                             <span class="year-badge">{{ info.document_year }}</span>
                             {% endif %}
                         </div>
-                        <span class="source-badge {{ info.source }}">{{ info.source }}</span>
+                        <span class="badge bg-secondary" title="Triggered via {{ 'automated pipeline' if info.source == 'llm' else 'manual processing' }}">
+                            <i class="fas fa-{{ 'robot' if info.source == 'llm' else 'hand-pointer' }} me-1"></i>
+                            {{ 'Pipeline' if info.source == 'llm' else 'Manual' }}
+                        </span>
                     </div>
 
                     <div class="d-flex align-items-center gap-2 mb-3">
@@ -173,7 +171,37 @@
                         </div>
                     </div>
 
-                    <!-- Dimension visualization -->
+                    {% if info.period_category %}
+                    <!-- Period-aware metadata -->
+                    <div class="mb-2">
+                        <span class="badge
+                            {% if info.period_category == 'historical_pre1850' %}bg-danger
+                            {% elif info.period_category == 'historical_1850_1950' %}text-white
+                            {% elif info.period_category == 'modern_1950_2000' %}bg-info
+                            {% else %}bg-success{% endif %}"
+                            {% if info.period_category == 'historical_1850_1950' %}style="background-color: #fd7e14;"{% endif %}>
+                            <i class="fas fa-clock me-1"></i>{{ info.period_category | replace('_', ' ') | title }}
+                        </span>
+                        {% if info.era %}
+                        <span class="badge bg-secondary ms-1">{{ info.era | title }}</span>
+                        {% endif %}
+                        {% if info.handles_archaic %}
+                        <span class="badge bg-warning text-dark ms-1" title="Optimized for archaic language">
+                            <i class="fas fa-book me-1"></i>Archaic
+                        </span>
+                        {% endif %}
+                    </div>
+                    {% if info.selection_reason %}
+                    <small class="text-muted-dark d-block mb-2">{{ info.selection_reason }}</small>
+                    {% endif %}
+                    {% if info.selection_confidence %}
+                    <div class="dimension-indicator mb-2">
+                        <div class="dimension-fill bg-info" style="width: {{ (info.selection_confidence * 100) | int }}%"></div>
+                    </div>
+                    <small class="text-muted-dark">{{ (info.selection_confidence * 100) | int }}% selection confidence</small>
+                    {% endif %}
+                    {% else %}
+                    <!-- Dimension visualization (for non-period-aware) -->
                     <div class="dimension-indicator">
                         {% set dim_percent = (info.dimensions | int / 4096 * 100) | round if info.dimensions != 'N/A' else 0 %}
                         <div class="dimension-fill" style="width: {{ [dim_percent, 100] | min }}%"></div>
@@ -185,6 +213,7 @@
                         Dimensions unknown
                         {% endif %}
                     </small>
+                    {% endif %}
 
                     {% if info.created_at %}
                     <div class="mt-2 text-muted-dark small">
@@ -221,18 +250,19 @@
                 </p>
             </div>
             <div class="col-md-4">
-                <h6 class="text-primary">Embedding Methods</h6>
+                <h6 class="text-primary">Period-Aware Models</h6>
                 <ul class="text-muted small ps-3">
-                    <li><strong>local</strong>: Sentence transformers (fast, local)</li>
-                    <li><strong>openai</strong>: OpenAI text-embedding-3-small</li>
-                    <li><strong>period_aware</strong>: Historical language models</li>
+                    <li><strong>Pre-1850</strong>: all-mpnet-base-v2 (768 dims)</li>
+                    <li><strong>1850-1950</strong>: all-mpnet-base-v2 (768 dims)</li>
+                    <li><strong>1950-2000</strong>: all-MiniLM-L6-v2 (384 dims)</li>
+                    <li><strong>2000+</strong>: all-roberta-large-v1 (1024 dims)</li>
                 </ul>
             </div>
             <div class="col-md-4">
                 <h6 class="text-primary">Usage</h6>
                 <p class="text-muted small">
-                    Embeddings enable semantic similarity search, document clustering,
-                    and cross-temporal comparison of concept meanings.
+                    Period-aware embeddings select models optimized for historical eras,
+                    enabling accurate semantic comparison across time periods.
                 </p>
             </div>
         </div>

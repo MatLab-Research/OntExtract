@@ -625,6 +625,9 @@ document.addEventListener('DOMContentLoaded', function() {
         } else if (tool === 'embeddings_local') {
             processing_type = 'embeddings';
             processing_method = 'local';
+        } else if (tool === 'embeddings_period_aware') {
+            processing_type = 'embeddings';
+            processing_method = 'period_aware';
         } else if (tool === 'embeddings_openai') {
             processing_type = 'embeddings';
             processing_method = 'openai';

@@ -1151,7 +1151,14 @@ class DocumentProcessor:
                     "estimated_tokens": token_estimate,
                     "embedding_type": "period_aware",
                     "domain_detected": result.get('domain_detected'),
-                    "generated_at": result.get('generated_at')
+                    "generated_at": result.get('generated_at'),
+                    # Period-aware metadata for UI display
+                    "period_category": result.get('period_category'),
+                    "document_year": result.get('document_year') or doc_year,
+                    "handles_archaic": result.get('handles_archaic', False),
+                    "era": result.get('era'),
+                    "model_full": result.get('model_used'),  # Full model path
+                    "selection_confidence": result.get('selection_confidence', 0.5)
                 }
 
                 # The embedding is returned as both metadata and data
@@ -1162,7 +1169,14 @@ class DocumentProcessor:
                     "model": model_name,
                     "dimensions": dimensions,
                     "selection_confidence": result.get('selection_confidence', 0.5),
-                    "selection_reason": result.get('selection_reason', '')
+                    "selection_reason": result.get('selection_reason', ''),
+                    # Include period-aware fields in data for artifact storage
+                    "period_category": result.get('period_category'),
+                    "document_year": result.get('document_year') or doc_year,
+                    "handles_archaic": result.get('handles_archaic', False),
+                    "era": result.get('era'),
+                    "model_full": result.get('model_used'),
+                    "model_description": result.get('model_description', '')
                 }
 
                 return ProcessingResult(
