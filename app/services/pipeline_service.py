@@ -16,6 +16,19 @@ from app.services.base_service import BaseService, ServiceError, NotFoundError, 
 
 logger = logging.getLogger(__name__)
 
+# Mapping from LLM tool names to standard operation types/methods
+# This ensures consistent display between LLM orchestration and manual processing
+# NOTE: Methods should match the display labels in app/__init__.py format_tool_name filter
+LLM_TOOL_TO_OPERATION_MAP = {
+    "extract_entities_spacy": {"type": "entities", "method": "spacy"},
+    "extract_temporal": {"type": "temporal", "method": "spacy"},
+    "extract_definitions": {"type": "definitions", "method": "pattern"},
+    "extract_causal": {"type": "causal", "method": "spacy"},
+    "period_aware_embedding": {"type": "embeddings", "method": "period_aware"},
+    "segment_paragraph": {"type": "segmentation", "method": "paragraph"},
+    "segment_sentence": {"type": "segmentation", "method": "sentence"},
+}
+
 
 class PipelineService(BaseService):
     """Service for managing document processing pipeline"""
@@ -105,16 +118,27 @@ class PipelineService(BaseService):
                         })
 
                 # 3. Merge orchestration results (LLM processing)
+                # Map LLM tool names to standard operation types for consistent display
                 doc_id_str = str(doc.id)
                 if doc_id_str in orchestration_results:
                     llm_ops = orchestration_results[doc_id_str]
                     for tool_name, tool_result in llm_ops.items():
                         if tool_result.get('status') == 'executed':
-                            operations_list.append({
-                                'type': tool_name,
-                                'method': 'llm',
-                                'source': 'llm'
-                            })
+                            # Map LLM tool name to standard operation type/method
+                            op_mapping = LLM_TOOL_TO_OPERATION_MAP.get(tool_name)
+                            if op_mapping:
+                                operations_list.append({
+                                    'type': op_mapping['type'],
+                                    'method': op_mapping['method'],
+                                    'source': 'llm'
+                                })
+                            else:
+                                # Fallback for unknown tools
+                                operations_list.append({
+                                    'type': tool_name,
+                                    'method': 'llm',
+                                    'source': 'llm'
+                                })
 
                 # Deduplicate operations by (type, method) combination
                 seen = set()
@@ -127,9 +151,12 @@ class PipelineService(BaseService):
                 operations_list = unique_operations
 
                 # Calculate processing progress based on unique operation types completed
+                # Only count the 5 standard processing types for progress
+                STANDARD_OPERATION_TYPES = {'segmentation', 'entities', 'temporal', 'embeddings', 'definitions'}
                 unique_types = set(op['type'] for op in operations_list)
-                total_operation_types = 5  # segmentation, entities, temporal, embeddings, definitions
-                completed_operation_types = len(unique_types)
+                completed_standard_types = unique_types & STANDARD_OPERATION_TYPES
+                total_operation_types = len(STANDARD_OPERATION_TYPES)
+                completed_operation_types = len(completed_standard_types)
                 processing_progress = int((completed_operation_types / total_operation_types) * 100) if total_operation_types > 0 else 0
 
                 # Determine overall status
@@ -313,16 +340,19 @@ class PipelineService(BaseService):
             previous_doc_id = all_doc_ids[doc_index - 1] if has_previous else None
             next_doc_id = all_doc_ids[doc_index + 1] if has_next else None
 
-            # Calculate processing progress
-            total_processing_types = 3  # embeddings, segmentation, entities
+            # Calculate processing progress - use same 5 standard types as document_pipeline
+            STANDARD_OPERATION_TYPES = {'segmentation', 'entities', 'temporal', 'embeddings', 'definitions'}
             completed_types = set()
             for op in processing_operations:
                 if op.status == 'completed':
                     completed_types.add(op.processing_type)
 
-            processing_progress = int((len(completed_types) / total_processing_types) * 100)
+            # Only count standard types for progress
+            completed_standard_types = completed_types & STANDARD_OPERATION_TYPES
+            total_processing_types = len(STANDARD_OPERATION_TYPES)
+            processing_progress = int((len(completed_standard_types) / total_processing_types) * 100)
 
-            logger.info(f"Document {document_id} progress: {processing_progress}% ({len(completed_types)}/{total_processing_types} types)")
+            logger.info(f"Document {document_id} progress: {processing_progress}% ({len(completed_standard_types)}/{total_processing_types} types)")
 
             # In experiment context, we only show the experiment version (no version switcher)
             # The general document route (/input/document/{uuid}) shows all versions

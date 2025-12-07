@@ -201,19 +201,59 @@ def create_app(config_name=None):
 
     @app.template_filter('format_tool_name')
     def format_tool_name_filter(tool_name):
-        """Format processing tool name for display."""
+        """Format processing tool name for display.
+
+        This is the SINGLE SOURCE OF TRUTH for tool name display labels.
+        All templates should use this filter for consistent labeling.
+
+        Format: 'Type: method' (e.g., 'Entities: spacy', 'Segmentation: paragraph')
+        """
         names = {
-            'segment_paragraph': 'Paragraph',
-            'segment_sentence': 'Sentence',
-            'embeddings_local': 'Local Embed',
-            'embeddings_openai': 'OpenAI Embed',
-            'embeddings_period_aware': 'Period Embed',
-            'entities_spacy': 'Entities',
-            'extract_entities_spacy': 'Entities',
-            'definitions_spacy': 'Definitions',
-            'extract_definitions_spacy': 'Definitions',
-            'temporal_spacy': 'Temporal',
-            'extract_temporal_spacy': 'Temporal'
+            # Segmentation tools
+            'segment_paragraph': 'Segmentation: paragraph',
+            'segment_sentence': 'Segmentation: sentence',
+            'segmentation': 'Segmentation',
+            'paragraph': 'Segmentation: paragraph',  # method_key fallback
+            'sentence': 'Segmentation: sentence',    # method_key fallback
+
+            # Embedding tools
+            'embeddings_local': 'Embeddings: local',
+            'embeddings_openai': 'Embeddings: openai',
+            'embeddings_period_aware': 'Embeddings: period_aware',
+            'period_aware_embedding': 'Embeddings: period_aware',
+            'embeddings': 'Embeddings',
+            'local': 'Embeddings: local',            # method_key fallback
+            'openai': 'Embeddings: openai',          # method_key fallback
+            'period_aware': 'Embeddings: period_aware',  # method_key fallback
+
+            # Entity extraction tools
+            'entities_spacy': 'Entities: spacy',
+            'extract_entities_spacy': 'Entities: spacy',
+            'entities': 'Entities',
+            'spacy_ner': 'Entities: spacy',          # method_key from extraction_tools
+            'spacy': 'spacy',                        # generic method (context determines type)
+
+            # Definition extraction tools
+            'definitions_spacy': 'Definitions: pattern',
+            'extract_definitions': 'Definitions: pattern',
+            'extract_definitions_spacy': 'Definitions: pattern',
+            'definitions': 'Definitions',
+            'definition_extraction': 'Definitions: pattern',  # method_key from extraction_tools
+
+            # Temporal extraction tools
+            'temporal_spacy': 'Temporal: spacy',
+            'extract_temporal': 'Temporal: spacy',
+            'extract_temporal_spacy': 'Temporal: spacy',
+            'temporal': 'Temporal',
+            'temporal_extraction': 'Temporal: spacy',  # method_key from extraction_tools
+
+            # Causal extraction tools
+            'extract_causal': 'Causal: spacy',
+            'causal': 'Causal',
+            'causal_extraction': 'Causal: spacy',  # method_key from extraction_tools
+
+            # Cleanup
+            'cleanup': 'Cleanup',
         }
         return names.get(tool_name, tool_name)
 

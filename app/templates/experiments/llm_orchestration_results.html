@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "macros/processing_badges.html" import tool_badge, get_op_icon, get_op_color %}
+{% from "macros/processing_badges.html" import tool_badge, get_op_icon, get_op_color, format_tool_label %}
 
 {% block title %}LLM Orchestration Results - {{ experiment.name }} - OntExtract{% endblock %}
 
@@ -296,7 +296,7 @@
                                         <div class="mb-3 pb-2 {% if not loop.last %}border-bottom{% endif %}">
                                             <div class="d-flex justify-content-between align-items-center mb-2">
                                                 <h6 class="mb-0 text-{{ get_op_color(tool_name) }}">
-                                                    <i class="fas {{ get_op_icon(tool_name) }} me-1"></i>{{ tool_name | replace('_', ' ') | title }}
+                                                    <i class="fas {{ get_op_icon(tool_name) }} me-1"></i>{{ format_tool_label(tool_name) }}
                                                 </h6>
                                                 {% if tool_result.status == 'success' %}
                                                 <span class="badge bg-success">Success</span>

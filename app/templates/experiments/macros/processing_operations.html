@@ -165,18 +165,18 @@ Parameters:
                 </div>
                 <div class="form-check">
                     <input class="form-check-input tool-checkbox" type="checkbox"
-                           name="tools-{{ document_id }}[]" value="definitions_spacy"
-                           id="tool-{{ document_id }}-definitions-spacy"
-                           {{ 'checked' if 'definitions_spacy' in recommended_tools or 'extract_definitions_spacy' in recommended_tools else '' }}
-                           {{ 'disabled' if is_tool_completed(processing_operations, 'definitions', ['spacy', 'definition_extraction']) else '' }}>
-                    <label class="form-check-label" for="tool-{{ document_id }}-definitions-spacy">
+                           name="tools-{{ document_id }}[]" value="definitions_pattern"
+                           id="tool-{{ document_id }}-definitions-pattern"
+                           {{ 'checked' if 'definitions_pattern' in recommended_tools or 'definitions_spacy' in recommended_tools or 'extract_definitions' in recommended_tools else '' }}
+                           {{ 'disabled' if is_tool_completed(processing_operations, 'definitions', ['pattern', 'spacy', 'definition_extraction']) else '' }}>
+                    <label class="form-check-label" for="tool-{{ document_id }}-definitions-pattern">
                         {% if compact %}
                         Definitions
                         {% else %}
                         <strong>Definition Extraction</strong>
-                        <br><small class="text-muted">spaCy pattern matching + dependency parsing</small>
+                        <br><small class="text-muted">Pattern matching + dependency parsing</small>
                         {% endif %}
-                        {% if is_tool_completed(processing_operations, 'definitions', ['spacy', 'definition_extraction']) %}
+                        {% if is_tool_completed(processing_operations, 'definitions', ['pattern', 'spacy', 'definition_extraction']) %}
                         <small class="text-success"><i class="fas fa-check-circle ms-1"></i></small>
                         {% endif %}
                     </label>
@@ -229,20 +229,33 @@ Parameters:
 {{ ns.found }}
 {% endmacro %}
 
-{# Helper filter for tool name formatting #}
+{# Helper macro for tool name formatting - uses consistent 'type: method' format #}
+{# NOTE: Must match app/__init__.py format_tool_name filter - that is the source of truth #}
 {% macro format_tool_name(tool_name) %}
 {%- set names = {
-    'segment_paragraph': 'Paragraph',
-    'segment_sentence': 'Sentence',
-    'embeddings_local': 'Local Embed',
-    'embeddings_openai': 'OpenAI Embed',
-    'embeddings_period_aware': 'Period Embed',
-    'entities_spacy': 'Entities',
-    'extract_entities_spacy': 'Entities',
-    'definitions_spacy': 'Definitions',
-    'extract_definitions_spacy': 'Definitions',
-    'temporal_spacy': 'Temporal',
-    'extract_temporal_spacy': 'Temporal'
+    'segment_paragraph': 'Segmentation: paragraph',
+    'segment_sentence': 'Segmentation: sentence',
+    'paragraph': 'Segmentation: paragraph',
+    'sentence': 'Segmentation: sentence',
+    'embeddings_local': 'Embeddings: local',
+    'embeddings_openai': 'Embeddings: openai',
+    'embeddings_period_aware': 'Embeddings: period_aware',
+    'period_aware_embedding': 'Embeddings: period_aware',
+    'local': 'Embeddings: local',
+    'period_aware': 'Embeddings: period_aware',
+    'entities_spacy': 'Entities: spacy',
+    'extract_entities_spacy': 'Entities: spacy',
+    'spacy_ner': 'Entities: spacy',
+    'definitions_spacy': 'Definitions: pattern',
+    'extract_definitions': 'Definitions: pattern',
+    'extract_definitions_spacy': 'Definitions: pattern',
+    'definition_extraction': 'Definitions: pattern',
+    'temporal_spacy': 'Temporal: spacy',
+    'extract_temporal': 'Temporal: spacy',
+    'extract_temporal_spacy': 'Temporal: spacy',
+    'temporal_extraction': 'Temporal: spacy',
+    'extract_causal': 'Causal: spacy',
+    'causal_extraction': 'Causal: spacy'
 } -%}
 {{ names.get(tool_name, tool_name) }}
 {% endmacro %}

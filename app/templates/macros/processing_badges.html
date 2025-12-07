@@ -73,7 +73,7 @@
     {% set op_method = 'spacy' %}
 {%- elif 'definition' in tool_name -%}
     {% set op_type = 'definitions' %}
-    {% set op_method = 'spacy' %}
+    {% set op_method = 'pattern' %}
 {%- elif 'temporal' in tool_name -%}
     {% set op_type = 'temporal' %}
     {% set op_method = 'spacy' %}
@@ -92,6 +92,42 @@
 {# Standard order for operation types - used for consistent display #}
 {# Order: cleanup first (prep), then segmentation, embeddings, extraction tasks #}
 {% set OPERATION_ORDER = ['cleanup', 'segmentation', 'embeddings', 'entities', 'temporal', 'definitions'] %}
+
+{# Format a tool name to a human-readable label #}
+{# Maps LLM tool names and standard types to consistent display names #}
+{# NOTE: Must match app/__init__.py format_tool_name filter - that is the source of truth #}
+{% macro format_tool_label(tool_name) %}
+{%- set labels = {
+    'segment_paragraph': 'Segmentation: paragraph',
+    'segment_sentence': 'Segmentation: sentence',
+    'segmentation': 'Segmentation',
+    'paragraph': 'Segmentation: paragraph',
+    'sentence': 'Segmentation: sentence',
+    'embeddings_local': 'Embeddings: local',
+    'embeddings_openai': 'Embeddings: openai',
+    'embeddings_period_aware': 'Embeddings: period_aware',
+    'period_aware_embedding': 'Embeddings: period_aware',
+    'embeddings': 'Embeddings',
+    'local': 'Embeddings: local',
+    'period_aware': 'Embeddings: period_aware',
+    'entities_spacy': 'Entities: spacy',
+    'extract_entities_spacy': 'Entities: spacy',
+    'entities': 'Entities',
+    'spacy_ner': 'Entities: spacy',
+    'definitions_spacy': 'Definitions: pattern',
+    'extract_definitions': 'Definitions: pattern',
+    'definitions': 'Definitions',
+    'definition_extraction': 'Definitions: pattern',
+    'temporal_spacy': 'Temporal: spacy',
+    'extract_temporal': 'Temporal: spacy',
+    'temporal': 'Temporal',
+    'temporal_extraction': 'Temporal: spacy',
+    'cleanup': 'Cleanup',
+    'extract_causal': 'Causal: spacy',
+    'causal_extraction': 'Causal: spacy'
+} -%}
+{{ labels.get(tool_name, tool_name | replace('_', ' ') | title) }}
+{%- endmacro %}
 
 {# Render multiple operation badges in a flex container (from list), sorted by standard order #}
 {% macro operation_badges(operations) %}

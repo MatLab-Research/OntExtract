@@ -66,10 +66,10 @@ TOOL_REGISTRY: Dict[str, ToolDefinition] = {
     "extract_causal": ToolDefinition(
         name="extract_causal",
         description="Extract causal relationships between events",
-        status=ToolStatus.IMPLEMENTED,  # ✅ IMPLEMENTED
+        status=ToolStatus.DEPRECATED,  # Not available in manual processing UI
         category="extraction",
         dependencies=["spacy"],
-        notes="Pattern matching + dependency parsing for causation"
+        notes="Pattern matching + dependency parsing for causation. Disabled: not in process_document UI."
     ),
     "extract_definitions": ToolDefinition(
         name="extract_definitions",

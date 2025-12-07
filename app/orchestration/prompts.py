@@ -265,18 +265,19 @@ def get_recommend_strategy_prompt(
 """
 
     # Experiment-type-specific tool prioritization
+    # NOTE: Tool names must match those in tool_registry.py
     tool_priorities = {
         'temporal_evolution': {
-            'high': ['extract_temporal', 'semantic_similarity'],
-            'rationale': 'Temporal experiments benefit from date extraction and semantic comparison to track meaning evolution over time.'
+            'high': ['extract_temporal', 'period_aware_embedding', 'extract_definitions'],
+            'rationale': 'Temporal experiments benefit from date extraction, period-aware embeddings, and definition extraction to track meaning evolution over time.'
         },
         'domain_comparison': {
-            'high': ['extract_entities_spacy', 'semantic_similarity'],
-            'rationale': 'Domain comparison requires entity extraction and semantic analysis to identify usage patterns across fields.'
+            'high': ['extract_entities_spacy', 'extract_definitions', 'period_aware_embedding'],
+            'rationale': 'Domain comparison requires entity extraction, definition extraction, and embeddings to identify usage patterns across fields.'
         },
         'entity_extraction': {
-            'high': ['extract_entities_spacy', 'llm_extract_concepts'],
-            'rationale': 'Entity extraction experiments need NER and concept extraction tools.'
+            'high': ['extract_entities_spacy', 'extract_definitions'],
+            'rationale': 'Entity extraction experiments need NER and definition extraction tools.'
         }
     }
 

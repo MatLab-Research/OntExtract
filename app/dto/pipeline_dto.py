@@ -50,8 +50,10 @@ class StartProcessingDTO(BaseDTO):
             'local', 'openai', 'sentence_transformers', 'gemini', 'period_aware',
             # Segmentation
             'paragraph', 'sentence', 'semantic',
-            # Entities, Temporal, Definitions
+            # Entities, Temporal
             'spacy', 'nltk', 'llm',
+            # Definitions
+            'pattern',  # Pattern matching + dependency parsing
             # Enhanced Processing
             'enhanced'
         ]

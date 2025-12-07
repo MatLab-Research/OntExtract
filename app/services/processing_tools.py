@@ -744,6 +744,10 @@ class DocumentProcessor:
 
             # Definition patterns (more specific patterns first)
             definition_patterns = [
+                # Dictionary-style definitions (e.g., "AGE. Signifies those periods...")
+                # Term in ALL CAPS followed by period, definition starts with verb
+                (r'\b([A-Z][A-Z]+(?:\s+[A-Z]+)*)\.\s+((?:Signifies|Means|Denotes|Describes|Refers to|Is|Are|Was|Were|The|A|An|One who|In)\s+.+?)(?:\.\s*\n|\.\s*$)', 'dictionary', 0.90),
+
                 # Explicit definitions
                 (r'([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)\s+is\s+defined\s+as\s+(.+?)(?:[.;]|$)', 'explicit_definition', 0.90),
                 (r'([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)\s+can\s+be\s+defined\s+as\s+(.+?)(?:[.;]|$)', 'explicit_definition', 0.90),
@@ -810,6 +814,51 @@ class DocumentProcessor:
                     pass
 
             seen_terms = set()
+
+            # First, check for dictionary-style document format (term entries spanning multiple lines)
+            # Pattern: "TERM. Definition text..." where TERM is ALL CAPS
+            # This runs on full text before sentence splitting
+            dict_pattern = r'\n([A-Z][A-Z]+(?:\s+[A-Z]+)*)\.\s+([A-Za-z].+?)(?=\n[A-Z][A-Z]+\.\s|\n-[A-Z]|\Z)'
+            dict_matches = re.finditer(dict_pattern, '\n' + text, re.DOTALL)
+
+            for match in dict_matches:
+                term = match.group(1).strip()
+                definition_text = match.group(2).strip()
+
+                # Clean up OCR artifacts (line breaks in middle of words)
+                definition_text = re.sub(r'(\w)-\s*\n\s*(\w)', r'\1\2', definition_text)
+                definition_text = re.sub(r'\s*\n\s*', ' ', definition_text)
+                definition_text = re.sub(r'\s+', ' ', definition_text)
+
+                # Truncate very long definitions to first sentence or 500 chars
+                if len(definition_text) > 500:
+                    # Try to find first sentence end
+                    first_sent_end = re.search(r'[.!?]\s+[A-Z]', definition_text[:500])
+                    if first_sent_end:
+                        definition_text = definition_text[:first_sent_end.start() + 1]
+                    else:
+                        definition_text = definition_text[:500] + '...'
+
+                # Quality filters
+                if len(term) < 2 or len(definition_text) < 15:
+                    continue
+
+                # Skip if term looks like a section header (too long)
+                if len(term) > 30:
+                    continue
+
+                term_lower = term.lower()
+                if term_lower not in seen_terms:
+                    seen_terms.add(term_lower)
+                    definitions.append({
+                        'term': term.title(),  # Convert to title case for readability
+                        'definition': definition_text,
+                        'pattern': 'dictionary',
+                        'confidence': 0.90,
+                        'start': match.start(),
+                        'end': match.end(),
+                        'sentence': definition_text[:100] + ('...' if len(definition_text) > 100 else '')
+                    })
 
             # Always use all sentences - pattern validation handles quality
             candidate_sentences = sentences

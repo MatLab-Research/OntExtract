@@ -217,7 +217,7 @@
                                 {% set has_definitions_llm = llm_operations.get('extract_definitions', {}).get('status') == 'executed' %}
                                 <div class="form-check mb-2">
                                     <input class="form-check-input tool-checkbox" type="checkbox"
-                                           value="definitions_spacy" id="tool-definitions"
+                                           value="definitions_pattern" id="tool-definitions"
                                            {% if has_definitions or has_definitions_llm %}disabled{% endif %}>
                                     <label class="form-check-label" for="tool-definitions">
                                         <i class="fas fa-book text-primary me-1"></i><strong>Definition Extraction</strong>
@@ -636,9 +636,9 @@ document.addEventListener('DOMContentLoaded', function() {
         } else if (tool === 'entities_spacy') {
             processing_type = 'entities';
             processing_method = 'spacy';
-        } else if (tool === 'definitions_spacy') {
+        } else if (tool === 'definitions_pattern') {
             processing_type = 'definitions';
-            processing_method = 'spacy';
+            processing_method = 'pattern';
         } else if (tool === 'temporal_spacy') {
             processing_type = 'temporal';
             processing_method = 'spacy';
@@ -683,7 +683,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const successCount = results.filter(r => r.status === 'success').length;
         const errorCount = results.filter(r => r.status === 'error').length;
 
-        // Display in right column under Processing Options
+        // Display in right column under Processing Operations
         const statusContainer = document.getElementById('processing-status-results');
         const statusContent = document.getElementById('processing-status-content');
 
