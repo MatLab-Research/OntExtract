@@ -299,18 +299,9 @@ def view(experiment_id):
                 'source': 'experiment'
             })
 
-        # 3. Check orchestration results if available (use versioned doc ID)
-        if recent_orchestration and recent_orchestration.processing_results:
-            doc_id_str = str(doc.id)
-            if doc_id_str in recent_orchestration.processing_results:
-                llm_ops = recent_orchestration.processing_results[doc_id_str]
-                for tool_name, tool_result in llm_ops.items():
-                    if tool_result.get('status') == 'executed':
-                        operations_list.append({
-                            'type': tool_name,
-                            'method': 'llm',
-                            'source': 'llm'
-                        })
+        # Note: We no longer check orchestration_run.processing_results JSON
+        # because LLM orchestration already creates ExperimentDocumentProcessing
+        # records which are captured in section 1 above.
 
         # Deduplicate by (type, method)
         seen = set()
