@@ -57,6 +57,20 @@ Each artifact shows:
 
 ## Experiment Results
 
+### Result Type Views
+
+From the experiment page, use the **View Results** buttons to explore specific result types:
+
+| Button | Shows |
+|--------|-------|
+| **Definitions** | Extracted term definitions across all documents |
+| **Entities** | Named entities (people, organizations, places) |
+| **Embeddings** | Semantic similarity search interface |
+| **Segments** | Text segments with positions |
+| **Temporal** | Dates, periods, and temporal markers |
+
+Each view aggregates results from all documents in the experiment, making it easy to compare findings across your corpus.
+
 ### Timeline View
 
 For temporal evolution experiments:
@@ -69,8 +83,8 @@ For temporal evolution experiments:
 
 If you used LLM Orchestration:
 
-1. Go to **LLM Orchestration** tab
-2. View the **Synthesis** section
+1. Go to **Document Pipeline**
+2. Click **View Results** on the orchestration status banner (shown when orchestration completes)
 3. See cross-document patterns and term cards
 
 **Note**: The synthesis organizes findings but does not interpret them. Analytical conclusions remain with the researcher.

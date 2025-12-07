@@ -86,8 +86,9 @@ The LLM analyzes results across all documents:
 ## Accessing LLM Orchestration
 
 1. Go to **Experiments** > Select your experiment
-2. Click the **LLM Orchestration** tab
-3. Click **Start Analysis** to begin Stage 1
+2. Click **Document Pipeline**
+3. Select **LLM** mode (toggle at top of page)
+4. Click **LLM Analyze** to begin Stage 1
 
 ## Workflow States
 

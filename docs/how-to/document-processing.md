@@ -54,9 +54,8 @@ Split documents into logical sections for analysis.
 
 | Method | Description | Best For |
 |--------|-------------|----------|
-| **Paragraph** | Regex-based natural boundaries | Most documents |
-| **Sentence** | NLTK tokenizer splitting | Fine-grained analysis |
-| **Semantic** | Sentence-transformers topic grouping | Complex documents |
+| **Paragraph** | NLTK-enhanced paragraph detection | Most documents |
+| **Sentence** | NLTK Punkt tokenizer | Fine-grained analysis |
 
 ### How to Run
 
@@ -73,6 +72,15 @@ Segmentation creates TextSegment artifacts with:
 - Character-level position (start/end offsets)
 - Segment index within document
 
+### Auto-Dependency
+
+When you select **Embeddings** or **Definition Extraction**, the system automatically selects **Paragraph Segmentation** if it hasn't been run. This is because:
+
+- Embeddings create segment-level vectors when segments exist (more granular similarity search)
+- All extraction tools produce better results with structured text segments
+
+You can deselect segmentation if you prefer document-level processing only.
+
 ## Embedding Generation
 
 Create vector representations for semantic similarity search.
@@ -83,7 +91,7 @@ Create vector representations for semantic similarity search.
 |--------|-------------|----------|
 | **Local** | Standard sentence-transformers model | General modern text |
 | **Period Aware** | Selects model based on document era/domain | Historical or domain-specific text |
-| **OpenAI** | text-embedding-ada-002 | High accuracy (requires API key) |
+| **OpenAI** | text-embedding-3-large (3072 dims) | Highest accuracy (requires API key) |
 
 ### How to Run
 
