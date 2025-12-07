@@ -23,6 +23,9 @@ RUN pip install --no-cache-dir --upgrade pip && \
 # Download spaCy model
 RUN python -m spacy download en_core_web_sm
 
+# Download NLTK data (punkt_tab for sentence tokenization)
+RUN python -c "import nltk; nltk.download('punkt_tab'); nltk.download('punkt'); nltk.download('averaged_perceptron_tagger'); nltk.download('wordnet')"
+
 # Download BART model for zero-shot classification (definition extraction)
 # This adds ~1.6GB but avoids first-run download delay
 RUN python -c "from transformers import pipeline; pipeline('zero-shot-classification', model='facebook/bart-large-mnli')"
