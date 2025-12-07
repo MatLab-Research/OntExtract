@@ -573,7 +573,8 @@ class DocumentProcessor:
                             })
 
                 # Pattern 3: Conditional causation (If Cause then Effect)
-                if_then_pattern = r'(?:if|when)\s+(.+?)[,\s]+(?:then\s+)?(.+?)(?:[.;]|$)'
+                # Use [^,]+ to greedily match condition up to comma
+                if_then_pattern = r'(?:if|when)\s+([^,]+),\s*(?:then\s+)?(.+?)(?:[.;]|$)'
                 matches = re.finditer(if_then_pattern, sent_text, re.IGNORECASE)
 
                 for match in matches:
