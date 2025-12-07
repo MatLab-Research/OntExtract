@@ -422,7 +422,7 @@ document.addEventListener('DOMContentLoaded', function() {
             'embeddings_openai': null,
             'embeddings_period_aware': 'period_aware_embedding',
             'entities_spacy': 'extract_entities_spacy',
-            'definitions_spacy': 'extract_definitions',
+            'definitions_pattern': 'extract_definitions',
             'temporal_spacy': 'extract_temporal'
         };
 
@@ -439,7 +439,7 @@ document.addEventListener('DOMContentLoaded', function() {
             'embeddings_openai': { type: 'embeddings', methods: ['openai'] },
             'embeddings_period_aware': { type: 'embeddings', methods: ['period_aware'] },
             'entities_spacy': { type: 'entities', methods: ['spacy', 'spacy_ner'] },
-            'definitions_spacy': { type: 'definitions', methods: ['spacy', 'definition_extraction'] },
+            'definitions_pattern': { type: 'definitions', methods: ['pattern', 'definition_extraction'] },
             'temporal_spacy': { type: 'temporal', methods: ['spacy', 'temporal_extraction'] }
         };
 
@@ -478,8 +478,63 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Enable/disable run button based on selection
     toolCheckboxes.forEach(checkbox => {
-        checkbox.addEventListener('change', updateRunButton);
+        checkbox.addEventListener('change', function(e) {
+            handleDependencies(e.target);
+            updateRunButton();
+        });
     });
+
+    // Handle tool dependencies - auto-select prerequisites
+    function handleDependencies(changedCheckbox) {
+        const toolValue = changedCheckbox.value;
+        const segmentParagraphCheckbox = document.getElementById('tool-segment-paragraph');
+
+        // Tools that benefit from segmentation being run first
+        const segmentationBeneficiaries = ['embeddings_local', 'embeddings_period_aware', 'embeddings_openai', 'definitions_pattern'];
+
+        if (changedCheckbox.checked && segmentationBeneficiaries.includes(toolValue)) {
+            // Check if segmentation is already completed
+            if (!isToolCompleted('segment_paragraph') && segmentParagraphCheckbox && !segmentParagraphCheckbox.disabled) {
+                if (!segmentParagraphCheckbox.checked) {
+                    segmentParagraphCheckbox.checked = true;
+                    showDependencyMessage(toolValue);
+                }
+            }
+        }
+    }
+
+    // Show dependency info message
+    function showDependencyMessage(toolValue) {
+        const toolNames = {
+            'embeddings_local': 'Local Embeddings',
+            'embeddings_period_aware': 'Period-Aware Embeddings',
+            'embeddings_openai': 'OpenAI Embeddings',
+            'definitions_pattern': 'Definition Extraction'
+        };
+        const toolName = toolNames[toolValue] || toolValue;
+
+        // Check if message already shown
+        if (document.getElementById('dependency-alert')) return;
+
+        const alertHtml = `
+            <div id="dependency-alert" class="alert alert-info alert-dismissible fade show py-2" role="alert">
+                <small>
+                    <i class="fas fa-info-circle me-1"></i>
+                    <strong>Paragraph Segmentation</strong> auto-selected. ${toolName} produces better results when text is segmented first.
+                </small>
+                <button type="button" class="btn-close btn-sm" data-bs-dismiss="alert"></button>
+            </div>
+        `;
+
+        const selectionSummary = document.getElementById('selection-summary');
+        selectionSummary.insertAdjacentHTML('beforebegin', alertHtml);
+
+        // Auto-dismiss after 8 seconds
+        setTimeout(() => {
+            const alert = document.getElementById('dependency-alert');
+            if (alert) alert.remove();
+        }, 8000);
+    }
 
     function updateRunButton() {
         const checkedTools = Array.from(toolCheckboxes).filter(cb => cb.checked);
@@ -524,7 +579,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 'segment_sentence',
                 'embeddings_period_aware',
                 'entities_spacy',
-                'definitions_spacy',
+                'definitions_pattern',
                 'temporal_spacy'
             ];
 
@@ -553,7 +608,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 'embeddings_period_aware',
                 'embeddings_openai',
                 'entities_spacy',
-                'definitions_spacy',
+                'definitions_pattern',
                 'temporal_spacy'
             ];
 
@@ -739,9 +794,10 @@ document.addEventListener('DOMContentLoaded', function() {
             'segment_paragraph': 'Paragraph Segmentation',
             'segment_sentence': 'Sentence Segmentation',
             'embeddings_local': 'Local Embeddings',
+            'embeddings_period_aware': 'Period-Aware Embeddings',
             'embeddings_openai': 'OpenAI Embeddings',
             'entities_spacy': 'Entity Extraction (spaCy)',
-            'definitions_spacy': 'Definition Extraction',
+            'definitions_pattern': 'Definition Extraction',
             'temporal_spacy': 'Temporal Extraction'
         };
         return names[toolName] || toolName;
