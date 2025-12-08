@@ -300,3 +300,7 @@ site/
 /node_modules
 package-lock.json
 package.json
+
+# Local development scripts (contain hardcoded paths)
+start_dev.sh
+start_celery_worker.sh
