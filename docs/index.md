@@ -1,10 +1,5 @@
 # OntExtract Documentation
 
-<div style="float: right; margin-left: 1em; margin-bottom: 0.5em;">
-  <img class="dark-only" src="assets/images/llm-attribution-dark.png" alt="Written with Claude" width="120">
-  <img class="light-only" src="assets/images/llm-attribution.png" alt="Written with Claude" width="120">
-</div>
-
 Welcome to the OntExtract user manual.
 
 ## About OntExtract
@@ -35,7 +30,7 @@ OntExtract guides you through a 6-step workflow for semantic change analysis:
 | 1 | **Define Terms** - Create anchor terms to track semantic evolution | [Create Anchor Terms](how-to/create-anchor-terms.md) |
 | 2 | **Upload Sources** - Add documents from different historical periods | [Upload Documents](how-to/upload-documents.md) |
 | 3 | **Create Experiment** - Link terms to document sets with temporal periods | [Create Temporal Experiment](how-to/create-temporal-experiment.md) |
-| 4 | **LLM Orchestration** - AI suggests optimal processing pipelines | [LLM Orchestration](how-to/llm-orchestration.md) |
+| 4 | **LLM Orchestration** - AI suggests processing pipelines | [LLM Orchestration](how-to/llm-orchestration.md) |
 | 5 | **Execute Pipeline** - Process documents with selected tools | [Process Documents](how-to/document-processing.md) |
 | 6 | **View Results** - Explore semantic drift and provenance graphs | [View Results](how-to/view-results.md) |
 

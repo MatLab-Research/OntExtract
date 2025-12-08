@@ -4,7 +4,7 @@ This guide covers the AI-assisted workflow for analyzing experiments.
 
 ## Overview
 
-LLM Orchestration is available in API-enhanced mode (requires Anthropic API key). The system analyzes your experiment and recommends optimal processing strategies for each document.
+LLM Orchestration is available in API-enhanced mode (requires Anthropic API key). The system analyzes your experiment and recommends processing strategies for each document.
 
 ## Prerequisites
 

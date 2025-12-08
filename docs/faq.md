@@ -6,7 +6,7 @@ Common questions about OntExtract.
 
 ### What is OntExtract?
 
-OntExtract provides a unified interface for document processing with integrated provenance tracking. The system operates in two modes: standalone mode uses established NLP libraries without external dependencies, while API-enhanced mode adds LLM orchestration for automated tool selection.
+OntExtract is a document processing system with integrated provenance tracking. It operates in two modes: standalone mode uses established NLP libraries without external dependencies, while API-enhanced mode adds LLM orchestration for automated tool selection.
 
 ### Do I need an API key to use OntExtract?
 

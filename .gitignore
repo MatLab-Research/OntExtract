@@ -289,3 +289,7 @@ site/
 *.backup
 *_backup_*.html
 *_old_backup_*.html
+
+/node_modules
+package-lock.json
+package.json
