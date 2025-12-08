@@ -14,11 +14,11 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy requirements first for better caching
-COPY requirements.txt .
+COPY requirements-docker.txt .
 
-# Install Python dependencies
+# Install Python dependencies (CPU-only PyTorch to save ~2GB)
 RUN pip install --no-cache-dir --upgrade pip && \
-    pip install --no-cache-dir -r requirements.txt
+    pip install --no-cache-dir --extra-index-url https://download.pytorch.org/whl/cpu -r requirements-docker.txt
 
 # Download spaCy model
 RUN python -m spacy download en_core_web_sm

@@ -1,7 +1,7 @@
 """Add 'cleaned' to version_type constraint
 
-Revision ID: 20251207_add_cleaned_version_type
-Revises: 20251207_fix_prov_relationships_case_constraints
+Revision ID: 20251207_cleaned
+Revises: 20251207_fix_case
 Create Date: 2025-12-07
 
 Adds 'cleaned' as a valid version_type for documents.
@@ -14,7 +14,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision = '20251207_add_cleaned_version_type'
+revision = '20251207_cleaned'
 down_revision = '20251207_fix_case'
 branch_labels = None
 depends_on = None
