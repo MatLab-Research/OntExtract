@@ -262,7 +262,32 @@ class InheritanceVersioningService:
                            f"for document {root_document.id}, experiment {experiment_id}")
                 return existing_version, False
 
-            # 3. Create new experimental version
+            # 3. Find best source document: prefer cleaned version if available
+            # This allows experiments to automatically use LLM-cleaned text
+            cleaned_version = Document.query.filter_by(
+                source_document_id=root_document.id,
+                version_type='cleaned'
+            ).order_by(Document.created_at.desc()).first()
+
+            # Use cleaned version's content if available, otherwise use root
+            if cleaned_version:
+                content_source = cleaned_version
+                derived_from_info = {
+                    'source_version_id': cleaned_version.id,
+                    'source_version_number': cleaned_version.version_number,
+                    'source_version_type': 'cleaned'
+                }
+                logger.info(f"Using cleaned version {cleaned_version.id} (v{cleaned_version.version_number}) "
+                           f"as content source for experiment {experiment_id}")
+            else:
+                content_source = root_document
+                derived_from_info = {
+                    'source_version_id': root_document.id,
+                    'source_version_number': root_document.version_number,
+                    'source_version_type': 'original'
+                }
+
+            # 4. Create new experimental version
             latest_version = InheritanceVersioningService._get_latest_version(root_document.id)
             new_version_number = (latest_version.version_number if latest_version else 0) + 1
 
@@ -270,6 +295,13 @@ class InheritanceVersioningService:
             from app.models import Experiment
             experiment = Experiment.query.get(experiment_id)
             experiment_name = experiment.name if experiment else f"Experiment {experiment_id}"
+
+            # Build processing metadata with derivation info
+            processing_metadata = {
+                'experiment_name': experiment_name,
+                'created_for': 'experiment',
+                'derived_from': derived_from_info
+            }
 
             new_version = Document(
                 title=root_document.title,  # Keep original title clean
@@ -280,28 +312,28 @@ class InheritanceVersioningService:
                 original_filename=root_document.original_filename,  # Copy filename for file documents
                 file_path=root_document.file_path,  # Copy file path
                 file_size=root_document.file_size,  # Copy file size
-                content=root_document.content,  # Start with original content
-                content_preview=root_document.content_preview,
+                content=content_source.content,  # Use content from best source (cleaned or original)
+                content_preview=content_source.content_preview,
                 detected_language=root_document.detected_language,
                 language_confidence=root_document.language_confidence,
                 authors=root_document.authors,  # Copy authors
                 publication_date=root_document.publication_date,  # Copy publication date for temporal analysis
                 status='active',
-                word_count=root_document.word_count,
-                character_count=root_document.character_count,
+                word_count=content_source.word_count,
+                character_count=content_source.character_count,
                 user_id=root_document.user_id,
                 version_number=new_version_number,
                 version_type='experimental',
                 source_document_id=root_document.id,
                 experiment_id=experiment_id,
                 processing_notes=f"Experimental version for {experiment_name}",
-                processing_metadata={'experiment_name': experiment_name, 'created_for': 'experiment'}
+                processing_metadata=processing_metadata
             )
 
             db.session.add(new_version)
             db.session.flush()  # Get the ID
 
-            # 4. Copy metadata from root document
+            # 5. Copy metadata from root document
             if root_document.source_metadata:
                 new_version.source_metadata = root_document.source_metadata
 
@@ -321,27 +353,36 @@ class InheritanceVersioningService:
                 )
                 db.session.add(new_temporal)
 
-            # 5. PROV-O: Track experiment version creation
+            # 6. PROV-O: Track experiment version creation
+            # Note: Still uses root_document for provenance chain integrity
             from app.services.provenance_service import ProvenanceService
             ProvenanceService.track_experiment_version_creation(
                 new_version, root_document, experiment, user
             )
 
-            # 6. Record version change in changelog
+            # 7. Record version change in changelog with derivation info
+            changelog_metadata = {
+                'experiment_id': experiment_id,
+                'experiment_name': experiment_name,
+                'content_derived_from': derived_from_info
+            }
+            source_type = derived_from_info['source_version_type']
+            source_ver = derived_from_info['source_version_number']
             InheritanceVersioningService._record_version_change(
                 new_version.id,
                 new_version_number,
                 'experimental_version',
-                f"Created experimental version for {experiment_name}",
-                root_document.version_number,
+                f"Created experimental version for {experiment_name} (content from {source_type} v{source_ver})",
+                content_source.version_number,
                 root_document.user_id,
-                {'experiment_id': experiment_id, 'experiment_name': experiment_name}
+                changelog_metadata
             )
 
             db.session.commit()
 
+            source_desc = f"cleaned v{cleaned_version.version_number}" if cleaned_version else "original"
             logger.info(f"Created new experiment version {new_version_number} (ID: {new_version.id}) "
-                       f"from document {root_document.id} for experiment {experiment_id}")
+                       f"for experiment {experiment_id}, content from {source_desc}")
 
             return new_version, True
 

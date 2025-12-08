@@ -33,6 +33,20 @@
                             Older Version
                         </span>
                         {% endif %}
+
+                        {# Check if a cleaned version exists in the family #}
+                        {% set cleaned_versions = version_family | selectattr('version_type', 'equalto', 'cleaned') | list %}
+                        {% if cleaned_versions %}
+                            {% if document.version_type == 'cleaned' %}
+                            <span class="badge bg-success ms-2" title="This is a cleaned version">
+                                <i class="fas fa-broom me-1"></i>Cleaned
+                            </span>
+                            {% else %}
+                            <span class="badge bg-info ms-2" title="A cleaned version is available - select from dropdown">
+                                <i class="fas fa-broom me-1"></i>Cleaned Available
+                            </span>
+                            {% endif %}
+                        {% endif %}
                     </div>
                     {% endif %}
 
@@ -60,12 +74,18 @@
                         <i class="fas fa-ellipsis-v"></i>
                     </button>
                     <ul class="dropdown-menu">
-                        <li><a class="dropdown-item" href="{{ url_for('text_input.document_edit', document_uuid=document.uuid) }}">
-                                <i class="fas fa-edit me-2"></i>Edit Metadata
-                            </a></li>
                         <li><a class="dropdown-item" href="#" onclick="exportDocument('{{ document.uuid }}')">
                                 <i class="fas fa-download me-2"></i>Export
                             </a></li>
+                        {% if config.ANTHROPIC_API_KEY %}
+                        <li>
+                            <hr class="dropdown-divider">
+                        </li>
+                        <li class="dropdown-header">Analysis</li>
+                        <li><a class="dropdown-item" href="#" onclick="openTextCleanupModal('{{ document.uuid }}')">
+                                <i class="fas fa-broom me-2"></i>Clean with LLM
+                            </a></li>
+                        {% endif %}
                         <li>
                             <hr class="dropdown-divider">
                         </li>
@@ -1183,4 +1203,7 @@
         </div>
     </div>
 </div>
+
+<!-- Text Cleanup Modal - for LLM-based text cleaning -->
+{% include 'processing/text_cleanup_modal.html' %}
 {% endblock %}

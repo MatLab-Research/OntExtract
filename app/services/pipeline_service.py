@@ -167,15 +167,15 @@ class PipelineService(BaseService):
                 else:
                     status = 'pending'
 
-                # Check if document has completed LLM cleanup
-                from app.models import ProcessingJob
-                has_cleanup = ProcessingJob.query.filter_by(
-                    document_id=doc.id,
-                    job_type='clean_text',
-                    status='completed'
+                # Check if a cleaned version exists in the document family
+                # This checks for version_type='cleaned' in the family, not just ProcessingJob
+                root_doc = doc.get_root_document()
+                has_cleanup = Document.query.filter_by(
+                    source_document_id=root_doc.id,
+                    version_type='cleaned'
                 ).first() is not None
 
-                # Add LLM cleanup to operations if completed
+                # Add LLM cleanup to operations if a cleaned version exists
                 if has_cleanup:
                     operations_list.append({
                         'type': 'cleanup',
@@ -187,6 +187,11 @@ class PipelineService(BaseService):
                 total_ops = len(manual_ops) + len(index_entries)
                 completed_ops = sum(1 for op in manual_ops if op.status == 'completed') + \
                                 sum(1 for entry in index_entries if entry.status == 'completed')
+
+                # Extract content source info from processing_metadata (for experimental versions)
+                derived_from = None
+                if doc.processing_metadata and isinstance(doc.processing_metadata, dict):
+                    derived_from = doc.processing_metadata.get('derived_from')
 
                 processed_docs.append({
                     'id': doc.id,
@@ -203,7 +208,8 @@ class PipelineService(BaseService):
                     'completed_operations': completed_ops,
                     'has_cleanup': has_cleanup,  # Track if LLM cleanup has been done
                     'version_number': doc.version_number or 1,  # Track version
-                    'version_type': doc.version_type  # Track version type (processed, experimental, etc.)
+                    'version_type': doc.version_type,  # Track version type (processed, experimental, etc.)
+                    'derived_from': derived_from  # Source version info (cleaned v2, original v1, etc.)
                 })
 
             # Calculate overall progress
@@ -359,12 +365,12 @@ class PipelineService(BaseService):
             all_versions = []
             is_latest_version = True
 
-            # Check if document has completed LLM cleanup
-            from app.models import ProcessingJob
-            has_cleanup = ProcessingJob.query.filter_by(
-                document_id=document.id,
-                job_type='clean_text',
-                status='completed'
+            # Check if a cleaned version exists in the document family
+            # This checks for version_type='cleaned' in the family
+            root_doc = document.get_root_document()
+            has_cleanup = Document.query.filter_by(
+                source_document_id=root_doc.id,
+                version_type='cleaned'
             ).first() is not None
 
             return {

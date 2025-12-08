@@ -81,36 +81,48 @@
         padding: 0.2rem 0.5rem;
         border-radius: 3px;
     }
+
+    /* Wider document filter dropdown */
+    #documentFilter {
+        min-width: 250px;
+    }
+
+    /* Add padding to sidebar content */
+    .sidebar-content {
+        padding: 0.5rem;
+    }
+
+    /* Add padding to main card body */
+    .main-content {
+        padding-left: 0.5rem;
+        padding-right: 0.5rem;
+    }
+
+    /* Add left margin to type filter buttons */
+    .temporal-type-filter {
+        padding-left: 0.5rem;
+    }
 </style>
 {% endblock %}
 
 {% block results_stats %}
 <div class="row mb-4 g-3">
-    <div class="col-md-3">
+    <div class="col-md-4">
         <div class="stat-card">
             <div class="stat-value text-warning">{{ total_expressions }}</div>
             <div class="stat-label">Total Expressions</div>
         </div>
     </div>
-    <div class="col-md-3">
+    <div class="col-md-4">
         <div class="stat-card">
             <div class="stat-value text-info">{{ expressions_by_type | length }}</div>
             <div class="stat-label">Expression Types</div>
         </div>
     </div>
-    <div class="col-md-3">
+    <div class="col-md-4">
         <div class="stat-card">
-            <div class="stat-value text-success">{{ expressions_by_document | length }}</div>
+            <div class="stat-value" style="color: #adb5bd;">{{ expressions_by_document | length }}</div>
             <div class="stat-label">Documents</div>
-        </div>
-    </div>
-    <div class="col-md-3">
-        <div class="stat-card">
-            <div class="stat-value text-secondary">
-                {% set spacy_count = temporal_expressions | selectattr('source', 'equalto', 'spacy') | list | length %}
-                {{ spacy_count }}
-            </div>
-            <div class="stat-label">spaCy Extracted</div>
         </div>
     </div>
 </div>
@@ -139,13 +151,19 @@
 </div>
 
 <div class="results-card accent-warning mb-4">
-    <div class="card-header">
+    <div class="card-header d-flex justify-content-between align-items-center">
         <h5 class="mb-0">
             <i class="fas fa-clock me-2"></i>Extracted Temporal Expressions
             <span class="badge bg-warning text-dark ms-2">{{ total_expressions }}</span>
         </h5>
+        <select class="form-select form-select-sm bg-dark text-light border-secondary" id="documentFilter" onchange="filterByDocument(this.value)" style="width: auto;">
+            <option value="all">All Documents</option>
+            {% for doc_id, data in expressions_by_document.items() %}
+            <option value="{{ data.document.uuid if data.document else doc_id }}">{{ data.document.title | truncate(40) if data.document else 'Unknown' }}</option>
+            {% endfor %}
+        </select>
     </div>
-    <div class="card-body">
+    <div class="card-body main-content">
         <!-- Expression Type Filter -->
         <div class="temporal-type-filter">
             <button class="temporal-type-btn active" onclick="filterByExprType('all')" data-type="all">
@@ -158,16 +176,9 @@
             {% endfor %}
         </div>
 
-        <!-- Source Filter -->
-        <div class="filter-tabs mb-3" style="--accent-color: #ffc107;">
-            <button class="filter-tab active" data-source="all" onclick="filterBySource('all')">All Sources</button>
-            <button class="filter-tab" data-source="spacy" onclick="filterBySource('spacy')">spaCy</button>
-            <button class="filter-tab" data-source="manual" onclick="filterBySource('manual')">Manual</button>
-        </div>
-
         {% if temporal_expressions %}
             {% for expr in temporal_expressions %}
-            <div class="result-item" data-source="{{ expr.source }}" data-expr-type="{{ expr.type }}">
+            <div class="result-item" data-expr-type="{{ expr.type }}" data-document-uuid="{{ expr.document_uuid }}">
                 <div class="item-header">
                     <div class="d-flex align-items-center gap-2">
                         <span class="temporal-text">{{ expr.text }}</span>
@@ -179,12 +190,9 @@
                         <span class="year-badge">{{ expr.document_year }}</span>
                         {% endif %}
                     </div>
-                    <div class="d-flex align-items-center gap-2">
-                        {% if expr.confidence %}
-                        <small class="text-muted">{{ (expr.confidence * 100) | round }}%</small>
-                        {% endif %}
-                        <span class="source-badge {{ expr.source }}">{{ expr.source }}</span>
-                    </div>
+                    {% if expr.confidence %}
+                    <small class="text-muted">{{ (expr.confidence * 100) | round }}%</small>
+                    {% endif %}
                 </div>
                 <div class="item-body">
                     {% if expr.context %}
@@ -222,7 +230,7 @@
     <div class="card-header">
         <h6 class="mb-0"><i class="fas fa-chart-pie me-2"></i>By Expression Type</h6>
     </div>
-    <div class="card-body">
+    <div class="card-body sidebar-content">
         {% if expressions_by_type %}
             {% for expr_type, type_exprs in expressions_by_type.items() | sort(attribute='1|length', reverse=true) %}
             <div class="d-flex justify-content-between align-items-center py-2 {% if not loop.last %}border-bottom border-secondary{% endif %}">
@@ -240,7 +248,7 @@
     <div class="card-header">
         <h6 class="mb-0"><i class="fas fa-file-alt me-2"></i>By Document</h6>
     </div>
-    <div class="card-body">
+    <div class="card-body sidebar-content">
         {% if expressions_by_document %}
             {% for doc_id, data in expressions_by_document.items() %}
             <div class="d-flex justify-content-between align-items-center py-2 {% if not loop.last %}border-bottom border-secondary{% endif %}">
@@ -282,9 +290,9 @@
 
 {% block results_js %}
 <script>
-// Expression type filtering
+// Expression type and document filtering
 let currentExprType = 'all';
-let currentSource = 'all';
+let currentDocument = 'all';
 
 function filterByExprType(exprType) {
     currentExprType = exprType;
@@ -297,14 +305,8 @@ function filterByExprType(exprType) {
     applyFilters();
 }
 
-function filterBySource(source) {
-    currentSource = source;
-
-    // Update tab states
-    document.querySelectorAll('.filter-tab').forEach(tab => {
-        tab.classList.toggle('active', tab.dataset.source === source);
-    });
-
+function filterByDocument(docUuid) {
+    currentDocument = docUuid;
     applyFilters();
 }
 
@@ -312,13 +314,13 @@ function applyFilters() {
     const items = document.querySelectorAll('.result-item');
 
     items.forEach(item => {
-        const itemSource = item.dataset.source;
         const itemType = item.dataset.exprType;
+        const itemDocUuid = item.dataset.documentUuid;
 
-        const sourceMatch = currentSource === 'all' || itemSource === currentSource;
         const typeMatch = currentExprType === 'all' || itemType === currentExprType;
+        const documentMatch = currentDocument === 'all' || itemDocUuid === currentDocument;
 
-        item.style.display = sourceMatch && typeMatch ? 'block' : 'none';
+        item.style.display = typeMatch && documentMatch ? 'block' : 'none';
     });
 
     updateVisibleCount();

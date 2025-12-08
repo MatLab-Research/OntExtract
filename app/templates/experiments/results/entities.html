@@ -78,36 +78,44 @@
         padding: 0.2rem 0.5rem;
         border-radius: 3px;
     }
+
+    /* Wider document filter dropdown */
+    #documentFilter {
+        min-width: 250px;
+    }
+
+    /* Add padding to sidebar content */
+    .sidebar-content {
+        padding-left: 0.5rem;
+        padding-right: 0.5rem;
+    }
+
+    /* Add padding to main card body */
+    .main-content {
+        padding-left: 0.5rem;
+        padding-right: 0.5rem;
+    }
 </style>
 {% endblock %}
 
 {% block results_stats %}
 <div class="row mb-4 g-3">
-    <div class="col-md-3">
+    <div class="col-md-4">
         <div class="stat-card">
             <div class="stat-value text-success">{{ total_entities }}</div>
             <div class="stat-label">Total Entities</div>
         </div>
     </div>
-    <div class="col-md-3">
+    <div class="col-md-4">
         <div class="stat-card">
             <div class="stat-value text-info">{{ entities_by_type | length }}</div>
             <div class="stat-label">Entity Types</div>
         </div>
     </div>
-    <div class="col-md-3">
+    <div class="col-md-4">
         <div class="stat-card">
             <div class="stat-value text-warning">{{ entities_by_document | length }}</div>
             <div class="stat-label">Documents</div>
-        </div>
-    </div>
-    <div class="col-md-3">
-        <div class="stat-card">
-            <div class="stat-value text-secondary">
-                {% set spacy_count = entities | selectattr('source', 'equalto', 'spacy') | list | length %}
-                {{ spacy_count }}
-            </div>
-            <div class="stat-label">spaCy Extracted</div>
         </div>
     </div>
 </div>
@@ -118,13 +126,19 @@
 
 {% block results_content %}
 <div class="results-card accent-success mb-4">
-    <div class="card-header">
+    <div class="card-header d-flex justify-content-between align-items-center">
         <h5 class="mb-0">
             <i class="fas fa-tags me-2"></i>Extracted Entities
             <span class="badge bg-success ms-2">{{ total_entities }}</span>
         </h5>
+        <select class="form-select form-select-sm bg-dark text-light border-secondary" id="documentFilter" onchange="filterByDocument(this.value)" style="width: auto;">
+            <option value="all">All Documents</option>
+            {% for doc_id, data in entities_by_document.items() %}
+            <option value="{{ data.document.uuid if data.document else doc_id }}">{{ data.document.title | truncate(40) if data.document else 'Unknown' }}</option>
+            {% endfor %}
+        </select>
     </div>
-    <div class="card-body">
+    <div class="card-body main-content">
         <!-- Entity Type Filter -->
         <div class="entity-type-filter">
             <button class="entity-type-btn active" onclick="filterByEntityType('all')" data-type="all">
@@ -137,16 +151,9 @@
             {% endfor %}
         </div>
 
-        <!-- Source Filter -->
-        <div class="filter-tabs mb-3" style="--accent-color: #198754;">
-            <button class="filter-tab active" data-source="all" onclick="filterBySource('all')">All Sources</button>
-            <button class="filter-tab" data-source="spacy" onclick="filterBySource('spacy')">spaCy</button>
-            <button class="filter-tab" data-source="manual" onclick="filterBySource('manual')">Manual</button>
-        </div>
-
         {% if entities %}
             {% for entity in entities %}
-            <div class="result-item" data-source="{{ entity.source }}" data-entity-type="{{ entity.entity_type }}">
+            <div class="result-item" data-source="{{ entity.source }}" data-entity-type="{{ entity.entity_type }}" data-document-uuid="{{ entity.document_uuid }}">
                 <div class="item-header">
                     <div class="d-flex align-items-center gap-2">
                         <span class="entity-text">{{ entity.text }}</span>
@@ -155,12 +162,9 @@
                         <span class="year-badge">{{ entity.document_year }}</span>
                         {% endif %}
                     </div>
-                    <div class="d-flex align-items-center gap-2">
-                        {% if entity.confidence %}
-                        <small class="text-muted">{{ (entity.confidence * 100) | round }}%</small>
-                        {% endif %}
-                        <span class="source-badge {{ entity.source }}">{{ entity.source }}</span>
-                    </div>
+                    {% if entity.confidence %}
+                    <small class="text-muted">{{ (entity.confidence * 100) | round }}%</small>
+                    {% endif %}
                 </div>
                 <div class="item-body">
                     {% if entity.context %}
@@ -193,9 +197,29 @@
 {% block results_sidebar %}
 <div class="results-card accent-success mb-4">
     <div class="card-header">
+        <h6 class="mb-0"><i class="fas fa-info-circle me-2"></i>About Entity Extraction</h6>
+    </div>
+    <div class="card-body sidebar-content">
+        <p class="small text-muted mb-2">
+            Entities are extracted using <strong>spaCy</strong> with the <code>en_core_web_sm</code> model (general-purpose English NER).
+        </p>
+        <p class="small text-muted mb-2">
+            <strong>Planned improvements:</strong>
+        </p>
+        <ul class="small text-muted mb-0 ps-3">
+            <li>Domain-specific model fine-tuning</li>
+            <li>LLM-enhanced entity validation</li>
+            <li>Custom entity type training</li>
+            <li>Cross-document entity linking</li>
+        </ul>
+    </div>
+</div>
+
+<div class="results-card accent-success mb-4">
+    <div class="card-header">
         <h6 class="mb-0"><i class="fas fa-chart-pie me-2"></i>By Entity Type</h6>
     </div>
-    <div class="card-body">
+    <div class="card-body sidebar-content">
         {% if entities_by_type %}
             {% for entity_type, type_entities in entities_by_type.items() | sort(attribute='1|length', reverse=true) %}
             <div class="d-flex justify-content-between align-items-center py-2 {% if not loop.last %}border-bottom border-secondary{% endif %}">
@@ -209,11 +233,11 @@
     </div>
 </div>
 
-<div class="results-card accent-success mb-4">
+<div class="results-card accent-success">
     <div class="card-header">
         <h6 class="mb-0"><i class="fas fa-file-alt me-2"></i>By Document</h6>
     </div>
-    <div class="card-body">
+    <div class="card-body sidebar-content">
         {% if entities_by_document %}
             {% for doc_id, data in entities_by_document.items() %}
             <div class="d-flex justify-content-between align-items-center py-2 {% if not loop.last %}border-bottom border-secondary{% endif %}">
@@ -238,9 +262,9 @@
 
 {% block results_js %}
 <script>
-// Entity type filtering
+// Entity filtering
 let currentEntityType = 'all';
-let currentSource = 'all';
+let currentDocument = 'all';
 
 function filterByEntityType(entityType) {
     currentEntityType = entityType;
@@ -253,14 +277,8 @@ function filterByEntityType(entityType) {
     applyFilters();
 }
 
-function filterBySource(source) {
-    currentSource = source;
-
-    // Update tab states
-    document.querySelectorAll('.filter-tab').forEach(tab => {
-        tab.classList.toggle('active', tab.dataset.source === source);
-    });
-
+function filterByDocument(docUuid) {
+    currentDocument = docUuid;
     applyFilters();
 }
 
@@ -268,13 +286,13 @@ function applyFilters() {
     const items = document.querySelectorAll('.result-item');
 
     items.forEach(item => {
-        const itemSource = item.dataset.source;
         const itemType = item.dataset.entityType;
+        const itemDocUuid = item.dataset.documentUuid;
 
-        const sourceMatch = currentSource === 'all' || itemSource === currentSource;
         const typeMatch = currentEntityType === 'all' || itemType === currentEntityType;
+        const documentMatch = currentDocument === 'all' || itemDocUuid === currentDocument;
 
-        item.style.display = sourceMatch && typeMatch ? 'block' : 'none';
+        item.style.display = typeMatch && documentMatch ? 'block' : 'none';
     });
 
     updateVisibleCount();

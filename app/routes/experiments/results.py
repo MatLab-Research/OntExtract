@@ -570,13 +570,23 @@ def experiment_embeddings_results(experiment_id):
         # Check for period_aware_embedding results
         if 'period_aware_embedding' in doc_results:
             tool_result = doc_results['period_aware_embedding']
-            if tool_result.get('status') == 'executed' and 'results' in tool_result:
-                results = tool_result['results']
-                metadata = results.get('metadata', {})
-                data = results.get('data', {})
+            if tool_result.get('status') == 'executed':
+                # Handle both old format (results.metadata) and new format (metadata directly)
+                if 'results' in tool_result:
+                    results = tool_result['results']
+                    metadata = results.get('metadata', {})
+                    data = results.get('data', {})
+                else:
+                    # New format: metadata is directly on tool_result
+                    metadata = tool_result.get('metadata', {})
+                    data = {}
 
                 # Data might be a dict (single embedding) or list
-                chunk_count = 1 if isinstance(data, dict) else len(data) if data else 1
+                chunk_count = tool_result.get('count', 1)
+                if isinstance(data, dict) and data:
+                    chunk_count = 1
+                elif isinstance(data, list):
+                    chunk_count = len(data)
 
                 info = {
                     'document_id': doc_id,

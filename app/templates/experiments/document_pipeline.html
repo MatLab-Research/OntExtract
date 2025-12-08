@@ -385,6 +385,18 @@
                                             v{{ doc.version_number }}{% if doc.version_type %} ({{ doc.version_type }}){% endif %}
                                         </span>
                                     {% endif %}
+                                    {# Show content source indicator for experimental versions #}
+                                    {% if doc.derived_from %}
+                                        {% if doc.derived_from.source_version_type == 'cleaned' %}
+                                        <span class="badge bg-success ms-2" title="Content from cleaned version">
+                                            <i class="fas fa-broom me-1"></i>Source: Cleaned v{{ doc.derived_from.source_version_number }}
+                                        </span>
+                                        {% else %}
+                                        <span class="badge bg-secondary ms-2" title="Content from original version">
+                                            Source: Original v{{ doc.derived_from.source_version_number }}
+                                        </span>
+                                        {% endif %}
+                                    {% endif %}
                                 </div>
                             </div>
                             <div class="d-flex gap-2">

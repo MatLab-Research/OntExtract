@@ -1020,11 +1020,19 @@ def save_cleaned_text(document_uuid):
             processing_metadata=metadata
         )
 
+        # Set version_type to 'cleaned' - this is a canonical cleaned version
+        # that can be used as the source for experimental versions
+        cleaned_version.version_type = 'cleaned'
+
         # Update the content with the cleaned version
         cleaned_version.content = cleaned_content
         cleaned_version.content_preview = cleaned_content[:500] if cleaned_content else None
         cleaned_version.character_count = len(cleaned_content)
         cleaned_version.word_count = len(cleaned_content.split()) if cleaned_content else 0
+
+        # Flush immediately to persist all changes and avoid autoflush issues
+        # when querying related documents later
+        db.session.flush()
 
         # Find the original cleanup job to get model and token information
         original_cleanup_job = ProcessingJob.query.filter_by(

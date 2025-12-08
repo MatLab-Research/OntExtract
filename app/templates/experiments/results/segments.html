@@ -109,6 +109,16 @@
         font-weight: 600;
         font-size: 1rem;
     }
+
+    /* Wider document filter dropdown */
+    #documentFilter {
+        min-width: 250px;
+    }
+
+    /* Add padding to sidebar document summary */
+    .results-sidebar-content {
+        padding-left: 0.5rem;
+    }
 </style>
 {% endblock %}
 
@@ -155,7 +165,7 @@
             <select class="form-select form-select-sm bg-dark text-light border-secondary" id="documentFilter" onchange="filterByDocument(this.value)" style="width: auto;">
                 <option value="all">All Documents</option>
                 {% for doc_id, data in segments_by_document.items() %}
-                <option value="{{ doc_id }}">{{ data.document.title | truncate(25) if data.document else 'Unknown' }}</option>
+                <option value="{{ doc_id }}">{{ data.document.title | truncate(40) if data.document else 'Unknown' }}</option>
                 {% endfor %}
             </select>
             <button class="btn btn-sm btn-outline-warning" onclick="toggleAllSegments()" id="toggleAllBtn">
@@ -230,7 +240,7 @@
     <div class="card-header">
         <h6 class="mb-0"><i class="fas fa-file-alt me-2"></i>Document Summary</h6>
     </div>
-    <div class="card-body">
+    <div class="card-body results-sidebar-content">
         {% if segments_by_document %}
             {% for doc_id, data in segments_by_document.items() %}
             <div class="d-flex justify-content-between align-items-center py-2 {% if not loop.last %}border-bottom border-secondary{% endif %}">

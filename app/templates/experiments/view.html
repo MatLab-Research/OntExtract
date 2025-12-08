@@ -385,6 +385,15 @@
                                                     {% if doc.version_number and doc.version_number > 1 %}
                                                     <span class="badge bg-secondary">v{{ doc.version_number }}</span>
                                                     {% endif %}
+                                                    {# Show content source indicator for experimental versions #}
+                                                    {% if doc.processing_metadata and doc.processing_metadata.derived_from %}
+                                                        {% set derived = doc.processing_metadata.derived_from %}
+                                                        {% if derived.source_version_type == 'cleaned' %}
+                                                        <span class="badge bg-success" title="Content from cleaned version">
+                                                            <i class="fas fa-broom"></i> v{{ derived.source_version_number }}
+                                                        </span>
+                                                        {% endif %}
+                                                    {% endif %}
                                                     {% if item.other_experiments_count > 0 %}
                                                     <span class="badge bg-info" title="Used in {{ item.other_experiments_count }} other experiment(s)">
                                                         +{{ item.other_experiments_count }}
