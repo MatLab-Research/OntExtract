@@ -26,16 +26,14 @@ OntExtract implements a 5-stage workflow for document analysis.
 
 ## Available NLP Tools
 
-| Tool | Purpose | Historical Text Adaptation |
-|------|---------|---------------------------|
-| Named Entity Recognition | Extract people, places, organizations | SpaCy with historical text models |
-| Temporal Expression Extraction | Identify dates, periods, durations | Historical date format handling |
-| Definition Extraction | Find concept definitions | Hybrid zero-shot + pattern matching with strict acronym validation |
-| Text Segmentation | Break documents into logical sections | Structure-aware splitting |
-| Embedding Generation | Create semantic vectors | Period-specific embedding models |
-| LLM Text Cleanup | Modernize OCR errors and spelling | Preservation of historical terminology |
-| Sentiment Analysis | Detect emotional tone | Calibrated for formal historical writing |
-| Keyword Extraction | Identify important terms | Domain-specific weighting |
+| Tool | Purpose | Implementation |
+|------|---------|----------------|
+| Named Entity Recognition | Extract people, places, organizations, dates | SpaCy en_core_web_sm with noun phrase extraction |
+| Temporal Expression Extraction | Identify dates, periods, durations | SpaCy DATE entities + regex patterns for decades/periods |
+| Definition Extraction | Find concept definitions | Hybrid: pattern matching + dependency parsing (optional zero-shot) |
+| Text Segmentation | Break documents into paragraphs/sentences | NLTK sentence tokenizer, paragraph splitting |
+| Embedding Generation | Create semantic vectors for similarity search | Period-aware model selection based on document year |
+| LLM Text Cleanup | Modernize OCR errors and archaic spelling | Claude-based with change tracking and review UI |
 
 ---
 

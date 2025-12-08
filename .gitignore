@@ -279,6 +279,13 @@ temp_*/
 data/
 */data/
 
+# Experiments directory (contains copyrighted academic papers - not for distribution)
+experiments/
+
+# Duplicate/redundant PDFs (keep papers/ as canonical location for own papers)
+OntExtract_Short_Paper.pdf
+app/static/papers/
+
 # Development review directory (temporary files for review before deletion)
 untracked_review/
 
