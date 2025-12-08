@@ -15,7 +15,7 @@ import sqlalchemy as sa
 
 # revision identifiers, used by Alembic.
 revision = '20251207_add_cleaned_version_type'
-down_revision = '20251207_fix_prov_relationships_case_constraints'
+down_revision = '20251207_fix_case'
 branch_labels = None
 depends_on = None
 
