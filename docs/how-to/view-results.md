@@ -21,6 +21,8 @@ Each document's processing results are stored as artifacts.
 2. Click the **Processing Artifacts** tab
 3. View artifacts grouped by operation type
 
+![Document Detail Page](../assets/images/screenshots/document-detail-content.png)
+
 ### Artifact Types
 
 | Type | Contents |
@@ -70,6 +72,12 @@ From the experiment page, use the **View Results** buttons to explore specific r
 | **Temporal** | Dates, periods, and temporal markers |
 
 Each view aggregates results from all documents in the experiment, making it easy to compare findings across your corpus.
+
+![Definition Results](../assets/images/screenshots/results-definitions-content.png)
+
+![Entity Results](../assets/images/screenshots/results-entities-content.png)
+
+![Temporal Results](../assets/images/screenshots/results-temporal-content.png)
 
 ### Timeline View
 

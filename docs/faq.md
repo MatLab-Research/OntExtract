@@ -42,7 +42,7 @@ LLM-enhanced features require an Anthropic API key:
 | Embeddings | Generate vectors for similarity | Both |
 | Entity Extraction | Identify people, places, orgs | Standalone |
 | Temporal Extraction | Find dates and periods | Standalone |
-| Definition Extraction | Hybrid zero-shot + pattern matching for definitions and acronyms | Standalone |
+| Definition Extraction | Pattern matching with strict validation for definitions and acronyms | Standalone |
 
 ### Does processing modify my original documents?
 

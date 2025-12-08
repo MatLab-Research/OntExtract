@@ -38,6 +38,8 @@ Four relationships enable workflow reconstruction:
 
 Access the provenance timeline at **Provenance** > **Timeline** to view a chronological audit trail of all activities.
 
+![Provenance Timeline](../assets/images/screenshots/provenance-timeline-content.png)
+
 ### Filtering the Timeline
 
 Filter provenance records by:

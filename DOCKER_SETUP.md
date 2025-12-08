@@ -63,8 +63,8 @@ This will:
 ### 4. Access the Application
 - **Web Interface**: http://localhost:8765
 - **Default Admin Login**: `admin` / `admin123` (change in production!)
-- **PostgreSQL**: localhost:5432 (user: postgres, password: ontextract_dev_password)
-- **Redis**: localhost:6379
+- **PostgreSQL**: localhost:5433 (user: postgres, password: ontextract_dev_password)
+- **Redis**: localhost:6380
 
 **Note**: A default admin account is automatically created on first startup. Change the password immediately in production!
 
@@ -147,7 +147,7 @@ docker-compose ps
 ## Troubleshooting
 
 ### Port Already in Use
-If ports 8765, 5432, or 6379 are already in use:
+If ports 8765, 5433, or 6380 are already in use:
 
 1. Stop conflicting services:
    ```bash
@@ -235,9 +235,11 @@ The Docker image includes pre-downloaded ML models to avoid first-run delays:
 | Model | Size | Purpose |
 |-------|------|---------|
 | `en_core_web_sm` (spaCy) | ~12MB | Sentence segmentation, NER |
-| `facebook/bart-large-mnli` | ~1.6GB | Zero-shot classification for definition extraction |
+| `facebook/bart-large-mnli` | ~1.6GB | Zero-shot classification (disabled by default) |
 
 These models are downloaded during image build, not at runtime.
+
+**Note**: Zero-shot classification for definition extraction is disabled by default due to CPU performance. Definition extraction uses pattern matching instead. Enable with `ENABLE_ZERO_SHOT_DEFINITIONS=true` if you have GPU acceleration.
 
 ---
 
@@ -290,8 +292,9 @@ source venv/bin/activate
 pip install -r requirements.txt
 python -m spacy download en_core_web_sm
 
-# Download BART model for definition extraction (~1.6GB)
-python -c "from transformers import pipeline; pipeline('zero-shot-classification', model='facebook/bart-large-mnli')"
+# Optional: Download BART model for zero-shot classification (~1.6GB)
+# Only needed if you enable ENABLE_ZERO_SHOT_DEFINITIONS=true
+# python -c "from transformers import pipeline; pipeline('zero-shot-classification', model='facebook/bart-large-mnli')"
 
 # Configure PostgreSQL
 sudo -u postgres psql -c "CREATE DATABASE ontextract_db;"

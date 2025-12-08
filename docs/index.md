@@ -57,7 +57,7 @@ Track how term meanings change across historical periods using timeline visualiz
 In API-enhanced mode, the LLM analyzes your experiment and recommends processing strategies through a 5-stage workflow: Analyze → Recommend → Review → Execute → Synthesize.
 
 ### Ontology-Informed Design
-Event types derived from a formally validated Semantic Change Ontology with 34 classes developed from 12 academic papers.
+Event types derived from a Semantic Change Ontology with 34 classes based on existing terminology from the literature.
 
 ### Provenance Tracking
 Complete W3C PROV-O provenance capture for all analysis steps. Every processing operation creates versioned outputs with queryable provenance chains.

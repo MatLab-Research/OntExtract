@@ -19,6 +19,8 @@ OntExtract offers two ways to create anchor terms: using **Connected Services** 
 
 Use authoritative lexicographic sources to establish well-documented anchor terms.
 
+![Add Term - Connected Services](../assets/images/screenshots/term-add-connected-services-content.png)
+
 1. Navigate to **Library → Terms** and click **Add New Anchor Term**
 2. Select a service to search:
 
@@ -120,6 +122,8 @@ Click any term to see:
 - **Context Anchors** - Related terms for semantic anchoring
 - **Temporal Versions** - Historical meaning snapshots (if created)
 - **Associated Experiments** - Where the term is used
+
+![Term Detail Page](../assets/images/screenshots/term-detail-content.png)
 
 ## Editing Terms
 

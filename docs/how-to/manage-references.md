@@ -47,6 +47,8 @@ References can be added from multiple locations:
 5. Fill in metadata (or let automatic extraction fill it for PDFs)
 6. Click **Upload Reference**
 
+![Reference Upload Page](../assets/images/screenshots/reference-upload-content.png)
+
 #### Automatic Metadata Extraction
 
 For PDF files, OntExtract automatically extracts:
