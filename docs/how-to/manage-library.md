@@ -1,10 +1,10 @@
-# How to Manage Your Library
+# How to Manage the Library
 
-This guide explains how to browse, search, and manage your document library in OntExtract.
+This guide explains how to browse, search, and manage the document library in OntExtract.
 
 ## Overview
 
-The **Library** section (accessible via **Library → Sources** in the navigation) is your central hub for managing all uploaded content. It displays both:
+The **Library** section (accessible via **Library → Sources** in the navigation) serves as the central hub for managing all uploaded content. It displays both:
 
 - **Documents** - Primary source materials for analysis (PDFs, text files, pasted content)
 - **References** - Canonical reference materials like dictionary entries and academic papers
@@ -46,7 +46,6 @@ OntExtract maintains version history for processed documents.
 2. The version list expands showing:
    - Version number
    - Version type (Original, Processed)
-   - Processing type applied
    - Creation timestamp
 
 ### Version Types
@@ -108,18 +107,22 @@ Click any document title or the **View Latest** button to see:
 ### Delete a Single Document
 
 1. Navigate to the document detail page
-2. Click the **Delete** button
-3. Confirm the deletion
+2. Click the menu button (three dots) in the top-right
+3. Select **Delete**
+4. Confirm the deletion
 
 > **Note**: Documents that are part of experiments cannot be deleted directly. Remove them from experiments first, or delete the experiment.
 
 ### Delete All Versions
 
-If a document has multiple versions:
+If a document has multiple versions (original + processed):
 
 1. Navigate to any version's detail page
-2. Click **Delete All Versions**
-3. Confirm to remove all versions of this document family
+2. Click the menu button (three dots) in the top-right
+3. Select **Delete All Versions**
+4. Confirm to remove all versions of this document family
+
+This option only appears when a document has multiple versions.
 
 ### Delete All Documents (Admin Only)
 
@@ -156,11 +159,10 @@ See [Upload Documents](upload-documents.md) for detailed instructions.
 
 - The library paginates automatically (10 items per page)
 - Large libraries may take a moment to load
-- Use filters to narrow down your search
+- Use filters to narrow down search results
 
 ## Related Guides
 
 - [Upload Documents](upload-documents.md)
-- [Manage References](manage-references.md)
 - [Create Temporal Experiment](create-temporal-experiment.md)
 - [Process Documents](document-processing.md)

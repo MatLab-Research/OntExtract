@@ -4,7 +4,7 @@ This guide covers the document processing operations available in OntExtract.
 
 ## Overview
 
-After uploading documents, you can apply various processing operations to extract structured information. OntExtract preserves original documents unchanged—all results are stored as ProcessingArtifacts linked to source documents through PROV-O relationships.
+After uploading documents, various processing operations can be applied to extract structured information. OntExtract preserves original documents unchanged—all results are stored as ProcessingArtifacts linked to source documents through PROV-O relationships.
 
 ## Processing Operations
 
@@ -29,9 +29,9 @@ Use this for scanned or OCR'd historical documents with recognition errors.
 
 ### How to Run
 
-1. Navigate to your document's detail page
-2. Find the **Content** card
-3. Click **Clean Text with LLM**
+1. Navigate to the document detail page
+2. Click the menu button (three dots) in the top-right
+3. Select **Clean with LLM**
 4. Review the suggested corrections
 5. Accept or modify changes
 6. Save the cleaned version
@@ -40,7 +40,7 @@ Use this for scanned or OCR'd historical documents with recognition errors.
 
 ### From Document Pipeline
 
-You can also trigger cleanup from the experiment's Document Pipeline:
+Cleanup can also be triggered from the experiment's Document Pipeline:
 
 1. Go to **Experiments** > Select experiment > **Document Pipeline**
 2. Click the broom icon next to any document
@@ -59,11 +59,11 @@ Split documents into logical sections for analysis.
 
 ### How to Run
 
-1. Go to your document or experiment's **Document Pipeline**
+1. Go to the document or experiment's **Document Pipeline**
 2. Select documents to process
 3. Check **Segmentation** in Processing Operations
-4. Choose your segmentation method
-5. Click **Run Selected Operations**
+4. Choose a segmentation method
+5. Click **Run Selected Tools**
 
 ### Results
 
@@ -74,12 +74,12 @@ Segmentation creates TextSegment artifacts with:
 
 ### Auto-Dependency
 
-When you select **Embeddings** or **Definition Extraction**, the system automatically selects **Paragraph Segmentation** if it hasn't been run. This is because:
+When selecting **Embeddings** or **Definition Extraction**, the system automatically selects **Paragraph Segmentation** if it hasn't been run. This is because:
 
 - Embeddings create segment-level vectors when segments exist (more granular similarity search)
 - All extraction tools produce better results with structured text segments
 
-You can deselect segmentation if you prefer document-level processing only.
+Segmentation can be deselected for document-level processing only.
 
 ## Embedding Generation
 
@@ -98,7 +98,7 @@ Create vector representations for semantic similarity search.
 1. Go to **Document Pipeline** or document detail
 2. Check **Embeddings** in Processing Operations
 3. Select embedding method
-4. Click **Run Selected Operations**
+4. Click **Run Selected Tools**
 
 ### Period-Aware Embeddings
 
@@ -135,7 +135,7 @@ Identify named entities using spaCy NLP models.
 
 1. Select documents in Document Pipeline
 2. Check **Entity Extraction** in Processing Operations
-3. Click **Run Selected Operations**
+3. Click **Run Selected Tools**
 
 ### Results
 
@@ -186,7 +186,7 @@ OntExtract uses pattern matching to identify definitions in text:
 
 1. Select documents in Document Pipeline
 2. Check **Definition Extraction** in Processing Operations
-3. Click **Run Selected Operations**
+3. Click **Run Selected Tools**
 
 ### Results
 
@@ -209,7 +209,7 @@ Process multiple documents efficiently:
 1. Go to **Experiments** > Select experiment > **Document Pipeline**
 2. Use checkboxes to select multiple documents
 3. Choose operations to apply
-4. Click **Run Selected Operations**
+4. Click **Run Selected Tools**
 
 ![Document Pipeline](../assets/images/screenshots/experiment-pipeline-content.png)
 
@@ -226,20 +226,24 @@ No external API calls are made, enabling offline operation.
 
 ## Viewing Results
 
-After processing:
+After processing, view results from the experiment detail page:
 
-1. Go to the document detail page
-2. Click **Processing Artifacts** tab
-3. View artifacts grouped by operation type
-4. Click any artifact to see details
+1. Go to **Experiments** > Select the experiment
+2. Expand the **View Results** section
+3. Click a result type:
+   - **Definitions** - Extracted term definitions
+   - **Entities** - Named entities and concepts
+   - **Embeddings** - Generated vectors and similarity data
+   - **Segments** - Document segments
+   - **Temporal** - Extracted dates and periods
 
-### Artifact Details
+### Result Details
 
-Each artifact shows:
-- Operation type and timestamp
-- Source document reference
-- Processing parameters
-- Structured results
+Each result page shows:
+- Extracted items grouped by document
+- Source text and character positions
+- Confidence scores and extraction method
+- Links back to source documents
 
 ## PROV-O Provenance
 
@@ -249,7 +253,7 @@ All processing operations create PROV-O provenance records:
 - **wasGeneratedBy** - Connects artifacts to generating activities
 - **wasAssociatedWith** - Maps operations to tool versions
 
-This enables complete reproducibility—you can trace any result back to its source and understand exactly how it was generated.
+This enables complete reproducibility—any result can be traced back to its source to understand exactly how it was generated.
 
 ## Troubleshooting
 

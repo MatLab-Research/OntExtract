@@ -92,6 +92,11 @@
                         <li><a class="dropdown-item text-danger" href="#" onclick="deleteDocument('{{ document.uuid }}')">
                                 <i class="fas fa-trash me-2"></i>Delete
                             </a></li>
+                        {% if version_family and version_family|length > 1 %}
+                        <li><a class="dropdown-item text-danger" href="#" onclick="deleteAllVersions({{ document.get_root_document().id }}, '{{ document.title|replace("'", "\\'") }}', {{ version_family|length }})">
+                                <i class="fas fa-trash-alt me-2"></i>Delete All Versions ({{ version_family|length }})
+                            </a></li>
+                        {% endif %}
                     </ul>
                 </div>
                 {% endif %}
@@ -870,6 +875,32 @@
             .catch(error => {
                 console.error('Error:', error);
                 alert('Error deleting document');
+            });
+        }
+    }
+
+    function deleteAllVersions(baseDocumentId, documentTitle, versionCount) {
+        const confirmMessage = `Are you sure you want to delete ALL ${versionCount} versions of "${documentTitle}"?\n\nThis will permanently delete:\n- The original document\n- All processed versions\n\nThis action cannot be undone.`;
+
+        if (confirm(confirmMessage)) {
+            fetch(`/input/document/${baseDocumentId}/delete-all-versions`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert(`Successfully deleted ${data.deleted_count} document versions.`);
+                    window.location.href = "{{ url_for('text_input.document_list') }}";
+                } else {
+                    alert('Error deleting documents: ' + (data.error || 'Unknown error'));
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Error deleting document versions');
             });
         }
     }

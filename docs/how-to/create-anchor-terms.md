@@ -4,7 +4,7 @@ This guide explains how to create and manage anchor terms for tracking semantic 
 
 ## What Are Anchor Terms?
 
-Anchor terms are the key concepts you want to track across historical periods. They serve as current/modern reference points or "mile markers" for semantic change analysis.
+Anchor terms are key concepts to be tracked across historical periods. They serve as current/modern reference points or "mile markers" for semantic change analysis.
 
 **Examples:**
 - "agent" in AI/philosophy contexts
@@ -31,7 +31,7 @@ Use authoritative lexicographic sources to establish well-documented anchor term
 | **Oxford English Dictionary** | Historical English definitions with temporal data |
 | **WordNet** | Lexical database with semantic relationships |
 
-3. Enter your search term when prompted
+3. Enter the search term when prompted
 4. Browse the results and click **Use This Definition**
 5. The form auto-populates with:
    - Term text
@@ -63,11 +63,11 @@ For terms not found in dictionaries or from custom sources:
 
 ### Context Anchors
 
-Context anchors are related terms that help define the semantic space around your anchor term. You can:
+Context anchors are related terms that help define the semantic space around an anchor term. Options include:
 
-- Let services auto-populate them from definitions
-- Click the **Thesaurus** button to find synonyms
-- Enter them manually (comma-separated)
+- Letting services auto-populate them from definitions
+- Clicking the **Thesaurus** button to find synonyms
+- Entering them manually (comma-separated)
 
 ## Term Versions
 
@@ -84,7 +84,7 @@ Anchor terms support temporal versioning to capture meaning changes over time. V
 ### Choosing Terms
 
 - **Specificity**: Choose terms specific enough to track meaningfully
-- **Frequency**: Select terms that appear across your document corpus
+- **Frequency**: Select terms that appear across the document corpus
 - **Evolution potential**: Pick terms likely to show semantic change
 
 ### Term Naming
@@ -127,11 +127,12 @@ Click any term to see:
 
 To delete a term:
 
-1. Navigate to the term detail page
-2. Click **Delete Term**
-3. Confirm the deletion
+1. Navigate to **Library → Terms**
+2. Find the term in the list
+3. Click the trash icon on the right side of the row
+4. Confirm the deletion in the modal
 
-> **Note**: Terms associated with experiments should be removed from those experiments first.
+> **Warning**: Deleting a term removes all temporal versions and associated data permanently.
 
 ## Term Search
 

@@ -4,7 +4,7 @@ This guide covers the AI-assisted workflow for analyzing experiments.
 
 ## Overview
 
-LLM Orchestration is available in API-enhanced mode (requires Anthropic API key). The system analyzes your experiment and recommends processing strategies for each document.
+LLM Orchestration is available in API-enhanced mode (requires Anthropic API key). The system analyzes the experiment and recommends processing strategies for each document.
 
 ## Prerequisites
 
@@ -18,12 +18,12 @@ LLM Orchestration follows a structured workflow with human review at each decisi
 
 ### Stage 1: Analyze
 
-The LLM examines your experiment to understand:
+The LLM examines the experiment to understand:
 
 - Research goals and scope
 - Document characteristics (length, format, historical period)
 - Focus terms and their domains
-- Temporal range of your corpus
+- Temporal range of the corpus
 
 ### Stage 2: Recommend
 
@@ -44,7 +44,7 @@ Based on the analysis, the system recommends:
 
 ### Stage 3: Review
 
-You review the recommendations before execution:
+Recommendations are reviewed before execution:
 
 - Approve recommendations as-is
 - Modify tool selections for specific documents
@@ -65,8 +65,7 @@ After approval, the system processes documents:
 
 - **Entity Extraction** (spaCy): Named entities (PERSON, ORG, GPE) + noun phrase concepts
 - **Temporal Extraction** (spaCy + regex): Dates, periods, historical markers, relative expressions
-- **Definition Extraction** (hybrid):
-  - Zero-shot classification (`facebook/bart-large-mnli`) for sentence scoring
+- **Definition Extraction** (pattern matching):
   - Pattern matching for 8 definition types (explicit, copula, acronym, appositive, etc.)
   - Strict acronym validation requiring first-letter matching
   - Quality filters to reject citations, reference lists, and nonsense patterns
@@ -85,7 +84,7 @@ The LLM analyzes results across all documents:
 
 ## Accessing LLM Orchestration
 
-1. Go to **Experiments** > Select your experiment
+1. Go to **Experiments** and select an experiment
 2. Click **Document Pipeline**
 3. Select **LLM** mode (toggle at top of page)
 4. Click **LLM Analyze** to begin Stage 1
@@ -104,27 +103,25 @@ The LLM analyzes results across all documents:
 
 ## Manual Alternative
 
-If you prefer not to use LLM orchestration:
+To process documents without LLM orchestration:
 
-1. Go to **Document Pipeline** in your experiment
+1. Go to **Document Pipeline** in the experiment
 2. Select documents manually
 3. Choose processing operations
 4. Click **Run Selected Operations**
 
 Manual selections are recorded with the same PROV-O provenance structure.
 
-## Tips
-
-### When to Use LLM Orchestration
+## When to Use LLM Orchestration
 
 - Large document collections (10+ documents)
 - Mixed document types requiring different tools
-- When you want AI-generated synthesis of patterns
+- For AI-generated synthesis of patterns across documents
 
-### When to Process Manually
+## When to Process Manually
 
 - Small experiments (< 5 documents)
-- When you know exactly which tools to apply
+- When specific tools are already determined
 - When API costs are a concern
 
 ## Troubleshooting

@@ -4,7 +4,7 @@ Complete guide for setting up experiments to track semantic change across histor
 
 ## Overview
 
-Temporal evolution experiments analyze how term meanings change over time. By combining historical documents with anchor terms, OntExtract identifies and visualizes semantic shifts across defined time periods.
+Temporal evolution experiments analyze how term meanings change over time by combining historical documents with anchor terms across defined time periods.
 
 ## Prerequisites
 
@@ -12,10 +12,22 @@ Before creating an experiment:
 
 - [ ] OntExtract installed and running
 - [ ] User account created and logged in
-- [ ] Historical documents ready for upload (spanning your target time range)
-- [ ] Anchor terms identified (concepts you want to track)
+- [ ] Historical documents ready for upload (spanning the target time range)
 
-## Step 1: Create the Experiment
+## Step 1: Create Anchor Terms
+
+First, create anchor terms to define the concepts to be tracked:
+
+1. Navigate to **Library → Terms**
+2. Click **Add New Anchor Term**
+3. Enter:
+   - **Term text** - The word/phrase to track (e.g., "agent")
+   - **Domain** - Subject area
+   - **Notes** - Research context
+
+See [Create Anchor Terms](create-anchor-terms.md) for detailed instructions.
+
+## Step 2: Create the Experiment
 
 ### Navigate to Experiments
 
@@ -36,7 +48,7 @@ Before creating an experiment:
 
 ### Temporal Periods
 
-OntExtract automatically generates temporal periods based on your date range. You can:
+OntExtract automatically generates temporal periods based on the date range. Options include:
 
 - **Auto-generate** - System creates periods based on document dates
 - **Manual** - Define custom period boundaries
@@ -45,11 +57,11 @@ Click **Create Experiment** to save.
 
 ## Manage Temporal Terms
 
-After creating a temporal evolution experiment, access the **Manage Temporal Terms** feature to configure your timeline in detail.
+After creating a temporal evolution experiment, access the **Manage Temporal Terms** feature to configure the timeline in detail.
 
 ### Accessing the Manager
 
-1. Go to your experiment's detail page
+1. Go to the experiment's detail page
 2. Click **Manage Temporal Terms** button
 
 ### Timeline Configuration
@@ -63,7 +75,7 @@ The Temporal Term Manager provides two ways to set up periods:
 
 ### Adding Semantic Events
 
-You can annotate your timeline with semantic change events:
+The timeline can be annotated with semantic change events:
 
 1. Click **Add Event** in the Periods & Events section
 2. Select the event type (e.g., amelioration, pejoration, drift)
@@ -87,34 +99,28 @@ Period boundaries are color-coded:
 
 ### Saving Configuration
 
-Click **Save Configuration** to persist your temporal setup before proceeding to analysis.
+Click **Save Configuration** to persist the temporal setup before proceeding to analysis.
 
-## Step 2: Add Documents
+## Step 3: Add Documents
 
-### Option A: Upload New Documents
+### Upload Documents
 
-1. Go to your experiment's **Document Pipeline**
+1. Go to the experiment's **Document Pipeline**
 2. Click **Add Documents**
-3. Upload files or select from existing documents
-4. Ensure each document has a **publication date** for period assignment
-
-### Option B: Associate Existing Documents
-
-1. From **Document Pipeline**, click **Add Existing**
-2. Search and select documents from your library
-3. Documents are assigned to periods based on publication date
+3. Upload files with publication dates
+4. Documents are automatically assigned to periods based on publication date
 
 ### Document Requirements
 
 For meaningful temporal analysis:
 
 - **Multiple documents per period** - More data improves accuracy
-- **Date coverage** - Documents spanning your full time range
+- **Date coverage** - Documents spanning the full time range
 - **Consistent domain** - Documents from related subject areas
 
 See [Upload Documents](upload-documents.md) for detailed upload instructions.
 
-## Step 3: Process Documents
+## Step 4: Process Documents
 
 ### LLM Text Cleanup (Recommended)
 
@@ -135,33 +141,14 @@ From the **Document Pipeline** or individual document pages:
 
 Use **Run Local Tools** for batch processing without API costs.
 
-## Step 4: Create Anchor Terms
-
-### Add Terms to Track
-
-1. Navigate to **Anchor Terms**
-2. Click **Add New Anchor Term**
-3. Enter:
-   - **Term text** - The word/phrase to track (e.g., "agent")
-   - **Domain** - Subject area
-   - **Notes** - Research context
-
-### Associate with Experiment
-
-1. Return to your experiment
-2. Go to **Anchor Terms** section
-3. Link your terms to the experiment
-
-See [Create Anchor Terms](create-anchor-terms.md) for detailed instructions.
-
 ## Step 5: Run Analysis
 
 ### LLM Orchestration (Advanced)
 
 For AI-assisted analysis:
 
-1. Go to experiment's **LLM Orchestration** tab
-2. Click **Start Analysis**
+1. Go to the experiment's **Document Pipeline**
+2. Click **Start LLM Orchestration**
 3. Review the generated strategy
 4. Approve or modify the approach
 5. Execute the analysis
@@ -185,58 +172,10 @@ The timeline shows:
 
 ### Export Options
 
-Export your analysis:
-- **CSV** - Tabular data
-- **JSON** - Structured results
-- **Report** - Formatted summary
+Export analysis results:
 
-## Example: "Agent" Evolution Study
-
-### Setup
-
-- **Time range**: 1910-2024
-- **Documents**: 7 historical papers on agents/agency
-- **Anchor term**: "agent"
-
-### Documents by Period
-
-| Period | Document | Year |
-|--------|----------|------|
-| 1910-1920 | "Pragmatism and Humanism" (Schiller) | 1910 |
-| 1940-1960 | "Outline of a Theory of Practice" (Bourdieu) | 1956 |
-| 1980-1990 | "Situated Actions" (Suchman) | 1987 |
-| 1990-2000 | "Agent Theories" (Wooldridge) | 1995 |
-| 2000-2010 | "Cognitive Architectures" (Anderson) | 2007 |
-| 2010-2020 | "Deep Learning" (LeCun) | 2015 |
-| 2020-2024 | "Foundation Models" (Bommasani) | 2021 |
-
-### Observed Evolution
-
-The term "agent" shifts from:
-- **1910s**: Philosophical/human agency
-- **1980s**: Situated human actors
-- **1990s**: Computational autonomous entities
-- **2020s**: AI systems with emergent capabilities
-
-## Tips for Success
-
-### Document Selection
-
-- Cover your full time range
-- Include seminal/influential works
-- Maintain domain consistency
-
-### Period Definition
-
-- Match periods to historical phases
-- Ensure sufficient documents per period
-- Consider publication clustering
-
-### Term Selection
-
-- Choose terms with evolution potential
-- Avoid overly common words
-- Include domain-specific terminology
+- **CSV** - Tabular data for spreadsheets
+- **JSON** - Structured results for further processing
 
 ## Troubleshooting
 

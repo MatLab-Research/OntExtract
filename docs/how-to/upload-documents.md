@@ -11,11 +11,11 @@ Documents are the foundation of temporal evolution analysis. OntExtract supports
 - **PDF** - Scanned or digital PDFs (text extracted automatically)
 - **Plain Text** (.txt) - Raw text files
 - **Word Documents** (.docx) - Microsoft Word format
-- **HTML** - Web pages with text content
+- **Markdown** (.md) - Markdown-formatted text
 
 ## Document Versions
 
-OntExtract treats each upload as a separate document record. You can upload multiple versions of the same work:
+OntExtract treats each upload as a separate document record. Multiple versions of the same work can be uploaded:
 
 - **Different formats** - PDF and Word versions of the same paper
 - **Different versions** - Preprint (v1) and final published version
@@ -23,9 +23,8 @@ OntExtract treats each upload as a separate document record. You can upload mult
 
 ### How Versions Are Handled
 
-- Documents with the same DOI or title are **not automatically linked**
+- Documents with the same DOI or title are not automatically linked
 - Each upload creates an independent document record
-- You choose which version(s) to include in each experiment
 - Provenance tracking records which specific document version was processed
 
 ### Best Practices
@@ -41,7 +40,7 @@ To identify duplicates, sort by DOI or title in the Documents view.
 
 ## Upload Methods
 
-### Method 1: Single Document Upload
+### Single Document Upload
 
 1. Navigate to **Documents** in the main menu
 2. Click **Upload Document**
@@ -50,15 +49,6 @@ To identify duplicates, sort by DOI or title in the Documents view.
 5. Click **Upload**
 
 ![Upload Document Interface](../assets/images/screenshots/upload-content.png)
-
-### Method 2: Upload via Experiment
-
-When creating or editing an experiment:
-
-1. Go to **Experiments** > Select your experiment
-2. Click **Document Pipeline**
-3. Use the **Add Documents** section
-4. Upload documents directly to the experiment
 
 ## Automatic Metadata Extraction
 
@@ -83,13 +73,13 @@ OntExtract queries academic databases to enrich metadata:
 
 **Note**: Very recent papers (not yet indexed) or very old documents (pre-digital) may not be found in these databases.
 
-### Confidence Indicators
+### Source Indicators
 
-After extraction, the upload form shows confidence badges:
+After extraction, the upload form shows badges indicating where each metadata field originated:
 
-- **Green** - High confidence match from CrossRef or Semantic Scholar
-- **Yellow** - Lower confidence match (verify before saving)
-- **Blue** - Data from Semantic Scholar
+- **Green** - CrossRef database match
+- **Blue** - Semantic Scholar database match
+- **Yellow** - Extracted from PDF analysis
 - **Cyan** - User-provided value
 
 ### Disabling Automatic Extraction
@@ -176,14 +166,11 @@ The system extracts the year for temporal period assignment.
 
 ## After Upload
 
-Once uploaded, documents appear in:
-
-1. **Documents list** - All uploaded documents
-2. **Experiment documents** - If uploaded to an experiment
+Once uploaded, documents appear in the **Documents list** accessible from the main menu.
 
 ### Processing Options
 
-After upload, you can process documents with:
+After upload, documents can be processed with:
 
 - **LLM Text Cleanup** - Fix OCR errors, formatting issues (recommended for scanned documents)
 - **Segmentation** - Split into paragraphs or sentences
@@ -205,14 +192,6 @@ Documents are automatically assigned to temporal periods based on publication da
 - A document from 1910 goes in the earliest period
 - A document from 2020 goes in the latest period
 
-### Batch Processing
-
-For multiple documents:
-1. Upload all documents first
-2. Use the **Document Pipeline** view for batch operations
-3. Run LLM cleanup on documents that need it
-4. Process remaining operations in batch
-
 ## Troubleshooting
 
 ### Upload Fails
@@ -225,7 +204,6 @@ For multiple documents:
 
 - PDF may be image-only (scanned without OCR)
 - Try re-uploading with a different format
-- Contact administrator if OCR service is unavailable
 
 ### Wrong Publication Date
 
@@ -235,7 +213,6 @@ For multiple documents:
 ## Related Guides
 
 - [Manage Your Library](manage-library.md)
-- [Manage References](manage-references.md)
 - [Process Documents](document-processing.md)
 - [Create Temporal Experiment](create-temporal-experiment.md)
 - [Create Anchor Terms](create-anchor-terms.md)

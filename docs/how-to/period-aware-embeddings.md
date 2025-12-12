@@ -51,11 +51,10 @@ The service selects embedding models based on this priority:
 
 ### From the Document Pipeline
 
-1. Go to your experiment's **Document Pipeline**
-2. Select a document to process
-3. Choose **Embeddings** from the processing operations
-4. Select **Period Aware** from the embedding method dropdown
-5. Click **Run**
+1. Go to **Experiments** > Select the experiment > **Document Pipeline**
+2. Select documents to process using the checkboxes
+3. Under the **Embeddings** section, check **Period-Aware Embeddings**
+4. Click **Run Selected Tools**
 
 The service will:
 
@@ -71,7 +70,7 @@ When using LLM orchestration, the system may automatically recommend period-awar
 - Documents with detected archaic language
 - Domain-specific technical papers
 
-You can approve or modify this recommendation during the Review stage.
+Recommendations can be approved or modified during the Review stage.
 
 ## Setup Requirements
 
@@ -137,7 +136,7 @@ For more sophisticated period detection, future versions may incorporate trained
 - Archer, D., Kytö, M., Baron, A., & Rayson, P. (2015). Guidelines for normalising Early Modern English corpora: Decisions and justifications. *ICAME Journal*, 39, 5-24.
 - Burnley, D. (2000). *The History of the English Language: A Source Book* (2nd ed.). Longman.
 - Wales, K. (1996). *Personal Pronouns in Present-Day English*. Cambridge University Press.
-- For computational approaches, see: List, J.-M. (2012). LexStat: Automatic detection of cognates in multilingual wordlists. *Proceedings of the EACL 2012 Joint Workshop of LINGVIS & UNCLH*.
+- Piotrowski, M. (2012). *Natural Language Processing for Historical Texts*. Morgan & Claypool (Synthesis Lectures on Human Language Technologies, vol. 17).
 
 ## Understanding Results
 
