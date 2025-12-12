@@ -26,6 +26,18 @@ Configure the transformer-based definition extraction tool.
 |---------|------|---------|-------------|
 | Confidence Threshold | Float | 0.70 | Minimum confidence for definition extraction (0.5-0.95). Higher = fewer but more accurate results |
 
+### Prompt Templates
+
+Manage Jinja2 templates for experiment descriptions. Templates can be viewed and edited, with optional LLM enhancement support.
+
+| Column | Description |
+|--------|-------------|
+| **Template** | Template key identifier |
+| **Category** | Template category (e.g., experiment descriptions) |
+| **Variables** | Required template variables |
+| **LLM Enhancement** | Whether LLM can enhance template output |
+| **Actions** | View or edit the template |
+
 ### Processing
 
 Configure how documents are processed during text cleanup operations.
@@ -50,7 +62,7 @@ When cleaning large documents (>8,000 characters), OntExtract:
 **Sequential Mode**: Chunks processed one at a time. Predictable progress, lower concurrent API usage.
 
 !!! tip "Recommended Settings"
-    The default of 3 concurrent chunks balances speed with API rate limits. Increase to 5-10 for faster processing if you have higher rate limits.
+    The default of 3 concurrent chunks balances speed with API rate limits. Increase to 5-10 for faster processing with higher rate limits.
 
 ### Provenance
 
@@ -69,7 +81,7 @@ When **Purge on Delete** is disabled:
 ## Saving Settings
 
 1. Navigate to the **Settings** page
-2. Select the appropriate tab (LLM, NLP, Processing, or Provenance)
+2. Select the appropriate tab (LLM Integration, NLP Tools, Prompt Templates, Provenance, or Processing)
 3. Modify settings as needed
 4. Click **Save Changes**
 
