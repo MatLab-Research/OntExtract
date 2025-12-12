@@ -11,17 +11,15 @@ After processing documents, OntExtract provides several ways to explore results:
 - Provenance graphs showing processing history
 - Export options for further analysis
 
-## Viewing Processing Artifacts
+## Viewing Processing Results
 
-Each document's processing results are stored as artifacts.
+Processing results are accessed through experiment result pages, which aggregate findings across all documents in an experiment.
 
-### Access Document Artifacts
+### Access Results
 
-1. Go to **Documents** > Select a document
-2. Click the **Processing Artifacts** tab
-3. View artifacts grouped by operation type
-
-![Document Detail Page](../assets/images/screenshots/document-detail-content.png)
+1. Go to **Experiments** > Select an experiment
+2. Expand the **View Results** section
+3. Click a result type (Definitions, Entities, Embeddings, Segments, or Temporal)
 
 ### Artifact Types
 
@@ -71,7 +69,7 @@ From the experiment page, use the **View Results** buttons to explore specific r
 | **Segments** | Text segments with positions |
 | **Temporal** | Dates, periods, and temporal markers |
 
-Each view aggregates results from all documents in the experiment, making it easy to compare findings across your corpus.
+Each view aggregates results from all documents in the experiment, enabling comparison of findings across the corpus.
 
 ![Definition Results](../assets/images/screenshots/results-definitions-content.png)
 
@@ -89,7 +87,7 @@ For temporal evolution experiments:
 
 ### LLM Synthesis Results
 
-If you used LLM Orchestration:
+When using LLM Orchestration:
 
 1. Go to **Document Pipeline**
 2. Click **View Results** on the orchestration status banner (shown when orchestration completes)
@@ -117,16 +115,6 @@ Each artifact links to its provenance chain showing:
 - **Debugging** - Trace unexpected results to their source
 - **Scholarly citation** - Document analytical methodology
 
-## Semantic Similarity Search
-
-With embeddings generated, you can search for similar content:
-
-1. Select a text segment
-2. Click **Find Similar**
-3. View segments ranked by semantic similarity
-
-This enables discovering related passages across your document corpus.
-
 ## Export Options
 
 ### Export Formats
@@ -135,7 +123,6 @@ This enables discovering related passages across your document corpus.
 |--------|----------|
 | **CSV** | Tabular data for spreadsheets |
 | **JSON** | Structured data for programming |
-| **Report** | Formatted summary document |
 
 ### What Can Be Exported
 
@@ -144,29 +131,22 @@ This enables discovering related passages across your document corpus.
 - Segment text with positions
 - Provenance records
 
-## Results Dashboard
-
-Access the Results area from the main navigation:
-
-1. Click **Results** in the top menu
-2. View aggregate statistics
-3. Browse recent processing activities
-
 ## Coming Soon
 
 Additional results features planned for future releases:
 
+- Semantic similarity search (find similar passages across documents)
 - Interactive timeline visualizations
 - Semantic drift graphs
 - Comparative period analysis
-- Ontology-based event annotation
+- Formatted report export (PDF)
 
 ## Troubleshooting
 
 ### No results showing
 
 - Verify processing operations completed
-- Check the Processing Artifacts tab
+- Check the experiment's View Results section
 - Review experiment status
 
 ### Missing artifacts

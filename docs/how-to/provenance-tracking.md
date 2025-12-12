@@ -78,7 +78,7 @@ OntExtract preserves original documents unchanged. Processing creates new docume
 
 ### Document Selection in Experiments
 
-When creating new experiments, only **original (v1) documents** appear in the selection dropdown. This ensures experiments start with clean source materials. If you need a processed version, reference the original experiment that created it.
+When creating new experiments, only **original (v1) documents** appear in the selection dropdown. This ensures experiments start with clean source materials. To use a processed version, reference the original experiment that created it.
 
 ### Document Selection in Provenance
 
@@ -88,7 +88,7 @@ When filtering the provenance timeline by document:
 2. Selecting a document shows provenance for the **entire document family** (all versions)
 3. A hint displays: "Showing provenance for X versions" when multiple versions exist
 
-This design lets you trace complete processing history from a single selection.
+This design enables tracing complete processing history from a single selection.
 
 ## Processing Artifacts
 
@@ -106,23 +106,13 @@ Each ProcessingArtifact includes:
 
 ### Viewing Artifact Provenance
 
-From any document's Processing Artifacts tab:
+Provenance information is accessible through the **Provenance** > **Timeline** view:
 
-1. Click on an artifact
-2. View the provenance chain showing:
+1. Filter by document to see all processing history
+2. Each activity shows its provenance chain:
    - Source document (`wasDerivedFrom`)
    - Generating activity (`wasGeneratedBy`)
    - Tool and version (`wasAssociatedWith`)
-
-## Entity Lineage
-
-For detailed provenance of a specific entity:
-
-1. Go to **Provenance** > **Timeline**
-2. Click on any entity in the timeline
-3. Select **View Lineage** to see the complete derivation chain
-
-The lineage view shows all upstream entities and activities that contributed to the selected artifact.
 
 ## Reproducibility Features
 
