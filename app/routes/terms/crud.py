@@ -263,11 +263,19 @@ def edit_term(term_id):
         form.status.data = term.status
         form.notes.data = term.notes
 
+    # Get existing research domains for autocomplete
+    existing_domains = db.session.query(Term.research_domain).distinct().filter(
+        Term.research_domain.isnot(None),
+        Term.research_domain != ''
+    ).all()
+    existing_domains = [d[0] for d in existing_domains]
+
     return render_template('terms/edit.html',
                          term=term,
                          form=form,
                          versions=versions,
-                         selected_version=selected_version)
+                         selected_version=selected_version,
+                         existing_domains=existing_domains)
 
 
 @terms_bp.route('/<uuid:term_id>/delete', methods=['POST'])

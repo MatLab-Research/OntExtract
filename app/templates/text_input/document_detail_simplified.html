@@ -70,35 +70,35 @@
                 </div>
                 {% if current_user.is_authenticated %}
                 <div class="dropdown">
-                    <button class="btn btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
-                        <i class="fas fa-ellipsis-v"></i>
-                    </button>
-                    <ul class="dropdown-menu">
-                        <li><a class="dropdown-item" href="#" onclick="exportDocument('{{ document.uuid }}')">
-                                <i class="fas fa-download me-2"></i>Export
-                            </a></li>
-                        {% if config.ANTHROPIC_API_KEY %}
-                        <li>
-                            <hr class="dropdown-divider">
-                        </li>
-                        <li class="dropdown-header">Analysis</li>
-                        <li><a class="dropdown-item" href="#" onclick="openTextCleanupModal('{{ document.uuid }}')">
-                                <i class="fas fa-broom me-2"></i>Clean with LLM
-                            </a></li>
-                        {% endif %}
-                        <li>
-                            <hr class="dropdown-divider">
-                        </li>
-                        <li><a class="dropdown-item text-danger" href="#" onclick="deleteDocument('{{ document.uuid }}')">
-                                <i class="fas fa-trash me-2"></i>Delete
-                            </a></li>
-                        {% if version_family and version_family|length > 1 %}
-                        <li><a class="dropdown-item text-danger" href="#" onclick="deleteAllVersions({{ document.get_root_document().id }}, '{{ document.title|replace("'", "\\'") }}', {{ version_family|length }})">
-                                <i class="fas fa-trash-alt me-2"></i>Delete All Versions ({{ version_family|length }})
-                            </a></li>
-                        {% endif %}
-                    </ul>
-                </div>
+                        <button class="btn btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                            <i class="fas fa-ellipsis-v"></i>
+                        </button>
+                        <ul class="dropdown-menu">
+                            <li><a class="dropdown-item" href="#" onclick="exportDocument('{{ document.uuid }}')">
+                                    <i class="fas fa-download me-2"></i>Export
+                                </a></li>
+                            {% if config.ANTHROPIC_API_KEY %}
+                            <li>
+                                <hr class="dropdown-divider">
+                            </li>
+                            <li class="dropdown-header">Analysis</li>
+                            <li><a class="dropdown-item" href="#" onclick="openTextCleanupModal('{{ document.uuid }}')">
+                                    <i class="fas fa-broom me-2"></i>Clean with LLM
+                                </a></li>
+                            {% endif %}
+                            <li>
+                                <hr class="dropdown-divider">
+                            </li>
+                            <li><a class="dropdown-item text-danger" href="#" onclick="deleteDocument('{{ document.uuid }}')">
+                                    <i class="fas fa-trash me-2"></i>Delete
+                                </a></li>
+                            {% if version_family and version_family|length > 1 %}
+                            <li><a class="dropdown-item text-danger" href="#" onclick="deleteAllVersions({{ document.get_root_document().id }}, '{{ document.title|replace("'", "\\'") }}', {{ version_family|length }})">
+                                    <i class="fas fa-trash-alt me-2"></i>Delete All Versions ({{ version_family|length }})
+                                </a></li>
+                            {% endif %}
+                        </ul>
+                    </div>
                 {% endif %}
             </div>
 
@@ -433,6 +433,25 @@
         </div>
 
         <div class="col-lg-4">
+            <!-- Provenance Views -->
+            <div class="card mb-3">
+                <div class="card-header py-2">
+                    <h6 class="mb-0"><i class="fas fa-history me-2"></i>Provenance</h6>
+                </div>
+                <div class="card-body py-2">
+                    <div class="d-flex gap-2">
+                        <a href="{{ url_for('provenance.provenance_graph', document_id=document.id) }}"
+                           class="btn btn-sm btn-outline-secondary">
+                            <i class="fas fa-project-diagram me-1"></i>Graph
+                        </a>
+                        <a href="{{ url_for('provenance.timeline', document_id=document.id) }}"
+                           class="btn btn-sm btn-outline-secondary">
+                            <i class="fas fa-stream me-1"></i>Timeline
+                        </a>
+                    </div>
+                </div>
+            </div>
+
             <!-- Document Statistics -->
             <div class="card mb-4">
                 <div class="card-header">

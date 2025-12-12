@@ -112,6 +112,13 @@ class WorkflowExecutor:
             if run:
                 run.status = 'failed'
                 run.error_message = str(e)
+
+                # Update experiment status to 'error'
+                experiment = Experiment.query.get(run.experiment_id)
+                if experiment:
+                    experiment.status = 'error'
+                    logger.info(f"Experiment {run.experiment_id} marked as error")
+
                 db.session.commit()
 
             raise RuntimeError(f"Recommendation phase failed: {str(e)}") from e
@@ -184,6 +191,12 @@ class WorkflowExecutor:
 
             run.completed_at = datetime.utcnow()
 
+            # Update experiment status to 'completed' to lock it for provenance integrity
+            experiment = Experiment.query.get(run.experiment_id)
+            if experiment:
+                experiment.status = 'completed'
+                logger.info(f"Experiment {run.experiment_id} marked as completed")
+
             db.session.commit()
 
             logger.info(f"Processing phase completed for run {run_id}")
@@ -204,6 +217,13 @@ class WorkflowExecutor:
             if run:
                 run.status = 'failed'
                 run.error_message = str(e)
+
+                # Update experiment status to 'error'
+                experiment = Experiment.query.get(run.experiment_id)
+                if experiment:
+                    experiment.status = 'error'
+                    logger.info(f"Experiment {run.experiment_id} marked as error")
+
                 db.session.commit()
 
             raise RuntimeError(f"Processing phase failed: {str(e)}") from e

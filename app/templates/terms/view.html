@@ -249,6 +249,25 @@
 
                 <!-- Sidebar -->
                 <div class="col-lg-4">
+                    <!-- Provenance Views -->
+                    <div class="card mb-3">
+                        <div class="card-header py-2">
+                            <h6 class="mb-0"><i class="fas fa-history me-2"></i>Provenance</h6>
+                        </div>
+                        <div class="card-body py-2">
+                            <div class="d-flex gap-2">
+                                <a href="{{ url_for('provenance.provenance_graph', term_id=term.id) }}"
+                                   class="btn btn-sm btn-outline-secondary">
+                                    <i class="fas fa-project-diagram me-1"></i>Graph
+                                </a>
+                                <a href="{{ url_for('provenance.timeline', term_id=term.id) }}"
+                                   class="btn btn-sm btn-outline-secondary">
+                                    <i class="fas fa-stream me-1"></i>Timeline
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+
                     <!-- Statistics Card -->
                     <div class="card mb-4">
                         <div class="card-header">
@@ -292,9 +311,6 @@
                                 <i class="fas fa-edit me-1"></i>Edit Term
                             </a>
                             {% endif %}
-                            <a href="{{ url_for('provenance.provenance_graph', term_id=term.id) }}" class="btn btn-outline-info">
-                                <i class="fas fa-project-diagram me-1"></i>View Provenance
-                            </a>
                         </div>
                     </div>
                 </div>

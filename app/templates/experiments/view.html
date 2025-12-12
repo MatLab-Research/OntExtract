@@ -38,9 +38,24 @@
                         <i class="fas fa-arrow-left me-1"></i>All Experiments
                     </a>
                     {% if current_user.is_authenticated %}
-                    <a href="{{ url_for('experiments.edit', experiment_id=experiment.id) }}" class="btn btn-outline-primary">
-                        <i class="fas fa-edit me-1"></i>Edit
-                    </a>
+                        {% if experiment.status == 'completed' %}
+                        <button class="btn btn-outline-primary" id="duplicate-experiment" title="This experiment is locked. Create an editable copy.">
+                            <i class="fas fa-copy me-1"></i>Duplicate
+                        </button>
+                        {% elif experiment.status == 'draft' %}
+                        <a href="{{ url_for('experiments.edit', experiment_id=experiment.id) }}" class="btn btn-outline-primary">
+                            <i class="fas fa-edit me-1"></i>Edit
+                        </a>
+                        {% if total_processing_ops and total_processing_ops > 0 %}
+                        <button class="btn btn-outline-success" id="mark-complete-experiment" title="Lock this experiment to preserve provenance">
+                            <i class="fas fa-check-circle me-1"></i>Mark Complete
+                        </button>
+                        {% endif %}
+                        {% elif experiment.status == 'error' %}
+                        <a href="{{ url_for('experiments.edit', experiment_id=experiment.id) }}" class="btn btn-outline-primary">
+                            <i class="fas fa-edit me-1"></i>Edit
+                        </a>
+                        {% endif %}
                     <button class="btn btn-outline-danger" id="delete-experiment">
                         <i class="fas fa-trash me-1"></i>Delete
                     </button>
@@ -545,6 +560,76 @@ document.addEventListener('DOMContentLoaded', function() {
                     alert('Error deleting experiment: ' + error.message);
                     deleteBtn.disabled = false;
                     deleteBtn.innerHTML = originalHTML;
+                }
+            }
+        });
+    }
+
+    // Duplicate experiment
+    const duplicateBtn = document.getElementById('duplicate-experiment');
+    if (duplicateBtn) {
+        duplicateBtn.addEventListener('click', async function() {
+            if (confirm('Create a new editable copy of this experiment?\n\nThe original experiment will remain locked to preserve provenance.')) {
+                duplicateBtn.disabled = true;
+                const originalHTML = duplicateBtn.innerHTML;
+                duplicateBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Duplicating...';
+
+                try {
+                    const response = await fetch(`/experiments/{{ experiment.id }}/duplicate`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' }
+                    });
+
+                    const data = await response.json();
+                    if (data.success) {
+                        duplicateBtn.innerHTML = '<i class="fas fa-check me-1"></i>Created!';
+                        duplicateBtn.classList.remove('btn-outline-primary');
+                        duplicateBtn.classList.add('btn-success');
+                        setTimeout(() => { window.location.href = data.redirect_url; }, 500);
+                    } else {
+                        alert('Error: ' + data.error);
+                        duplicateBtn.disabled = false;
+                        duplicateBtn.innerHTML = originalHTML;
+                    }
+                } catch (error) {
+                    alert('Error duplicating experiment: ' + error.message);
+                    duplicateBtn.disabled = false;
+                    duplicateBtn.innerHTML = originalHTML;
+                }
+            }
+        });
+    }
+
+    // Mark experiment as complete
+    const markCompleteBtn = document.getElementById('mark-complete-experiment');
+    if (markCompleteBtn) {
+        markCompleteBtn.addEventListener('click', async function() {
+            if (confirm('Mark this experiment as complete?\n\nThis will lock the experiment to preserve provenance integrity.\nYou can create an editable copy later using "Duplicate".')) {
+                markCompleteBtn.disabled = true;
+                const originalHTML = markCompleteBtn.innerHTML;
+                markCompleteBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Completing...';
+
+                try {
+                    const response = await fetch(`/experiments/{{ experiment.id }}/mark-complete`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' }
+                    });
+
+                    const data = await response.json();
+                    if (data.success) {
+                        markCompleteBtn.innerHTML = '<i class="fas fa-check me-1"></i>Completed';
+                        markCompleteBtn.classList.remove('btn-outline-success');
+                        markCompleteBtn.classList.add('btn-success');
+                        setTimeout(() => { window.location.reload(); }, 500);
+                    } else {
+                        alert('Error: ' + data.error);
+                        markCompleteBtn.disabled = false;
+                        markCompleteBtn.innerHTML = originalHTML;
+                    }
+                } catch (error) {
+                    alert('Error marking complete: ' + error.message);
+                    markCompleteBtn.disabled = false;
+                    markCompleteBtn.innerHTML = originalHTML;
                 }
             }
         });

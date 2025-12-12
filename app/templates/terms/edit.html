@@ -60,7 +60,12 @@
                         <!-- Research Domain -->
                         <div class="mb-3">
                             {{ form.research_domain.label(class="form-label") }}
-                            {{ form.research_domain(class="form-control" + (" is-invalid" if form.research_domain.errors else "")) }}
+                            <div class="input-group">
+                                {{ form.research_domain(class="form-control" + (" is-invalid" if form.research_domain.errors else ""), list="research-domain-options", autocomplete="on") }}
+                                <button class="btn btn-outline-secondary" type="button" data-bs-toggle="tooltip" data-bs-placement="top" title="Choose from existing domains or add a new one">
+                                    <i class="fas fa-question-circle"></i>
+                                </button>
+                            </div>
                             {% if form.research_domain.errors %}
                                 <div class="invalid-feedback">
                                     {% for error in form.research_domain.errors %}
@@ -68,6 +73,51 @@
                                     {% endfor %}
                                 </div>
                             {% endif %}
+                            <div class="form-text">Research domain or field of study (e.g., Philosophy, Science, Politics)</div>
+
+                            <!-- Research domain options (existing + predefined) -->
+                            <datalist id="research-domain-options">
+                                <!-- Existing domains from database -->
+                                {% for domain in existing_domains %}
+                                <option value="{{ domain }}">
+                                {% endfor %}
+
+                                <!-- Predefined domain suggestions -->
+                                {% set predefined_domains = [
+                                    'Anthropology',
+                                    'Artificial Intelligence',
+                                    'Biology',
+                                    'Business',
+                                    'Chemistry',
+                                    'Computer Science',
+                                    'Economics',
+                                    'Education',
+                                    'Engineering',
+                                    'Engineering Ethics',
+                                    'Environmental Science',
+                                    'Geography',
+                                    'History',
+                                    'Information Science',
+                                    'Law',
+                                    'Linguistics',
+                                    'Literature',
+                                    'Mathematics',
+                                    'Medicine',
+                                    'Music',
+                                    'Philosophy',
+                                    'Physics',
+                                    'Political Science',
+                                    'Psychology',
+                                    'Religion',
+                                    'Science',
+                                    'Sociology'
+                                ] %}
+                                {% for domain in predefined_domains %}
+                                    {% if domain not in existing_domains %}
+                                <option value="{{ domain }}">
+                                    {% endif %}
+                                {% endfor %}
+                            </datalist>
                         </div>
 
                         <!-- Version-Specific Data (Read-Only Display) -->

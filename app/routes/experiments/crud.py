@@ -365,9 +365,13 @@ def edit(experiment_id):
 
     experiment = Experiment.query.filter_by(id=experiment_id).first_or_404()
 
-    # Can only edit experiments that are not running
+    # Can only edit experiments that are draft or error status
     if experiment.status == 'running':
-        flash('Cannot edit an experiment that is currently running', 'error')
+        flash('Cannot edit an experiment that is currently running.', 'error')
+        return redirect(url_for('experiments.view', experiment_id=experiment_id))
+
+    if experiment.status == 'completed':
+        flash('This experiment has been run and is locked to preserve provenance. Use "Duplicate" to create an editable copy.', 'warning')
         return redirect(url_for('experiments.view', experiment_id=experiment_id))
 
     # Get documents and references separately (matching new route structure)
@@ -512,6 +516,125 @@ def delete(experiment_id):
         }), 500
 
 
+@experiments_bp.route('/<int:experiment_id>/duplicate', methods=['POST'])
+@api_require_login_for_write
+def duplicate(experiment_id):
+    """
+    Duplicate an experiment to create an editable copy.
+
+    Used when an experiment has been run and is locked for provenance.
+    Creates a new experiment in 'draft' status with the same configuration.
+    """
+    from app.models.experiment import ExperimentDocument, ExperimentReference
+
+    try:
+        original = Experiment.query.filter_by(id=experiment_id).first_or_404()
+
+        # Create new experiment with copied settings
+        new_experiment = Experiment(
+            name=f"{original.name} (Copy)",
+            description=original.description,
+            experiment_type=original.experiment_type,
+            status='draft',
+            created_by=current_user.id
+        )
+        db.session.add(new_experiment)
+        db.session.flush()  # Get the new ID
+
+        # Copy document associations
+        for exp_doc in original.experiment_documents:
+            new_exp_doc = ExperimentDocument(
+                experiment_id=new_experiment.id,
+                document_id=exp_doc.document_id,
+                processing_status='pending'
+            )
+            db.session.add(new_exp_doc)
+
+        # Copy reference associations
+        for exp_ref in original.experiment_references:
+            new_exp_ref = ExperimentReference(
+                experiment_id=new_experiment.id,
+                document_id=exp_ref.document_id
+            )
+            db.session.add(new_exp_ref)
+
+        # Copy term associations if any
+        for term in original.terms:
+            new_experiment.terms.append(term)
+
+        db.session.commit()
+
+        flash(f'Created new experiment "{new_experiment.name}" from "{original.name}". You can now edit and run it.', 'success')
+
+        return jsonify({
+            'success': True,
+            'message': f'Experiment duplicated successfully',
+            'new_experiment_id': new_experiment.id,
+            'redirect_url': url_for('experiments.edit', experiment_id=new_experiment.id)
+        }), 200
+
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error duplicating experiment {experiment_id}: {e}", exc_info=True)
+        return jsonify({
+            'success': False,
+            'error': 'Failed to duplicate experiment'
+        }), 500
+
+
+@experiments_bp.route('/<int:experiment_id>/mark-complete', methods=['POST'])
+@api_require_login_for_write
+def mark_complete(experiment_id):
+    """
+    Manually mark a draft experiment as complete.
+
+    Use this for experiments that were processed manually (without LLM orchestration)
+    to lock them and preserve provenance integrity.
+    """
+    try:
+        experiment = Experiment.query.get_or_404(experiment_id)
+
+        # Can only mark draft experiments as complete
+        if experiment.status != 'draft':
+            return jsonify({
+                'success': False,
+                'error': f'Cannot mark {experiment.status} experiment as complete. Only draft experiments can be marked complete.'
+            }), 400
+
+        # Check that there are some processing results
+        from app.models.processing_artifact_group import ProcessingArtifactGroup
+        from app.models.document_index import DocumentProcessingIndex
+        processing_count = ProcessingArtifactGroup.query.filter_by(experiment_id=experiment_id).count()
+        index_count = DocumentProcessingIndex.query.join(Document).filter(Document.experiment_id == experiment_id).count()
+
+        if processing_count == 0 and index_count == 0:
+            return jsonify({
+                'success': False,
+                'error': 'No processing results found. Process at least one document before marking complete.'
+            }), 400
+
+        # Mark as completed
+        experiment.status = 'completed'
+        experiment.completed_at = datetime.utcnow()
+        db.session.commit()
+
+        logger.info(f"Experiment {experiment_id} manually marked as complete by user {current_user.id}")
+
+        return jsonify({
+            'success': True,
+            'message': 'Experiment marked as complete',
+            'status': 'completed'
+        }), 200
+
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error marking experiment {experiment_id} as complete: {e}", exc_info=True)
+        return jsonify({
+            'success': False,
+            'error': 'Failed to mark experiment as complete'
+        }), 500
+
+
 @experiments_bp.route('/<int:experiment_id>/run', methods=['POST'])
 @api_require_login_for_write
 def run(experiment_id):
@@ -567,20 +690,84 @@ def run(experiment_id):
 
 @experiments_bp.route('/<int:experiment_id>/results')
 def results(experiment_id):
-    """View experiment results"""
+    """
+    View experiment results.
+
+    Smart routing:
+    - If experiment has a completed LLM orchestration run → redirect to LLM results
+    - Otherwise → show static results page with processing summary
+    """
     experiment = Experiment.query.filter_by(id=experiment_id).first_or_404()
 
     if experiment.status != 'completed':
         flash('Experiment has not been completed yet', 'warning')
         return redirect(url_for('experiments.view', experiment_id=experiment_id))
 
-    # Parse results if available
-    results_data = {}
-    if experiment.results:
-        try:
-            results_data = json.loads(experiment.results)
-        except:
-            results_data = {}
+    # Check for completed LLM orchestration run
+    from app.models.experiment_orchestration_run import ExperimentOrchestrationRun
+    orchestration_run = ExperimentOrchestrationRun.query.filter_by(
+        experiment_id=experiment_id,
+        status='completed'
+    ).order_by(ExperimentOrchestrationRun.completed_at.desc()).first()
+
+    if orchestration_run:
+        # Redirect to LLM results page
+        return redirect(url_for('experiments.llm_orchestration_results',
+                               experiment_id=experiment_id,
+                               run_id=orchestration_run.id))
+
+    # Manual experiment - show static results page
+    # Get processing statistics
+    from app.models.processing_artifact_group import ProcessingArtifactGroup
+    from app.models.document_index import DocumentProcessingIndex
+    from sqlalchemy import func
+
+    # Get processing counts by type from ProcessingArtifactGroup
+    artifact_counts = db.session.query(
+        ProcessingArtifactGroup.artifact_type,
+        func.count(ProcessingArtifactGroup.id)
+    ).filter_by(experiment_id=experiment_id).group_by(
+        ProcessingArtifactGroup.artifact_type
+    ).all()
+
+    # Get processing counts from DocumentProcessingIndex
+    index_counts = db.session.query(
+        DocumentProcessingIndex.processing_type,
+        func.count(DocumentProcessingIndex.id)
+    ).join(Document).filter(
+        Document.experiment_id == experiment_id
+    ).group_by(DocumentProcessingIndex.processing_type).all()
+
+    # Merge counts
+    processing_summary = {}
+    for artifact_type, count in artifact_counts:
+        processing_summary[artifact_type] = processing_summary.get(artifact_type, 0) + count
+    for proc_type, count in index_counts:
+        processing_summary[proc_type] = processing_summary.get(proc_type, 0) + count
+
+    total_operations = sum(processing_summary.values())
+
+    # Get per-document processing info
+    documents_with_processing = []
+    for doc in experiment.documents:
+        doc_artifacts = ProcessingArtifactGroup.query.filter_by(
+            experiment_id=experiment_id,
+            document_id=doc.id
+        ).all()
+        doc_indexes = DocumentProcessingIndex.query.filter_by(document_id=doc.id).all()
+
+        doc_processing = {}
+        for artifact in doc_artifacts:
+            doc_processing[artifact.artifact_type] = doc_processing.get(artifact.artifact_type, 0) + 1
+        for idx in doc_indexes:
+            doc_processing[idx.processing_type] = doc_processing.get(idx.processing_type, 0) + 1
+
+        documents_with_processing.append({
+            'document': doc,
+            'processing': doc_processing,
+            'total_ops': sum(doc_processing.values())
+        })
+
     # Parse configuration JSON for template convenience
     config_data = {}
     if experiment.configuration:
@@ -591,7 +778,9 @@ def results(experiment_id):
 
     return render_template('experiments/results.html',
                          experiment=experiment,
-                         results_data=results_data,
+                         processing_summary=processing_summary,
+                         total_operations=total_operations,
+                         documents_with_processing=documents_with_processing,
                          config_data=config_data)
 
 
