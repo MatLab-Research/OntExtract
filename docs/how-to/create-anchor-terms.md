@@ -4,7 +4,7 @@ This guide explains how to create and manage anchor terms for tracking semantic 
 
 ## What Are Anchor Terms?
 
-Anchor terms are the key concepts you want to track across historical periods. They serve as current/modern reference points—"mile markers"—for where your semantic change analysis begins.
+Anchor terms are the key concepts you want to track across historical periods. They serve as current/modern reference points or "mile markers" for semantic change analysis.
 
 **Examples:**
 - "agent" in AI/philosophy contexts
@@ -73,22 +73,11 @@ Context anchors are related terms that help define the semantic space around you
 
 Anchor terms support temporal versioning to capture meaning changes over time. Versions are created through:
 
-- **OED Temporal Timeline** - Select historical waypoints showing when new senses emerged
+- **OED Timeline** - Select historical waypoints showing when new senses emerged
 - **Manual versioning** - Add versions with different temporal periods
 
-## Associating Terms with Experiments
-
-### During Experiment Creation
-
-1. When creating a new experiment, select existing anchor terms
-2. Or create new terms inline
-
-### After Experiment Creation
-
-1. Go to **Experiments** > Select experiment
-2. Navigate to **Anchor Terms** tab
-3. Click **Add Term** to associate existing terms
-4. Or **Create New Term** for new concepts
+!!! info "Coming Soon"
+    OED Timeline visualization for selecting historical waypoints is planned for an upcoming release.
 
 ## Best Practices
 
