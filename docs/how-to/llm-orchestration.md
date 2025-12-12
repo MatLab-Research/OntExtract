@@ -108,7 +108,7 @@ To process documents without LLM orchestration:
 1. Go to **Document Pipeline** in the experiment
 2. Select documents manually
 3. Choose processing operations
-4. Click **Run Selected Operations**
+4. Click **Run Selected Tools**
 
 Manual selections are recorded with the same PROV-O provenance structure.
 
