@@ -244,6 +244,11 @@
         top: 20px;
     }
 
+    .detail-card .card-body {
+        max-height: calc(100vh - 400px);
+        overflow-y: auto;
+    }
+
     .legend-item {
         display: flex;
         align-items: center;
@@ -331,6 +336,15 @@
         z-index: 1000;
         max-width: 300px;
         display: none;
+    }
+
+    /* Purple color for Person agents (matches legend) */
+    .bg-purple {
+        background-color: #9C27B0 !important;
+        color: white !important;
+    }
+    .text-purple {
+        color: #9C27B0 !important;
     }
 </style>
 
@@ -425,8 +439,9 @@
                     }
                 },
                 // Person agent nodes - purple/violet for contrast with entity yellow
+                // Using data attribute selector for reliable specificity
                 {
-                    selector: 'node.agent.person',
+                    selector: 'node[agent_type = "Person"]',
                     style: {
                         'background-color': '#CE93D8',
                         'border-color': '#9C27B0'
@@ -721,26 +736,150 @@
         updateStatistics();
     }
 
-    // Show node details
+    // Show node details - comprehensive view similar to timeline
     function showNodeDetails(node) {
         const data = node.data();
-        let html = `
-            <h6 class="small">${data.label.replace(/\n/g, ' ')}</h6>
-            <p class="small mb-1"><strong>Type:</strong> ${data.type}</p>
-            ${data.description ? `<p class="small mb-1"><strong>Description:</strong> ${data.description}</p>` : ''}
-        `;
+        let html = '';
 
-        if (data.type === 'entity') {
+        if (data.type === 'activity') {
+            // Activity details
+            const activityType = (data.full_type || data.label).replace(/\n/g, ' ').replace(/_/g, ' ');
+            html = `
+                <h6 class="mb-2">
+                    <i class="fas fa-cog text-info me-1"></i>
+                    ${activityType.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')}
+                </h6>
+                <div class="small">
+                    <p class="mb-1"><strong>Status:</strong>
+                        <span class="badge ${data.status === 'completed' ? 'bg-success' : 'bg-warning'}">${data.status || 'unknown'}</span>
+                    </p>
+                    ${data.started_at ? `<p class="mb-1"><strong>Started:</strong> ${new Date(data.started_at).toLocaleString()}</p>` : ''}
+                    ${data.ended_at ? `<p class="mb-1"><strong>Ended:</strong> ${new Date(data.ended_at).toLocaleString()}</p>` : ''}
+            `;
+
+            // Find associated agent
+            const agentEdges = node.outgoers('edge.associated');
+            if (agentEdges.length > 0) {
+                const agentNode = agentEdges.targets()[0];
+                const agentData = agentNode.data();
+                const isHuman = agentData.agent_type === 'Person';
+                html += `
+                    <p class="mb-1"><strong>Agent:</strong>
+                        <span class="badge ${isHuman ? 'bg-purple' : 'bg-secondary'}">
+                            <i class="fas ${isHuman ? 'fa-user' : 'fa-robot'} me-1"></i>${agentData.label}
+                        </span>
+                    </p>
+                `;
+            }
+
+            // Show activity parameters if available
+            if (data.parameters) {
+                html += `<hr class="my-2"><p class="mb-1"><strong>Parameters:</strong></p>`;
+                const skipParams = [];  // Add any params to skip here
+                Object.entries(data.parameters).forEach(([key, val]) => {
+                    if (!skipParams.includes(key) && val !== null && val !== undefined) {
+                        const label = key.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+                        // Handle different value types
+                        let displayVal = val;
+                        if (Array.isArray(val)) {
+                            displayVal = val.join(', ');
+                        } else if (typeof val === 'object') {
+                            displayVal = JSON.stringify(val);
+                        }
+                        html += `<p class="mb-1 ms-2"><strong>${label}:</strong> ${displayVal}</p>`;
+                    }
+                });
+            }
+
+            // Find generated entities
+            const generatedEdges = node.incomers('edge.generated');
+            if (generatedEdges.length > 0) {
+                html += `<hr class="my-2"><p class="mb-1"><strong>Generated:</strong> ${generatedEdges.sources().map(n => n.data('label').replace(/\n/g, ' ')).join(', ')}</p>`;
+            }
+
+            html += '</div>';
+
+        } else if (data.type === 'entity') {
+            // Entity details
+            html = `
+                <h6 class="mb-2">
+                    <i class="fas fa-file-alt text-warning me-1"></i>
+                    ${data.label.replace(/\n/g, ' ')}
+                </h6>
+                <div class="small">
+                    <p class="mb-1"><strong>Entity Type:</strong>
+                        <span class="badge bg-light text-dark">${data.entity_type || 'unknown'}</span>
+                    </p>
+            `;
+
+            // Show all value metadata
+            if (data.value) {
+                const v = data.value;
+                // Priority fields first
+                if (v.title) {
+                    html += `<p class="mb-1"><strong>Title:</strong> ${v.title}</p>`;
+                }
+                if (v.version_number) {
+                    html += `<p class="mb-1"><strong>Version:</strong> v${v.version_number} (${v.version_type || 'unknown'})</p>`;
+                }
+                if (v.experiment_name) {
+                    html += `<p class="mb-1"><strong>Experiment:</strong> ${v.experiment_name}</p>`;
+                }
+                // Show all other fields
+                const skipFields = ['title', 'version_number', 'version_type', 'experiment_name'];
+                Object.entries(v).forEach(([key, val]) => {
+                    if (!skipFields.includes(key) && val !== null && val !== undefined) {
+                        const label = key.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+                        html += `<p class="mb-1"><strong>${label}:</strong> ${val}</p>`;
+                    }
+                });
+            }
+
+            // Relationships
             const incoming = node.incomers('edge');
             const outgoing = node.outgoers('edge');
             if (incoming.length > 0) {
-                html += '<p class="small mb-1"><strong>Generated by:</strong> ' +
-                    incoming.sources().map(n => n.data('label')).join(', ') + '</p>';
+                html += '<p class="mb-1"><strong>Generated by:</strong> ' +
+                    incoming.sources().map(n => n.data('label').replace(/\n/g, ' ')).join(', ') + '</p>';
             }
             if (outgoing.length > 0) {
-                html += '<p class="small mb-1"><strong>Derived from:</strong> ' +
-                    outgoing.targets().map(n => n.data('label')).join(', ') + '</p>';
+                const derivedFrom = outgoing.targets().filter(n => n.data('type') !== 'activity');
+                if (derivedFrom.length > 0) {
+                    html += '<p class="mb-1"><strong>Derived from:</strong> ' +
+                        derivedFrom.map(n => n.data('label').replace(/\n/g, ' ')).join(', ') + '</p>';
+                }
             }
+
+            html += '</div>';
+
+        } else if (data.type === 'agent') {
+            // Agent details
+            const isHuman = data.agent_type === 'Person';
+            html = `
+                <h6 class="mb-2">
+                    <i class="fas ${isHuman ? 'fa-user text-purple' : 'fa-robot text-warning'} me-1"></i>
+                    ${data.label}
+                </h6>
+                <div class="small">
+                    <p class="mb-1"><strong>Agent Type:</strong>
+                        <span class="badge ${isHuman ? 'bg-purple' : 'bg-warning text-dark'}">${data.agent_type || 'unknown'}</span>
+                    </p>
+            `;
+
+            // Count associated activities
+            const associatedEdges = node.incomers('edge.associated');
+            if (associatedEdges.length > 0) {
+                html += `<p class="mb-1"><strong>Activities:</strong> ${associatedEdges.length} associated</p>`;
+                // List all activity types
+                const activityTypes = [...new Set(associatedEdges.sources().map(n => n.data('full_type') || n.data('label')))];
+                html += `<p class="mb-1"><strong>Types:</strong></p><ul class="mb-1 ps-3">`;
+                activityTypes.forEach(t => {
+                    html += `<li>${t.replace(/\n/g, ' ').replace(/_/g, ' ')}</li>`;
+                });
+                html += '</ul>';
+            }
+
+            html += '</div>';
         }
 
         document.getElementById('detailsPanel').innerHTML = html;

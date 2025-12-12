@@ -2273,10 +2273,15 @@ class ProvenanceService:
                                     seen_nodes.add(upload_agent_id)
                                     # Add 'person' class for Person agents (purple styling)
                                     agent_classes = 'agent person' if upload_agent.agent_type == 'Person' else 'agent'
+                                    # Use username for Person agents, foaf_name for others
+                                    if upload_agent.agent_type == 'Person' and upload_agent.agent_metadata:
+                                        agent_label = upload_agent.agent_metadata.get('username', upload_agent.foaf_name)
+                                    else:
+                                        agent_label = upload_agent.foaf_name or 'Unknown'
                                     nodes.append({
                                         'data': {
                                             'id': upload_agent_id,
-                                            'label': upload_agent.foaf_name or 'Unknown',
+                                            'label': agent_label,
                                             'type': 'agent',
                                             'description': upload_agent.agent_type,
                                             'agent_type': upload_agent.agent_type
@@ -2305,15 +2310,22 @@ class ProvenanceService:
             # Add activity node
             if activity_id not in seen_nodes:
                 seen_nodes.add(activity_id)
+                # Include activity parameters for rich details display
+                activity_data = {
+                    'id': activity_id,
+                    'label': activity.activity_type.replace('_', '\n'),
+                    'type': 'activity',
+                    'description': f"Started: {activity.startedattime.strftime('%Y-%m-%d %H:%M') if activity.startedattime else 'N/A'}",
+                    'full_type': activity.activity_type,
+                    'status': activity.activity_status,
+                    'started_at': activity.startedattime.isoformat() if activity.startedattime else None,
+                    'ended_at': activity.endedattime.isoformat() if activity.endedattime else None
+                }
+                # Add parameters if available
+                if activity.activity_parameters:
+                    activity_data['parameters'] = activity.activity_parameters
                 nodes.append({
-                    'data': {
-                        'id': activity_id,
-                        'label': activity.activity_type.replace('_', '\n'),
-                        'type': 'activity',
-                        'description': f"Started: {activity.startedattime.strftime('%Y-%m-%d %H:%M') if activity.startedattime else 'N/A'}",
-                        'full_type': activity.activity_type,
-                        'status': activity.activity_status
-                    },
+                    'data': activity_data,
                     'classes': 'activity'
                 })
 
@@ -2326,10 +2338,15 @@ class ProvenanceService:
                         seen_nodes.add(agent_id)
                         # Add 'person' class for Person agents (purple styling)
                         agent_classes = 'agent person' if agent.agent_type == 'Person' else 'agent'
+                        # Use username for Person agents, foaf_name for others
+                        if agent.agent_type == 'Person' and agent.agent_metadata:
+                            agent_label = agent.agent_metadata.get('username', agent.foaf_name)
+                        else:
+                            agent_label = agent.foaf_name or 'Unknown'
                         nodes.append({
                             'data': {
                                 'id': agent_id,
-                                'label': agent.foaf_name or 'Unknown',
+                                'label': agent_label,
                                 'type': 'agent',
                                 'description': agent.agent_type,
                                 'agent_type': agent.agent_type
