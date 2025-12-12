@@ -1,7 +1,7 @@
 site_name: OntExtract Documentation
 site_description: User manual for OntExtract document processing with PROV-O provenance tracking
 site_author: OntExtract Project
-site_url: https://ontextract.ontorealm.net/docs
+site_url: https://matlab-research.github.io/OntExtract/
 
 # Repository
 repo_url: https://github.com/MatLab-Research/OntExtract
@@ -78,7 +78,7 @@ nav:
       - Provenance Tracking: how-to/provenance-tracking.md
       - Settings: how-to/settings.md
   - FAQ: faq.md
-  - "↗ Back to OntExtract": "/"
+  - "↗ OntExtract App": "https://ontextract.ontorealm.net/"
 
 extra_css:
   - assets/css/custom.css

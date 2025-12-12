@@ -76,7 +76,7 @@ See [DOCKER_SETUP.md](DOCKER_SETUP.md#manual-installation-alternative) for manua
 
 ## Documentation
 
-Full user documentation is available at the [OntExtract Documentation Site](https://ontextract.ontorealm.net/docs/).
+Full user documentation is available at the [OntExtract Documentation Site](https://matlab-research.github.io/OntExtract/).
 
 ---
 
