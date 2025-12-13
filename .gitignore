@@ -306,3 +306,6 @@ start_dev.sh
 start_celery_worker.sh
 cookies.txt
 .mcp.json
+
+# Playwright MCP screenshots
+.playwright-mcp/
