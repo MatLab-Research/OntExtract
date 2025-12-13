@@ -300,6 +300,15 @@ class ExperimentService(BaseService):
                 experiment_id=experiment_id
             ).delete()
 
+            # Also delete from experiment_documents_v2 table (has separate FK constraint)
+            from sqlalchemy import text
+            result = db.session.execute(
+                text("DELETE FROM experiment_documents_v2 WHERE experiment_id = :exp_id"),
+                {"exp_id": experiment_id}
+            )
+            exp_docs_v2_deleted = result.rowcount
+            logger.info(f"Deleted {exp_docs_v2_deleted} experiment_documents_v2 records")
+
             experimental_versions_count = len(versions_to_delete)
 
             # Handle provenance records (purge or invalidate based on settings)
@@ -349,7 +358,7 @@ class ExperimentService(BaseService):
                 f"Deleted experiment {experiment_id} with cascading deletes: "
                 f"{processing_count} processing ops, {artifact_count} artifacts, "
                 f"{index_count} indices, {artifact_groups_deleted} artifact groups, "
-                f"{exp_docs_deleted} experiment documents, "
+                f"{exp_docs_deleted} experiment documents, {exp_docs_v2_deleted} v2 docs, "
                 f"{experimental_versions_count} experimental version documents"
             )
 
