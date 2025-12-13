@@ -9,6 +9,36 @@ from typing import Dict, List, Any, Optional
 import json
 
 
+# Style guidelines for all LLM-generated text to avoid artificial-sounding output
+LLM_STYLE_GUIDELINES = """
+**Writing Style Requirements** (follow strictly):
+
+PUNCTUATION AND STRUCTURE:
+- No em dashes or colons in body text
+- Put main clause first (avoid front-loaded subordinate clauses)
+- Avoid starting sentences with "-ing" words
+- Prefer prose over bullet lists in descriptive sections
+
+WORD CHOICE:
+- NEVER use: seamless, nuanced, robust, intriguing, comprehensive, systematic, crucial, key, critical, vital
+- NEVER use enthusiasm or sales language: remarkable, striking, dramatic, revolutionary, groundbreaking, transformative
+- Use measured language: observed, found, identified, present, absent, noted, recorded, frequent, common
+
+POSSESSIVES:
+- People's names CAN use possessives: "Wooldridge's definition", "Anscombe's analysis"
+- Inanimate objects should NOT: "the system's output" becomes "output of the system"
+
+LISTS:
+- Avoid the three-item pattern (X, Y, and Z) which signals AI text
+- Vary item counts or restructure to avoid listing
+- Use alternatives: "X and Y, as well as Z" or "X along with Y and Z"
+
+NEGATIVE CONSTRUCTIONS:
+- State what something does directly
+- Avoid "rather than", "instead of" unless contrast is essential
+"""
+
+
 def summarize_processing_results(processing_results: Dict[str, Any], max_items_per_tool: int = 50) -> Dict[str, Any]:
     """
     Summarize processing results to avoid token limits while preserving analytical value.
@@ -514,17 +544,7 @@ Your task is to ORGANIZE these tool findings into a clear structure that enables
 
 Example organization: "**1960-1980 Period** (2 documents): Entity extraction found 15 mentions of 'autonomous' [Doc 393: extract_entities_spacy], co-occurring with: 'program' (12×), 'system' (8×), 'control' (6×). **2000-2020 Period** (3 documents): Entity extraction found 47 mentions of 'autonomous' [Docs 397-398: extract_entities_spacy], co-occurring with: 'learning' (23×), 'agent' (18×), 'intelligent' (15×)."
 
-**CRITICAL TONE REQUIREMENTS**:
-- Maintain a neutral, objective, academic tone throughout
-- NEVER use enthusiastic or emphatic language ("remarkable", "striking", "dramatic", "revolutionary", "significant breakthrough")
-- NEVER use superlatives or emphasis words: "crucial", "essential", "key", "critical", "vital", "paramount", "fundamental"
-- NEVER use evaluative adjectives: "powerful", "robust", "comprehensive", "systematic", "nuanced", "sophisticated", "elegant", "seamless", "intriguing"
-- NEVER use marketing language: "cutting-edge", "state-of-the-art", "innovative", "groundbreaking", "transformative"
-- Use measured, factual language: "observed", "found", "identified", "present", "absent", "noted", "recorded"
-- Use neutral descriptors: "frequent/infrequent", "common/uncommon", "primary/secondary" (instead of "important/significant")
-- Avoid value judgments - present data objectively without interpretation beyond direct observations
-- When patterns emerge, describe them neutrally: "X co-occurs with Y in 15 of 20 instances" not "X shows strong association with Y"
-- Replace emphasis with specificity: Instead of "key findings", write "most frequent findings" or "primary observations"
+{LLM_STYLE_GUIDELINES}
 
 **Note**: Your role is to organize data, not interpret it. The researcher will draw their own conclusions from the structured presentation. Users will be concerned about potential hallucination, so ground every statement in specific tool outputs with clear source citations.
 """

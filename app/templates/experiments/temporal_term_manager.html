@@ -716,12 +716,6 @@
                     <i class="fas fa-save"></i> Save Configuration
                 </button>
                 {% endif %}
-                {% if semantic_events and semantic_events|length > 0 %}
-                <a href="{{ url_for('experiments.timeline_view', experiment_id=experiment.id) }}"
-                   class="btn btn-outline-secondary me-2">
-                    <i class="fas fa-stream"></i> View Timeline
-                </a>
-                {% endif %}
             </div>
 
             <!-- Row 2: Title -->
