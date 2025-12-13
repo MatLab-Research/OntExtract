@@ -28,7 +28,7 @@ Use authoritative lexicographic sources to establish well-documented anchor term
 |---------|-------------|
 | **Merriam-Webster Dictionary** | Authoritative American English definitions |
 | **Merriam-Webster Thesaurus** | Synonyms and antonyms for context anchoring |
-| **Oxford English Dictionary** | Historical English definitions with temporal data |
+| **Oxford English Dictionary** | Authoritative English language definitions |
 | **WordNet** | Lexical database with semantic relationships |
 
 3. Enter the search term when prompted
@@ -76,8 +76,8 @@ Anchor terms support temporal versioning to capture meaning changes over time. V
 - **OED Timeline** - Select historical waypoints showing when new senses emerged
 - **Manual versioning** - Add versions with different temporal periods
 
-!!! info "Coming Soon"
-    OED Timeline visualization for selecting historical waypoints is planned for an upcoming release.
+!!! info "Planned Feature"
+    OED Timeline visualization for selecting historical waypoints is under consideration for a future release.
 
 ## Best Practices
 

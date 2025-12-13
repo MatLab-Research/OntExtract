@@ -123,7 +123,7 @@
                 <tr>
                     <td><code>{{ run.id|string|truncate(8, True, '') }}</code></td>
                     <td>
-                        <a href="{{ url_for('experiments.view_experiment', experiment_id=run.experiment_id) }}">
+                        <a href="{{ url_for('experiments.view', experiment_id=run.experiment_id) }}">
                             Experiment {{ run.experiment_id }}
                         </a>
                     </td>

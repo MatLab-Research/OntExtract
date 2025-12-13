@@ -37,7 +37,7 @@ The top navigation bar provides access to:
 |-----------|-------------|
 | **Library** | Sources (documents and references) and Anchor Terms |
 | **Experiments** | Your analysis experiments |
-| **Provenance** | Timeline and graph views of processing history |
+| **Provenance** | Timeline and Graph views of processing history (dropdown menu) |
 | **Linked Data** | Ontology and semantic resources |
 | **Docs** | This documentation |
 
@@ -99,13 +99,13 @@ If available, browse the pre-loaded "Agent Temporal Evolution" experiment to see
 
 ### 2. Upload a Test Document
 
-1. Click **Add Source** or navigate to **Library** > **Documents**
+1. Click **Add Source** or navigate to **Library** > **Sources**
 2. Upload a PDF or text file
 3. Review the automatic metadata extraction
 
 ### 3. Create an Anchor Term
 
-1. Navigate to **Library** > **Anchor Terms**
+1. Navigate to **Library** > **Terms**
 2. Click **Add New Anchor Term**
 3. Enter a term like "agent" or "intelligence"
 4. Assign a domain (e.g., "Artificial Intelligence")

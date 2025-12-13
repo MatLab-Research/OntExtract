@@ -131,11 +131,10 @@ Each artifact links to its provenance chain showing:
 - Segment text with positions
 - Provenance records
 
-## Coming Soon
+## Planned Features
 
-Additional results features planned for future releases:
+The following results features are under consideration for future releases:
 
-- Semantic similarity search (find similar passages across documents)
 - Interactive timeline visualizations
 - Semantic drift graphs
 - Comparative period analysis

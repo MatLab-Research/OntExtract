@@ -11,6 +11,7 @@ Documents are the foundation of temporal evolution analysis. OntExtract supports
 - **PDF** - Scanned or digital PDFs (text extracted automatically)
 - **Plain Text** (.txt) - Raw text files
 - **Word Documents** (.docx) - Microsoft Word format
+- **HTML** (.html, .htm) - Web pages and HTML documents
 - **Markdown** (.md) - Markdown-formatted text
 
 ## Document Versions
@@ -34,15 +35,15 @@ OntExtract treats each upload as a separate document record. Multiple versions o
 | Better quality scan available | Upload new version, use it for new experiments |
 | Preprint vs published | Upload both if content differs significantly |
 | PDF and Word of same content | Upload whichever extracts text better |
-| Duplicate by accident | Delete the unwanted copy from Documents list |
+| Duplicate by accident | Delete the unwanted copy from the Sources list |
 
-To identify duplicates, sort by DOI or title in the Documents view.
+To identify duplicates, sort by DOI or title in the Sources view.
 
 ## Upload Methods
 
 ### Single Document Upload
 
-1. Navigate to **Documents** in the main menu
+1. Navigate to **Library → Sources** in the main menu
 2. Click **Upload Document**
 3. Select or drag-and-drop your file
 4. Review the extracted metadata (see below)
@@ -159,14 +160,16 @@ OntExtract accepts various date formats:
 
 The system extracts the year for temporal period assignment.
 
-### Coming Soon
+### Planned Features
+
+The following features are under consideration for future releases:
 
 - **Multiple authors** with structured entry and Zotero-style lookup
 - **LLM-based metadata guessing** from document content
 
 ## After Upload
 
-Once uploaded, documents appear in the **Documents list** accessible from the main menu.
+Once uploaded, documents appear in **Library > Sources** accessible from the main menu.
 
 ### Processing Options
 
@@ -208,7 +211,7 @@ Documents are automatically assigned to temporal periods based on publication da
 ### Wrong Publication Date
 
 - Edit the document metadata after upload
-- Go to **Documents** > Select document > **Edit**
+- Go to **Library** > **Sources** > Select document > **Edit**
 
 ## Related Guides
 
