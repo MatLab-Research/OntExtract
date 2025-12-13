@@ -1219,24 +1219,49 @@ class ProvenanceService:
         document,
         experiment_id: int,
         user_id: int,
-        results: Dict[str, Any] = None
+        results: Dict[str, Any] = None,
+        tool_name: str = None
     ) -> tuple[ProvActivity, ProvEntity]:
         """
         Track a processing operation on a document.
 
         Args:
             processing_type: Type of processing (segmentation, embeddings, entities, temporal, definitions)
-            processing_method: Method used (spacy, local, paragraph, sentence)
+            processing_method: Method used (spacy_ner, local, paragraph, sentence, period_aware)
             document: Document being processed
             experiment_id: Experiment ID
             user_id: User who initiated the processing
             results: Processing results summary
+            tool_name: Optional tool name for software agent tracking
 
         Returns:
             tuple: (activity, entity) provenance records
         """
-        agent = cls.get_or_create_user_agent(user_id)
+        user_agent = cls.get_or_create_user_agent(user_id)
         current_time = datetime.utcnow()
+
+        # Get or create software agent for the processing tool
+        tool_agent = None
+        effective_tool = tool_name or processing_method
+        if effective_tool:
+            if 'spacy' in effective_tool.lower():
+                tool_agent = cls.get_or_create_spacy_agent()
+            elif 'embedding' in effective_tool.lower() or 'period_aware' in effective_tool.lower():
+                tool_agent = cls.get_or_create_sentence_transformer_agent()
+            elif 'definition' in effective_tool.lower():
+                tool_agent = cls.get_or_create_tool_agent('definition_extractor', {
+                    'description': 'Pattern-based definition extraction',
+                    'library': 'spacy + regex'
+                })
+            elif 'temporal' in effective_tool.lower():
+                tool_agent = cls.get_or_create_tool_agent('temporal_extractor', {
+                    'description': 'Temporal marker extraction',
+                    'library': 'spacy + dateparser'
+                })
+            elif 'nltk' in effective_tool.lower():
+                tool_agent = cls.get_or_create_nltk_agent()
+            else:
+                tool_agent = cls.get_or_create_tool_agent(effective_tool)
 
         # Format activity type for display
         activity_type_name = f"{processing_type}_extraction" if processing_type in ['entities', 'temporal', 'definitions'] else processing_type
@@ -1246,19 +1271,20 @@ class ProvenanceService:
             'processing_method': processing_method,
             'experiment_id': experiment_id,
             'document_id': document.id,
-            'document_version': document.version_number if hasattr(document, 'version_number') else None
+            'document_version': document.version_number if hasattr(document, 'version_number') else None,
+            'tool_agent_id': str(tool_agent.agent_id) if tool_agent else None
         }
 
         # Add results if provided
         if results:
             params.update(results)
 
-        # Create activity
+        # Create activity - associate with user agent, but record tool agent in parameters
         activity = ProvActivity(
             activity_type=activity_type_name,
             startedattime=current_time,
             endedattime=current_time,
-            wasassociatedwith=agent.agent_id,
+            wasassociatedwith=user_agent.agent_id,
             activity_parameters=_serialize_value(params),
             activity_status='completed'
         )
@@ -1271,18 +1297,21 @@ class ProvenanceService:
             ProvEntity.entity_value['document_id'].astext == str(document.id)
         ).order_by(ProvEntity.created_at.asc()).first()
 
-        # Create entity for the processed document
+        # Create entity for the processing result - attribute to tool agent if available
         entity = ProvEntity(
-            entity_type='document',
+            entity_type='processing_result',
             generatedattime=current_time,
             wasgeneratedby=activity.activity_id,
-            wasattributedto=agent.agent_id,
+            wasattributedto=tool_agent.agent_id if tool_agent else user_agent.agent_id,
             wasderivedfrom=doc_entity.entity_id if doc_entity else None,
             entity_value=_serialize_value({
                 'document_id': document.id,
                 'document_uuid': str(document.uuid) if hasattr(document, 'uuid') else None,
                 'title': document.title if hasattr(document, 'title') else None,
-                'version': document.version_number if hasattr(document, 'version_number') else None
+                'version': document.version_number if hasattr(document, 'version_number') else None,
+                'processing_type': processing_type,
+                'processing_method': processing_method,
+                'result_count': results.get('count') if results else None
             })
         )
         db.session.add(entity)
@@ -1869,15 +1898,22 @@ class ProvenanceService:
             purge = AppSetting.get_setting('purge_provenance_on_delete', default=True)
 
         total_entities = 0
+        total_activities = 0
         total_relationships = 0
 
-        # Handle experiment's own provenance
+        # Handle experiment's own provenance entities
         exp_entities = ProvEntity.query.filter(
             ProvEntity.entity_value['experiment_id'].astext == str(experiment_id)
         ).all()
 
+        # Handle experiment's own provenance activities
+        exp_activities = ProvActivity.query.filter(
+            ProvActivity.activity_parameters['experiment_id'].astext == str(experiment_id)
+        ).all()
+
         # Handle document provenance if document_ids provided
         doc_entities = []
+        doc_activities = []
         if document_ids:
             for doc_id in document_ids:
                 doc_ents = ProvEntity.query.filter(
@@ -1885,11 +1921,19 @@ class ProvenanceService:
                 ).all()
                 doc_entities.extend(doc_ents)
 
+                doc_acts = ProvActivity.query.filter(
+                    ProvActivity.activity_parameters['document_id'].astext == str(doc_id)
+                ).all()
+                doc_activities.extend(doc_acts)
+
         all_entities = exp_entities + doc_entities
-        if not all_entities:
-            return {'success': True, 'entities_affected': 0}
+        all_activities = exp_activities + doc_activities
+
+        if not all_entities and not all_activities:
+            return {'success': True, 'entities_affected': 0, 'activities_affected': 0}
 
         entity_ids = [e.entity_id for e in all_entities]
+        activity_ids = [a.activity_id for a in all_activities]
 
         if purge:
             # Delete relationships for all entities
@@ -1908,6 +1952,22 @@ class ProvenanceService:
                 ).delete(synchronize_session=False)
                 total_relationships += rel_count
 
+            # Delete relationships for all activities
+            for activity_id in activity_ids:
+                rel_count = ProvRelationship.query.filter(
+                    db.or_(
+                        db.and_(
+                            ProvRelationship.subject_type == 'activity',
+                            ProvRelationship.subject_id == activity_id
+                        ),
+                        db.and_(
+                            ProvRelationship.object_type == 'activity',
+                            ProvRelationship.object_id == activity_id
+                        )
+                    )
+                ).delete(synchronize_session=False)
+                total_relationships += rel_count
+
             # Clear wasderivedfrom self-references BEFORE deleting entities
             # This handles the self-referential FK constraint on prov_entities
             for entity_id in entity_ids:
@@ -1915,24 +1975,42 @@ class ProvenanceService:
                     ProvEntity.wasderivedfrom == entity_id
                 ).update({'wasderivedfrom': None}, synchronize_session=False)
 
+            # Clear wasgeneratedby references to activities being deleted
+            for activity_id in activity_ids:
+                ProvEntity.query.filter(
+                    ProvEntity.wasgeneratedby == activity_id
+                ).update({'wasgeneratedby': None}, synchronize_session=False)
+
             # Delete all entities
             for entity in all_entities:
                 db.session.delete(entity)
 
+            # Delete all activities
+            for activity in all_activities:
+                db.session.delete(activity)
+
             total_entities = len(all_entities)
+            total_activities = len(all_activities)
             db.session.commit()
 
-            logger.info(f"Purged {total_entities} provenance entities and {total_relationships} relationships for experiment {experiment_id}")
+            logger.info(
+                f"Purged {total_entities} provenance entities, {total_activities} activities, "
+                f"and {total_relationships} relationships for experiment {experiment_id}"
+            )
             return {
                 'success': True,
                 'action': 'purged',
                 'entities_deleted': total_entities,
+                'activities_deleted': total_activities,
                 'relationships_deleted': total_relationships
             }
         else:
             # Invalidate all entities
             for entity in all_entities:
                 entity.invalidatedattime = datetime.utcnow()
+
+            # Note: Activities don't have invalidatedattime in PROV-O model
+            # They are only "purged" or left intact
 
             total_entities = len(all_entities)
             db.session.commit()

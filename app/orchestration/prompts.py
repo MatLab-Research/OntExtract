@@ -13,16 +13,21 @@ import json
 LLM_STYLE_GUIDELINES = """
 **Writing Style Requirements** (follow strictly):
 
+TONE:
+- Maintain an academic, neutral tone throughout
+- Write as a scholarly observer presenting findings, not an enthusiast promoting ideas
+- Avoid value judgments and subjective assessments
+
 PUNCTUATION AND STRUCTURE:
 - No em dashes or colons in body text
 - Put main clause first (avoid front-loaded subordinate clauses)
 - Avoid starting sentences with "-ing" words
 - Prefer prose over bullet lists in descriptive sections
 
-WORD CHOICE:
-- NEVER use: seamless, nuanced, robust, intriguing, comprehensive, systematic, crucial, key, critical, vital
-- NEVER use enthusiasm or sales language: remarkable, striking, dramatic, revolutionary, groundbreaking, transformative
-- Use measured language: observed, found, identified, present, absent, noted, recorded, frequent, common
+WORD CHOICE (strictly enforced):
+- BANNED WORDS (do not use under any circumstances): seamless, nuanced, robust, intriguing, comprehensive, systematic, crucial, key, critical, vital, notable, significant, essential, fundamental, pivotal
+- BANNED ENTHUSIASM (do not use): remarkable, striking, dramatic, revolutionary, groundbreaking, transformative, fascinating, exciting, impressive, powerful, elegant
+- USE INSTEAD: observed, found, identified, present, absent, noted, recorded, frequent, common, appears, occurs, shows
 
 POSSESSIVES:
 - People's names CAN use possessives: "Wooldridge's definition", "Anscombe's analysis"
@@ -37,6 +42,83 @@ NEGATIVE CONSTRUCTIONS:
 - State what something does directly
 - Avoid "rather than", "instead of" unless contrast is essential
 """
+
+# Lists for post-processing filter
+BANNED_WORDS = [
+    'seamless', 'nuanced', 'robust', 'intriguing', 'comprehensive', 'systematic',
+    'crucial', 'key', 'critical', 'vital', 'notable', 'significant', 'essential',
+    'fundamental', 'pivotal', 'remarkable', 'striking', 'dramatic', 'revolutionary',
+    'groundbreaking', 'transformative', 'fascinating', 'exciting', 'impressive',
+    'powerful', 'elegant'
+]
+
+# Replacement map for common intensifiers (word -> neutral replacement)
+WORD_REPLACEMENTS = {
+    'crucial': 'relevant',
+    'key': 'main',
+    'critical': 'important',
+    'vital': 'necessary',
+    'essential': 'core',
+    'fundamental': 'basic',
+    'significant': 'measurable',
+    'notable': 'observed',
+    'pivotal': 'central',
+    'fascinating': 'noteworthy',
+    'remarkable': 'uncommon',
+    'impressive': 'substantial',
+    'powerful': 'effective',
+    'dramatic': 'marked',
+    'striking': 'evident',
+    'revolutionary': 'novel',
+    'groundbreaking': 'new',
+    'transformative': 'changing',
+    'exciting': 'developing',
+    'elegant': 'simple',
+    'seamless': 'smooth',
+    'nuanced': 'varied',
+    'robust': 'reliable',
+    'intriguing': 'interesting',
+    'comprehensive': 'thorough',
+    'systematic': 'methodical',
+}
+
+
+def filter_llm_output(text: str) -> str:
+    """
+    Post-process LLM output to remove banned words and replace with neutral alternatives.
+
+    This serves as a safety net when LLMs ignore style guidelines.
+
+    Args:
+        text: Raw LLM-generated text
+
+    Returns:
+        Filtered text with banned words replaced
+    """
+    import re
+
+    if not text:
+        return text
+
+    result = text
+
+    # Replace each banned word with its neutral alternative
+    for banned, replacement in WORD_REPLACEMENTS.items():
+        # Case-insensitive replacement preserving original case
+        pattern = re.compile(re.escape(banned), re.IGNORECASE)
+
+        def replace_match(match):
+            original = match.group(0)
+            # Preserve capitalization
+            if original.isupper():
+                return replacement.upper()
+            elif original[0].isupper():
+                return replacement.capitalize()
+            return replacement
+
+        result = pattern.sub(replace_match, result)
+
+    return result
 
 
 def summarize_processing_results(processing_results: Dict[str, Any], max_items_per_tool: int = 50) -> Dict[str, Any]:
@@ -240,8 +322,10 @@ Focus on:
 3. Document characteristics and content patterns
 """)
 
-    # Build the complete prompt
+    # Build the complete prompt - style guidelines FIRST for maximum attention
     prompt = f"""You are analyzing an experiment to understand its research goals.
+
+{LLM_STYLE_GUIDELINES}
 
 {term_section}
 ## Documents in Experiment
@@ -345,6 +429,8 @@ def get_recommend_strategy_prompt(
     ])
 
     prompt = f"""You are recommending a processing strategy for this experiment.
+
+{LLM_STYLE_GUIDELINES}
 
 ## Experiment Goal
 {experiment_goal}
@@ -514,6 +600,8 @@ Return JSON with:
 
     prompt = f"""You are synthesizing insights from multi-document processing results.
 
+{LLM_STYLE_GUIDELINES}
+
 ## Experiment Goal
 {experiment_goal}
 
@@ -543,8 +631,6 @@ Your task is to ORGANIZE these tool findings into a clear structure that enables
 6. **Cite sources**: For every claim, include document ID and tool name in brackets like [Doc 393: extract_entities_spacy] or [Docs 393-395: extract_temporal]
 
 Example organization: "**1960-1980 Period** (2 documents): Entity extraction found 15 mentions of 'autonomous' [Doc 393: extract_entities_spacy], co-occurring with: 'program' (12×), 'system' (8×), 'control' (6×). **2000-2020 Period** (3 documents): Entity extraction found 47 mentions of 'autonomous' [Docs 397-398: extract_entities_spacy], co-occurring with: 'learning' (23×), 'agent' (18×), 'intelligent' (15×)."
-
-{LLM_STYLE_GUIDELINES}
 
 **Note**: Your role is to organize data, not interpret it. The researcher will draw their own conclusions from the structured presentation. Users will be concerned about potential hallucination, so ground every statement in specific tool outputs with clear source citations.
 """

@@ -264,6 +264,36 @@ class ToolExecutor:
                     except Exception as group_error:
                         logger.warning(f"Failed to create ProcessingArtifactGroup: {group_error}")
 
+                    # Track in PROV-O provenance system
+                    if self.experiment_id and self.user_id:
+                        try:
+                            from app.services.provenance_service import ProvenanceService
+                            from app.models import Document
+
+                            document = Document.query.get(document_id)
+                            if document:
+                                results_summary = {
+                                    'count': result_count,
+                                    'artifact_type': artifact_type,
+                                    'method': artifact_config['method_key'],
+                                    'artifacts_stored': artifacts_created
+                                }
+                                activity, entity = ProvenanceService.track_processing_operation(
+                                    processing_type=artifact_config['type'],
+                                    processing_method=artifact_config['method_key'],
+                                    document=document,
+                                    experiment_id=self.experiment_id,
+                                    user_id=self.user_id,
+                                    results=results_summary,
+                                    tool_name=self.tool_name
+                                )
+                                logger.info(
+                                    f"Created PROV-O record for {self.tool_name} "
+                                    f"(activity_id: {activity.activity_id}, entity_id: {entity.entity_id})"
+                                )
+                        except Exception as prov_error:
+                            logger.warning(f"Failed to create PROV-O record: {prov_error}")
+
                 except Exception as store_error:
                     logger.error(
                         f"Failed to store artifacts for document {document_id}, "

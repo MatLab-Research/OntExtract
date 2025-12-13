@@ -753,7 +753,11 @@
                 <div class="card-header d-flex justify-content-between align-items-center">
                     <h5 class="mb-0"><i class="fas fa-layer-group"></i> Temporal Elements</h5>
                     <div class="d-flex align-items-center gap-2">
-                        <span class="badge bg-primary">{{ time_periods|length }} artifacts</span>
+                        {% set total_artifacts = namespace(count=0) %}
+                        {% for year, docs in period_documents.items() %}
+                            {% set total_artifacts.count = total_artifacts.count + docs|length %}
+                        {% endfor %}
+                        <span class="badge bg-primary">{{ total_artifacts.count }} artifacts</span>
                         <span class="badge bg-info">{{ named_periods|length if named_periods else 0 }} periods</span>
                         <span class="badge bg-secondary">{{ semantic_events|length if semantic_events else 0 }} events</span>
                         <span class="timeline-expand-btn" onclick="toggleTimelineExpanded()" title="Expand to full screen">

@@ -464,9 +464,9 @@ def test_synthesis_prompt_includes_style_guidelines():
         document_metadata=None
     )
 
-    # Check that key style guidelines appear in synthesis prompt
+    # Check that style guidelines appear in synthesis prompt
     assert 'Writing Style Requirements' in prompt
-    assert 'NEVER use' in prompt
+    assert 'BANNED WORDS' in prompt
     assert 'possessive' in prompt.lower()
 
 

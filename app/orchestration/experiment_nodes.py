@@ -23,7 +23,7 @@ from .experiment_state import ExperimentOrchestrationState
 from ..services.extraction_tools import get_tool_registry
 from .retry_utils import call_llm_with_retry, LLMTimeoutError, LLMRetryExhaustedError
 from .config import config
-from .prompts import get_analyze_prompt, get_recommend_strategy_prompt, get_synthesis_prompt
+from .prompts import get_analyze_prompt, get_recommend_strategy_prompt, get_synthesis_prompt, filter_llm_output
 
 # Database imports for progress tracking
 from app import db
@@ -108,9 +108,9 @@ async def analyze_experiment_node(state: ExperimentOrchestrationState) -> Dict[s
             operation_name="Analyze Experiment (Stage 1)"
         )
 
-        # Extract fields from JSON response
-        experiment_goal = response.get('experiment_goal', 'Analyze document collection')
-        term_context = response.get('term_context', focus_term)
+        # Extract fields from JSON response and filter banned words
+        experiment_goal = filter_llm_output(response.get('experiment_goal', 'Analyze document collection'))
+        term_context = filter_llm_output(response.get('term_context', focus_term))
 
         logger.info(f"Stage 1 complete: Goal={experiment_goal[:50]}...")
 
@@ -205,7 +205,7 @@ async def recommend_strategy_node(state: ExperimentOrchestrationState) -> Dict[s
 
         return {
             "recommended_strategy": response.get('recommended_strategy'),
-            "strategy_reasoning": response.get('strategy_reasoning'),
+            "strategy_reasoning": filter_llm_output(response.get('strategy_reasoning')),
             "confidence": response.get('confidence', 0.0),
             "current_stage": next_stage,
             "strategy_approved": not review_choices  # Auto-approve if no review
@@ -472,14 +472,28 @@ async def synthesize_experiment_node(state: ExperimentOrchestrationState) -> Dic
             operation_name="Synthesize Experiment (Stage 5)"
         )
 
-        # Extract common fields
-        cross_document_insights = response.get('cross_document_insights', 'No insights generated')
-        term_evolution_analysis = response.get('term_evolution_analysis')
+        # Extract common fields and filter banned words
+        cross_document_insights = filter_llm_output(response.get('cross_document_insights', 'No insights generated'))
+        term_evolution_analysis = filter_llm_output(response.get('term_evolution_analysis'))
 
         # Extract structured card data (experiment-type specific)
         generated_term_cards = response.get('generated_term_cards')
         generated_domain_cards = response.get('generated_domain_cards')
         generated_entity_cards = response.get('generated_entity_cards')
+
+        # Filter text fields within cards
+        def filter_cards(cards):
+            if not cards:
+                return cards
+            for card in cards:
+                for field in ['definition', 'narrative', 'description', 'summary']:
+                    if field in card and card[field]:
+                        card[field] = filter_llm_output(card[field])
+            return cards
+
+        generated_term_cards = filter_cards(generated_term_cards)
+        generated_domain_cards = filter_cards(generated_domain_cards)
+        generated_entity_cards = filter_cards(generated_entity_cards)
 
         # Log card generation success
         if generated_term_cards:
