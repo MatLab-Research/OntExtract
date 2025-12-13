@@ -178,21 +178,21 @@ sco:LabelDrift a owl:Class ;
     rdfs:label "Label Drift" ;
     rdfs:comment "Changes in the lexical labels (names) of a concept." ;
     skos:definition "Semantic change affecting the rdfs:label or naming of a concept, measured via string similarity (Monge-Elkan)." ;
-    dcterms:bibliographicCitation "Wang et al. (2009, 2011); Stavropoulos et al. (2019). SemaDrift." .
+    dcterms:bibliographicCitation "Wang et al. (2010, 2011); Stavropoulos et al. (2019). SemaDrift." .
 
 sco:IntensionalDrift a owl:Class ;
     rdfs:subClassOf sco:SemanticChangeEvent ;
     rdfs:label "Intensional Drift" ;
     rdfs:comment "Changes in concept properties (characteristics implied by the concept)." ;
     skos:definition "Semantic change affecting the intensional definition of a concept via modifications to its properties, measured via Jaccard similarity of property sets." ;
-    dcterms:bibliographicCitation "Wang et al. (2009, 2011); Stavropoulos et al. (2019). SemaDrift." .
+    dcterms:bibliographicCitation "Wang et al. (2010, 2011); Stavropoulos et al. (2019). SemaDrift." .
 
 sco:ExtensionalDrift a owl:Class ;
     rdfs:subClassOf sco:SemanticChangeEvent ;
     rdfs:label "Extensional Drift" ;
     rdfs:comment "Changes in concept instances (things the concept extends to)." ;
     skos:definition "Semantic change affecting the extensional definition of a concept via modifications to its instances, measured via Jaccard similarity of instance sets." ;
-    dcterms:bibliographicCitation "Wang et al. (2009, 2011); Stavropoulos et al. (2019). SemaDrift." .
+    dcterms:bibliographicCitation "Wang et al. (2010, 2011); Stavropoulos et al. (2019). SemaDrift." .
 
 sco:StructuralDrift a owl:Class ;
     rdfs:subClassOf sco:SemanticChangeEvent ;

@@ -44,6 +44,7 @@
         grid-template-columns: repeat(4, 1fr);
         gap: 15px;
         margin-top: 15px;
+        align-items: start;  /* Cards don't stretch when others expand */
     }
 
     /* Force all grid items to fill their cells */
@@ -196,11 +197,12 @@
         border-left: 4px solid;
         border-radius: 0.375rem;
         padding: 0;
-        min-height: 200px;
         transition: all 0.2s ease;
         box-shadow: 0 1px 3px rgba(0,0,0,0.1);
         display: flex;
         flex-direction: column;
+        position: relative;
+        min-height: 260px;  /* Uniform card height */
     }
 
     .period-card:hover {
@@ -381,10 +383,9 @@
     .period-card-footer {
         display: flex;
         justify-content: flex-end;
-        padding: 12px 16px;
+        padding: 4px 8px;
         background-color: #f8f9fa;
         border-top: 1px solid #dee2e6;
-        margin-top: auto;  /* Push footer to bottom of flex container */
     }
 
     .period-remove {
@@ -411,11 +412,12 @@
         border-left: 4px solid;
         border-radius: 0.375rem;
         padding: 0;
-        min-height: 220px;
         transition: all 0.2s ease;
         box-shadow: 0 1px 3px rgba(0,0,0,0.1);
         display: flex;
         flex-direction: column;
+        position: relative;
+        min-height: 260px;  /* Uniform card height */
     }
 
     .semantic-event-card:hover {
@@ -498,6 +500,53 @@
         border-left-color: #dc3545;  /* Red - meaning fading */
     }
 
+    /* Card content fade and expand button */
+    .card-content-wrapper {
+        max-height: 130px;
+        overflow: hidden;
+        position: relative;
+        transition: max-height 0.3s ease;
+    }
+
+    .card-content-wrapper.expanded {
+        max-height: none;
+    }
+
+    .card-fade-overlay {
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        height: 40px;
+        background: linear-gradient(transparent, white);
+        pointer-events: none;
+        transition: opacity 0.2s ease;
+    }
+
+    .card-content-wrapper.expanded .card-fade-overlay {
+        opacity: 0;
+    }
+
+    .card-expand-btn {
+        display: block;
+        width: 100%;
+        background: #f8f9fa;
+        border: none;
+        border-top: 1px solid #dee2e6;
+        padding: 4px 8px;
+        font-size: 0.75rem;
+        color: #6c757d;
+        margin-top: auto;  /* Push button and footer to bottom of flex container */
+        cursor: pointer;
+        text-align: center;
+        transition: all 0.2s ease;
+    }
+
+    .card-expand-btn:hover {
+        background: #e9ecef;
+        color: #495057;
+    }
+
     .semantic-event-header {
         display: flex;
         justify-content: space-between;
@@ -572,11 +621,10 @@
     .semantic-event-footer {
         display: flex;
         justify-content: flex-end;
-        gap: 8px;
-        padding: 12px 16px;
+        gap: 6px;
+        padding: 4px 8px;
         background-color: #f8f9fa;
         border-top: 1px solid #dee2e6;
-        margin-top: auto;  /* Push footer to bottom of flex container */
     }
 
     .semantic-event-edit,
@@ -725,10 +773,10 @@
                             </small>
                         </div>
                         <div class="col-md-6">
-                            <button class="btn btn-outline-success w-100" onclick="showManualPeriodEditor()">
-                                <i class="fas fa-edit"></i> Manual Entry
+                            <button class="btn btn-outline-success w-100" onclick="showAddTemporalElementDialog()">
+                                <i class="fas fa-plus"></i> Add Element
                             </button>
-                            <small class="text-muted">Manually specify time periods</small>
+                            <small class="text-muted">Add artifact, named period, or semantic event</small>
                         </div>
                     </div>
 
@@ -752,16 +800,8 @@
 
                     {# List View (default) - vertical cards #}
                     <div id="list-view" class="mb-3">
-                        <div class="mb-3 d-flex justify-content-between align-items-center">
+                        <div class="mb-3">
                             <strong><i class="fas fa-calendar-alt"></i> Periods & Events</strong>
-                            <div>
-                                <button class="btn btn-sm btn-outline-primary me-2" onclick="showAddPeriodDialog()" title="Add period manually">
-                                    <i class="fas fa-plus"></i> Add Period
-                                </button>
-                                <button class="btn btn-sm btn-outline-secondary" onclick="showAddSemanticEventDialog()" title="Add semantic event">
-                                    <i class="fas fa-plus-circle"></i> Add Event
-                                </button>
-                            </div>
                         </div>
                         {% if time_periods|length > 0 or (semantic_events and semantic_events|length > 0) %}
                         <div id="timeline-container">
@@ -1015,66 +1055,6 @@
     </div>
 </div>
 
-<!-- Manual Period Entry Modal -->
-<div class="modal fade" id="manualPeriodModal" tabindex="-1" aria-labelledby="manualPeriodModalLabel" aria-hidden="true">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="manualPeriodModalLabel">Manual Period Entry</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body">
-                <div class="mb-3">
-                    <div class="form-check form-switch">
-                        <input class="form-check-input" type="checkbox" id="useRangeMode" onchange="togglePeriodEntryMode()">
-                        <label class="form-check-label" for="useRangeMode">
-                            Generate from range (start year → end year with intervals)
-                        </label>
-                    </div>
-                </div>
-
-                <!-- Manual List Mode (default) -->
-                <div id="manualListMode">
-                    <div class="mb-3">
-                        <label for="periodsInput" class="form-label">Time Periods (comma-separated years)</label>
-                        <input type="text" class="form-control" id="periodsInput"
-                               placeholder="e.g., 1910, 1956, 1995, 2019">
-                        <small class="text-muted">Enter years separated by commas</small>
-                    </div>
-                </div>
-
-                <!-- Range Mode (hidden by default) -->
-                <div id="rangeMode" style="display: none;">
-                    <div class="row">
-                        <div class="col-md-6 mb-3">
-                            <label for="startYear" class="form-label">Start Year</label>
-                            <input type="number" class="form-control" id="startYear"
-                                   placeholder="1900" value="">
-                            <small class="text-muted">First document year or 1900</small>
-                        </div>
-                        <div class="col-md-6 mb-3">
-                            <label for="endYear" class="form-label">End Year</label>
-                            <input type="number" class="form-control" id="endYear"
-                                   placeholder="2025" value="">
-                            <small class="text-muted">Current year by default</small>
-                        </div>
-                    </div>
-                    <div class="mb-3">
-                        <label for="periodInterval" class="form-label">Period Interval (years)</label>
-                        <input type="number" class="form-control" id="periodInterval"
-                               value="5" min="1">
-                        <small class="text-muted">Years between each period</small>
-                    </div>
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                <button type="button" class="btn btn-primary" onclick="applyManualPeriods()">Apply</button>
-            </div>
-        </div>
-    </div>
-</div>
-
 <!-- Add Period Modal -->
 <div class="modal fade" id="addPeriodModal" tabindex="-1" aria-labelledby="addPeriodModalLabel" aria-hidden="true">
     <div class="modal-dialog">
@@ -1190,6 +1170,110 @@
     </div>
 </div>
 
+<!-- Unified Temporal Element Modal -->
+<div class="modal fade" id="temporalElementModal" tabindex="-1" aria-labelledby="temporalElementModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="temporalElementModalLabel">Add Temporal Element</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="elementEditId" value="">
+
+                <!-- Element Type Selector -->
+                <div class="mb-3">
+                    <label class="form-label">Element Type <span class="text-danger">*</span></label>
+                    <div class="btn-group w-100" role="group" aria-label="Element type selector">
+                        <input type="radio" class="btn-check" name="elementType" id="typeArtifact" value="artifact" autocomplete="off">
+                        <label class="btn btn-outline-secondary" for="typeArtifact">
+                            <i class="fas fa-file-alt"></i> Document Artifact
+                        </label>
+
+                        <input type="radio" class="btn-check" name="elementType" id="typeNamedPeriod" value="named_period" autocomplete="off">
+                        <label class="btn btn-outline-primary" for="typeNamedPeriod">
+                            <i class="fas fa-calendar-alt"></i> Named Period
+                        </label>
+
+                        <input type="radio" class="btn-check" name="elementType" id="typeSemanticEvent" value="semantic_event" autocomplete="off" checked>
+                        <label class="btn btn-outline-success" for="typeSemanticEvent">
+                            <i class="fas fa-bolt"></i> Semantic Event
+                        </label>
+                    </div>
+                    <small class="text-muted" id="elementTypeHelp">Select the type of temporal element to add</small>
+                </div>
+
+                <!-- Semantic Event Type (shown only for semantic_event) -->
+                <div class="mb-3" id="eventTypeSection">
+                    <label for="elementEventType" class="form-label">
+                        Event Type <span class="text-danger">*</span>
+                        <span class="badge bg-success ms-2" title="Event types from validated ontology"><i class="bi bi-shield-check"></i></span>
+                    </label>
+                    <select class="form-control" id="elementEventType" onchange="showElementEventTypeMetadata(this)">
+                        <option value="">Loading from ontology...</option>
+                    </select>
+                    <small class="text-muted">Type of semantic transition or event</small>
+                    <div id="element-event-type-metadata" class="mt-2"></div>
+                </div>
+
+                <!-- Period Type (shown only for named_period) -->
+                <div class="mb-3" id="periodTypeSection" style="display: none;">
+                    <label for="elementPeriodType" class="form-label">Period Type</label>
+                    <input type="text" class="form-control" id="elementPeriodType" list="elementPeriodTypeOptions"
+                           placeholder="Select or enter period type...">
+                    <datalist id="elementPeriodTypeOptions"></datalist>
+                    <small class="text-muted">Optional: Select from ontology-defined types</small>
+                </div>
+
+                <!-- Name (shown for named_period and artifact) -->
+                <div class="mb-3" id="nameSection" style="display: none;">
+                    <label for="elementName" class="form-label">Name</label>
+                    <input type="text" class="form-control" id="elementName"
+                           placeholder="e.g., Early AI Era, Classical Period">
+                    <small class="text-muted">Optional: Give this element a descriptive name</small>
+                </div>
+
+                <!-- Year Fields -->
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label for="elementStartYear" class="form-label" id="startYearLabel">Year <span class="text-danger">*</span></label>
+                        <input type="number" class="form-control" id="elementStartYear"
+                               placeholder="e.g., 1950" required>
+                        <small class="text-muted" id="startYearHelp">Year of event or start of period</small>
+                    </div>
+                    <div class="col-md-6 mb-3" id="endYearSection">
+                        <label for="elementEndYear" class="form-label">End Year</label>
+                        <input type="number" class="form-control" id="elementEndYear"
+                               placeholder="e.g., 1970 (optional)">
+                        <small class="text-muted" id="endYearHelp">Leave blank for point event</small>
+                    </div>
+                </div>
+
+                <!-- Description -->
+                <div class="mb-3" id="descriptionSection">
+                    <label for="elementDescription" class="form-label">Description <span id="descriptionRequired" class="text-danger">*</span></label>
+                    <textarea class="form-control" id="elementDescription" rows="3"
+                              placeholder="Describe the semantic event, period, or artifact..."></textarea>
+                    <small class="text-muted" id="descriptionHelp">What changed? Why is this significant?</small>
+                </div>
+
+                <!-- Related Documents (shown for semantic_event and artifact) -->
+                <div class="mb-3" id="documentsSection">
+                    <label for="elementDocuments" class="form-label">Related Documents (Evidence)</label>
+                    <select class="form-control" id="elementDocuments" multiple size="5">
+                        <!-- Will be populated dynamically with experiment documents -->
+                    </select>
+                    <small class="text-muted">Select documents that provide evidence or are associated with this element</small>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="saveTemporalElement()" id="saveElementBtn">Save</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script>
 // Global variables
 let experimentId = {{ experiment.id }};
@@ -1211,6 +1295,9 @@ let experimentDocuments = [];  // Will be populated for document selection
 
 // Period types from ontology
 let periodTypes = [];  // Will be populated from backend
+
+// Time periods (years) for the experiment
+let timePeriods = {{ time_periods|tojson|safe }};
 
 // Initialize from backend data (convert old format to new)
 (function() {
@@ -1845,98 +1932,6 @@ async function generatePeriodsFromDocuments() {
     }
 }
 
-// Show manual period editor
-function showManualPeriodEditor() {
-    // Populate current periods
-    document.getElementById('periodsInput').value = timePeriods.join(', ');
-
-    // Set smart defaults for range mode
-    const startDefault = timePeriods.length > 0 ? Math.min(...timePeriods) : 1900;
-    const endDefault = new Date().getFullYear();
-
-    document.getElementById('startYear').value = startDefault;
-    document.getElementById('endYear').value = endDefault;
-
-    // Show modal
-    const modal = new bootstrap.Modal(document.getElementById('manualPeriodModal'));
-    modal.show();
-}
-
-// Toggle between manual list and range mode
-function togglePeriodEntryMode() {
-    const useRange = document.getElementById('useRangeMode').checked;
-    document.getElementById('manualListMode').style.display = useRange ? 'none' : 'block';
-    document.getElementById('rangeMode').style.display = useRange ? 'block' : 'none';
-}
-
-// Apply manual periods
-function applyManualPeriods() {
-    const useRange = document.getElementById('useRangeMode').checked;
-    let newPeriods = [];
-
-    if (useRange) {
-        // Range mode: generate periods from start to end with interval
-        const startYear = parseInt(document.getElementById('startYear').value);
-        const endYear = parseInt(document.getElementById('endYear').value);
-        const interval = parseInt(document.getElementById('periodInterval').value);
-
-        if (isNaN(startYear) || isNaN(endYear) || isNaN(interval)) {
-            alert('Please enter valid numbers for start year, end year, and interval');
-            return;
-        }
-
-        if (startYear >= endYear) {
-            alert('Start year must be less than end year');
-            return;
-        }
-
-        if (interval < 1) {
-            alert('Interval must be at least 1 year');
-            return;
-        }
-
-        // Generate periods
-        let current = startYear;
-        while (current <= endYear) {
-            newPeriods.push(current);
-            current += interval;
-        }
-
-        // Ensure end year is included if not already
-        if (newPeriods[newPeriods.length - 1] < endYear) {
-            newPeriods.push(endYear);
-        }
-    } else {
-        // Manual list mode
-        const periodsStr = document.getElementById('periodsInput').value;
-
-        if (!periodsStr.trim()) {
-            alert('Please enter at least one period');
-            return;
-        }
-
-        newPeriods = periodsStr.split(',')
-            .map(p => parseInt(p.trim()))
-            .filter(p => !isNaN(p))
-            .sort((a, b) => a - b);
-
-        if (newPeriods.length === 0) {
-            alert('No valid periods entered');
-            return;
-        }
-    }
-
-    // Update periods
-    timePeriods = newPeriods;
-
-    // Close modal
-    const modal = bootstrap.Modal.getInstance(document.getElementById('manualPeriodModal'));
-    modal.hide();
-
-    // Refresh UI
-    refreshTimePeriodsUI();
-}
-
 // Show add period dialog
 function showAddPeriodDialog() {
     // Reset form
@@ -2196,6 +2191,7 @@ function refreshTimelineUI() {
                         </div>
                         <span class="period-source-badge ${badgeClass}">${badgeText}</span>
                     </div>
+                    <div class="card-content-wrapper">
                 `;
 
                 // Add period description if it exists
@@ -2226,6 +2222,9 @@ function refreshTimelineUI() {
                 }
 
                 cardHTML += `
+                        <div class="card-fade-overlay"></div>
+                    </div>
+                    <button class="card-expand-btn" onclick="toggleCardExpand(this)">More</button>
                     <div class="period-card-footer">
                         <button class="period-remove" onclick="removeEntry('${entry.id}')" title="Remove ${entry.type === 'boundary' ? 'period' : 'artifact'}">
                             <i class="fas fa-trash"></i>
@@ -2272,11 +2271,12 @@ function refreshTimelineUI() {
                         </div>
                         <span class="semantic-event-type-badge">${badgeText}</span>
                     </div>
-                    <div class="semantic-event-body">
-                        <div style="font-size: 0.875rem; font-weight: 600; color: #495057; margin-bottom: 8px;">
-                            ${eventTypeName}
-                        </div>
-                        <div class="semantic-event-description">${entry.event_description}</div>
+                    <div class="card-content-wrapper">
+                        <div class="semantic-event-body">
+                            <div style="font-size: 0.875rem; font-weight: 600; color: #495057; margin-bottom: 8px;">
+                                ${eventTypeName}
+                            </div>
+                            <div class="semantic-event-description">${entry.event_description}</div>
                 `;
 
                 // Show related documents if any
@@ -2297,7 +2297,10 @@ function refreshTimelineUI() {
                 }
 
                 cardHTML += `
+                        </div>
+                        <div class="card-fade-overlay"></div>
                     </div>
+                    <button class="card-expand-btn" onclick="toggleCardExpand(this)">More</button>
                     <div class="semantic-event-footer">
                         <button class="semantic-event-edit" onclick="editSemanticEvent('${entry.backend_event_id}')" title="Edit event">
                             <i class="fas fa-edit"></i> Edit
@@ -2316,6 +2319,43 @@ function refreshTimelineUI() {
 
     // Apply period colors after rendering
     applyPeriodColors();
+
+    // Hide "More" buttons for cards without overflow
+    updateExpandButtons();
+}
+
+// Toggle card expand/collapse
+function toggleCardExpand(btn) {
+    const card = btn.closest('.period-card, .semantic-event-card');
+    if (card) {
+        const wrapper = card.querySelector('.card-content-wrapper');
+        if (wrapper) {
+            wrapper.classList.toggle('expanded');
+            btn.textContent = wrapper.classList.contains('expanded') ? 'Less' : 'More';
+        }
+    }
+}
+
+// Hide "More" buttons when content doesn't overflow (use visibility to maintain uniform card height)
+function updateExpandButtons() {
+    document.querySelectorAll('.card-expand-btn').forEach(btn => {
+        const card = btn.closest('.period-card, .semantic-event-card');
+        if (card) {
+            const wrapper = card.querySelector('.card-content-wrapper');
+            if (wrapper) {
+                // Check if content overflows
+                const hasOverflow = wrapper.scrollHeight > wrapper.clientHeight;
+                // Use visibility (not display) so button still takes space for uniform card heights
+                btn.style.visibility = hasOverflow ? 'visible' : 'hidden';
+
+                // Also hide fade overlay if no overflow
+                const fade = wrapper.querySelector('.card-fade-overlay');
+                if (fade) {
+                    fade.style.visibility = hasOverflow ? 'visible' : 'hidden';
+                }
+            }
+        }
+    });
 }
 
 // Alias for backwards compatibility
@@ -2631,6 +2671,409 @@ async function removeSemanticEvent(eventId) {
         alert('Error removing semantic event: ' + error.message);
     }
 }
+
+// ========== Unified Temporal Element Functions ==========
+
+// Show the unified add dialog
+function showAddTemporalElementDialog() {
+    // Reset form
+    document.getElementById('elementEditId').value = '';
+    document.getElementById('elementEventType').value = '';
+    document.getElementById('elementPeriodType').value = '';
+    document.getElementById('elementName').value = '';
+    document.getElementById('elementStartYear').value = '';
+    document.getElementById('elementEndYear').value = '';
+    document.getElementById('elementDescription').value = '';
+
+    // Clear document selection
+    const docSelect = document.getElementById('elementDocuments');
+    Array.from(docSelect.options).forEach(opt => opt.selected = false);
+
+    // Default to semantic event
+    document.getElementById('typeSemanticEvent').checked = true;
+    updateElementTypeFields();
+
+    // Load event types into the unified modal dropdown
+    loadEventTypesForUnifiedModal();
+
+    // Load documents
+    loadDocumentsForUnifiedModal();
+
+    // Load period types
+    loadPeriodTypesForUnifiedModal();
+
+    // Update modal title
+    document.getElementById('temporalElementModalLabel').textContent = 'Add Temporal Element';
+    document.getElementById('saveElementBtn').textContent = 'Save';
+
+    // Show modal
+    const modal = new bootstrap.Modal(document.getElementById('temporalElementModal'));
+    modal.show();
+}
+
+// Update field visibility based on element type
+function updateElementTypeFields() {
+    const elementType = document.querySelector('input[name="elementType"]:checked')?.value || 'semantic_event';
+
+    // Sections
+    const eventTypeSection = document.getElementById('eventTypeSection');
+    const periodTypeSection = document.getElementById('periodTypeSection');
+    const nameSection = document.getElementById('nameSection');
+    const endYearSection = document.getElementById('endYearSection');
+    const descriptionSection = document.getElementById('descriptionSection');
+    const documentsSection = document.getElementById('documentsSection');
+
+    // Labels and help text
+    const startYearLabel = document.getElementById('startYearLabel');
+    const startYearHelp = document.getElementById('startYearHelp');
+    const endYearHelp = document.getElementById('endYearHelp');
+    const descriptionHelp = document.getElementById('descriptionHelp');
+    const descriptionRequired = document.getElementById('descriptionRequired');
+
+    // Reset all sections
+    eventTypeSection.style.display = 'none';
+    periodTypeSection.style.display = 'none';
+    nameSection.style.display = 'none';
+    endYearSection.style.display = 'block';
+    descriptionSection.style.display = 'block';
+    documentsSection.style.display = 'block';
+
+    if (elementType === 'artifact') {
+        // Document Artifact: year, name (optional), documents
+        nameSection.style.display = 'block';
+        endYearSection.style.display = 'none';
+        descriptionSection.style.display = 'none';
+        startYearLabel.innerHTML = 'Year <span class="text-danger">*</span>';
+        startYearHelp.textContent = 'Publication or reference year';
+
+    } else if (elementType === 'named_period') {
+        // Named Period: start year, end year (required), name, period type, description
+        periodTypeSection.style.display = 'block';
+        nameSection.style.display = 'block';
+        startYearLabel.innerHTML = 'Start Year <span class="text-danger">*</span>';
+        startYearHelp.textContent = 'Beginning of period';
+        endYearHelp.textContent = 'End of period (required for named periods)';
+        descriptionHelp.textContent = 'Describe the historical context';
+        descriptionRequired.style.display = 'none';
+        documentsSection.style.display = 'none';
+
+    } else if (elementType === 'semantic_event') {
+        // Semantic Event: event type, from year, to year (optional), description, documents
+        eventTypeSection.style.display = 'block';
+        startYearLabel.innerHTML = 'From Year <span class="text-danger">*</span>';
+        startYearHelp.textContent = 'Year when event started';
+        endYearHelp.textContent = 'Leave blank for point event';
+        descriptionHelp.textContent = 'What changed? Why is this significant?';
+        descriptionRequired.style.display = 'inline';
+    }
+}
+
+// Load event types for unified modal
+async function loadEventTypesForUnifiedModal() {
+    try {
+        const response = await fetch(`/experiments/${experimentId}/semantic_event_types`);
+        const data = await response.json();
+
+        if (data.success && data.event_types) {
+            const select = document.getElementById('elementEventType');
+            select.innerHTML = '<option value="">-- Select semantic change type --</option>';
+
+            data.event_types.forEach(type => {
+                const option = document.createElement('option');
+                option.value = type.value;
+                option.textContent = type.label;
+                option.dataset.definition = type.definition || '';
+                option.dataset.citation = type.citation || '';
+                option.dataset.example = type.example || '';
+                option.dataset.uri = type.uri || '';
+                select.appendChild(option);
+            });
+        }
+    } catch (error) {
+        console.error('Error loading event types:', error);
+    }
+}
+
+// Load documents for unified modal
+async function loadDocumentsForUnifiedModal() {
+    try {
+        const response = await fetch(`/experiments/${experimentId}/documents`);
+        const data = await response.json();
+
+        if (data.success && data.documents) {
+            const select = document.getElementById('elementDocuments');
+            select.innerHTML = '';
+
+            data.documents.forEach(doc => {
+                const option = document.createElement('option');
+                option.value = doc.id;
+                option.textContent = doc.title || 'Untitled Document';
+                select.appendChild(option);
+            });
+        }
+    } catch (error) {
+        console.error('Error loading documents:', error);
+    }
+}
+
+// Load period types for unified modal
+async function loadPeriodTypesForUnifiedModal() {
+    try {
+        const response = await fetch('/experiments/period_types');
+        const data = await response.json();
+
+        if (data.success && data.period_types) {
+            const datalist = document.getElementById('elementPeriodTypeOptions');
+            datalist.innerHTML = '';
+
+            data.period_types.forEach(type => {
+                const option = document.createElement('option');
+                option.value = type.label;
+                option.dataset.value = type.value;
+                datalist.appendChild(option);
+            });
+        }
+    } catch (error) {
+        console.error('Error loading period types:', error);
+    }
+}
+
+// Show event type metadata in unified modal
+function showElementEventTypeMetadata(selectElement) {
+    const selectedOption = selectElement.options[selectElement.selectedIndex];
+    const metadataDiv = document.getElementById('element-event-type-metadata');
+
+    if (!selectedOption.value) {
+        metadataDiv.innerHTML = '';
+        return;
+    }
+
+    const definition = selectedOption.dataset.definition || '';
+    const citation = selectedOption.dataset.citation || '';
+    const example = selectedOption.dataset.example || '';
+
+    let html = '';
+    if (definition) {
+        html += `<div class="small text-muted mb-1"><strong>Definition:</strong> ${definition}</div>`;
+    }
+    if (citation) {
+        html += `<div class="small text-muted mb-1"><strong>Citation:</strong> ${citation}</div>`;
+    }
+    if (example) {
+        html += `<div class="small text-muted"><strong>Example:</strong> ${example}</div>`;
+    }
+
+    metadataDiv.innerHTML = html;
+}
+
+// Save temporal element (unified handler)
+async function saveTemporalElement() {
+    const elementType = document.querySelector('input[name="elementType"]:checked')?.value;
+
+    if (!elementType) {
+        alert('Please select an element type');
+        return;
+    }
+
+    const startYear = parseInt(document.getElementById('elementStartYear').value);
+
+    if (isNaN(startYear)) {
+        alert('Please enter a valid year');
+        return;
+    }
+
+    if (elementType === 'artifact') {
+        await saveArtifactElement(startYear);
+    } else if (elementType === 'named_period') {
+        await saveNamedPeriodElement(startYear);
+    } else if (elementType === 'semantic_event') {
+        await saveSemanticEventElement(startYear);
+    }
+}
+
+// Save artifact element
+async function saveArtifactElement(year) {
+    const name = document.getElementById('elementName').value.trim();
+    const selectedDocs = Array.from(document.getElementById('elementDocuments').selectedOptions).map(opt => parseInt(opt.value));
+
+    // Check if year already exists as artifact
+    const existingArtifact = timelineEntries.find(e => e.year === year && e.type === 'artifact');
+    if (existingArtifact) {
+        alert(`An artifact already exists for year ${year}`);
+        return;
+    }
+
+    // Add to timeline entries
+    const entryId = `artifact_${year}`;
+    timelineEntries.push({
+        id: entryId,
+        year: year,
+        type: 'artifact',
+        name: name,
+        source: 'manual',
+        related_documents: selectedDocs
+    });
+
+    // Add to timePeriods if not already present
+    if (!timePeriods.includes(year)) {
+        timePeriods.push(year);
+        timePeriods.sort((a, b) => a - b);
+    }
+
+    // Close modal
+    const modal = bootstrap.Modal.getInstance(document.getElementById('temporalElementModal'));
+    modal.hide();
+
+    // Save and refresh
+    await saveTerms(() => {
+        refreshTimelineUI();
+    });
+}
+
+// Save named period element
+async function saveNamedPeriodElement(startYear) {
+    const endYear = parseInt(document.getElementById('elementEndYear').value);
+    const name = document.getElementById('elementName').value.trim();
+    const periodType = document.getElementById('elementPeriodType').value.trim();
+    const description = document.getElementById('elementDescription').value.trim();
+
+    if (isNaN(endYear)) {
+        alert('Please enter an end year for named periods');
+        return;
+    }
+
+    if (startYear >= endYear) {
+        alert('Start year must be before end year');
+        return;
+    }
+
+    // Check for existing boundaries
+    const hasStartBoundary = timelineEntries.some(e => e.year === startYear && e.boundary_type === 'start');
+    const hasEndBoundary = timelineEntries.some(e => e.year === endYear && e.boundary_type === 'end');
+
+    if (hasStartBoundary) {
+        alert(`Year ${startYear} already has a START boundary marker`);
+        return;
+    }
+
+    if (hasEndBoundary) {
+        alert(`Year ${endYear} already has an END boundary marker`);
+        return;
+    }
+
+    // Generate unique period ID
+    const periodId = `period_${Date.now()}`;
+
+    // Create START boundary entry
+    const startEntryId = `start_${startYear}_${periodId}`;
+    timelineEntries.push({
+        id: startEntryId,
+        year: startYear,
+        type: 'boundary',
+        boundary_type: 'start',
+        period_id: periodId,
+        period_name: name,
+        period_type: periodType,
+        period_description: description,
+        paired_with_year: endYear,
+        paired_with_id: `end_${endYear}_${periodId}`,
+        source: 'manual'
+    });
+
+    // Create END boundary entry
+    const endEntryId = `end_${endYear}_${periodId}`;
+    timelineEntries.push({
+        id: endEntryId,
+        year: endYear,
+        type: 'boundary',
+        boundary_type: 'end',
+        period_id: periodId,
+        period_name: name,
+        period_type: periodType,
+        period_description: description,
+        paired_with_year: startYear,
+        paired_with_id: startEntryId,
+        source: 'manual'
+    });
+
+    // Close modal
+    const modal = bootstrap.Modal.getInstance(document.getElementById('temporalElementModal'));
+    modal.hide();
+
+    // Save and refresh
+    await saveTerms(() => {
+        refreshTimelineUI();
+    });
+}
+
+// Save semantic event element
+async function saveSemanticEventElement(fromYear) {
+    const eventType = document.getElementById('elementEventType').value;
+    const toYear = document.getElementById('elementEndYear').value ? parseInt(document.getElementById('elementEndYear').value) : null;
+    const description = document.getElementById('elementDescription').value.trim();
+    const selectedDocIds = Array.from(document.getElementById('elementDocuments').selectedOptions).map(opt => parseInt(opt.value));
+    const editId = document.getElementById('elementEditId').value;
+
+    // Validation
+    if (!eventType) {
+        alert('Please select an event type');
+        return;
+    }
+
+    if (!description) {
+        alert('Please enter a description');
+        return;
+    }
+
+    // Generate ID for new events
+    const eventId = editId || `event_${Date.now()}`;
+
+    try {
+        const response = await fetch(`/experiments/${experimentId}/save_semantic_event`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                id: eventId,
+                event_type: eventType,
+                from_period: fromYear,
+                to_period: toYear,
+                description: description,
+                related_document_ids: selectedDocIds
+            })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            semanticEvents = data.semantic_events;
+
+            // Close modal
+            const modal = bootstrap.Modal.getInstance(document.getElementById('temporalElementModal'));
+            modal.hide();
+
+            // Refresh UI
+            refreshTimelineUI();
+        } else {
+            alert('Error saving semantic event: ' + data.error);
+        }
+    } catch (error) {
+        alert('Error saving semantic event: ' + error.message);
+    }
+}
+
+// Initialize element type radio button listeners
+document.addEventListener('DOMContentLoaded', function() {
+    const typeRadios = document.querySelectorAll('input[name="elementType"]');
+    typeRadios.forEach(radio => {
+        radio.addEventListener('change', updateElementTypeFields);
+    });
+
+    // Refresh timeline UI to render named_periods boundaries and semantic events
+    // This replaces the Jinja-rendered HTML with the JS-managed timelineEntries
+    refreshTimelineUI();
+});
 
 </script>
 {% endblock %}

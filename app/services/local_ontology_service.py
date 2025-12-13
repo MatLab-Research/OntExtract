@@ -84,6 +84,7 @@ class LocalOntologyService:
         self._load_ontology()
 
         # SPARQL query to get event types
+        # Use GROUP BY to avoid duplicates when classes have multiple examples
         query = """
         PREFIX sco: <http://ontextract.org/sco#>
         PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
@@ -91,7 +92,7 @@ class LocalOntologyService:
         PREFIX dcterms: <http://purl.org/dc/terms/>
         PREFIX owl: <http://www.w3.org/2002/07/owl#>
 
-        SELECT ?uri ?label ?definition ?example ?citation ?parent
+        SELECT ?uri ?label ?definition (SAMPLE(?ex) AS ?example) (SAMPLE(?cit) AS ?citation) ?parent
         WHERE {
             ?uri a owl:Class ;
                  rdfs:subClassOf ?parent ;
@@ -101,9 +102,10 @@ class LocalOntologyService:
             # Only get direct subclasses of SemanticChangeEvent
             FILTER(?parent = sco:SemanticChangeEvent)
 
-            OPTIONAL { ?uri skos:example ?example }
-            OPTIONAL { ?uri dcterms:bibliographicCitation ?citation }
+            OPTIONAL { ?uri skos:example ?ex }
+            OPTIONAL { ?uri dcterms:bibliographicCitation ?cit }
         }
+        GROUP BY ?uri ?label ?definition ?parent
         ORDER BY ?label
         """
 
