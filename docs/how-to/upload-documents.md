@@ -47,7 +47,7 @@ To identify duplicates, sort by DOI or title in the Sources view.
 2. Click **Upload Document**
 3. Select or drag-and-drop your file
 4. Review the extracted metadata (see below)
-5. Click **Upload**
+5. Click **Upload and Extract Metadata**
 
 ![Upload Document Interface](../assets/images/screenshots/upload-content.png)
 
