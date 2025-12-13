@@ -28,9 +28,16 @@
                             {{ total_count }} documents
                         </span>
                         <span class="ms-3">
-                            <i class="fas fa-check-circle"></i> 
-                            {{ completed_count }} processed
+                            <i class="fas fa-check-circle"></i>
+                            {{ completed_count }} fully processed
                         </span>
+                        {% set docs_with_ops = documents|selectattr('operations')|list|length %}
+                        {% if docs_with_ops > 0 %}
+                        <span class="ms-3">
+                            <i class="fas fa-cogs"></i>
+                            {{ docs_with_ops }} with operations
+                        </span>
+                        {% endif %}
                     </p>
                 </div>
                 <div>
@@ -382,7 +389,7 @@
                                     {% endif %}
                                     {% if doc.version_number and doc.version_number > 1 %}
                                         <span class="badge bg-info ms-2" title="Document version">
-                                            v{{ doc.version_number }}{% if doc.version_type %} ({{ doc.version_type }}){% endif %}
+                                            v{{ doc.version_number }}{% if doc.version_type and doc.version_type != 'experimental' %} ({{ doc.version_type }}){% endif %}
                                         </span>
                                     {% endif %}
                                     {# Show content source indicator for experimental versions #}

@@ -2533,8 +2533,8 @@ class ProvenanceService:
             'edges': edges,
             'stats': {
                 'entities': len([n for n in nodes if 'entity' in n['classes']]),
-                'activities': len([n for n in nodes if n['classes'] == 'activity']),
-                'agents': len([n for n in nodes if n['classes'] == 'agent'])
+                'activities': len([n for n in nodes if 'activity' in n['classes']]),
+                'agents': len([n for n in nodes if 'agent' in n['classes']])
             }
         }
 
