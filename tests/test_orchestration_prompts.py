@@ -13,7 +13,8 @@ import pytest
 from app.orchestration.prompts import (
     get_analyze_prompt,
     get_recommend_strategy_prompt,
-    get_synthesis_prompt
+    get_synthesis_prompt,
+    LLM_STYLE_GUIDELINES
 )
 
 
@@ -409,3 +410,77 @@ def test_all_experiment_types_supported():
             document_metadata=None
         )
         assert len(prompt) > 0
+
+
+# ==============================================================================
+# Tests for LLM_STYLE_GUIDELINES
+# ==============================================================================
+
+def test_llm_style_guidelines_exists():
+    """Test that LLM_STYLE_GUIDELINES constant is defined."""
+    assert LLM_STYLE_GUIDELINES is not None
+    assert isinstance(LLM_STYLE_GUIDELINES, str)
+    assert len(LLM_STYLE_GUIDELINES) > 100  # Should have substantial content
+
+
+def test_llm_style_guidelines_contains_banned_words():
+    """Test that style guidelines include banned word list."""
+    banned_words = ['seamless', 'nuanced', 'robust', 'intriguing', 'comprehensive', 'systematic', 'crucial']
+    for word in banned_words:
+        assert word in LLM_STYLE_GUIDELINES, f"Missing banned word: {word}"
+
+
+def test_llm_style_guidelines_contains_punctuation_rules():
+    """Test that style guidelines include punctuation rules."""
+    assert 'em dash' in LLM_STYLE_GUIDELINES.lower() or 'em dashes' in LLM_STYLE_GUIDELINES.lower()
+    assert 'colon' in LLM_STYLE_GUIDELINES.lower()
+
+
+def test_llm_style_guidelines_contains_possessive_rules():
+    """Test that style guidelines include possessive form rules."""
+    assert 'possessive' in LLM_STYLE_GUIDELINES.lower()
+    # People's names can use possessives
+    assert "Wooldridge's" in LLM_STYLE_GUIDELINES or "people" in LLM_STYLE_GUIDELINES.lower()
+    # Inanimate objects should not
+    assert 'inanimate' in LLM_STYLE_GUIDELINES.lower()
+
+
+def test_llm_style_guidelines_contains_list_rules():
+    """Test that style guidelines include list formatting rules."""
+    assert 'three-item' in LLM_STYLE_GUIDELINES.lower() or 'three item' in LLM_STYLE_GUIDELINES.lower()
+
+
+def test_synthesis_prompt_includes_style_guidelines():
+    """Test that synthesis prompt includes the style guidelines."""
+    processing_results = {'1': {'extract_temporal': {'dates': ['2020']}}}
+
+    prompt = get_synthesis_prompt(
+        experiment_type='temporal_evolution',
+        experiment_goal='Test temporal analysis',
+        focus_term='test',
+        focus_term_definition='Test definition',
+        focus_term_context_anchors=['anchor1'],
+        processing_results=processing_results,
+        document_metadata=None
+    )
+
+    # Check that key style guidelines appear in synthesis prompt
+    assert 'Writing Style Requirements' in prompt
+    assert 'NEVER use' in prompt
+    assert 'possessive' in prompt.lower()
+
+
+def test_style_guidelines_can_be_used_in_fstring():
+    """Test that LLM_STYLE_GUIDELINES can be embedded in f-strings."""
+    # This simulates how it would be used in prompt construction
+    test_prompt = f"""
+    Some task instructions here.
+
+    {LLM_STYLE_GUIDELINES}
+
+    Now complete the task.
+    """
+
+    assert 'Some task instructions' in test_prompt
+    assert 'Writing Style Requirements' in test_prompt
+    assert 'Now complete the task' in test_prompt
