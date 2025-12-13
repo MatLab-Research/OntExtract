@@ -2,58 +2,62 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
     <url>
          <loc>https://matlab-research.github.io/OntExtract/</loc>
-         <lastmod>2025-12-12</lastmod>
+         <lastmod>2025-12-13</lastmod>
     </url>
     <url>
          <loc>https://matlab-research.github.io/OntExtract/faq/</loc>
-         <lastmod>2025-12-12</lastmod>
+         <lastmod>2025-12-13</lastmod>
     </url>
     <url>
          <loc>https://matlab-research.github.io/OntExtract/getting-started/first-login/</loc>
-         <lastmod>2025-12-12</lastmod>
+         <lastmod>2025-12-13</lastmod>
     </url>
     <url>
          <loc>https://matlab-research.github.io/OntExtract/getting-started/installation/</loc>
-         <lastmod>2025-12-12</lastmod>
+         <lastmod>2025-12-13</lastmod>
     </url>
     <url>
          <loc>https://matlab-research.github.io/OntExtract/how-to/create-anchor-terms/</loc>
-         <lastmod>2025-12-12</lastmod>
+         <lastmod>2025-12-13</lastmod>
     </url>
     <url>
          <loc>https://matlab-research.github.io/OntExtract/how-to/create-temporal-experiment/</loc>
-         <lastmod>2025-12-12</lastmod>
+         <lastmod>2025-12-13</lastmod>
     </url>
     <url>
          <loc>https://matlab-research.github.io/OntExtract/how-to/document-processing/</loc>
-         <lastmod>2025-12-12</lastmod>
+         <lastmod>2025-12-13</lastmod>
     </url>
     <url>
          <loc>https://matlab-research.github.io/OntExtract/how-to/llm-orchestration/</loc>
-         <lastmod>2025-12-12</lastmod>
+         <lastmod>2025-12-13</lastmod>
     </url>
     <url>
          <loc>https://matlab-research.github.io/OntExtract/how-to/manage-library/</loc>
-         <lastmod>2025-12-12</lastmod>
+         <lastmod>2025-12-13</lastmod>
     </url>
     <url>
          <loc>https://matlab-research.github.io/OntExtract/how-to/period-aware-embeddings/</loc>
-         <lastmod>2025-12-12</lastmod>
+         <lastmod>2025-12-13</lastmod>
     </url>
     <url>
          <loc>https://matlab-research.github.io/OntExtract/how-to/provenance-tracking/</loc>
-         <lastmod>2025-12-12</lastmod>
+         <lastmod>2025-12-13</lastmod>
     </url>
     <url>
          <loc>https://matlab-research.github.io/OntExtract/how-to/settings/</loc>
-         <lastmod>2025-12-12</lastmod>
+         <lastmod>2025-12-13</lastmod>
+    </url>
+    <url>
+         <loc>https://matlab-research.github.io/OntExtract/how-to/temporal-term-management/</loc>
+         <lastmod>2025-12-13</lastmod>
     </url>
     <url>
          <loc>https://matlab-research.github.io/OntExtract/how-to/upload-documents/</loc>
-         <lastmod>2025-12-12</lastmod>
+         <lastmod>2025-12-13</lastmod>
     </url>
     <url>
          <loc>https://matlab-research.github.io/OntExtract/how-to/view-results/</loc>
-         <lastmod>2025-12-12</lastmod>
+         <lastmod>2025-12-13</lastmod>
     </url>
 </urlset>

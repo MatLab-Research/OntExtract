@@ -12,13 +12,13 @@
         <meta name="author" content="OntExtract Project">
       
       
-        <link rel="canonical" href="https://matlab-research.github.io/OntExtract/how-to/create-temporal-experiment/">
+        <link rel="canonical" href="https://matlab-research.github.io/OntExtract/how-to/temporal-term-management/">
       
       
-        <link rel="prev" href="../create-anchor-terms/">
+        <link rel="prev" href="../create-temporal-experiment/">
       
       
-        <link rel="next" href="../temporal-term-management/">
+        <link rel="next" href="../llm-orchestration/">
       
       
         
@@ -29,7 +29,7 @@
     
     
       
-        <title>Create Temporal Experiment - OntExtract Documentation</title>
+        <title>Manage Temporal Terms - OntExtract Documentation</title>
       
     
     
@@ -82,7 +82,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#how-to-create-a-temporal-evolution-experiment" class="md-skip">
+        <a href="#how-to-manage-temporal-terms" class="md-skip">
           Skip to content
         </a>
       
@@ -116,7 +116,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Create Temporal Experiment
+              Manage Temporal Terms
             
           </span>
         </div>
@@ -656,6 +656,34 @@
                 
   
   
+  
+  
+    <li class="md-nav__item">
+      <a href="../create-temporal-experiment/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Create Temporal Experiment
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
     
   
   
@@ -675,7 +703,7 @@
   <span class="md-ellipsis">
     
   
-    Create Temporal Experiment
+    Manage Temporal Terms
   
 
     
@@ -693,7 +721,7 @@
   <span class="md-ellipsis">
     
   
-    Create Temporal Experiment
+    Manage Temporal Terms
   
 
     
@@ -730,90 +758,6 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#prerequisites" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Prerequisites
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#step-1-create-anchor-terms" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Step 1: Create Anchor Terms
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#step-2-create-the-experiment" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Step 2: Create the Experiment
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Step 2: Create the Experiment">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#navigate-to-experiments" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Navigate to Experiments
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#fill-in-experiment-details" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Fill in Experiment Details
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#temporal-periods" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Temporal Periods
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#manage-temporal-terms" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Manage Temporal Terms
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Manage Temporal Terms">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
   <a href="#accessing-the-manager" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -823,12 +767,24 @@
   </a>
   
 </li>
-        
-          <li class="md-nav__item">
-  <a href="#timeline-configuration" class="md-nav__link">
+      
+        <li class="md-nav__item">
+  <a href="#interface-components" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Timeline Configuration
+        Interface Components
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Interface Components">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#header-section" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Header Section
       
     </span>
   </a>
@@ -836,10 +792,38 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#adding-semantic-events" class="md-nav__link">
+  <a href="#temporal-elements-section" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Adding Semantic Events
+        Temporal Elements Section
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#adding-temporal-elements" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Adding Temporal Elements
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Adding Temporal Elements">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#document-artifact" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Document Artifact
       
     </span>
   </a>
@@ -847,10 +831,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#period-cards" class="md-nav__link">
+  <a href="#named-period" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Period Cards
+        Named Period
       
     </span>
   </a>
@@ -858,6 +842,89 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#semantic-event" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Semantic Event
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Semantic Event">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#event-types" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Event Types
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#auto-generate-from-documents" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Auto-Generate from Documents
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#timeline-display" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Timeline Display
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Timeline Display">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#period-boundary-indicators" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Period Boundary Indicators
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#oed-integration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        OED Integration
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#saving-configuration" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -867,29 +934,35 @@
   </a>
   
 </li>
-        
-      </ul>
-    </nav>
+      
+        <li class="md-nav__item">
+  <a href="#workflow-example" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Workflow Example
+      
+    </span>
+  </a>
   
 </li>
       
         <li class="md-nav__item">
-  <a href="#step-3-add-documents" class="md-nav__link">
+  <a href="#references-under-development" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Step 3: Add Documents
+        References (Under Development)
       
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="Step 3: Add Documents">
+    <nav class="md-nav" aria-label="References (Under Development)">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#upload-documents" class="md-nav__link">
+  <a href="#current-functionality" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Upload Documents
+        Current Functionality
       
     </span>
   </a>
@@ -897,177 +970,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#document-requirements" class="md-nav__link">
+  <a href="#planned-features" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Document Requirements
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#step-4-process-documents" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Step 4: Process Documents
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Step 4: Process Documents">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#llm-text-cleanup-recommended" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        LLM Text Cleanup (Recommended)
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#run-processing-operations" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Run Processing Operations
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#step-5-run-analysis" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Step 5: Run Analysis
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Step 5: Run Analysis">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#llm-orchestration-advanced" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        LLM Orchestration (Advanced)
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#manual-analysis" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Manual Analysis
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#step-6-review-results" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Step 6: Review Results
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Step 6: Review Results">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#timeline-visualization" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Timeline Visualization
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#export-options" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Export Options
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#troubleshooting" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Troubleshooting
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Troubleshooting">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#no-documents-in-period" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        No Documents in Period
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#processing-errors" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Processing Errors
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#missing-analysis-results" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Missing Analysis Results
+        Planned Features
       
     </span>
   </a>
@@ -1094,34 +1000,6 @@
   
 </nav>
       
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../temporal-term-management/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Manage Temporal Terms
-  
-
-    
-  </span>
-  
-  
-
-      </a>
     </li>
   
 
@@ -1394,90 +1272,6 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#prerequisites" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Prerequisites
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#step-1-create-anchor-terms" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Step 1: Create Anchor Terms
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#step-2-create-the-experiment" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Step 2: Create the Experiment
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Step 2: Create the Experiment">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#navigate-to-experiments" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Navigate to Experiments
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#fill-in-experiment-details" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Fill in Experiment Details
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#temporal-periods" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Temporal Periods
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#manage-temporal-terms" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Manage Temporal Terms
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Manage Temporal Terms">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
   <a href="#accessing-the-manager" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1487,12 +1281,24 @@
   </a>
   
 </li>
-        
-          <li class="md-nav__item">
-  <a href="#timeline-configuration" class="md-nav__link">
+      
+        <li class="md-nav__item">
+  <a href="#interface-components" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Timeline Configuration
+        Interface Components
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Interface Components">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#header-section" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Header Section
       
     </span>
   </a>
@@ -1500,10 +1306,38 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#adding-semantic-events" class="md-nav__link">
+  <a href="#temporal-elements-section" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Adding Semantic Events
+        Temporal Elements Section
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#adding-temporal-elements" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Adding Temporal Elements
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Adding Temporal Elements">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#document-artifact" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Document Artifact
       
     </span>
   </a>
@@ -1511,10 +1345,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#period-cards" class="md-nav__link">
+  <a href="#named-period" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Period Cards
+        Named Period
       
     </span>
   </a>
@@ -1522,6 +1356,89 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#semantic-event" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Semantic Event
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Semantic Event">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#event-types" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Event Types
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#auto-generate-from-documents" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Auto-Generate from Documents
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#timeline-display" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Timeline Display
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Timeline Display">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#period-boundary-indicators" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Period Boundary Indicators
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#oed-integration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        OED Integration
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#saving-configuration" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1531,29 +1448,35 @@
   </a>
   
 </li>
-        
-      </ul>
-    </nav>
+      
+        <li class="md-nav__item">
+  <a href="#workflow-example" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Workflow Example
+      
+    </span>
+  </a>
   
 </li>
       
         <li class="md-nav__item">
-  <a href="#step-3-add-documents" class="md-nav__link">
+  <a href="#references-under-development" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Step 3: Add Documents
+        References (Under Development)
       
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="Step 3: Add Documents">
+    <nav class="md-nav" aria-label="References (Under Development)">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#upload-documents" class="md-nav__link">
+  <a href="#current-functionality" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Upload Documents
+        Current Functionality
       
     </span>
   </a>
@@ -1561,177 +1484,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#document-requirements" class="md-nav__link">
+  <a href="#planned-features" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Document Requirements
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#step-4-process-documents" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Step 4: Process Documents
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Step 4: Process Documents">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#llm-text-cleanup-recommended" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        LLM Text Cleanup (Recommended)
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#run-processing-operations" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Run Processing Operations
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#step-5-run-analysis" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Step 5: Run Analysis
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Step 5: Run Analysis">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#llm-orchestration-advanced" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        LLM Orchestration (Advanced)
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#manual-analysis" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Manual Analysis
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#step-6-review-results" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Step 6: Review Results
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Step 6: Review Results">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#timeline-visualization" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Timeline Visualization
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#export-options" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Export Options
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#troubleshooting" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Troubleshooting
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Troubleshooting">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#no-documents-in-period" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        No Documents in Period
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#processing-errors" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Processing Errors
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#missing-analysis-results" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Missing Analysis Results
+        Planned Features
       
     </span>
   </a>
@@ -1774,216 +1530,272 @@
   
 
 
-<h1 id="how-to-create-a-temporal-evolution-experiment">How to Create a Temporal Evolution Experiment<a class="headerlink" href="#how-to-create-a-temporal-evolution-experiment" title="Permanent link">&para;</a></h1>
-<p>Complete guide for setting up experiments to track semantic change across historical periods.</p>
+<h1 id="how-to-manage-temporal-terms">How to Manage Temporal Terms<a class="headerlink" href="#how-to-manage-temporal-terms" title="Permanent link">&para;</a></h1>
+<p>Configure time periods, document artifacts, and semantic events for temporal evolution experiments.</p>
 <h2 id="overview">Overview<a class="headerlink" href="#overview" title="Permanent link">&para;</a></h2>
-<p>Temporal evolution experiments analyze how term meanings change over time by combining historical documents with anchor terms across defined time periods.</p>
-<h2 id="prerequisites">Prerequisites<a class="headerlink" href="#prerequisites" title="Permanent link">&para;</a></h2>
-<p>Before creating an experiment:</p>
+<p>The Temporal Term Manager provides tools to analyze how term meanings change over time. It combines document-based analysis with Oxford English Dictionary (OED) historical data to track semantic evolution across defined periods.</p>
+<h2 id="accessing-the-manager">Accessing the Manager<a class="headerlink" href="#accessing-the-manager" title="Permanent link">&para;</a></h2>
+<ol>
+<li>Navigate to <strong>Experiments</strong> and select a temporal evolution experiment</li>
+<li>Click <strong>Manage Temporal Terms</strong> on the experiment detail page</li>
+</ol>
+<p><img alt="Temporal Term Manager" src="../../assets/images/screenshots/temporal-term-manager-content.png" /></p>
+<h2 id="interface-components">Interface Components<a class="headerlink" href="#interface-components" title="Permanent link">&para;</a></h2>
+<h3 id="header-section">Header Section<a class="headerlink" href="#header-section" title="Permanent link">&para;</a></h3>
+<p>The header displays:</p>
+<table>
+<thead>
+<tr>
+<th>Element</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Experiment name</strong></td>
+<td>Title with target term (e.g., "agent Temporal Evolution")</td>
+</tr>
+<tr>
+<td><strong>Experiment type badge</strong></td>
+<td>"Temporal Evolution" indicator</td>
+</tr>
+<tr>
+<td><strong>View Timeline</strong></td>
+<td>Opens the timeline visualization</td>
+</tr>
+<tr>
+<td><strong>Back to Experiment</strong></td>
+<td>Returns to experiment detail page</td>
+</tr>
+</tbody>
+</table>
+<h3 id="temporal-elements-section">Temporal Elements Section<a class="headerlink" href="#temporal-elements-section" title="Permanent link">&para;</a></h3>
+<p>This section manages all timeline markers:</p>
 <ul>
-<li>[ ] OntExtract installed and running</li>
-<li>[ ] User account created and logged in</li>
-<li>[ ] Historical documents ready for upload (spanning the target time range)</li>
+<li><strong>Auto-generate from documents</strong> - Creates artifact markers from document publication dates</li>
+<li><strong>Add</strong> button - Opens the unified element creation modal</li>
+<li><strong>Periods &amp; Events grid</strong> - Displays all temporal elements on a timeline</li>
 </ul>
-<h2 id="step-1-create-anchor-terms">Step 1: Create Anchor Terms<a class="headerlink" href="#step-1-create-anchor-terms" title="Permanent link">&para;</a></h2>
-<p>First, create anchor terms to define the concepts to be tracked:</p>
-<ol>
-<li>Navigate to <strong>Library → Terms</strong></li>
-<li>Click <strong>Add New Anchor Term</strong></li>
-<li>Enter:</li>
-<li><strong>Term text</strong> - The word/phrase to track (e.g., "agent")</li>
-<li><strong>Domain</strong> - Subject area</li>
-<li><strong>Notes</strong> - Research context</li>
-</ol>
-<p>See <a href="../create-anchor-terms/">Create Anchor Terms</a> for detailed instructions.</p>
-<h2 id="step-2-create-the-experiment">Step 2: Create the Experiment<a class="headerlink" href="#step-2-create-the-experiment" title="Permanent link">&para;</a></h2>
-<h3 id="navigate-to-experiments">Navigate to Experiments<a class="headerlink" href="#navigate-to-experiments" title="Permanent link">&para;</a></h3>
-<ol>
-<li>Click <strong>Experiments</strong> in the main navigation</li>
-<li>Click <strong>New Experiment</strong></li>
-</ol>
-<p><img alt="Create New Experiment" src="../../assets/images/screenshots/experiment-new-content.png" /></p>
-<h3 id="fill-in-experiment-details">Fill in Experiment Details<a class="headerlink" href="#fill-in-experiment-details" title="Permanent link">&para;</a></h3>
+<h2 id="adding-temporal-elements">Adding Temporal Elements<a class="headerlink" href="#adding-temporal-elements" title="Permanent link">&para;</a></h2>
+<p>Click the <strong>Add</strong> button to open the unified "Add Temporal Element" modal with three element types:</p>
+<p><img alt="Add Temporal Element Modal" src="../../assets/images/screenshots/temporal-add-element-modal-content.png" /></p>
+<h3 id="document-artifact">Document Artifact<a class="headerlink" href="#document-artifact" title="Permanent link">&para;</a></h3>
+<p>Marks a specific year with an associated document reference.</p>
 <table>
 <thead>
 <tr>
 <th>Field</th>
 <th>Description</th>
-<th>Example</th>
 </tr>
 </thead>
 <tbody>
 <tr>
+<td><strong>Year</strong></td>
+<td>Publication or reference year</td>
+</tr>
+<tr>
 <td><strong>Name</strong></td>
-<td>Descriptive experiment name</td>
-<td>"Agent Temporal Evolution 1910-2024"</td>
+<td>Optional label for the artifact</td>
 </tr>
 <tr>
-<td><strong>Description</strong></td>
-<td>Research goals and scope</td>
-<td>"Tracking the semantic evolution of 'agent' in AI literature"</td>
-</tr>
-<tr>
-<td><strong>Start Year</strong></td>
-<td>Beginning of time range</td>
-<td>1910</td>
-</tr>
-<tr>
-<td><strong>End Year</strong></td>
-<td>End of time range</td>
-<td>2024</td>
-</tr>
-<tr>
-<td><strong>Status</strong></td>
-<td>Experiment state</td>
-<td>draft, active, completed</td>
+<td><strong>Documents</strong></td>
+<td>Select associated documents</td>
 </tr>
 </tbody>
 </table>
-<h3 id="temporal-periods">Temporal Periods<a class="headerlink" href="#temporal-periods" title="Permanent link">&para;</a></h3>
-<p>OntExtract automatically generates temporal periods based on the date range. Options include:</p>
-<ul>
-<li><strong>Auto-generate</strong> - System creates periods based on document dates</li>
-<li><strong>Manual</strong> - Define custom period boundaries</li>
-</ul>
-<p>Click <strong>Create Experiment</strong> to save.</p>
-<h2 id="manage-temporal-terms">Manage Temporal Terms<a class="headerlink" href="#manage-temporal-terms" title="Permanent link">&para;</a></h2>
-<p>After creating a temporal evolution experiment, access the <strong>Manage Temporal Terms</strong> feature to configure the timeline in detail.</p>
-<h3 id="accessing-the-manager">Accessing the Manager<a class="headerlink" href="#accessing-the-manager" title="Permanent link">&para;</a></h3>
-<ol>
-<li>Go to the experiment's detail page</li>
-<li>Click <strong>Manage Temporal Terms</strong> button</li>
-</ol>
-<h3 id="timeline-configuration">Timeline Configuration<a class="headerlink" href="#timeline-configuration" title="Permanent link">&para;</a></h3>
-<p>The Temporal Term Manager provides two ways to set up periods:</p>
+<p>Use document artifacts to mark publication years or reference points on the timeline.</p>
+<h3 id="named-period">Named Period<a class="headerlink" href="#named-period" title="Permanent link">&para;</a></h3>
+<p>Defines a historical era or time span with semantic coherence.</p>
 <table>
 <thead>
 <tr>
-<th>Method</th>
+<th>Field</th>
 <th>Description</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td><strong>Auto-generate from documents</strong></td>
-<td>Creates artifact markers for each document's publication year</td>
+<td><strong>Period Type</strong></td>
+<td>Category (e.g., "Research Era", "Legal Period")</td>
 </tr>
 <tr>
-<td><strong>Manual Entry</strong></td>
-<td>Manually specify time period boundaries</td>
+<td><strong>Name</strong></td>
+<td>Descriptive period name (e.g., "Computational Agent Era")</td>
+</tr>
+<tr>
+<td><strong>Start Year</strong></td>
+<td>Beginning of the period</td>
+</tr>
+<tr>
+<td><strong>End Year</strong></td>
+<td>End of the period</td>
+</tr>
+<tr>
+<td><strong>Description</strong></td>
+<td>Explanation of the period's significance</td>
 </tr>
 </tbody>
 </table>
-<h3 id="adding-semantic-events">Adding Semantic Events<a class="headerlink" href="#adding-semantic-events" title="Permanent link">&para;</a></h3>
-<p>The timeline can be annotated with semantic change events:</p>
+<p>Named periods appear as colored spans on the timeline, with START and END markers.</p>
+<h3 id="semantic-event">Semantic Event<a class="headerlink" href="#semantic-event" title="Permanent link">&para;</a></h3>
+<p>Records a semantic change event such as meaning shift or domain transition.</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Event Type</strong></td>
+<td>Semantic change category from ontology</td>
+</tr>
+<tr>
+<td><strong>From Year</strong></td>
+<td>Year when event started</td>
+</tr>
+<tr>
+<td><strong>End Year</strong></td>
+<td>Leave blank for point events; specify for spans</td>
+</tr>
+<tr>
+<td><strong>Description</strong></td>
+<td>What changed and why it matters</td>
+</tr>
+<tr>
+<td><strong>Related Documents</strong></td>
+<td>Evidence documents for the event</td>
+</tr>
+</tbody>
+</table>
+<h4 id="event-types">Event Types<a class="headerlink" href="#event-types" title="Permanent link">&para;</a></h4>
+<p>Event types are loaded from the semantic change ontology:</p>
+<table>
+<thead>
+<tr>
+<th>Type</th>
+<th>Definition</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Inflection Point</strong></td>
+<td>A specific moment when semantic change becomes evident</td>
+</tr>
+<tr>
+<td><strong>Semantic Drift</strong></td>
+<td>Gradual change in meaning over time</td>
+</tr>
+<tr>
+<td><strong>Pejoration</strong></td>
+<td>Meaning becomes more negative</td>
+</tr>
+<tr>
+<td><strong>Amelioration</strong></td>
+<td>Meaning becomes more positive</td>
+</tr>
+<tr>
+<td><strong>Conceptual Bridge</strong></td>
+<td>A semantic link between previously distinct concept domains</td>
+</tr>
+</tbody>
+</table>
+<h2 id="auto-generate-from-documents">Auto-Generate from Documents<a class="headerlink" href="#auto-generate-from-documents" title="Permanent link">&para;</a></h2>
+<p>Click <strong>Auto-generate from documents</strong> to automatically create document artifact markers:</p>
 <ol>
-<li>Click <strong>Add Event</strong> in the Periods &amp; Events section</li>
-<li>Select the event type (e.g., amelioration, pejoration, drift)</li>
-<li>Specify the time range (from/to periods)</li>
-<li>Add a description of the semantic shift</li>
-<li>Link related documents as evidence</li>
+<li>The system scans all experiment documents for publication dates</li>
+<li>Creates an artifact marker for each unique year</li>
+<li>Associates documents with their respective year markers</li>
 </ol>
-<h3 id="period-cards">Period Cards<a class="headerlink" href="#period-cards" title="Permanent link">&para;</a></h3>
-<p>The timeline displays period cards showing:</p>
+<p>This provides a starting point for the timeline that can be refined with manual additions.</p>
+<h2 id="timeline-display">Timeline Display<a class="headerlink" href="#timeline-display" title="Permanent link">&para;</a></h2>
+<p>The Periods &amp; Events grid shows:</p>
 <ul>
-<li><strong>Year</strong> - The period's date marker</li>
-<li><strong>Source badge</strong> - ARTIFACT (auto-generated) or MANUAL</li>
-<li><strong>Documents</strong> - Papers associated with that period</li>
-<li><strong>Events</strong> - Semantic change events spanning periods</li>
+<li><strong>Year columns</strong> - Each unique year in the experiment range</li>
+<li><strong>Document count badges</strong> - Number of documents per year</li>
+<li><strong>Period spans</strong> - Colored bars showing named period ranges</li>
+<li><strong>Event markers</strong> - Icons indicating semantic events</li>
+<li><strong>Source badges</strong> - ARTIFACT (auto-generated) or MANUAL</li>
 </ul>
-<p>Period boundaries are color-coded:</p>
+<h3 id="period-boundary-indicators">Period Boundary Indicators<a class="headerlink" href="#period-boundary-indicators" title="Permanent link">&para;</a></h3>
 <ul>
-<li><strong>Green (START)</strong> - Beginning of a defined period</li>
-<li><strong>Red (END)</strong> - End of a defined period</li>
+<li><strong>START</strong> (green) - Beginning of a named period</li>
+<li><strong>END</strong> (red) - End of a named period</li>
 </ul>
-<h3 id="saving-configuration">Saving Configuration<a class="headerlink" href="#saving-configuration" title="Permanent link">&para;</a></h3>
-<p>Click <strong>Save Configuration</strong> to persist the temporal setup before proceeding to analysis.</p>
-<h2 id="step-3-add-documents">Step 3: Add Documents<a class="headerlink" href="#step-3-add-documents" title="Permanent link">&para;</a></h2>
-<h3 id="upload-documents">Upload Documents<a class="headerlink" href="#upload-documents" title="Permanent link">&para;</a></h3>
+<h2 id="oed-integration">OED Integration<a class="headerlink" href="#oed-integration" title="Permanent link">&para;</a></h2>
+<p>For terms with OED entries, the system can suggest time periods based on historical quotation data:</p>
 <ol>
-<li>Go to the experiment's <strong>Document Pipeline</strong></li>
-<li>Click <strong>Add Documents</strong></li>
-<li>Upload files with publication dates</li>
-<li>Documents are automatically assigned to periods based on publication date</li>
+<li>OED quotations provide earliest attested uses</li>
+<li>Year ranges indicate when meanings were active</li>
+<li>5-year period intervals are generated from quotation years</li>
 </ol>
-<h3 id="document-requirements">Document Requirements<a class="headerlink" href="#document-requirements" title="Permanent link">&para;</a></h3>
-<p>For meaningful temporal analysis:</p>
+<p>OED period data appears in the configuration alongside document-based periods.</p>
+<h2 id="saving-configuration">Saving Configuration<a class="headerlink" href="#saving-configuration" title="Permanent link">&para;</a></h2>
+<p>Changes auto-save when you:</p>
 <ul>
-<li><strong>Multiple documents per period</strong> - More data improves accuracy</li>
-<li><strong>Date coverage</strong> - Documents spanning the full time range</li>
-<li><strong>Consistent domain</strong> - Documents from related subject areas</li>
+<li>Add or modify temporal elements</li>
+<li>Update period boundaries</li>
+<li>Link documents to events</li>
 </ul>
-<p>See <a href="../upload-documents/">Upload Documents</a> for detailed upload instructions.</p>
-<h2 id="step-4-process-documents">Step 4: Process Documents<a class="headerlink" href="#step-4-process-documents" title="Permanent link">&para;</a></h2>
-<h3 id="llm-text-cleanup-recommended">LLM Text Cleanup (Recommended)<a class="headerlink" href="#llm-text-cleanup-recommended" title="Permanent link">&para;</a></h3>
-<p>For scanned or OCR'd documents:</p>
+<p>The configuration is stored in the experiment's JSON configuration field.</p>
+<h2 id="workflow-example">Workflow Example<a class="headerlink" href="#workflow-example" title="Permanent link">&para;</a></h2>
+<p>A typical workflow for analyzing "agent" across 1910-2024:</p>
 <ol>
-<li>In <strong>Document Pipeline</strong>, click the broom icon for each document</li>
-<li>Review suggested corrections</li>
-<li>Accept or modify changes</li>
-<li>Save cleaned version</li>
+<li><strong>Auto-generate</strong> periods from document dates</li>
+<li><strong>Add named period</strong> - "Computational Agent Era (1995-2024)"</li>
+<li><strong>Add semantic event</strong> - Inflection Point at 1995 (Wooldridge &amp; Jennings formalization)</li>
+<li><strong>Add semantic event</strong> - Conceptual Bridge at 1957 (Anscombe's philosophical groundwork)</li>
+<li><strong>Review timeline</strong> - Verify period coverage and event placement</li>
+<li><strong>View Timeline</strong> - Visualize the semantic evolution</li>
 </ol>
-<h3 id="run-processing-operations">Run Processing Operations<a class="headerlink" href="#run-processing-operations" title="Permanent link">&para;</a></h3>
-<p>From the <strong>Document Pipeline</strong> or individual document pages:</p>
+<h2 id="references-under-development">References (Under Development)<a class="headerlink" href="#references-under-development" title="Permanent link">&para;</a></h2>
+<p>References are canonical source materials such as dictionary entries, academic papers, or authoritative texts that provide baseline definitions for terms being analyzed. Unlike regular documents which form the corpus for analysis, references serve as comparison points.</p>
+<h3 id="current-functionality">Current Functionality<a class="headerlink" href="#current-functionality" title="Permanent link">&para;</a></h3>
+<p>References can be added when creating or editing an experiment:</p>
 <ol>
-<li><strong>Segmentation</strong> - Split into paragraphs/sentences</li>
-<li><strong>Embeddings</strong> - Generate vector representations</li>
-<li><strong>Entity Extraction</strong> - Identify named entities</li>
+<li>Navigate to <strong>Experiments</strong> and click <strong>New Experiment</strong> (or edit an existing one)</li>
+<li>In the <strong>Select Content for Analysis</strong> section, find the <strong>References</strong> panel</li>
+<li>Click <strong>Quick Add</strong> to add reference materials</li>
+<li>Save the experiment</li>
 </ol>
-<p>Use <strong>Run Local Tools</strong> for batch processing without API costs.</p>
-<h2 id="step-5-run-analysis">Step 5: Run Analysis<a class="headerlink" href="#step-5-run-analysis" title="Permanent link">&para;</a></h2>
-<h3 id="llm-orchestration-advanced">LLM Orchestration (Advanced)<a class="headerlink" href="#llm-orchestration-advanced" title="Permanent link">&para;</a></h3>
-<p>For AI-assisted analysis:</p>
-<ol>
-<li>Go to the experiment's <strong>Document Pipeline</strong></li>
-<li>Click <strong>Start LLM Orchestration</strong></li>
-<li>Review the generated strategy</li>
-<li>Approve or modify the approach</li>
-<li>Execute the analysis</li>
-</ol>
-<h3 id="manual-analysis">Manual Analysis<a class="headerlink" href="#manual-analysis" title="Permanent link">&para;</a></h3>
-<p>Explore results through:</p>
-<ul>
-<li><strong>Timeline View</strong> - Visual evolution across periods</li>
-<li><strong>Document Comparison</strong> - Side-by-side period analysis</li>
-<li><strong>Term Context</strong> - Source passages for each period</li>
-</ul>
-<h2 id="step-6-review-results">Step 6: Review Results<a class="headerlink" href="#step-6-review-results" title="Permanent link">&para;</a></h2>
-<h3 id="timeline-visualization">Timeline Visualization<a class="headerlink" href="#timeline-visualization" title="Permanent link">&para;</a></h3>
-<p>The timeline shows:
-- Term usage frequency per period
-- Semantic change events
-- Context snippets from source documents</p>
-<h3 id="export-options">Export Options<a class="headerlink" href="#export-options" title="Permanent link">&para;</a></h3>
-<p>Export analysis results:</p>
-<ul>
-<li><strong>CSV</strong> - Tabular data for spreadsheets</li>
-<li><strong>JSON</strong> - Structured results for further processing</li>
-</ul>
-<h2 id="troubleshooting">Troubleshooting<a class="headerlink" href="#troubleshooting" title="Permanent link">&para;</a></h2>
-<h3 id="no-documents-in-period">No Documents in Period<a class="headerlink" href="#no-documents-in-period" title="Permanent link">&para;</a></h3>
-<ul>
-<li>Check document publication dates</li>
-<li>Verify period boundaries</li>
-<li>Upload additional documents for sparse periods</li>
-</ul>
-<h3 id="processing-errors">Processing Errors<a class="headerlink" href="#processing-errors" title="Permanent link">&para;</a></h3>
-<ul>
-<li>Ensure documents have text content</li>
-<li>Run LLM cleanup on problematic documents</li>
-<li>Check API keys for external services</li>
-</ul>
-<h3 id="missing-analysis-results">Missing Analysis Results<a class="headerlink" href="#missing-analysis-results" title="Permanent link">&para;</a></h3>
-<ul>
-<li>Verify all processing steps completed</li>
-<li>Check anchor term associations</li>
-<li>Review experiment status</li>
-</ul>
+<p><img alt="Experiment References Section" src="../../assets/images/screenshots/experiment-new-references-content.png" /></p>
+<p>Once added, references appear in the experiment detail page under a dedicated "References" card, showing the reference title, source, and word count.</p>
+<h3 id="planned-features">Planned Features<a class="headerlink" href="#planned-features" title="Permanent link">&para;</a></h3>
+<p>The following capabilities are planned for future releases:</p>
+<table>
+<thead>
+<tr>
+<th>Feature</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Definition comparison</strong></td>
+<td>Compare extracted definitions against reference definitions</td>
+</tr>
+<tr>
+<td><strong>Semantic drift measurement</strong></td>
+<td>Quantify how document usage differs from canonical meanings</td>
+</tr>
+<tr>
+<td><strong>Citation linking</strong></td>
+<td>Link semantic events to specific reference passages</td>
+</tr>
+<tr>
+<td><strong>Cross-reference analysis</strong></td>
+<td>Track how multiple references define the same term</td>
+</tr>
+</tbody>
+</table>
+<p>Currently, references are stored with the experiment but do not yet participate in the analysis workflow. This functionality will be expanded in future releases to enable comparison between corpus usage and canonical definitions.</p>
 <h2 id="related-guides">Related Guides<a class="headerlink" href="#related-guides" title="Permanent link">&para;</a></h2>
 <ul>
+<li><a href="../create-temporal-experiment/">Create Temporal Experiment</a></li>
 <li><a href="../upload-documents/">Upload Documents</a></li>
-<li><a href="../document-processing/">Process Documents</a></li>
-<li><a href="../create-anchor-terms/">Create Anchor Terms</a></li>
+<li><a href="../view-results/">View Results</a></li>
+<li><a href="../provenance-tracking/">Provenance Tracking</a></li>
 </ul>
 
 
