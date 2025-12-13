@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+
+{% block title %}{{ page_title|default('Admin') }} - OntExtract Admin{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="row">
+        <!-- Sidebar Navigation -->
+        <div class="col-md-2">
+            <div class="card">
+                <div class="card-header bg-dark text-white">
+                    <h6 class="mb-0"><i class="fas fa-user-shield"></i> Admin</h6>
+                </div>
+                <div class="list-group list-group-flush">
+                    <a href="{{ url_for('admin.dashboard') }}"
+                       class="list-group-item list-group-item-action {% if active_page == 'dashboard' %}active{% endif %}">
+                        <i class="fas fa-tachometer-alt"></i> Dashboard
+                    </a>
+                    <a href="{{ url_for('admin.list_users') }}"
+                       class="list-group-item list-group-item-action {% if active_page == 'users' %}active{% endif %}">
+                        <i class="fas fa-users"></i> Users
+                    </a>
+                    <a href="{{ url_for('admin.error_log') }}"
+                       class="list-group-item list-group-item-action {% if active_page == 'errors' %}active{% endif %}">
+                        <i class="fas fa-exclamation-triangle"></i> Error Log
+                        {% if error_count and error_count > 0 %}
+                        <span class="badge bg-danger float-end">{{ error_count }}</span>
+                        {% endif %}
+                    </a>
+                    <a href="{{ url_for('admin.system_health') }}"
+                       class="list-group-item list-group-item-action {% if active_page == 'system' %}active{% endif %}">
+                        <i class="fas fa-heartbeat"></i> System Health
+                    </a>
+                    <a href="{{ url_for('admin.background_tasks') }}"
+                       class="list-group-item list-group-item-action {% if active_page == 'tasks' %}active{% endif %}">
+                        <i class="fas fa-tasks"></i> Background Tasks
+                    </a>
+                    <a href="{{ url_for('admin.data_management') }}"
+                       class="list-group-item list-group-item-action {% if active_page == 'data' %}active{% endif %}">
+                        <i class="fas fa-database"></i> Data Management
+                    </a>
+                    <hr class="my-2">
+                    <a href="{{ url_for('settings.index') }}"
+                       class="list-group-item list-group-item-action">
+                        <i class="fas fa-cog"></i> Settings
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Content -->
+        <div class="col-md-10">
+            {% block admin_content %}{% endblock %}
+        </div>
+    </div>
+</div>
+{% endblock %}

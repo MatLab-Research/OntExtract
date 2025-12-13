@@ -1,0 +1,229 @@
+{% extends "admin/base_admin.html" %}
+
+{% block admin_content %}
+<div class="mb-4">
+    <h2><i class="fas fa-exclamation-triangle"></i> Error Log</h2>
+    <p class="text-muted">View and manage application errors from all sources</p>
+</div>
+
+<!-- Filters -->
+<div class="card mb-4">
+    <div class="card-body">
+        <form method="GET" class="row g-3">
+            <div class="col-md-3">
+                <label class="form-label">Source</label>
+                <select name="source" class="form-select" onchange="this.form.submit()">
+                    <option value="all" {% if source == 'all' %}selected{% endif %}>All Sources</option>
+                    <option value="processing_jobs" {% if source == 'processing_jobs' %}selected{% endif %}>
+                        Processing Jobs ({{ error_counts.processing_jobs }})
+                    </option>
+                    <option value="orchestration_runs" {% if source == 'orchestration_runs' %}selected{% endif %}>
+                        Orchestration Runs ({{ error_counts.orchestration_runs }})
+                    </option>
+                    <option value="orchestration_decisions" {% if source == 'orchestration_decisions' %}selected{% endif %}>
+                        Orchestration Decisions ({{ error_counts.orchestration_decisions }})
+                    </option>
+                    <option value="tool_executions" {% if source == 'tool_executions' %}selected{% endif %}>
+                        Tool Executions ({{ error_counts.tool_executions }})
+                    </option>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">Time Range</label>
+                <select name="time" class="form-select" onchange="this.form.submit()">
+                    <option value="1h" {% if time_filter == '1h' %}selected{% endif %}>Last Hour</option>
+                    <option value="24h" {% if time_filter == '24h' %}selected{% endif %}>Last 24 Hours</option>
+                    <option value="7d" {% if time_filter == '7d' %}selected{% endif %}>Last 7 Days</option>
+                    <option value="30d" {% if time_filter == '30d' %}selected{% endif %}>Last 30 Days</option>
+                    <option value="all" {% if time_filter == 'all' %}selected{% endif %}>All Time</option>
+                </select>
+            </div>
+            <div class="col-md-5">
+                <label class="form-label">Search</label>
+                <input type="text" name="q" class="form-control" placeholder="Search error messages..."
+                       value="{{ search_query }}">
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">&nbsp;</label>
+                <button type="submit" class="btn btn-primary d-block w-100">
+                    <i class="fas fa-search"></i> Search
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Summary Cards -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card {% if error_counts.total > 0 %}bg-danger{% else %}bg-success{% endif %} text-white">
+            <div class="card-body text-center">
+                <h3 class="mb-0">{{ error_counts.total }}</h3>
+                <small>Total Errors</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card {% if error_counts.processing_jobs > 0 %}bg-warning{% else %}bg-secondary{% endif %} text-white">
+            <div class="card-body text-center">
+                <h3 class="mb-0">{{ error_counts.processing_jobs }}</h3>
+                <small>Processing Jobs</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card {% if error_counts.orchestration_runs > 0 %}bg-warning{% else %}bg-secondary{% endif %} text-white">
+            <div class="card-body text-center">
+                <h3 class="mb-0">{{ error_counts.orchestration_runs }}</h3>
+                <small>Orchestration Runs</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card {% if error_counts.tool_executions > 0 %}bg-warning{% else %}bg-secondary{% endif %} text-white">
+            <div class="card-body text-center">
+                <h3 class="mb-0">{{ error_counts.tool_executions }}</h3>
+                <small>Tool Executions</small>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Error List -->
+<div class="card">
+    <div class="card-header">
+        <h5 class="mb-0">
+            <i class="fas fa-list"></i> Errors
+            <span class="badge bg-secondary">{{ errors|length }}</span>
+        </h5>
+    </div>
+    <div class="card-body p-0">
+        {% if errors %}
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead>
+                    <tr>
+                        <th style="width: 150px;">Timestamp</th>
+                        <th style="width: 140px;">Source</th>
+                        <th>Error Message</th>
+                        <th style="width: 200px;">Context</th>
+                        <th style="width: 100px;">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for error in errors %}
+                    <tr>
+                        <td>
+                            <small>{{ error.timestamp.strftime('%Y-%m-%d %H:%M') if error.timestamp else 'N/A' }}</small>
+                        </td>
+                        <td>
+                            {% if error.source == 'processing_jobs' %}
+                            <span class="badge bg-primary">Processing Job</span>
+                            {% elif error.source == 'orchestration_runs' %}
+                            <span class="badge bg-info">Orchestration</span>
+                            {% elif error.source == 'orchestration_decisions' %}
+                            <span class="badge bg-warning">Decision</span>
+                            {% elif error.source == 'tool_executions' %}
+                            <span class="badge bg-secondary">Tool</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div class="text-danger fw-bold" style="max-width: 400px;">
+                                {{ error.error_message[:150] }}{% if error.error_message|length > 150 %}...{% endif %}
+                            </div>
+                            {% if error.retry_count > 0 %}
+                            <small class="text-muted">Retries: {{ error.retry_count }}</small>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <small class="text-muted">{{ error.context }}</small>
+                        </td>
+                        <td>
+                            <button class="btn btn-sm btn-outline-info" onclick="showErrorDetails('{{ error.id }}', {{ error|tojson|safe }})">
+                                <i class="fas fa-eye"></i>
+                            </button>
+                            {% if error.can_retry %}
+                            <button class="btn btn-sm btn-outline-warning" onclick="retryJob('{{ error.id }}')">
+                                <i class="fas fa-redo"></i>
+                            </button>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="text-center py-5 text-muted">
+            <i class="fas fa-check-circle fa-3x mb-3"></i>
+            <p>No errors found for the selected filters.</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Error Details Modal -->
+<div class="modal fade" id="errorDetailsModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title"><i class="fas fa-exclamation-triangle"></i> Error Details</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label class="form-label fw-bold">Source</label>
+                    <p id="errorSource"></p>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-bold">Timestamp</label>
+                    <p id="errorTimestamp"></p>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-bold">Context</label>
+                    <p id="errorContext"></p>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-bold">Error Message</label>
+                    <pre id="errorMessage" class="bg-dark text-danger p-3 rounded" style="white-space: pre-wrap;"></pre>
+                </div>
+                <div class="mb-3" id="errorDetailsSection" style="display: none;">
+                    <label class="form-label fw-bold">Error Details (JSON)</label>
+                    <pre id="errorDetailsJson" class="bg-dark text-light p-3 rounded" style="white-space: pre-wrap; max-height: 300px; overflow-y: auto;"></pre>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function showErrorDetails(id, error) {
+    document.getElementById('errorSource').textContent = error.source_label;
+    document.getElementById('errorTimestamp').textContent = error.timestamp || 'N/A';
+    document.getElementById('errorContext').textContent = error.context;
+    document.getElementById('errorMessage').textContent = error.error_message;
+
+    const detailsSection = document.getElementById('errorDetailsSection');
+    const detailsJson = document.getElementById('errorDetailsJson');
+
+    if (error.error_details) {
+        detailsSection.style.display = 'block';
+        detailsJson.textContent = JSON.stringify(error.error_details, null, 2);
+    } else {
+        detailsSection.style.display = 'none';
+    }
+
+    new bootstrap.Modal(document.getElementById('errorDetailsModal')).show();
+}
+
+function retryJob(jobId) {
+    if (!confirm('Retry this failed job?')) return;
+
+    // TODO: Implement retry endpoint
+    alert('Retry functionality not yet implemented');
+}
+</script>
+{% endblock %}

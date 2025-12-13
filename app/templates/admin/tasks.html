@@ -1,0 +1,219 @@
+{% extends "admin/base_admin.html" %}
+
+{% block admin_content %}
+<div class="mb-4">
+    <h2><i class="fas fa-tasks"></i> Background Tasks</h2>
+    <p class="text-muted">Monitor Celery workers and orchestration runs</p>
+</div>
+
+<!-- Celery Status -->
+<div class="row mb-4">
+    <div class="col-md-4">
+        <div class="card bg-primary text-white">
+            <div class="card-body text-center">
+                <h3 class="mb-0">{{ celery_info.active|length }}</h3>
+                <small>Active Tasks</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card bg-warning text-white">
+            <div class="card-body text-center">
+                <h3 class="mb-0">{{ celery_info.reserved|length }}</h3>
+                <small>Reserved (Pending)</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card bg-info text-white">
+            <div class="card-body text-center">
+                <h3 class="mb-0">{{ celery_info.scheduled|length }}</h3>
+                <small>Scheduled</small>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Active Celery Tasks -->
+{% if celery_info.active %}
+<div class="card mb-4">
+    <div class="card-header bg-primary text-white">
+        <h5 class="mb-0"><i class="fas fa-spinner fa-spin"></i> Active Tasks</h5>
+    </div>
+    <div class="card-body p-0">
+        <table class="table table-hover mb-0">
+            <thead>
+                <tr>
+                    <th>Task ID</th>
+                    <th>Task Name</th>
+                    <th>Worker</th>
+                    <th>Started</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for task in celery_info.active %}
+                <tr>
+                    <td><code>{{ task.id[:8] }}...</code></td>
+                    <td>{{ task.name.split('.')[-1] if task.name else 'Unknown' }}</td>
+                    <td><span class="badge bg-secondary">{{ task.worker }}</span></td>
+                    <td>{{ task.time_start if task.time_start else 'N/A' }}</td>
+                    <td>
+                        <button class="btn btn-sm btn-danger" onclick="cancelTask('{{ task.id }}')">
+                            <i class="fas fa-stop"></i> Cancel
+                        </button>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+
+<!-- Reserved Tasks -->
+{% if celery_info.reserved %}
+<div class="card mb-4">
+    <div class="card-header bg-warning text-dark">
+        <h5 class="mb-0"><i class="fas fa-clock"></i> Reserved Tasks (Pending)</h5>
+    </div>
+    <div class="card-body p-0">
+        <table class="table table-hover mb-0">
+            <thead>
+                <tr>
+                    <th>Task ID</th>
+                    <th>Task Name</th>
+                    <th>Worker</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for task in celery_info.reserved %}
+                <tr>
+                    <td><code>{{ task.id[:8] }}...</code></td>
+                    <td>{{ task.name.split('.')[-1] if task.name else 'Unknown' }}</td>
+                    <td><span class="badge bg-secondary">{{ task.worker }}</span></td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+
+<!-- Recent Orchestration Runs -->
+<div class="card">
+    <div class="card-header">
+        <h5 class="mb-0"><i class="fas fa-brain"></i> Recent Orchestration Runs</h5>
+    </div>
+    <div class="card-body p-0">
+        {% if recent_runs %}
+        <table class="table table-hover mb-0">
+            <thead>
+                <tr>
+                    <th>Run ID</th>
+                    <th>Experiment</th>
+                    <th>Status</th>
+                    <th>Stage</th>
+                    <th>Started</th>
+                    <th>Celery Task</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for run in recent_runs %}
+                <tr>
+                    <td><code>{{ run.id|string|truncate(8, True, '') }}</code></td>
+                    <td>
+                        <a href="{{ url_for('experiments.view_experiment', experiment_id=run.experiment_id) }}">
+                            Experiment {{ run.experiment_id }}
+                        </a>
+                    </td>
+                    <td>
+                        {% if run.status == 'completed' %}
+                        <span class="badge bg-success">Completed</span>
+                        {% elif run.status == 'failed' %}
+                        <span class="badge bg-danger">Failed</span>
+                        {% elif run.status in ['analyzing', 'recommending', 'executing', 'synthesizing'] %}
+                        <span class="badge bg-primary"><i class="fas fa-spinner fa-spin"></i> {{ run.status|title }}</span>
+                        {% elif run.status == 'reviewing' %}
+                        <span class="badge bg-warning">Reviewing</span>
+                        {% else %}
+                        <span class="badge bg-secondary">{{ run.status }}</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ run.current_stage or '-' }}</td>
+                    <td><small>{{ run.started_at.strftime('%Y-%m-%d %H:%M') if run.started_at else 'N/A' }}</small></td>
+                    <td>
+                        {% if run.celery_task_id %}
+                        <code>{{ run.celery_task_id[:8] }}...</code>
+                        {% else %}
+                        <span class="text-muted">-</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <div class="text-center py-5 text-muted">
+            <i class="fas fa-inbox fa-3x mb-3"></i>
+            <p>No recent orchestration runs found.</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Summary Stats -->
+<div class="row mt-4">
+    <div class="col-md-4">
+        <div class="card bg-success text-white">
+            <div class="card-body text-center">
+                <h3 class="mb-0">{{ completed_runs|length }}</h3>
+                <small>Completed (Recent)</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card bg-primary text-white">
+            <div class="card-body text-center">
+                <h3 class="mb-0">{{ running_runs|length }}</h3>
+                <small>Running</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card bg-danger text-white">
+            <div class="card-body text-center">
+                <h3 class="mb-0">{{ failed_runs|length }}</h3>
+                <small>Failed (Recent)</small>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function cancelTask(taskId) {
+    if (!confirm('Are you sure you want to cancel this task? This may leave data in an inconsistent state.')) {
+        return;
+    }
+
+    fetch(`/admin/api/tasks/${taskId}/cancel`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert('Task cancelled. The page will refresh.');
+            location.reload();
+        } else {
+            alert('Error: ' + (data.error || 'Unknown error'));
+        }
+    })
+    .catch(error => {
+        alert('Error cancelling task: ' + error);
+    });
+}
+</script>
+{% endblock %}

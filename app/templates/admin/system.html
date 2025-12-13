@@ -1,0 +1,151 @@
+{% extends "admin/base_admin.html" %}
+
+{% block admin_content %}
+<div class="mb-4">
+    <h2><i class="fas fa-heartbeat"></i> System Health</h2>
+    <p class="text-muted">Monitor system services and resources</p>
+</div>
+
+<!-- Overall Status -->
+<div class="alert {% if overall_status == 'ok' %}alert-success{% elif overall_status == 'warning' %}alert-warning{% else %}alert-danger{% endif %} mb-4">
+    <h4 class="alert-heading">
+        {% if overall_status == 'ok' %}
+        <i class="fas fa-check-circle"></i> All Systems Operational
+        {% elif overall_status == 'warning' %}
+        <i class="fas fa-exclamation-triangle"></i> Some Issues Detected
+        {% else %}
+        <i class="fas fa-times-circle"></i> System Issues Detected
+        {% endif %}
+    </h4>
+    <p class="mb-0">Last checked: Just now</p>
+</div>
+
+<!-- Health Check Cards -->
+<div class="row">
+    <!-- Database -->
+    <div class="col-md-6 mb-4">
+        <div class="card h-100">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span><i class="fas fa-database"></i> PostgreSQL Database</span>
+                {% if checks.database.status == 'ok' %}
+                <span class="badge bg-success">OK</span>
+                {% elif checks.database.status == 'warning' %}
+                <span class="badge bg-warning">Warning</span>
+                {% else %}
+                <span class="badge bg-danger">Error</span>
+                {% endif %}
+            </div>
+            <div class="card-body">
+                <p class="mb-0">{{ checks.database.message }}</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Redis -->
+    <div class="col-md-6 mb-4">
+        <div class="card h-100">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span><i class="fas fa-memory"></i> Redis Cache</span>
+                {% if checks.redis.status == 'ok' %}
+                <span class="badge bg-success">OK</span>
+                {% elif checks.redis.status == 'warning' %}
+                <span class="badge bg-warning">Warning</span>
+                {% else %}
+                <span class="badge bg-danger">Error</span>
+                {% endif %}
+            </div>
+            <div class="card-body">
+                <p class="mb-0">{{ checks.redis.message }}</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Celery -->
+    <div class="col-md-6 mb-4">
+        <div class="card h-100">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span><i class="fas fa-cogs"></i> Celery Worker</span>
+                {% if checks.celery.status == 'ok' %}
+                <span class="badge bg-success">OK</span>
+                {% elif checks.celery.status == 'warning' %}
+                <span class="badge bg-warning">Warning</span>
+                {% else %}
+                <span class="badge bg-danger">Error</span>
+                {% endif %}
+            </div>
+            <div class="card-body">
+                <p class="mb-0">{{ checks.celery.message }}</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Disk Space -->
+    <div class="col-md-6 mb-4">
+        <div class="card h-100">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span><i class="fas fa-hdd"></i> Disk Space</span>
+                {% if checks.disk_space.status == 'ok' %}
+                <span class="badge bg-success">OK</span>
+                {% elif checks.disk_space.status == 'warning' %}
+                <span class="badge bg-warning">Warning</span>
+                {% else %}
+                <span class="badge bg-danger">Error</span>
+                {% endif %}
+            </div>
+            <div class="card-body">
+                <p class="mb-0">{{ checks.disk_space.message }}</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- API Keys -->
+    <div class="col-md-12 mb-4">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span><i class="fas fa-key"></i> API Keys</span>
+                {% if checks.api_keys.status == 'ok' %}
+                <span class="badge bg-success">OK</span>
+                {% elif checks.api_keys.status == 'warning' %}
+                <span class="badge bg-warning">Warning</span>
+                {% else %}
+                <span class="badge bg-danger">Error</span>
+                {% endif %}
+            </div>
+            <div class="card-body">
+                <p>{{ checks.api_keys.message }}</p>
+                {% if checks.api_keys['keys'] %}
+                <table class="table table-sm mb-0">
+                    <thead>
+                        <tr>
+                            <th>Key</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for key, present in checks.api_keys['keys'].items() %}
+                        <tr>
+                            <td><code>{{ key }}</code></td>
+                            <td>
+                                {% if present %}
+                                <span class="badge bg-success">Configured</span>
+                                {% else %}
+                                <span class="badge bg-secondary">Not Set</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Refresh Button -->
+<div class="text-center">
+    <a href="{{ url_for('admin.system_health') }}" class="btn btn-primary">
+        <i class="fas fa-sync-alt"></i> Refresh Status
+    </a>
+</div>
+{% endblock %}

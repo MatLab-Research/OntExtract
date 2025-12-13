@@ -1,0 +1,228 @@
+{% extends "admin/base_admin.html" %}
+
+{% block admin_content %}
+<div class="mb-4">
+    <h2><i class="fas fa-database"></i> Data Management</h2>
+    <p class="text-muted">View data statistics and perform cleanup operations</p>
+</div>
+
+<!-- Storage Overview -->
+<div class="alert {% if storage_stats.status == 'ok' %}alert-success{% elif storage_stats.status == 'warning' %}alert-warning{% else %}alert-danger{% endif %} mb-4">
+    <h5 class="alert-heading"><i class="fas fa-hdd"></i> Storage</h5>
+    <p class="mb-0">{{ storage_stats.message }}</p>
+</div>
+
+<!-- Data Statistics -->
+<div class="row">
+    <!-- Experiments -->
+    <div class="col-md-6 mb-4">
+        <div class="card h-100">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-flask"></i> Experiments</h5>
+            </div>
+            <div class="card-body">
+                <table class="table table-sm">
+                    <tbody>
+                        <tr>
+                            <td>Total</td>
+                            <td class="text-end"><strong>{{ experiment_stats.total }}</strong></td>
+                        </tr>
+                        <tr>
+                            <td><span class="badge bg-secondary">Draft</span></td>
+                            <td class="text-end">{{ experiment_stats.draft }}</td>
+                        </tr>
+                        <tr>
+                            <td><span class="badge bg-primary">Running</span></td>
+                            <td class="text-end">{{ experiment_stats.running }}</td>
+                        </tr>
+                        <tr>
+                            <td><span class="badge bg-success">Completed</span></td>
+                            <td class="text-end">{{ experiment_stats.completed }}</td>
+                        </tr>
+                        <tr>
+                            <td><span class="badge bg-danger">Error</span></td>
+                            <td class="text-end">{{ experiment_stats.error }}</td>
+                        </tr>
+                    </tbody>
+                </table>
+                {% if experiment_stats.draft > 0 %}
+                <button class="btn btn-sm btn-outline-warning" onclick="cleanupDrafts()">
+                    <i class="fas fa-trash"></i> Cleanup Old Drafts (30+ days)
+                </button>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Documents -->
+    <div class="col-md-6 mb-4">
+        <div class="card h-100">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-file-alt"></i> Documents</h5>
+            </div>
+            <div class="card-body">
+                <table class="table table-sm">
+                    <tbody>
+                        <tr>
+                            <td>Total</td>
+                            <td class="text-end"><strong>{{ document_stats.total }}</strong></td>
+                        </tr>
+                        <tr>
+                            <td><span class="badge bg-secondary">Uploaded</span></td>
+                            <td class="text-end">{{ document_stats.uploaded }}</td>
+                        </tr>
+                        <tr>
+                            <td><span class="badge bg-primary">Processing</span></td>
+                            <td class="text-end">{{ document_stats.processing }}</td>
+                        </tr>
+                        <tr>
+                            <td><span class="badge bg-success">Completed</span></td>
+                            <td class="text-end">{{ document_stats.completed }}</td>
+                        </tr>
+                        <tr>
+                            <td><span class="badge bg-danger">Error</span></td>
+                            <td class="text-end">{{ document_stats.error }}</td>
+                        </tr>
+                        <tr class="table-warning">
+                            <td><span class="badge bg-warning">Orphaned</span></td>
+                            <td class="text-end">{{ document_stats.orphaned }}</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Processing Jobs -->
+    <div class="col-md-6 mb-4">
+        <div class="card h-100">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-cogs"></i> Processing Jobs</h5>
+            </div>
+            <div class="card-body">
+                <table class="table table-sm">
+                    <tbody>
+                        <tr>
+                            <td>Total</td>
+                            <td class="text-end"><strong>{{ job_stats.total }}</strong></td>
+                        </tr>
+                        <tr>
+                            <td><span class="badge bg-secondary">Pending</span></td>
+                            <td class="text-end">{{ job_stats.pending }}</td>
+                        </tr>
+                        <tr>
+                            <td><span class="badge bg-primary">Running</span></td>
+                            <td class="text-end">{{ job_stats.running }}</td>
+                        </tr>
+                        <tr>
+                            <td><span class="badge bg-success">Completed</span></td>
+                            <td class="text-end">{{ job_stats.completed }}</td>
+                        </tr>
+                        <tr>
+                            <td><span class="badge bg-danger">Failed</span></td>
+                            <td class="text-end">{{ job_stats.failed }}</td>
+                        </tr>
+                    </tbody>
+                </table>
+                {% if job_stats.failed > 0 %}
+                <button class="btn btn-sm btn-outline-danger" onclick="cleanupFailedJobs()">
+                    <i class="fas fa-trash"></i> Clear Failed Jobs ({{ job_stats.failed }})
+                </button>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Terms -->
+    <div class="col-md-6 mb-4">
+        <div class="card h-100">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-tags"></i> Terms</h5>
+            </div>
+            <div class="card-body">
+                <table class="table table-sm">
+                    <tbody>
+                        <tr>
+                            <td>Total Terms</td>
+                            <td class="text-end"><strong>{{ term_stats.total }}</strong></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Cleanup Results Modal -->
+<div class="modal fade" id="cleanupResultModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Cleanup Result</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p id="cleanupResultMessage"></p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-primary" onclick="location.reload()">Refresh Page</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function cleanupFailedJobs() {
+    if (!confirm('Are you sure you want to delete all failed processing jobs? This cannot be undone.')) {
+        return;
+    }
+
+    fetch('/admin/api/data/cleanup-jobs', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showCleanupResult(`Successfully deleted ${data.deleted} failed job(s).`);
+        } else {
+            showCleanupResult('Error: ' + (data.error || 'Unknown error'));
+        }
+    })
+    .catch(error => {
+        showCleanupResult('Error: ' + error);
+    });
+}
+
+function cleanupDrafts() {
+    if (!confirm('Are you sure you want to delete all draft experiments older than 30 days? This will also delete associated documents. This cannot be undone.')) {
+        return;
+    }
+
+    fetch('/admin/api/data/cleanup-drafts', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showCleanupResult(`Successfully deleted ${data.deleted} draft experiment(s).`);
+        } else {
+            showCleanupResult('Error: ' + (data.error || 'Unknown error'));
+        }
+    })
+    .catch(error => {
+        showCleanupResult('Error: ' + error);
+    });
+}
+
+function showCleanupResult(message) {
+    document.getElementById('cleanupResultMessage').textContent = message;
+    new bootstrap.Modal(document.getElementById('cleanupResultModal')).show();
+}
+</script>
+{% endblock %}
