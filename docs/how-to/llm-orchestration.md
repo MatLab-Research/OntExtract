@@ -53,6 +53,8 @@ Recommendations are reviewed before execution:
 
 **All LLM recommendations require human approval before execution.**
 
+![Orchestration Review](../assets/images/screenshots/experiment-orchestration-content.png)
+
 ### Stage 4: Execute
 
 After approval, the system processes documents:

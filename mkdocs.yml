@@ -71,6 +71,7 @@ nav:
       - Upload Documents: how-to/upload-documents.md
       - Create Anchor Terms: how-to/create-anchor-terms.md
       - Create Temporal Experiment: how-to/create-temporal-experiment.md
+      - Manage Temporal Terms: how-to/temporal-term-management.md
       - LLM Orchestration: how-to/llm-orchestration.md
       - Process Documents: how-to/document-processing.md
       - Period-Aware Embeddings: how-to/period-aware-embeddings.md

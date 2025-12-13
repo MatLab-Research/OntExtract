@@ -26,6 +26,8 @@ Use the filter tabs at the top to show:
 | **Documents** | Primary source materials only |
 | **References** | Reference documents only |
 
+![Library List View](../assets/images/screenshots/documents-list-content.png)
+
 ### Understanding the List View
 
 Each source card displays:

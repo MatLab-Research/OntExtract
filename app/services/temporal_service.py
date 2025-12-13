@@ -79,6 +79,11 @@ class TemporalService(BaseService):
             config = json.loads(experiment.configuration) if experiment.configuration else {}
             time_periods = config.get('time_periods', [])
             terms = config.get('target_terms', [])
+
+            # If no target_terms configured, use the experiment's linked term
+            if not terms and experiment.term:
+                terms = [experiment.term.term_text]
+
             start_year = config.get('start_year', 2000)
             end_year = config.get('end_year', 2020)
             use_oed_periods = config.get('use_oed_periods', False)
