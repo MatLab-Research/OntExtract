@@ -2244,10 +2244,30 @@ class ProvenanceService:
         query = db.session.query(ProvActivity)\
             .order_by(ProvActivity.startedattime.desc())
 
+        # Track origin document entity IDs (for green nodes in graph)
+        origin_entity_ids = set()
+
         if experiment_id:
             query = query.filter(
                 ProvActivity.activity_parameters['experiment_id'].astext == str(experiment_id)
             )
+
+            # Find origin documents for this experiment
+            from app.models.experiment_document import ExperimentDocument
+            from app.models.document import Document
+            exp_docs = ExperimentDocument.query.filter_by(experiment_id=experiment_id).all()
+            for exp_doc in exp_docs:
+                doc = Document.query.get(exp_doc.document_id)
+                if doc:
+                    # Get the original document (v1)
+                    origin_doc = doc.get_original_document() if hasattr(doc, 'get_original_document') else doc
+                    # Find the ProvEntity for this origin document
+                    origin_entity = ProvEntity.query.filter(
+                        ProvEntity.entity_type == 'document',
+                        ProvEntity.entity_value['document_id'].astext == str(origin_doc.id)
+                    ).first()
+                    if origin_entity:
+                        origin_entity_ids.add(str(origin_entity.entity_id))
 
         # Track the origin document entity to add as root node
         origin_doc_entity = None
@@ -2463,6 +2483,8 @@ class ProvenanceService:
                         elif 'term_text' in entity.entity_value:
                             label = entity.entity_value['term_text'][:20]
 
+                    # Check if this is an origin document
+                    entity_classes = 'entity origin' if entity_id in origin_entity_ids else 'entity'
                     nodes.append({
                         'data': {
                             'id': entity_id,
@@ -2472,7 +2494,7 @@ class ProvenanceService:
                             'entity_type': entity.entity_type,
                             'value': entity.entity_value
                         },
-                        'classes': 'entity'
+                        'classes': entity_classes
                     })
 
                 # wasGeneratedBy edge
@@ -2503,6 +2525,8 @@ class ProvenanceService:
                                 if 'title' in source_entity.entity_value:
                                     source_label = source_entity.entity_value['title'][:20] + '...' if len(str(source_entity.entity_value.get('title', ''))) > 20 else source_entity.entity_value.get('title', source_label)
 
+                            # Check if this is an origin document
+                            source_classes = 'entity origin' if source_id in origin_entity_ids else 'entity'
                             nodes.append({
                                 'data': {
                                     'id': source_id,
@@ -2511,7 +2535,7 @@ class ProvenanceService:
                                     'description': source_entity.entity_type,
                                     'entity_type': source_entity.entity_type
                                 },
-                                'classes': 'entity'
+                                'classes': source_classes
                             })
 
                         # wasDerivedFrom edge
