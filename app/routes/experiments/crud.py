@@ -236,10 +236,33 @@ def view(experiment_id):
 
     # --- Processing Summary ---
     # Use the same data sources as document_pipeline: ExperimentDocumentProcessing & DocumentProcessingIndex
-    from app.models.experiment_processing import ExperimentDocumentProcessing, DocumentProcessingIndex
+    from app.models.experiment_processing import ExperimentDocumentProcessing, DocumentProcessingIndex, ProcessingArtifact
     from app.models import ExperimentDocument
 
-    processing_summary = {}  # artifact_type -> count
+    # Get actual artifact counts from processing_artifacts table
+    # This gives us real totals, not just document counts
+    artifact_counts = db.session.query(
+        ProcessingArtifact.artifact_type,
+        func.count(ProcessingArtifact.id)
+    ).join(
+        Document, ProcessingArtifact.document_id == Document.id
+    ).join(
+        ExperimentDocument, ExperimentDocument.document_id == Document.id
+    ).filter(
+        ExperimentDocument.experiment_id == experiment_id
+    ).group_by(ProcessingArtifact.artifact_type).all()
+
+    # Convert to processing_summary dict with display-friendly names
+    processing_summary = {}
+    artifact_type_map = {
+        'extracted_entity': 'entities',
+        'term_definition': 'definitions',
+        'temporal_marker': 'temporal',
+        'embedding_vector': 'embeddings'
+    }
+    for artifact_type, count in artifact_counts:
+        display_name = artifact_type_map.get(artifact_type, artifact_type)
+        processing_summary[display_name] = count
 
     # Get experiment documents and group by root to find latest versions
     # This matches the logic in pipeline_service.get_pipeline_overview()
@@ -322,8 +345,7 @@ def view(experiment_id):
                 'method_key': op['method'],
                 'source': op['source']
             })
-            # Update global summary
-            processing_summary[artifact_type] = processing_summary.get(artifact_type, 0) + 1
+            # Note: processing_summary is now calculated from actual artifact counts above
 
         documents_enhanced.append({
             'document': doc,

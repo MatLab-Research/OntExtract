@@ -175,8 +175,19 @@ class PipelineService(BaseService):
                     version_type='cleaned'
                 ).first() is not None
 
+                # Also check for cleanup processing record
+                if not has_cleanup:
+                    cleanup_record = ExperimentDocumentProcessing.query.filter_by(
+                        experiment_document_id=exp_doc.id,
+                        processing_type='cleanup',
+                        status='completed'
+                    ).first()
+                    has_cleanup = cleanup_record is not None
+
                 # Add LLM cleanup to operations if a cleaned version exists
-                if has_cleanup:
+                # (but only if cleanup isn't already in operations_list)
+                cleanup_already_added = any(op['type'] == 'cleanup' for op in operations_list)
+                if has_cleanup and not cleanup_already_added:
                     operations_list.append({
                         'type': 'cleanup',
                         'method': 'llm',
@@ -372,6 +383,15 @@ class PipelineService(BaseService):
                 source_document_id=root_doc.id,
                 version_type='cleaned'
             ).first() is not None
+
+            # Also check for cleanup processing record
+            if not has_cleanup:
+                cleanup_record = ExperimentDocumentProcessing.query.filter_by(
+                    experiment_document_id=exp_doc.id,
+                    processing_type='cleanup',
+                    status='completed'
+                ).first()
+                has_cleanup = cleanup_record is not None
 
             return {
                 'experiment': experiment,
