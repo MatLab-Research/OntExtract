@@ -309,3 +309,5 @@ cookies.txt
 
 # Playwright MCP screenshots
 .playwright-mcp/
+
+/.playwright-mcp
