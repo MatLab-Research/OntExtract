@@ -49,6 +49,7 @@ def test_processing_routes_are_grouped_by_responsibility(app):
         "processing.enhanced_document_processing": "app.routes.processing.enhanced",
         "processing.batch_enhanced_processing": "app.routes.processing.batch",
         "processing.clear_document_jobs": "app.routes.processing.validation",
+        "processing.processing_home": "app.routes.processing.status",
         "processing.job_list": "app.routes.processing.status",
         "processing.get_langextract_details": "app.routes.processing.status",
         "processing.get_job_status": "app.routes.processing.status",

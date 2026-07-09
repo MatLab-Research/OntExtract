@@ -1,0 +1,137 @@
+"""Experiment creation routes."""
+
+from flask import render_template, request, jsonify, flash, redirect, url_for
+from flask_login import current_user
+from app.utils.auth_decorators import api_require_login_for_write, write_login_required
+from app import db
+from app.models import Document, Experiment
+from app.services.text_processing import TextProcessingService
+from app.services.experiment_domain_comparison import DomainComparisonService
+from app.services.experiment_service import get_experiment_service
+from app.dto.experiment_dto import (
+    CreateExperimentDTO,
+    UpdateExperimentDTO,
+    ExperimentResponseDTO,
+    ExperimentListItemDTO,
+    ExperimentDetailDTO
+)
+from app.services.base_service import ServiceError, ValidationError
+from pydantic import ValidationError as PydanticValidationError
+from datetime import datetime
+import json
+from typing import Optional
+import logging
+from .. import experiments_bp
+
+
+@experiments_bp.route('/create', methods=['POST'])
+@api_require_login_for_write
+def create():
+    """
+    Create a new experiment - requires login
+
+    REFACTORED: Now uses ExperimentService with DTO validation
+    """
+    try:
+        # Validate request data using DTO (automatic validation)
+        data = CreateExperimentDTO(**request.get_json())
+
+        # Call service to create experiment (all business logic in service)
+        experiment = experiment_service.create_experiment(data, current_user.id)
+
+        # Return consistent response
+        return jsonify({
+            'success': True,
+            'message': 'Experiment created successfully',
+            'experiment_id': experiment.id,
+            'redirect': url_for('experiments.document_pipeline', experiment_id=experiment.id)
+        }), 201
+
+    except PydanticValidationError as e:
+        # Validation errors from DTO
+        logger.warning(f"Validation error creating experiment: {e}")
+        return jsonify({
+            'success': False,
+            'error': 'Validation failed',
+            'details': e.errors()
+        }), 400
+
+    except ValidationError as e:
+        # Business validation errors from service
+        logger.warning(f"Business validation error: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 400
+
+    except ServiceError as e:
+        # Service errors (database, etc.)
+        logger.error(f"Service error creating experiment: {e}", exc_info=True)
+        return jsonify({
+            'success': False,
+            'error': 'Failed to create experiment'
+        }), 500
+
+    except Exception as e:
+        # Unexpected errors
+        logger.error(f"Unexpected error creating experiment: {e}", exc_info=True)
+        return jsonify({
+            'success': False,
+            'error': 'An unexpected error occurred'
+        }), 500
+
+@experiments_bp.route('/sample', methods=['POST', 'GET'])
+@write_login_required
+def create_sample():
+    """
+    Create a sample domain comparison experiment
+
+    REFACTORED: Now uses ExperimentService with DTO validation
+    """
+    try:
+        # Pick up to 6 most recent references
+        refs = Document.query.filter_by(document_type='reference').order_by(
+            Document.created_at.desc()
+        ).limit(6).all()
+
+        if not refs:
+            flash('No references found. Please upload reference PDFs first (References → Upload).', 'warning')
+            return redirect(url_for('experiments.index'))
+
+        # Build sample configuration
+        config = {
+            "use_references": True,
+            "target_terms": ["agent", "agency"],
+            "design": {
+                "type": "experimental",
+                "variables": {
+                    "independent": [{"name": "definition_source", "levels": ["OED", "AI textbook"]}]
+                },
+                "groups": [{"name": "OED"}, {"name": "AI"}]
+            }
+        }
+
+        # Create DTO with sample data
+        data = CreateExperimentDTO(
+            name='Sample: Agent Domain Comparison',
+            description='Auto-created sample comparing terminology across sources with a simple design.',
+            experiment_type='domain_comparison',
+            reference_ids=[r.id for r in refs],
+            configuration=config
+        )
+
+        # Call service to create experiment (all business logic in service)
+        experiment = experiment_service.create_experiment(data, current_user.id)
+
+        flash('Sample experiment created.', 'success')
+        return redirect(url_for('experiments.view', experiment_id=experiment.id))
+
+    except ServiceError as e:
+        logger.error(f"Service error creating sample experiment: {e}", exc_info=True)
+        flash(f'Error creating sample experiment: {e}', 'danger')
+        return redirect(url_for('experiments.index'))
+
+    except Exception as e:
+        logger.error(f"Unexpected error creating sample experiment: {e}", exc_info=True)
+        flash(f'Error creating sample experiment: {e}', 'danger')
+        return redirect(url_for('experiments.index'))

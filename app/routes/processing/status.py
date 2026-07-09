@@ -3,6 +3,7 @@
 import os
 
 from flask import jsonify, render_template
+from sqlalchemy import func
 
 from app import db
 from app.models.document import Document
@@ -10,6 +11,77 @@ from app.models.processing_job import ProcessingJob
 from app.utils.auth_decorators import api_require_login_for_write
 
 from . import processing_bp
+
+
+@processing_bp.route('/')
+def processing_home():
+    """Show live document and experiment processing status."""
+    from app.models.experiment import Experiment
+    from app.models.experiment_document import ExperimentDocument
+    from app.models.experiment_processing import ExperimentDocumentProcessing
+
+    stats = {
+        'documents': {
+            'total': db.session.query(func.count(Document.id)).scalar() or 0,
+            'uploaded': db.session.query(func.count(Document.id)).filter(
+                Document.status == 'uploaded'
+            ).scalar() or 0,
+            'processing': db.session.query(func.count(Document.id)).filter(
+                Document.status == 'processing'
+            ).scalar() or 0,
+            'completed': db.session.query(func.count(Document.id)).filter(
+                Document.status == 'completed'
+            ).scalar() or 0,
+            'error': db.session.query(func.count(Document.id)).filter(
+                Document.status == 'error'
+            ).scalar() or 0,
+        },
+        'processing_operations': {
+            'total': db.session.query(
+                func.count(ExperimentDocumentProcessing.id)
+            ).scalar() or 0,
+            'pending': db.session.query(
+                func.count(ExperimentDocumentProcessing.id)
+            ).filter(ExperimentDocumentProcessing.status == 'pending').scalar() or 0,
+            'running': db.session.query(
+                func.count(ExperimentDocumentProcessing.id)
+            ).filter(ExperimentDocumentProcessing.status == 'running').scalar() or 0,
+            'completed': db.session.query(
+                func.count(ExperimentDocumentProcessing.id)
+            ).filter(ExperimentDocumentProcessing.status == 'completed').scalar() or 0,
+            'failed': db.session.query(
+                func.count(ExperimentDocumentProcessing.id)
+            ).filter(ExperimentDocumentProcessing.status == 'failed').scalar() or 0,
+        },
+    }
+
+    recent_documents = (
+        db.session.query(Document)
+        .join(ExperimentDocument, Document.id == ExperimentDocument.document_id)
+        .order_by(ExperimentDocument.added_at.desc())
+        .limit(10)
+        .all()
+    )
+    recent_processing = (
+        db.session.query(ExperimentDocumentProcessing)
+        .join(
+            ExperimentDocument,
+            ExperimentDocumentProcessing.experiment_document_id
+            == ExperimentDocument.id,
+        )
+        .join(Document, ExperimentDocument.document_id == Document.id)
+        .join(Experiment, ExperimentDocument.experiment_id == Experiment.id)
+        .order_by(ExperimentDocumentProcessing.created_at.desc())
+        .limit(10)
+        .all()
+    )
+
+    return render_template(
+        'processing/index.html',
+        stats=stats,
+        recent_documents=recent_documents,
+        recent_processing=recent_processing,
+    )
 
 
 @processing_bp.route('/jobs')
