@@ -6,7 +6,23 @@ from flask_migrate import Migrate
 from flask_login import LoginManager
 from flask_cors import CORS
 from flask_mail import Mail
+import importlib.util
 import os
+from pathlib import Path
+
+APP_ROOT = Path(__file__).resolve().parent.parent
+
+
+def _load_config_mapping():
+    """Load this application's config without relying on a top-level package name."""
+    config_path = APP_ROOT / 'config' / '__init__.py'
+    spec = importlib.util.spec_from_file_location('_ontextract_config', config_path)
+    if spec is None or spec.loader is None:
+        raise ImportError(f'Unable to load OntExtract configuration from {config_path}')
+
+    config_module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(config_module)
+    return config_module.config
 
 # Initialize extensions
 db = SQLAlchemy()
@@ -23,8 +39,8 @@ def create_app(config_name=None):
     # Configuration
     if config_name is None:
         config_name = os.environ.get('FLASK_ENV', 'development')
-    
-    from config import config
+
+    config = _load_config_mapping()
     app.config.from_object(config[config_name])
     
     # Initialize extensions

@@ -1,17 +1,9 @@
-"""
-Processing Status and Monitoring Routes
+"""Processing job listing, status, and diagnostic routes."""
 
-This module handles status monitoring and job tracking for processing operations.
-
-Routes:
-- GET /processing/                          - Processing home dashboard
-- GET /processing/jobs                      - List processing operations
-- GET /processing/api/processing/job/<id>/langextract-details - LangExtract job details
-"""
-
-from flask import render_template, jsonify
-from sqlalchemy import func
 import os
+
+from flask import jsonify, render_template
+
 from app import db
 from app.models.document import Document
 from app.models.processing_job import ProcessingJob
@@ -20,70 +12,10 @@ from app.utils.auth_decorators import api_require_login_for_write
 from . import processing_bp
 
 
-@processing_bp.route('/')
-def processing_home():
-    """Processing pipeline home page - shows live experiment processing status"""
-    from app.models.experiment_processing import ExperimentDocumentProcessing
-    from app.models.experiment import Experiment
-    from app.models.experiment_document import ExperimentDocument
-
-    # Aggregate document stats (total documents in system)
-    doc_total = db.session.query(func.count(Document.id)).scalar() or 0
-    doc_uploaded = db.session.query(func.count(Document.id)).filter(Document.status == 'uploaded').scalar() or 0
-    doc_processing = db.session.query(func.count(Document.id)).filter(Document.status == 'processing').scalar() or 0
-    doc_completed = db.session.query(func.count(Document.id)).filter(Document.status == 'completed').scalar() or 0
-    doc_error = db.session.query(func.count(Document.id)).filter(Document.status == 'error').scalar() or 0
-
-    # Aggregate experiment processing stats (actual live processing operations)
-    processing_total = db.session.query(func.count(ExperimentDocumentProcessing.id)).scalar() or 0
-    processing_pending = db.session.query(func.count(ExperimentDocumentProcessing.id)).filter(ExperimentDocumentProcessing.status == 'pending').scalar() or 0
-    processing_running = db.session.query(func.count(ExperimentDocumentProcessing.id)).filter(ExperimentDocumentProcessing.status == 'running').scalar() or 0
-    processing_completed = db.session.query(func.count(ExperimentDocumentProcessing.id)).filter(ExperimentDocumentProcessing.status == 'completed').scalar() or 0
-    processing_failed = db.session.query(func.count(ExperimentDocumentProcessing.id)).filter(ExperimentDocumentProcessing.status == 'failed').scalar() or 0
-
-    stats = {
-        'documents': {
-            'total': doc_total,
-            'uploaded': doc_uploaded,
-            'processing': doc_processing,
-            'completed': doc_completed,
-            'error': doc_error,
-        },
-        'processing_operations': {
-            'total': processing_total,
-            'pending': processing_pending,
-            'running': processing_running,
-            'completed': processing_completed,
-            'failed': processing_failed,
-        }
-    }
-
-    # Recent documents from experiments
-    recent_documents = (
-        db.session.query(Document)
-        .join(ExperimentDocument, Document.id == ExperimentDocument.document_id)
-        .order_by(ExperimentDocument.added_at.desc())
-        .limit(10)
-        .all()
-    )
-
-    # Recent processing operations instead of old processing jobs
-    recent_processing = (
-        db.session.query(ExperimentDocumentProcessing)
-        .join(ExperimentDocument, ExperimentDocumentProcessing.experiment_document_id == ExperimentDocument.id)
-        .join(Document, ExperimentDocument.document_id == Document.id)
-        .join(Experiment, ExperimentDocument.experiment_id == Experiment.id)
-        .order_by(ExperimentDocumentProcessing.created_at.desc())
-        .limit(10)
-        .all()
-    )
-
-    return render_template('processing/index.html', stats=stats, recent_documents=recent_documents, recent_processing=recent_processing)
-
-
 @processing_bp.route('/jobs')
 def job_list():
     """List processing operations - public view"""
+    # Import experiment models
     from app.models.experiment_processing import ExperimentDocumentProcessing
     from app.models.experiment import Experiment
     from app.models.experiment_document import ExperimentDocument
@@ -108,7 +40,6 @@ def job_list():
     )
 
     return render_template('processing/jobs.html', processing_operations=processing_operations, legacy_jobs=legacy_jobs)
-
 
 @processing_bp.route('/api/processing/job/<int:job_id>/langextract-details')
 @api_require_login_for_write
@@ -181,6 +112,130 @@ def get_langextract_details(job_id):
         }
 
         return jsonify(response_data)
+
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@processing_bp.route('/job/<int:job_id>/status', methods=['GET'])
+def get_job_status(job_id):
+    """Get status and progress of a specific processing job"""
+    try:
+        job = ProcessingJob.query.get_or_404(job_id)
+
+        params = job.get_parameters()
+        result_data = job.get_result_data()
+
+        response = {
+            'success': True,
+            'job_id': job.id,
+            'status': job.status,
+            'created_at': job.created_at.isoformat() if job.created_at else None,
+            'completed_at': job.completed_at.isoformat() if job.completed_at else None,
+            'parameters': params,
+            'result_data': result_data
+        }
+
+        # Add progress info if available
+        if 'current_chunk' in params and 'total_chunks' in params:
+            response['progress'] = {
+                'current': params['current_chunk'],
+                'total': params['total_chunks'],
+                'message': params.get('progress_message', ''),
+                'percentage': int((params['current_chunk'] / params['total_chunks']) * 100) if params['total_chunks'] > 0 else 0
+            }
+
+        return jsonify(response)
+
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@processing_bp.route('/document/<string:document_uuid>/processing-jobs', methods=['GET'])
+def get_document_processing_jobs(document_uuid):
+    """Get all processing jobs for a document"""
+    try:
+        document = Document.query.filter_by(uuid=document_uuid).first_or_404()
+
+        # Get all processing jobs for this document in two ways:
+        # 1. Jobs directly linked to this document (document_id = this doc's id)
+        # 2. Jobs where parameters contain original_document_id = this document's id
+        #    (these are jobs created for processing versions like embeddings)
+
+        # First get direct jobs
+        jobs = ProcessingJob.query.filter_by(document_id=document.id).all()
+
+        # Then find indirect jobs (processing versions)
+        # These have parameters.original_document_id = document.id
+        all_potential_jobs = ProcessingJob.query.filter(
+            ProcessingJob.document_id != document.id
+        ).all()
+
+        indirect_job_ids = []
+        for job in all_potential_jobs:
+            params = job.get_parameters()
+            if params.get('original_document_id') == document.id:
+                indirect_job_ids.append(job.id)
+                jobs.append(job)
+
+        # Sort by created_at desc (put None values last)
+        jobs.sort(key=lambda j: (j.created_at is None, j.created_at), reverse=True)
+
+        # Group jobs by type and method combination to find duplicates
+        jobs_by_type = {}
+        for job in jobs:
+            params = job.get_parameters()
+
+            # Extract method/descriptor based on job type
+            method = 'default'
+            if job.job_type in ['generate_embeddings', 'segment_document']:
+                method = params.get('method', 'default')
+            elif job.job_type == 'extract_entities':
+                entity_types = params.get('entity_types', [])
+                method = f"{len(entity_types)} types" if entity_types else 'default'
+            elif job.job_type == 'analyze_metadata':
+                method = 'auto'
+            elif job.job_type == 'enhanced_processing':
+                extract_terms = params.get('extract_terms', False)
+                enrich_oed = params.get('enrich_with_oed', False)
+                method = 'terms+OED' if extract_terms and enrich_oed else 'terms' if extract_terms else 'default'
+
+            # Create unique key for this job type + method combination
+            key = f"{job.job_type}:{method}"
+
+            if key not in jobs_by_type:
+                jobs_by_type[key] = {
+                    'latest': job,
+                    'method': method,
+                    'all_jobs': []
+                }
+            jobs_by_type[key]['all_jobs'].append(job)
+
+        # Build response with only latest job per type, but include count
+        processing_operations = []
+        for key, group in jobs_by_type.items():
+            latest_job = group['latest']
+            all_jobs = group['all_jobs']
+            count = len(all_jobs)
+
+            processing_operations.append({
+                'id': latest_job.id,
+                'processing_type': latest_job.job_type,
+                'processing_method': group['method'],
+                'status': latest_job.status,
+                'created_at': latest_job.created_at.isoformat() if latest_job.created_at else None,
+                'completed_at': latest_job.completed_at.isoformat() if latest_job.completed_at else None,
+                'error_message': latest_job.error_message,
+                'run_count': count,
+                'has_history': count > 1,
+                'all_job_ids': [j.id for j in all_jobs] if count > 1 else []
+            })
+
+        # Sort by latest created_at
+        processing_operations.sort(key=lambda op: op['created_at'] if op['created_at'] else '', reverse=True)
+
+        return jsonify({
+            'success': True,
+            'processing_operations': processing_operations
+        })
 
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500

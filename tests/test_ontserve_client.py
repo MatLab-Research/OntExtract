@@ -1,123 +1,84 @@
-#!/usr/bin/env python3
-"""
-Test OntServe Client Integration
+"""Deterministic tests for the OntServe domain client."""
 
-Verifies that the MCP integration layer and OntServe client
-can successfully fetch semantic change event types from the ontology.
-"""
+import os
+from unittest.mock import AsyncMock
 
-import sys
-sys.path.insert(0, '/home/chris/onto/OntExtract')
+import pytest
 
-from app.services.ontserve_client import get_ontserve_client
-import logging
+from app.services.mcp_client import MCPClientError
+from app.services.ontserve_client import OntServeClient
 
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(levelname)s: %(message)s'
+
+def test_event_types_are_mapped_from_sparql_bindings():
+    client = OntServeClient()
+    client.mcp_client = AsyncMock()
+    client.mcp_client.call_mcp.return_value = {
+        "results": {
+            "bindings": [{
+                "eventType": {"value": f"{client.namespace}SemanticDrift"},
+                "label": {"value": "Semantic Drift"},
+                "comment": {"value": "Gradual meaning change"},
+                "examples": {"value": "Example one|||Example two"},
+            }]
+        }
+    }
+
+    assert client.get_event_types() == [{
+        "uri": f"{client.namespace}SemanticDrift",
+        "name": "SemanticDrift",
+        "label": "Semantic Drift",
+        "description": "Gradual meaning change",
+        "color": "#d63384",
+        "icon": "fas fa-water",
+        "examples": ["Example one", "Example two"],
+    }]
+
+
+def test_properties_are_mapped_from_sparql_bindings():
+    client = OntServeClient()
+    client.mcp_client = AsyncMock()
+    client.mcp_client.call_mcp.return_value = {
+        "results": {
+            "bindings": [{
+                "property": {"value": f"{client.namespace}hasEvidence"},
+                "label": {"value": "has evidence"},
+                "type": {"value": "http://www.w3.org/2002/07/owl#ObjectProperty"},
+                "comment": {"value": "Links an event to evidence"},
+                "domain": {"value": f"{client.namespace}SemanticChangeEvent"},
+            }]
+        }
+    }
+
+    assert client.get_properties() == [{
+        "uri": f"{client.namespace}hasEvidence",
+        "name": "hasEvidence",
+        "label": "has evidence",
+        "type": "ObjectProperty",
+        "comment": "Links an event to evidence",
+        "domain": f"{client.namespace}SemanticChangeEvent",
+        "range": None,
+    }]
+
+
+@pytest.mark.parametrize(
+    ("event_name", "expected"),
+    [("InflectionPoint", True), ("InvalidEvent", False)],
 )
+def test_uri_validation_fallback_only_accepts_known_events(event_name, expected):
+    client = OntServeClient()
+    client.mcp_client = AsyncMock()
+    client.mcp_client.call_mcp.side_effect = MCPClientError("OntServe unavailable")
 
-def test_ontserve_client():
-    """Test fetching event types from semantic change ontology"""
-
-    print("=" * 70)
-    print("Testing OntServe Client Integration")
-    print("=" * 70)
-
-    # Get client instance
-    client = get_ontserve_client()
-    print(f"\n✅ OntServe client initialized")
-    print(f"   Namespace: {client.namespace}")
-    print(f"   Ontology: {client.ontology_name}")
-
-    # Test 1: Fetch event types
-    print("\n" + "=" * 70)
-    print("Test 1: Fetch Semantic Event Types")
-    print("=" * 70)
-
-    try:
-        event_types = client.get_event_types()
-        print(f"\n✅ Fetched {len(event_types)} event types:\n")
-
-        for event in event_types:
-            print(f"  • {event['label']} ({event['name']})")
-            print(f"    URI: {event['uri']}")
-            print(f"    Color: {event['color']}")
-            print(f"    Icon: {event['icon']}")
-            print(f"    Description: {event['description'][:80]}...")
-
-            if event.get('examples'):
-                print(f"    Examples:")
-                for example in event['examples'][:2]:
-                    print(f"      - {example[:80]}...")
-            print()
-
-    except Exception as e:
-        print(f"❌ ERROR: Failed to fetch event types: {e}")
-        import traceback
-        traceback.print_exc()
-        return False
-
-    # Test 2: Validate URIs
-    print("=" * 70)
-    print("Test 2: Validate Event URIs")
-    print("=" * 70)
-
-    test_uris = [
-        f"{client.namespace}InflectionPoint",
-        f"{client.namespace}StablePolysemy",
-        f"{client.namespace}InvalidEvent"
-    ]
-
-    for uri in test_uris:
-        try:
-            is_valid = client.validate_event_uri(uri)
-            status = "✅ VALID" if is_valid else "❌ INVALID"
-            print(f"  {status}: {uri}")
-        except Exception as e:
-            print(f"  ❌ ERROR validating {uri}: {e}")
-
-    # Test 3: Fetch properties
-    print("\n" + "=" * 70)
-    print("Test 3: Fetch SCO Properties")
-    print("=" * 70)
-
-    try:
-        properties = client.get_properties()
-        print(f"\n✅ Fetched {len(properties)} properties:\n")
-
-        # Group by type
-        object_props = [p for p in properties if p['type'] == 'ObjectProperty']
-        datatype_props = [p for p in properties if p['type'] == 'DatatypeProperty']
-
-        print(f"Object Properties ({len(object_props)}):")
-        for prop in object_props[:5]:  # Show first 5
-            print(f"  • {prop['name']}: {prop['label']}")
-
-        print(f"\nDatatype Properties ({len(datatype_props)}):")
-        for prop in datatype_props:
-            print(f"  • {prop['name']}: {prop['label']}")
-            print(f"    Range: {prop.get('range', 'N/A')}")
-
-    except Exception as e:
-        print(f"❌ ERROR: Failed to fetch properties: {e}")
-        import traceback
-        traceback.print_exc()
-
-    print("\n" + "=" * 70)
-    print("✅ All tests completed!")
-    print("=" * 70)
-
-    return True
+    assert client.validate_event_uri(f"{client.namespace}{event_name}") is expected
 
 
-if __name__ == '__main__':
-    try:
-        success = test_ontserve_client()
-        sys.exit(0 if success else 1)
-    except Exception as e:
-        print(f"\n❌ FATAL ERROR: {e}")
-        import traceback
-        traceback.print_exc()
-        sys.exit(1)
+@pytest.mark.integration
+@pytest.mark.skipif(
+    os.getenv("RUN_ONTSERVE_INTEGRATION") != "1",
+    reason="Set RUN_ONTSERVE_INTEGRATION=1 to query a live OntServe instance",
+)
+def test_live_ontserve_client():
+    client = OntServeClient()
+
+    assert client.get_event_types()
+    assert client.get_properties()

@@ -14,6 +14,25 @@ import pytest
 from app.services.processing_tools import DocumentProcessor, ProcessingResult
 
 
+def test_processing_tool_methods_are_grouped_by_responsibility():
+    expected_modules = {
+        "segment_paragraph": "segmentation",
+        "segment_sentence": "segmentation",
+        "extract_entities_spacy": "entities",
+        "extract_temporal": "relationships",
+        "extract_causal": "relationships",
+        "extract_definitions": "definitions",
+        "period_aware_embedding": "embeddings",
+    }
+
+    actual_modules = {
+        method_name: getattr(DocumentProcessor, method_name).__module__.rsplit(".", 1)[-1]
+        for method_name in expected_modules
+    }
+
+    assert actual_modules == expected_modules
+
+
 class TestProcessingResult:
     """Test ProcessingResult dataclass structure."""
 
