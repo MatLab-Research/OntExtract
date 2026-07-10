@@ -1,0 +1,81 @@
+"""Experiment pipeline status and artifact query endpoints."""
+
+import logging
+
+from flask import jsonify
+
+from app.services.base_service import NotFoundError, ServiceError
+
+from .. import experiments_bp
+from . import pipeline_service
+
+
+logger = logging.getLogger(__name__)
+
+
+@experiments_bp.route('/api/experiment-document/<int:exp_doc_id>/processing-status')
+def get_experiment_document_processing_status(exp_doc_id):
+    """Return processing status for an experiment document."""
+    try:
+        result = pipeline_service.get_processing_status(exp_doc_id)
+        return jsonify({
+            'success': True,
+            'experiment_document_id': result['experiment_document_id'],
+            'processing_operations': result['processing_operations'],
+        }), 200
+    except NotFoundError as exc:
+        logger.warning(f"Experiment document {exp_doc_id} not found: {exc}")
+        return jsonify({
+            'success': False,
+            'error': 'Experiment document not found',
+        }), 404
+    except ServiceError as exc:
+        logger.error(
+            f"Service error getting processing status: {exc}",
+            exc_info=True,
+        )
+        return jsonify({
+            'success': False,
+            'error': 'Failed to get processing status',
+        }), 500
+    except Exception as exc:
+        logger.error(
+            f"Unexpected error getting processing status: {exc}",
+            exc_info=True,
+        )
+        return jsonify({'success': False, 'error': str(exc)}), 500
+
+
+@experiments_bp.route('/api/processing/<uuid:processing_id>/artifacts')
+def get_processing_artifacts(processing_id):
+    """Return artifacts for a processing operation."""
+    try:
+        result = pipeline_service.get_processing_artifacts(processing_id)
+        return jsonify({
+            'success': True,
+            'processing_id': result['processing_id'],
+            'processing_type': result['processing_type'],
+            'processing_method': result['processing_method'],
+            'artifacts': result['artifacts'],
+        }), 200
+    except NotFoundError as exc:
+        logger.warning(f"Processing {processing_id} not found: {exc}")
+        return jsonify({
+            'success': False,
+            'error': 'Processing operation not found',
+        }), 404
+    except ServiceError as exc:
+        logger.error(
+            f"Service error getting processing artifacts: {exc}",
+            exc_info=True,
+        )
+        return jsonify({
+            'success': False,
+            'error': 'Failed to get processing artifacts',
+        }), 500
+    except Exception as exc:
+        logger.error(
+            f"Unexpected error getting processing artifacts: {exc}",
+            exc_info=True,
+        )
+        return jsonify({'success': False, 'error': str(exc)}), 500

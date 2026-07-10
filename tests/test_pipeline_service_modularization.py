@@ -38,6 +38,29 @@ def test_experiment_pipeline_route_uses_public_service_singleton():
     assert pipeline_service is get_pipeline_service()
 
 
+def test_pipeline_routes_are_grouped_by_http_responsibility(app):
+    expected_modules = {
+        "experiments.document_pipeline": "app.routes.experiments.pipeline.pages",
+        "experiments.process_document": "app.routes.experiments.pipeline.pages",
+        "experiments.apply_embeddings_to_experiment_document": (
+            "app.routes.experiments.pipeline.execution"
+        ),
+        "experiments.start_experiment_processing": (
+            "app.routes.experiments.pipeline.execution"
+        ),
+        "experiments.get_experiment_document_processing_status": (
+            "app.routes.experiments.pipeline.queries"
+        ),
+        "experiments.get_processing_artifacts": (
+            "app.routes.experiments.pipeline.queries"
+        ),
+    }
+    assert {
+        endpoint: app.view_functions[endpoint].__module__
+        for endpoint in expected_modules
+    } == expected_modules
+
+
 def test_document_pipeline_page_renders(client, experiment_with_documents):
     response = client.get(
         f"/experiments/{experiment_with_documents.id}/document_pipeline"
