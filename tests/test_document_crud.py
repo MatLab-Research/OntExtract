@@ -8,6 +8,112 @@ import pytest
 from flask import url_for
 
 
+class TestDocumentDeletionRoutes:
+    """Test individual and document-family deletion routes."""
+
+    def test_delete_document_by_id_returns_json(
+        self, auth_client, sample_document, monkeypatch
+    ):
+        from app.models import Document
+        from app.services import document_deletion_service
+
+        monkeypatch.setattr(
+            document_deletion_service.provenance_service,
+            "delete_or_invalidate_document_provenance",
+            lambda document_id: {"deleted": 0},
+        )
+
+        response = auth_client.post(
+            f"/input/document/{sample_document.id}/delete",
+            json={},
+        )
+
+        assert response.status_code == 200
+        assert response.get_json()["success"] is True
+        assert Document.query.filter_by(id=sample_document.id).first() is None
+
+    def test_uuid_delete_permission_redirect_uses_document_detail(
+        self,
+        auth_client,
+        db_session,
+        sample_document,
+        admin_user,
+    ):
+        sample_document.user_id = admin_user.id
+        db_session.commit()
+
+        response = auth_client.post(
+            f"/input/document/{sample_document.uuid}/delete"
+        )
+
+        assert response.status_code == 302
+        assert response.headers["Location"].endswith(
+            f"/input/document/{sample_document.uuid}"
+        )
+
+    def test_uuid_delete_blocks_experiment_references(
+        self, auth_client, sample_document, monkeypatch
+    ):
+        from types import SimpleNamespace
+        from app.services.document_deletion_service import DocumentDeletionService
+
+        monkeypatch.setattr(
+            DocumentDeletionService,
+            "get_referencing_experiments",
+            lambda document_id: [SimpleNamespace(id=7, name="Protected")],
+        )
+
+        response = auth_client.post(
+            f"/input/document/{sample_document.uuid}/delete",
+            json={},
+        )
+
+        assert response.status_code == 409
+        assert response.get_json()["experiments"] == [
+            {"id": 7, "name": "Protected"}
+        ]
+
+    def test_delete_all_versions_removes_document_family(
+        self,
+        auth_client,
+        db_session,
+        sample_document,
+        monkeypatch,
+    ):
+        from app.models import Document
+        from app.services import document_deletion_service
+
+        derived = Document(
+            title="Derived document",
+            content="Derived content",
+            content_type="text/plain",
+            document_type="document",
+            status="completed",
+            user_id=sample_document.user_id,
+            source_document_id=sample_document.id,
+            version_number=2,
+            version_type="processed",
+        )
+        db_session.add(derived)
+        db_session.commit()
+        family_ids = [sample_document.id, derived.id]
+
+        monkeypatch.setattr(
+            document_deletion_service.provenance_service,
+            "delete_or_invalidate_document_provenance",
+            lambda document_id: {"deleted": 0},
+        )
+
+        response = auth_client.post(
+            f"/input/document/{sample_document.id}/delete-all-versions",
+            json={},
+        )
+
+        assert response.status_code == 200
+        assert response.get_json()["deleted_count"] == 2
+        assert Document.query.filter(Document.id.in_(family_ids)).count() == 0
+
+
 class TestDeleteAllDocuments:
     """Test the delete all documents functionality."""
 

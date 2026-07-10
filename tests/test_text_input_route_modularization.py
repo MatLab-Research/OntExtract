@@ -6,10 +6,18 @@ def test_text_input_crud_routes_are_grouped_by_responsibility(app):
         "text_input.document_list": "app.routes.text_input.crud.pages",
         "text_input.document_detail": "app.routes.text_input.crud.pages",
         "text_input.document_edit": "app.routes.text_input.crud.editing",
-        "text_input.delete_document": "app.routes.text_input.crud.deletion",
-        "text_input.delete_document_by_uuid": "app.routes.text_input.crud.deletion",
-        "text_input.delete_all_versions": "app.routes.text_input.crud.deletion",
-        "text_input.delete_all_documents": "app.routes.text_input.crud.deletion",
+        "text_input.delete_document": (
+            "app.routes.text_input.crud.deletion.individual"
+        ),
+        "text_input.delete_document_by_uuid": (
+            "app.routes.text_input.crud.deletion.individual"
+        ),
+        "text_input.delete_all_versions": (
+            "app.routes.text_input.crud.deletion.family"
+        ),
+        "text_input.delete_all_documents": (
+            "app.routes.text_input.crud.deletion.admin"
+        ),
     }
 
     actual_modules = {
