@@ -5,8 +5,14 @@ import os
 
 from app import db
 from app.models.document import Document
-from app.models.experiment import Experiment
-from app.services.base_service import ValidationError
+from app.models.experiment import (
+    Experiment,
+    experiment_documents,
+    experiment_references,
+)
+from app.models.experiment_document import ExperimentDocument
+from app.models.user import User
+from app.services.base_service import NotFoundError, PermissionError, ValidationError
 from app.services.reference_metadata_enricher import ReferenceMetadataEnricher
 from app.services.text_processing import TextProcessingService
 from app.utils.date_parser import parse_flexible_date
@@ -43,9 +49,27 @@ class LegacyUploadWorkflow:
         self.logger = workflow_logger or logger
         self.language_detector = language_detector or self._detect_language
 
-    def upload(self, file, form, user, upload_folder):
+    def upload(
+        self,
+        file,
+        form,
+        user,
+        upload_folder,
+        *,
+        force_document_type=None,
+        prefill_metadata=None,
+        use_zotero=None,
+        validate_file_type=False,
+    ):
         if not file or not file.filename:
             raise ValidationError('No file selected')
+        if validate_file_type and not self.file_handler.allowed_file(file.filename):
+            raise ValidationError('File type is not allowed')
+
+        experiment = self._authorized_experiment(
+            form.get('experiment_id'),
+            user.id,
+        )
 
         saved_path = None
         committed = False
@@ -69,9 +93,18 @@ class LegacyUploadWorkflow:
                 saved_path,
                 file_size,
                 content,
+                force_document_type,
             )
-            self._enrich_with_zotero(document, form, saved_path)
+            self._enrich_with_zotero(
+                document,
+                form,
+                saved_path,
+                prefill_metadata=prefill_metadata,
+                use_zotero=use_zotero,
+            )
             db.session.add(document)
+            db.session.flush()
+            self._link_experiment_atomic(document, experiment, form)
             db.session.commit()
             committed = True
         except Exception:
@@ -80,14 +113,12 @@ class LegacyUploadWorkflow:
                 self._remove_file(saved_path)
             raise
 
-        experiment = self._authorized_experiment(form.get('experiment_id'), user.id)
         self._track_provenance(document, user, experiment)
         processing_warning = self._process_document(document)
-        linked_experiment = self._link_experiment(document, experiment, form)
         return {
             'document': document,
             'processing_warning': processing_warning,
-            'linked_experiment': linked_experiment,
+            'linked_experiment': experiment,
         }
 
     def _build_document(
@@ -98,9 +129,18 @@ class LegacyUploadWorkflow:
         saved_path,
         file_size,
         content,
+        force_document_type,
     ):
         prov_type = form.get('prov_type', 'prov:Entity')
-        document_type, reference_subtype = self._document_classification(prov_type)
+        if force_document_type == 'reference':
+            document_type = 'reference'
+            reference_subtype = (
+                self._form_value(form, 'reference_subtype') or 'other'
+            )
+        else:
+            document_type, reference_subtype = self._document_classification(
+                prov_type
+            )
         detected_language = None
         language_confidence = 0.0
         if form.get('auto_detect_language') == 'on' and content:
@@ -117,6 +157,22 @@ class LegacyUploadWorkflow:
         access_date = parse_flexible_date(
             self._form_value(form, 'access_date')
         )
+        source_metadata = {'prov_type': prov_type}
+        if force_document_type == 'reference':
+            source_metadata.update({
+                key: value
+                for key, value in {
+                    'authors': (
+                        [item.strip() for item in authors.split(',') if item.strip()]
+                        if authors else None
+                    ),
+                    'publication_date': self._form_value(
+                        form, 'publication_date'
+                    ),
+                    **values,
+                }.items()
+                if value
+            })
         return Document(
             title=self._form_value(form, 'title') or self._secure_name(filename),
             content_type='file',
@@ -132,7 +188,7 @@ class LegacyUploadWorkflow:
             authors=authors,
             publication_date=publication_date,
             access_date=access_date,
-            source_metadata={'prov_type': prov_type},
+            source_metadata=source_metadata,
             user_id=user_id,
             status='uploaded',
             **values,
@@ -153,13 +209,27 @@ class LegacyUploadWorkflow:
             return 'reference', subtype
         return 'document', None
 
-    def _enrich_with_zotero(self, document, form, saved_path):
-        if form.get('check_zotero') != 'on':
+    def _enrich_with_zotero(
+        self,
+        document,
+        form,
+        saved_path,
+        *,
+        prefill_metadata=None,
+        use_zotero=None,
+    ):
+        enabled = (
+            form.get('check_zotero') == 'on'
+            if prefill_metadata is None else bool(prefill_metadata)
+        )
+        if not enabled:
             return
         if self.file_handler.get_file_extension(document.original_filename).lower() != 'pdf':
             return
         try:
-            delta = self.enricher_factory(use_zotero=True).extract_with_zotero(
+            delta = self.enricher_factory(
+                use_zotero=True if use_zotero is None else bool(use_zotero)
+            ).extract_with_zotero(
                 saved_path,
                 title=self._form_value(form, 'title'),
                 existing=document.source_metadata or {},
@@ -183,12 +253,26 @@ class LegacyUploadWorkflow:
 
     def _track_provenance(self, document, user, experiment):
         try:
-            self.provenance_service.track_document_upload(
-                document,
-                user,
-                experiment,
-            )
+            if (
+                document.document_type == 'reference'
+                and hasattr(self.provenance_service, 'track_reference_creation')
+            ):
+                self.provenance_service.track_reference_creation(
+                    document=document,
+                    user=user,
+                    source='manual',
+                    experiment=experiment,
+                    source_metadata=document.source_metadata,
+                )
+            else:
+                self.provenance_service.track_document_upload(
+                    document,
+                    user,
+                    experiment,
+                )
         except Exception as exc:
+            if not db.session.is_active:
+                db.session.rollback()
             self.logger.warning(f'Failed to track document upload provenance: {exc}')
 
     def _process_document(self, document):
@@ -204,26 +288,38 @@ class LegacyUploadWorkflow:
             return None
         try:
             normalized_id = int(experiment_id)
-        except (TypeError, ValueError):
-            return None
+        except (TypeError, ValueError) as exc:
+            raise NotFoundError('Experiment not found') from exc
         experiment = db.session.get(Experiment, normalized_id)
-        if not experiment or experiment.user_id != user_id:
-            return None
+        if not experiment:
+            raise NotFoundError('Experiment not found')
+        actor = db.session.get(User, user_id)
+        if not actor or not actor.can_edit_resource(experiment):
+            raise PermissionError('Permission denied')
         return experiment
 
     @staticmethod
-    def _link_experiment(document, experiment, form):
+    def _link_experiment_atomic(document, experiment, form):
         if not experiment:
-            return None
+            return
         if document.document_type == 'reference':
-            experiment.add_reference(
-                document,
-                include_in_analysis=form.get('include_in_analysis') == 'true',
-            )
+            db.session.execute(experiment_references.insert().values(
+                experiment_id=experiment.id,
+                reference_id=document.id,
+                include_in_analysis=(
+                    form.get('include_in_analysis') == 'true'
+                ),
+            ))
         else:
-            experiment.add_document(document)
-            db.session.commit()
-        return experiment
+            db.session.execute(experiment_documents.insert().values(
+                experiment_id=experiment.id,
+                document_id=document.id,
+            ))
+            db.session.add(ExperimentDocument(
+                experiment_id=experiment.id,
+                document_id=document.id,
+                processing_status='pending',
+            ))
 
     @staticmethod
     def _form_value(form, key):
