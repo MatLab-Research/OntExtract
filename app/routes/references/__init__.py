@@ -5,8 +5,8 @@ This package contains the references blueprint and all its route modules.
 
 The references blueprint is organized into focused modules:
 - crud.py: Basic CRUD operations (list, view, edit, delete, download)
-- upload.py: Upload and parsing operations
-- oed.py: Oxford English Dictionary operations and API endpoints
+- upload/: File, dictionary, OED PDF, and metadata upload routes
+- oed/: Oxford English Dictionary API, creation, and splitting routes
 - api.py: Search and WordNet API endpoints
 
 All routes have been extracted and organized into these focused modules.
