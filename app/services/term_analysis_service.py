@@ -358,6 +358,14 @@ class TermAnalysisService:
         except Exception as e:
             logger.error(f"Failed to calculate fuzziness score: {e}")
             return 0.5, "low"
+
+    def calculate_fuzziness_score(
+        self,
+        term: Term,
+        version: TermVersion,
+    ) -> Tuple[float, str]:
+        """Public API for the established fuzziness calculation algorithm."""
+        return self._calculate_fuzziness_score(term, version)
     
     def create_semantic_drift_activity(self, term: Term, baseline_version: TermVersion,
                                       comparison_version: TermVersion, 
