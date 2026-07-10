@@ -37,6 +37,14 @@ def test_provenance_term_methods_have_canonical_module():
     assert ProvenanceService.track_term_update.__module__ == expected_module
 
 
+def test_provenance_orchestration_methods_have_canonical_module():
+    from app.services.provenance_service import ProvenanceService
+
+    expected_module = "app.services.provenance.orchestration"
+    assert ProvenanceService.track_orchestration_start.__module__ == expected_module
+    assert ProvenanceService.track_orchestration_complete.__module__ == expected_module
+
+
 def test_provenance_serializer_handles_nested_special_values():
     from app.services.provenance.serialization import _serialize_value
 
@@ -65,6 +73,8 @@ def test_public_provenance_singleton_retains_query_api():
     assert callable(provenance_service.delete_or_invalidate_document_provenance)
     assert callable(provenance_service.track_term_creation)
     assert callable(provenance_service.track_term_update)
+    assert callable(provenance_service.track_orchestration_start)
+    assert callable(provenance_service.track_orchestration_complete)
 
 
 def test_provenance_queries_handle_empty_database(db_session):
@@ -183,3 +193,35 @@ def test_term_tracking_creates_creation_and_update_provenance(
     assert ProvActivity.query.filter_by(activity_type="term_creation").count() == 1
     assert ProvActivity.query.filter_by(activity_type="term_update").count() == 1
     assert ProvEntity.query.filter_by(entity_type="term").count() == 2
+
+
+def test_orchestration_tracking_records_complete_lifecycle(
+    db_session, temporal_experiment, test_user
+):
+    from app.models.prov_o_models import ProvActivity, ProvEntity
+    from app.services.provenance_service import provenance_service
+
+    run_id = str(uuid.uuid4())
+    activity = provenance_service.track_orchestration_start(
+        run_id,
+        temporal_experiment,
+        test_user,
+        {"goal": "Analyze agency"},
+    )
+    entity = provenance_service.track_orchestration_complete(
+        run_id,
+        {
+            "confidence": 0.9,
+            "reasoning": "The strategy covers the requested analyses.",
+        },
+        {"artifact_id": uuid.uuid4()},
+    )
+
+    db_session.refresh(activity)
+    assert activity.activity_status == "completed"
+    assert activity.activity_parameters["experiment_id"] == temporal_experiment.id
+    assert isinstance(activity.activity_metadata["artifact_id"], str)
+    assert entity.entity_type == "processing_strategy"
+    assert entity.wasgeneratedby == activity.activity_id
+    assert ProvActivity.query.filter_by(activity_type="orchestration_run").count() == 1
+    assert ProvEntity.query.filter_by(entity_type="processing_strategy").count() == 1
