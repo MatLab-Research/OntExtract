@@ -1,13 +1,18 @@
 """PROV-O graph visualization pages."""
 
-from flask import render_template, request
+from flask import abort, render_template, request
+from flask_login import current_user, login_required
 
-from app.models.experiment import Experiment
+from app.services.base_service import NotFoundError, PermissionError, ValidationError
+from app.services.provenance_visualization_service import (
+    ProvenanceVisualizationService,
+)
 
 from . import bp
 
 
 @bp.route('/graph')
+@login_required
 def provenance_graph():
     """
     Display the PROV-O provenance graph visualization.
@@ -22,45 +27,18 @@ def provenance_graph():
     - /provenance/graph?experiment_id=83
     - /provenance/graph?term_id=uuid-string
     """
-    # Get filter parameters to pass to template
-    experiment_id = request.args.get('experiment_id', type=int)
-    document_id = request.args.get('document_id', type=int)
-    term_id = request.args.get('term_id')
-
-    # Get entity names for display
-    filter_context = {}
-    if document_id:
-        from app.models.document import Document
-        doc = Document.query.get(document_id)
-        if doc:
-            filter_context['document'] = doc.title or f"Document {doc.id}"
-            filter_context['document_id'] = document_id
-            filter_context['document_uuid'] = str(doc.uuid)
-
-    if experiment_id:
-        exp = Experiment.query.get(experiment_id)
-        if exp:
-            filter_context['experiment'] = exp.name
-            filter_context['experiment_id'] = experiment_id
-
-    if term_id:
-        from app.models.term import Term
-        from uuid import UUID
-        try:
-            term = Term.query.get(UUID(term_id))
-            if term:
-                filter_context['term'] = term.term_text
-                filter_context['term_id'] = term_id
-        except (ValueError, TypeError):
-            pass
-
-    return render_template(
-        'provenance_graph.html',
-        filter_context=filter_context,
-        experiment_id=experiment_id,
-        document_id=document_id,
-        term_id=term_id
-    )
+    try:
+        context = ProvenanceVisualizationService.graph_context(
+            request.args,
+            current_user.id,
+        )
+    except ValidationError:
+        abort(400)
+    except PermissionError:
+        abort(403)
+    except NotFoundError:
+        abort(404)
+    return render_template('provenance_graph.html', **context)
 
 @bp.route('/graph/compact')
 def provenance_graph_compact():

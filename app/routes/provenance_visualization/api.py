@@ -1,9 +1,12 @@
 """PROV-O timeline and graph JSON APIs."""
 
 from flask import jsonify, request
-from flask_login import login_required
+from flask_login import current_user, login_required
 
-from app.services.provenance_service import provenance_service
+from app.services.base_service import NotFoundError, PermissionError, ValidationError
+from app.services.provenance_visualization_service import (
+    ProvenanceVisualizationService,
+)
 
 from . import bp
 
@@ -14,24 +17,14 @@ def api_timeline():
     """
     API endpoint for timeline data (for AJAX/dynamic updates).
     """
-    experiment_id = request.args.get('experiment_id', type=int)
-    activity_type = request.args.get('activity_type')
-    limit = request.args.get('limit', 50, type=int)
-
-    timeline_data = provenance_service.get_timeline(
-        experiment_id=experiment_id,
-        activity_type=activity_type,
-        limit=limit
-    )
-
-    return jsonify({
-        'success': True,
-        'timeline': timeline_data,
-        'count': len(timeline_data)
-    })
+    return _response(lambda: ProvenanceVisualizationService.timeline_data(
+        request.args,
+        current_user.id,
+    ))
 
 
 @bp.route('/api/graph')
+@login_required
 def api_graph():
     """
     API endpoint for graph data in Cytoscape format.
@@ -44,19 +37,18 @@ def api_graph():
 
     Returns JSON with 'nodes', 'edges', and 'stats' arrays.
     """
-    experiment_id = request.args.get('experiment_id', type=int)
-    document_id = request.args.get('document_id', type=int)
-    term_id = request.args.get('term_id')
-    limit = request.args.get('limit', 50, type=int)
+    return _response(lambda: ProvenanceVisualizationService.graph_data(
+        request.args,
+        current_user.id,
+    ))
 
-    graph_data = provenance_service.get_graph_data(
-        experiment_id=experiment_id,
-        document_id=document_id,
-        term_id=term_id,
-        limit=limit
-    )
 
-    return jsonify({
-        'success': True,
-        **graph_data
-    })
+def _response(factory):
+    try:
+        return jsonify(factory())
+    except ValidationError as exc:
+        return jsonify({'success': False, 'error': str(exc)}), 400
+    except PermissionError:
+        return jsonify({'success': False, 'error': 'Permission denied'}), 403
+    except NotFoundError as exc:
+        return jsonify({'success': False, 'error': str(exc)}), 404

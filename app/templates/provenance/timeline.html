@@ -120,7 +120,7 @@
                         <select name="term_id" class="form-select" onchange="this.form.submit()">
                             <option value="">All Terms</option>
                             {% for term in terms %}
-                            <option value="{{ term.id }}" {% if term.id == selected_term_id %}selected{% endif %}>
+                            <option value="{{ term.id }}" {% if term.id|string == selected_term_id %}selected{% endif %}>
                                 {{ term.term_text }}
                             </option>
                             {% endfor %}
@@ -147,14 +147,15 @@
                     <div class="col-md-2">
                         <label class="form-label">Show</label>
                         <select name="limit" class="form-select" onchange="this.form.submit()">
-                            <option value="25">Last 25</option>
-                            <option value="50" selected>Last 50</option>
-                            <option value="100">Last 100</option>
-                            <option value="500">Last 500</option>
+                            <option value="25" {% if limit == 25 %}selected{% endif %}>Last 25</option>
+                            <option value="50" {% if limit == 50 %}selected{% endif %}>Last 50</option>
+                            <option value="100" {% if limit == 100 %}selected{% endif %}>Last 100</option>
+                            <option value="200" {% if limit == 200 %}selected{% endif %}>Last 200</option>
                         </select>
                     </div>
 
                     <!-- Include deleted items -->
+                    {% if current_user.is_admin %}
                     <div class="col-auto pt-4">
                         <div class="form-check">
                             <input class="form-check-input" type="checkbox" name="include_deleted"
@@ -167,6 +168,7 @@
                             </label>
                         </div>
                     </div>
+                    {% endif %}
                 </div>
             </form>
         </div>

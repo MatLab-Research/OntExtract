@@ -104,9 +104,14 @@ class ProvenanceQueryMixin:
             )
 
         if user_id:
-            # Join with agents to filter by user
-            user_agent = ProvAgent.get_or_create_user_agent(user_id)
-            query = query.filter(ProvActivity.wasassociatedwith == user_agent.agent_id)
+            user_agent = ProvAgent.query.filter_by(
+                foaf_name=f'researcher:{user_id}'
+            ).first()
+            if not user_agent:
+                return []
+            query = query.filter(
+                ProvActivity.wasassociatedwith == user_agent.agent_id
+            )
 
         activities = query.limit(limit).all()
 
@@ -209,7 +214,8 @@ class ProvenanceQueryMixin:
         experiment_id: int = None,
         document_id: int = None,
         term_id: str = None,
-        limit: int = 50
+        limit: int = 50,
+        user_id: int = None,
     ) -> Dict[str, Any]:
         """
         Get provenance data formatted for Cytoscape graph visualization.
@@ -234,6 +240,20 @@ class ProvenanceQueryMixin:
         if experiment_id:
             query = query.filter(
                 ProvActivity.activity_parameters['experiment_id'].astext == str(experiment_id)
+            )
+
+        if user_id:
+            user_agent = ProvAgent.query.filter_by(
+                foaf_name=f'researcher:{user_id}'
+            ).first()
+            if not user_agent:
+                return {
+                    'nodes': [],
+                    'edges': [],
+                    'stats': {'entities': 0, 'activities': 0, 'agents': 0},
+                }
+            query = query.filter(
+                ProvActivity.wasassociatedwith == user_agent.agent_id
             )
 
         # Track the origin document entity to add as root node

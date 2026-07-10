@@ -1,9 +1,12 @@
 """PROV-O entity lineage pages."""
 
-from flask import render_template
-from flask_login import login_required
+from flask import abort, render_template
+from flask_login import current_user, login_required
 
-from app.services.provenance_service import provenance_service
+from app.services.base_service import NotFoundError, PermissionError, ValidationError
+from app.services.provenance_visualization_service import (
+    ProvenanceVisualizationService,
+)
 
 from . import bp
 
@@ -14,19 +17,15 @@ def entity_lineage(entity_id):
     """
     Display full lineage of an entity (derivation chain).
     """
-    from app.models.prov_o_models import ProvEntity
-    import uuid
-
     try:
-        entity_uuid = uuid.UUID(entity_id)
-    except ValueError:
-        return "Invalid entity ID", 400
-
-    entity = ProvEntity.query.get_or_404(entity_uuid)
-    lineage = provenance_service.get_entity_lineage(entity_uuid)
-
-    return render_template(
-        'provenance/lineage.html',
-        entity=entity,
-        lineage=lineage
-    )
+        context = ProvenanceVisualizationService.lineage_context(
+            entity_id,
+            current_user.id,
+        )
+    except ValidationError:
+        abort(400)
+    except PermissionError:
+        abort(403)
+    except NotFoundError:
+        abort(404)
+    return render_template('provenance/lineage.html', **context)
