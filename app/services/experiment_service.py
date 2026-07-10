@@ -7,13 +7,22 @@ Handles CRUD operations, validation, and document/reference management.
 
 import json
 import logging
-from typing import List, Optional, Dict, Any
+from uuid import UUID
+from typing import List, Optional
 from datetime import datetime
 
 from app import db
-from app.models import Experiment, Document
+from app.models import Document, Experiment
+from app.models.experiment import experiment_references
+from app.models.term import Term
 from app.models.user import User
-from app.services.base_service import BaseService, ServiceError, NotFoundError, ValidationError
+from app.services.base_service import (
+    BaseService,
+    NotFoundError,
+    PermissionError,
+    ServiceError,
+    ValidationError,
+)
 from app.dto.experiment_dto import (
     CreateExperimentDTO,
     UpdateExperimentDTO,
@@ -59,42 +68,59 @@ class ExperimentService(BaseService):
             ServiceError: If creation fails
         """
         try:
-            # Create experiment instance
-            experiment = Experiment(
-                name=data.name,
-                description=data.description or '',
-                experiment_type=data.experiment_type,
-                user_id=user_id,
-                term_id=data.term_id if data.term_id else None,
-                configuration=json.dumps(data.configuration)
+            actor = db.session.get(User, user_id)
+            if not actor:
+                raise PermissionError('Permission denied')
+            documents = self._resolve_creation_documents(
+                data.document_uuids,
+                data.document_ids,
+                'document',
+                actor,
             )
+            references = self._resolve_creation_documents(
+                data.reference_uuids,
+                data.reference_ids,
+                'reference',
+                actor,
+            )
+            term = self._resolve_creation_term(data.term_id, actor)
 
-            # Add to session and flush to get ID
-            self.add(experiment)
-            self.flush()
+            with db.session.begin_nested():
+                experiment = Experiment(
+                    name=data.name,
+                    description=data.description or '',
+                    experiment_type=data.experiment_type,
+                    user_id=user_id,
+                    term_id=term.id if term else None,
+                    configuration=json.dumps(data.configuration),
+                )
+                self.add(experiment)
+                self.flush()
 
-            logger.info(f"Created experiment '{experiment.name}' (ID: {experiment.id})")
+                logger.info(
+                    "Created experiment '%s' (ID: %s)",
+                    experiment.name,
+                    experiment.id,
+                )
 
-            # Add documents to experiment (by UUID)
-            if data.document_uuids:
-                self._add_documents_by_uuid(experiment, data.document_uuids)
-
-            # Add references to experiment (by UUID)
-            if data.reference_uuids:
-                self._add_references_by_uuid(experiment, data.reference_uuids)
+                if documents:
+                    self._add_creation_documents(experiment, documents, actor)
+                if references:
+                    self._add_creation_references(experiment, references)
 
             # Commit transaction
             self.commit()
 
             logger.info(
                 f"Experiment {experiment.id} created with "
-                f"{len(data.document_uuids)} documents and {len(data.reference_uuids)} references"
+                f"{len(documents)} documents and {len(references)} references"
             )
 
             return experiment
 
+        except (NotFoundError, PermissionError, ValidationError):
+            raise
         except Exception as e:
-            self.rollback()
             logger.error(f"Failed to create experiment: {e}", exc_info=True)
             raise ServiceError(f"Failed to create experiment: {str(e)}") from e
 
@@ -516,64 +542,89 @@ class ExperimentService(BaseService):
 
     # Private helper methods
 
-    def _add_documents_by_uuid(
-        self,
-        experiment: Experiment,
-        document_uuids: List[str]
-    ):
-        """
-        Add documents to experiment by UUID
+    @staticmethod
+    def _resolve_creation_documents(values, ids, document_type, actor):
+        values = list(dict.fromkeys(values or []))
+        resolved = []
+        for value in values:
+            try:
+                normalized = UUID(str(value))
+            except (TypeError, ValueError, AttributeError) as exc:
+                raise NotFoundError(
+                    f'{document_type.title()} not found'
+                ) from exc
+            document = Document.query.filter_by(
+                uuid=normalized,
+                document_type=document_type,
+            ).first()
+            if not document:
+                raise NotFoundError(f'{document_type.title()} not found')
+            root = document.get_root_document()
+            if not actor.can_edit_resource(root):
+                raise PermissionError('Permission denied')
+            if root.id not in {item.id for item in resolved}:
+                resolved.append(root)
+        for value in dict.fromkeys(ids or []):
+            document = db.session.get(Document, value)
+            if not document or document.document_type != document_type:
+                raise NotFoundError(f'{document_type.title()} not found')
+            root = document.get_root_document()
+            if not actor.can_edit_resource(root):
+                raise PermissionError('Permission denied')
+            if root.id not in {item.id for item in resolved}:
+                resolved.append(root)
+        return resolved
 
-        Creates experimental version (v2) for each document BEFORE adding to experiment.
-        Original documents (v1) stay pristine.
+    @staticmethod
+    def _resolve_creation_term(term_id, actor):
+        if not term_id:
+            return None
+        try:
+            normalized = UUID(str(term_id))
+        except (TypeError, ValueError, AttributeError) as exc:
+            raise NotFoundError('Term not found') from exc
+        term = db.session.get(Term, normalized)
+        if not term:
+            raise NotFoundError('Term not found')
+        if (
+            not actor.is_admin
+            and term.created_by is not None
+            and term.created_by != actor.id
+        ):
+            raise PermissionError('Permission denied')
+        return term
 
-        Args:
-            experiment: Experiment instance
-            document_uuids: List of document UUIDs
-        """
+    @staticmethod
+    def _add_creation_documents(experiment, documents, actor):
         from app.services.inheritance_versioning_service import InheritanceVersioningService
-        from flask_login import current_user
 
-        for doc_uuid in document_uuids:
-            document = Document.query.filter_by(uuid=doc_uuid, document_type='document').first()
-            if document:
-                # Create experimental version (v2) BEFORE adding to experiment
-                exp_version, created = InheritanceVersioningService.get_or_create_experiment_version(
+        for document in documents:
+            version, created = (
+                InheritanceVersioningService.get_or_create_experiment_version(
                     original_document=document,
                     experiment_id=experiment.id,
-                    user=current_user
+                    user=actor,
+                    commit=False,
                 )
+            )
+            experiment.add_document(version)
+            logger.info(
+                'Using experimental version %s for document %s and experiment '
+                '%s (%s)',
+                version.id,
+                document.uuid,
+                experiment.id,
+                'created' if created else 'existing',
+            )
 
-                # Add experimental version (v2) to experiment, NOT original (v1)
-                experiment.add_document(exp_version)
-
-                if created:
-                    logger.info(f"Created experimental version {exp_version.id} (v{exp_version.version_number}) "
-                               f"from document {document.uuid} for experiment {experiment.id}")
-                else:
-                    logger.debug(f"Using existing experimental version {exp_version.id} for experiment {experiment.id}")
-            else:
-                logger.warning(f"Document with UUID {doc_uuid} not found, skipping")
-
-    def _add_references_by_uuid(
-        self,
-        experiment: Experiment,
-        reference_uuids: List[str]
-    ):
-        """
-        Add references to experiment by UUID
-
-        Args:
-            experiment: Experiment instance
-            reference_uuids: List of reference UUIDs
-        """
-        for ref_uuid in reference_uuids:
-            reference = Document.query.filter_by(uuid=ref_uuid, document_type='reference').first()
-            if reference:
-                experiment.add_reference(reference, include_in_analysis=True)
-                logger.debug(f"Added reference {ref_uuid} to experiment {experiment.id}")
-            else:
-                logger.warning(f"Reference with UUID {ref_uuid} not found, skipping")
+    @staticmethod
+    def _add_creation_references(experiment, references):
+        for reference in references:
+            db.session.execute(experiment_references.insert().values(
+                experiment_id=experiment.id,
+                reference_id=reference.id,
+                include_in_analysis=True,
+            ))
 
 
 # Singleton instance for easy access

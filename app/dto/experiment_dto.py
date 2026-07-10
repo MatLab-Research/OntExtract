@@ -29,16 +29,23 @@ class CreateExperimentDTO(BaseDTO):
     term_id: Optional[str] = Field(None, description="Term ID (UUID) for temporal evolution experiments")
     document_uuids: List[str] = Field(default_factory=list, description="List of document UUIDs")
     reference_uuids: List[str] = Field(default_factory=list, description="List of reference UUIDs")
+    document_ids: List[int] = Field(
+        default_factory=list,
+        description="Deprecated document integer IDs",
+    )
+    reference_ids: List[int] = Field(
+        default_factory=list,
+        description="Deprecated reference integer IDs",
+    )
     configuration: Dict[str, Any] = Field(default_factory=dict, description="Experiment configuration")
 
-    @field_validator('reference_uuids')
+    @field_validator('name')
     @classmethod
-    def validate_has_documents(cls, v, info):
-        """Ensure at least one document or reference is provided"""
-        document_uuids = info.data.get('document_uuids', [])
-        if len(document_uuids) == 0 and len(v) == 0:
-            raise ValueError('At least one document or reference must be selected')
-        return v
+    def normalize_name(cls, value):
+        value = value.strip()
+        if not value:
+            raise ValueError('Experiment name cannot be blank')
+        return value
 
     @field_validator('configuration')
     @classmethod

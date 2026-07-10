@@ -1,24 +1,19 @@
 """Experiment creation routes."""
 
-from flask import render_template, request, jsonify, flash, redirect, url_for
+from flask import flash, jsonify, redirect, request, url_for
 from flask_login import current_user
-from app.utils.auth_decorators import api_require_login_for_write, write_login_required
-from app import db
-from app.models import Document, Experiment
-from app.services.text_processing import TextProcessingService
-from app.services.experiment_domain_comparison import DomainComparisonService
-from app.dto.experiment_dto import (
-    CreateExperimentDTO,
-    UpdateExperimentDTO,
-    ExperimentResponseDTO,
-    ExperimentListItemDTO,
-    ExperimentDetailDTO
-)
-from app.services.base_service import ServiceError, ValidationError
 from pydantic import ValidationError as PydanticValidationError
-from datetime import datetime
-import json
-from typing import Optional
+
+from app.dto.experiment_dto import CreateExperimentDTO
+from app.models import Document
+from app.services.base_service import (
+    NotFoundError,
+    PermissionError,
+    ServiceError,
+    ValidationError,
+)
+from app.utils.auth_decorators import api_require_login_for_write, write_login_required
+
 from .. import experiments_bp
 from .context import experiment_service, logger
 
@@ -33,7 +28,7 @@ def create():
     """
     try:
         # Validate request data using DTO (automatic validation)
-        data = CreateExperimentDTO(**request.get_json())
+        data = CreateExperimentDTO(**(request.get_json(silent=True) or {}))
 
         # Call service to create experiment (all business logic in service)
         experiment = experiment_service.create_experiment(data, current_user.id)
@@ -52,8 +47,14 @@ def create():
         return jsonify({
             'success': False,
             'error': 'Validation failed',
-            'details': e.errors()
+            'details': e.errors(include_context=False)
         }), 400
+
+    except NotFoundError as e:
+        return jsonify({'success': False, 'error': str(e)}), 404
+
+    except PermissionError:
+        return jsonify({'success': False, 'error': 'Permission denied'}), 403
 
     except ValidationError as e:
         # Business validation errors from service
@@ -79,7 +80,7 @@ def create():
             'error': 'An unexpected error occurred'
         }), 500
 
-@experiments_bp.route('/sample', methods=['POST', 'GET'])
+@experiments_bp.route('/sample', methods=['POST'])
 @write_login_required
 def create_sample():
     """
@@ -89,7 +90,13 @@ def create_sample():
     """
     try:
         # Pick up to 6 most recent references
-        refs = Document.query.filter_by(document_type='reference').order_by(
+        query = Document.query.filter_by(
+            document_type='reference',
+            version_type='original',
+        )
+        if not current_user.is_admin:
+            query = query.filter_by(user_id=current_user.id)
+        refs = query.order_by(
             Document.created_at.desc()
         ).limit(6).all()
 
@@ -115,7 +122,7 @@ def create_sample():
             name='Sample: Agent Domain Comparison',
             description='Auto-created sample comparing terminology across sources with a simple design.',
             experiment_type='domain_comparison',
-            reference_ids=[r.id for r in refs],
+            reference_uuids=[str(reference.uuid) for reference in refs],
             configuration=config
         )
 
@@ -125,12 +132,17 @@ def create_sample():
         flash('Sample experiment created.', 'success')
         return redirect(url_for('experiments.view', experiment_id=experiment.id))
 
+    except (NotFoundError, PermissionError, ValidationError) as e:
+        logger.warning(f"Could not create sample experiment: {e}")
+        flash('Could not create sample experiment', 'danger')
+        return redirect(url_for('experiments.index'))
+
     except ServiceError as e:
         logger.error(f"Service error creating sample experiment: {e}", exc_info=True)
-        flash(f'Error creating sample experiment: {e}', 'danger')
+        flash('Error creating sample experiment', 'danger')
         return redirect(url_for('experiments.index'))
 
     except Exception as e:
         logger.error(f"Unexpected error creating sample experiment: {e}", exc_info=True)
-        flash(f'Error creating sample experiment: {e}', 'danger')
+        flash('Error creating sample experiment', 'danger')
         return redirect(url_for('experiments.index'))

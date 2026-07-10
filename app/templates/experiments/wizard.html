@@ -36,7 +36,7 @@
                   {% if documents %}
                     {% for d in documents %}
                       <div class="form-check mb-2">
-                        <input class="form-check-input" type="checkbox" value="{{ d.id }}" id="doc_{{ d.id }}"/>
+                        <input class="form-check-input" type="checkbox" value="{{ d.uuid }}" id="doc_{{ d.id }}"/>
                         <label class="form-check-label" for="doc_{{ d.id }}">
                           <span class="badge bg-primary badge-sm me-2">DOC</span>
                           <strong>{{ d.title or d.get_display_name() }}</strong>
@@ -68,7 +68,7 @@
                   {% if references %}
                     {% for r in references %}
                       <div class="form-check mb-2">
-                        <input class="form-check-input" type="checkbox" value="{{ r.id }}" id="ref_{{ r.id }}"/>
+                        <input class="form-check-input" type="checkbox" value="{{ r.uuid }}" id="ref_{{ r.id }}"/>
                         <label class="form-check-label" for="ref_{{ r.id }}">
                           <span class="badge bg-success badge-sm me-2">REF</span>
                           <strong>{{ r.title or r.get_display_name() }}</strong>
@@ -183,7 +183,7 @@
 
             <div class="d-flex gap-2">
               <button type="button" id="create-btn" class="btn btn-primary">Create Experiment</button>
-              <a href="{{ url_for('experiments.create_sample') }}" class="btn btn-secondary">Create Sample</a>
+              <button type="submit" form="sample-experiment-form" class="btn btn-secondary">Create Sample</button>
             </div>
           </form>
         </div>
@@ -191,6 +191,8 @@
     </div>
   </div>
 </div>
+
+<form id="sample-experiment-form" method="post" action="{{ url_for('experiments.create_sample') }}"></form>
 
 <script>
 // Semantic features management
@@ -303,8 +305,8 @@ document.getElementById('create-btn').addEventListener('click', async () => {
   const experiment_type = document.getElementById('experiment_type').value;
   const description = document.getElementById('description').value;
 
-  const document_ids = Array.from(document.querySelectorAll("input[id^='doc_']:checked")).map(x => parseInt(x.value));
-  const reference_ids = Array.from(document.querySelectorAll("input[id^='ref_']:checked")).map(x => parseInt(x.value));
+  const document_uuids = Array.from(document.querySelectorAll("input[id^='doc_']:checked")).map(x => x.value);
+  const reference_uuids = Array.from(document.querySelectorAll("input[id^='ref_']:checked")).map(x => x.value);
   const configuration = buildConfig();
 
   if (!name) { alert('Name is required'); return; }
@@ -321,7 +323,7 @@ document.getElementById('create-btn').addEventListener('click', async () => {
     }
   }
 
-  if ((!document_ids || document_ids.length === 0) && !(experiment_type === 'domain_comparison' && configuration.use_references && reference_ids.length > 0)) {
+  if ((!document_uuids || document_uuids.length === 0) && !(experiment_type === 'domain_comparison' && configuration.use_references && reference_uuids.length > 0)) {
     alert('Select at least one document, or select references for a domain comparison.');
     return;
   }
@@ -330,7 +332,7 @@ document.getElementById('create-btn').addEventListener('click', async () => {
   const res = await fetch("{{ url_for('experiments.create') }}", {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name, experiment_type, description, document_ids, reference_ids, configuration })
+      body: JSON.stringify({ name, experiment_type, description, document_uuids, reference_uuids, configuration })
     });
     const data = await res.json();
     if (res.ok && data.success) {

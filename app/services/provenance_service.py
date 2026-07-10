@@ -52,11 +52,16 @@ class ProvenanceService(
     # ========================================================================
 
     @staticmethod
-    def get_or_create_user_agent(user_id: int, username: str = None) -> ProvAgent:
+    def get_or_create_user_agent(
+        user_id: int,
+        username: str = None,
+        commit: bool = True,
+    ) -> ProvAgent:
         """Get or create agent for a user."""
         return ProvAgent.get_or_create_user_agent(
             user_id=user_id,
-            user_metadata={'username': username} if username else None
+            user_metadata={'username': username} if username else None,
+            commit=commit,
         )
 
     @staticmethod
@@ -1210,7 +1215,8 @@ class ProvenanceService(
         experiment_version_document,
         source_document,
         experiment,
-        user
+        user,
+        commit=True,
     ) -> tuple[ProvActivity, ProvEntity]:
         """
         Track creation of an experiment-specific document version.
@@ -1226,11 +1232,16 @@ class ProvenanceService(
             source_document: The original document this derives from
             experiment: The experiment this version belongs to
             user: The user who triggered version creation
+            commit: Commit immediately when true; otherwise join the caller's transaction
 
         Returns:
             tuple: (activity, entity) provenance records
         """
-        agent = cls.get_or_create_user_agent(user.id, user.username)
+        agent = cls.get_or_create_user_agent(
+            user.id,
+            user.username,
+            commit=commit,
+        )
         creation_time = datetime.utcnow()
 
         # Create activity for experiment version creation
@@ -1279,7 +1290,10 @@ class ProvenanceService(
         # This is recorded in entity_value as 'derivation' relationship
         # The PROV-O standard relationship is captured via source_document_id
 
-        db.session.commit()
+        if commit:
+            db.session.commit()
+        else:
+            db.session.flush()
 
         logger.info(f"Tracked experiment version creation: document {experiment_version_document.id} "
                    f"v{experiment_version_document.version_number} for experiment {experiment.id}")
