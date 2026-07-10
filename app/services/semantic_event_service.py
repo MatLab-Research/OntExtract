@@ -11,8 +11,8 @@ from app.models.experiment import Experiment
 from app.models.experiment_document import ExperimentDocument
 from app.models.user import User
 from app.services.base_service import NotFoundError, PermissionError, ValidationError
-from app.services.local_ontology_service import get_ontology_service
 from app.services.provenance_service import ProvenanceService
+from app.services.temporal_ontology_service import TemporalOntologyService
 
 
 logger = logging.getLogger(__name__)
@@ -29,7 +29,7 @@ class SemanticEventService:
         id_factory=None,
         workflow_logger=None,
     ):
-        self.ontology_service = ontology_service or get_ontology_service()
+        self.ontology_service = ontology_service or TemporalOntologyService()
         self.provenance_service = provenance_service or ProvenanceService
         self.clock = clock or datetime.utcnow
         self.id_factory = id_factory or uuid4
@@ -219,6 +219,8 @@ class SemanticEventService:
         ]
 
     def _ontology_metadata(self, event_type):
+        if hasattr(self.ontology_service, 'get_event_type'):
+            return self.ontology_service.get_event_type(event_type)
         return next(
             (
                 item for item in self.ontology_service.get_all_for_dropdown()
