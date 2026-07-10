@@ -1,131 +1,91 @@
-"""Temporal configuration and period generation routes."""
+"""Temporal configuration and document-period generation routes."""
 
-from flask import render_template, request, jsonify, flash, redirect, url_for
+from flask import jsonify, request
 from flask_login import current_user
-from app.utils.auth_decorators import api_require_login_for_write
-from app.services.base_service import ServiceError, ValidationError, NotFoundError
-from app.dto.temporal_dto import (
-    UpdateTemporalTermsDTO,
-    FetchTemporalDataDTO
-)
 from pydantic import ValidationError as PydanticValidationError
-from app.models import Experiment, Document
-from app import db
-import json
+
+from app.dto.temporal_dto import UpdateTemporalTermsDTO
+from app.services.base_service import (
+    NotFoundError,
+    PermissionError,
+    ServiceError,
+    ValidationError,
+)
+from app.utils.auth_decorators import api_require_login_for_write
+
 from .. import experiments_bp
 from .context import logger, temporal_service
+
+
+def _error(exc, status):
+    return jsonify({'success': False, 'error': str(exc)}), status
 
 
 @experiments_bp.route('/<int:experiment_id>/update_temporal_terms', methods=['POST'])
 @api_require_login_for_write
 def update_temporal_terms(experiment_id):
-    """
-    Update terms and periods for a temporal evolution experiment
-
-    REFACTORED: Now uses TemporalService with DTO validation
-    """
     try:
-        # Validate request data using DTO
-        data = UpdateTemporalTermsDTO(**request.get_json())
-
-        # Call service to update configuration
+        data = UpdateTemporalTermsDTO(**(request.get_json(silent=True) or {}))
         temporal_service.update_temporal_configuration(
             experiment_id,
             terms=data.terms,
             periods=data.periods,
-            temporal_data=data.temporal_data
+            temporal_data=data.temporal_data,
+            actor_id=current_user.id,
         )
-
         return jsonify({
             'success': True,
-            'message': 'Temporal terms updated successfully'
-        }), 200
-
-    except PydanticValidationError as e:
-        # Validation errors from DTO
-        logger.warning(f"Validation error updating temporal terms for experiment {experiment_id}: {e}")
+            'message': 'Temporal terms updated successfully',
+        })
+    except PydanticValidationError as exc:
         return jsonify({
             'success': False,
             'error': 'Validation failed',
-            'details': e.errors()
+            'details': exc.errors(include_context=False),
         }), 400
+    except NotFoundError:
+        return _error('Experiment not found', 404)
+    except PermissionError as exc:
+        return _error(exc, 403)
+    except ValidationError as exc:
+        return _error(exc, 400)
+    except ServiceError as exc:
+        logger.error(
+            f'Failed to update temporal terms for experiment {experiment_id}: {exc}',
+            exc_info=True,
+        )
+        return _error('Failed to update temporal terms', 500)
 
-    except NotFoundError as e:
-        logger.warning(f"Experiment {experiment_id} not found: {e}")
-        return jsonify({
-            'success': False,
-            'error': 'Experiment not found'
-        }), 404
-
-    except ServiceError as e:
-        # Service errors (database, etc.)
-        logger.error(f"Service error updating temporal terms for experiment {experiment_id}: {e}", exc_info=True)
-        return jsonify({
-            'success': False,
-            'error': 'Failed to update temporal terms'
-        }), 500
-
-    except Exception as e:
-        # Unexpected errors
-        logger.error(f"Unexpected error updating temporal terms for experiment {experiment_id}: {e}", exc_info=True)
-        return jsonify({
-            'success': False,
-            'error': str(e)
-        }), 500
 
 @experiments_bp.route('/<int:experiment_id>/get_temporal_terms')
 @api_require_login_for_write
 def get_temporal_terms(experiment_id):
-    """
-    Get saved temporal terms and data for an experiment
-
-    REFACTORED: Now uses TemporalService
-    """
     try:
-        # Get temporal configuration from service
         config = temporal_service.get_temporal_configuration(experiment_id)
+        return jsonify({'success': True, **config})
+    except NotFoundError:
+        return _error('Experiment not found', 404)
+    except ValidationError as exc:
+        return _error(exc, 400)
+    except ServiceError as exc:
+        logger.error(
+            f'Failed to get temporal terms for experiment {experiment_id}: {exc}',
+            exc_info=True,
+        )
+        return _error('Failed to get temporal terms', 500)
 
-        return jsonify({
-            'success': True,
-            'terms': config['terms'],
-            'periods': config['periods'],
-            'temporal_data': config['temporal_data']
-        }), 200
 
-    except NotFoundError as e:
-        logger.warning(f"Experiment {experiment_id} not found: {e}")
-        return jsonify({
-            'success': False,
-            'error': 'Experiment not found'
-        }), 404
-
-    except ServiceError as e:
-        logger.error(f"Service error getting temporal terms for experiment {experiment_id}: {e}", exc_info=True)
-        return jsonify({
-            'success': False,
-            'error': 'Failed to get temporal terms'
-        }), 500
-
-    except Exception as e:
-        logger.error(f"Unexpected error getting temporal terms for experiment {experiment_id}: {e}", exc_info=True)
-        return jsonify({
-            'success': False,
-            'error': str(e)
-        }), 500
-
-@experiments_bp.route('/<int:experiment_id>/generate_periods_from_documents', methods=['POST'])
+@experiments_bp.route(
+    '/<int:experiment_id>/generate_periods_from_documents',
+    methods=['POST'],
+)
 @api_require_login_for_write
 def generate_periods_from_documents(experiment_id):
-    """
-    Generate time periods based on document publication dates
-
-    Analyzes all documents in the experiment and creates evenly-spaced
-    time periods covering the date range.
-    """
     try:
-        # Generate periods from document dates
-        result = temporal_service.generate_periods_from_documents(experiment_id)
-
+        result = temporal_service.generate_periods_from_documents(
+            experiment_id,
+            current_user.id,
+        )
         return jsonify({
             'success': True,
             'periods': result['periods'],
@@ -133,34 +93,20 @@ def generate_periods_from_documents(experiment_id):
             'date_range': result['date_range'],
             'source_type': result.get('source_type', 'publication dates'),
             'using_fallback': result.get('using_fallback', False),
-            'message': f"Generated {len(result['periods'])} periods from {result['document_count']} documents"
-        }), 200
-
-    except ValidationError as e:
-        # Business validation errors
-        logger.warning(f"Validation error generating periods: {e}")
-        return jsonify({
-            'success': False,
-            'error': str(e)
-        }), 400
-
-    except NotFoundError as e:
-        logger.warning(f"Experiment {experiment_id} not found: {e}")
-        return jsonify({
-            'success': False,
-            'error': 'Experiment not found'
-        }), 404
-
-    except ServiceError as e:
-        logger.error(f"Service error generating periods for experiment {experiment_id}: {e}", exc_info=True)
-        return jsonify({
-            'success': False,
-            'error': 'Failed to generate periods from documents'
-        }), 500
-
-    except Exception as e:
-        logger.error(f"Unexpected error generating periods for experiment {experiment_id}: {e}", exc_info=True)
-        return jsonify({
-            'success': False,
-            'error': str(e)
-        }), 500
+            'message': (
+                f"Generated {len(result['periods'])} periods from "
+                f"{result['document_count']} documents"
+            ),
+        })
+    except NotFoundError:
+        return _error('Experiment not found', 404)
+    except PermissionError as exc:
+        return _error(exc, 403)
+    except ValidationError as exc:
+        return _error(exc, 400)
+    except ServiceError as exc:
+        logger.error(
+            f'Failed to generate periods for experiment {experiment_id}: {exc}',
+            exc_info=True,
+        )
+        return _error('Failed to generate periods from documents', 500)
