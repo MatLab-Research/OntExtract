@@ -8,7 +8,6 @@ The text_input blueprint is organized into focused modules:
 - crud/: Document listing, editing, and deletion routes
 - api.py: API endpoints (document content, document list)
 - processing.py: Processing operations (apply embeddings)
-- composite.py: Composite document operations (create, get sources, update)
 
 All routes have been extracted and organized into these focused modules.
 """
@@ -24,4 +23,3 @@ from . import forms  # noqa: F401, E402
 from . import crud  # noqa: F401, E402
 from . import api  # noqa: F401, E402
 from . import processing  # noqa: F401, E402
-from . import composite  # noqa: F401, E402
