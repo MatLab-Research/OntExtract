@@ -5,7 +5,7 @@ This package contains the text_input blueprint and all its route modules.
 
 The text_input blueprint is organized into focused modules:
 - forms.py: Upload and paste forms (upload_form, paste_form, submit_text, upload_file)
-- crud.py: Document CRUD operations (list, detail, delete, delete_all_versions)
+- crud/: Document listing, editing, and deletion routes
 - api.py: API endpoints (document content, document list)
 - processing.py: Processing operations (apply embeddings)
 - composite.py: Composite document operations (create, get sources, update)
