@@ -185,6 +185,90 @@ class UploadMetadataWorkflow:
             'pdf_extracted_metadata': pdf_extracted_metadata,
         }, 200
 
+    def build_streaming_payload(
+        self,
+        result,
+        temp_path,
+        filename,
+        title='',
+        enable_crossref=True,
+    ):
+        """Build the metadata-review payload returned by the SSE workflow."""
+        crossref_metadata = {}
+        crossref_provenance = {}
+        pdf_extracted_title = None
+        pdf_extracted_metadata = {}
+        progress_messages = []
+        extraction_method = None
+
+        if hasattr(result, 'success'):
+            progress_messages = getattr(result, 'progress', None) or []
+            metadata = result.metadata or {}
+            if result.success:
+                crossref_metadata = metadata
+                extraction_method = (
+                    metadata.get('extraction_method') or 'pdf_analysis'
+                )
+                pdf_extracted_title = metadata.get('extracted_title')
+                if pdf_extracted_title:
+                    pdf_extracted_metadata = {'title': pdf_extracted_title}
+                    if metadata.get('extracted_authors'):
+                        pdf_extracted_metadata['authors'] = (
+                            metadata['extracted_authors']
+                        )
+                crossref_provenance = self._provenance_for_metadata(
+                    crossref_metadata,
+                    source=result.source,
+                    confidence=self._extraction_confidence(extraction_method),
+                    extraction_method=extraction_method,
+                )
+            else:
+                pdf_extracted_metadata = metadata
+                pdf_extracted_title = metadata.get('title')
+        elif isinstance(result, dict):
+            crossref_metadata = result.get('metadata') or {}
+            progress_messages = result.get('progress') or []
+            extraction_method = crossref_metadata.get('extraction_method')
+
+        merged_metadata = dict(crossref_metadata)
+        merged_metadata['filename'] = filename
+        provenance = dict(crossref_provenance)
+        provenance['filename'] = self._provenance_entry(
+            filename,
+            source='file',
+            confidence=1.0,
+        )
+        confidence_level = crossref_metadata.get('confidence_level', 'high')
+        match_score = crossref_metadata.get(
+            'confidence_value',
+            crossref_metadata.get('match_score', 0.0),
+        )
+        message = self._result_message(
+            enable_crossref,
+            crossref_metadata,
+            pdf_extracted_title,
+            title,
+            extraction_method,
+            confidence_level,
+            match_score,
+        )
+        return {
+            'success': True,
+            'metadata': merged_metadata,
+            'provenance': provenance,
+            'temp_path': temp_path,
+            'needs_file': False,
+            'message': message,
+            'crossref_enabled': enable_crossref,
+            'crossref_found': bool(crossref_metadata.get('title')),
+            'extraction_method': extraction_method,
+            'confidence_level': confidence_level,
+            'match_score': match_score,
+            'progress': progress_messages,
+            'pdf_extracted_title': pdf_extracted_title,
+            'pdf_extracted_metadata': pdf_extracted_metadata,
+        }
+
     def _user_metadata(self, form, title):
         metadata = {}
         provenance = {}
