@@ -28,13 +28,16 @@ class ContextAnchor(db.Model):
                 setattr(self, key, value)
     
     @classmethod
-    def get_or_create(cls, anchor_term):
+    def get_or_create(cls, anchor_term, commit=True):
         """Get existing anchor or create new one"""
         anchor = cls.query.filter_by(anchor_term=anchor_term).first()
         if not anchor:
             anchor = cls(anchor_term=anchor_term)
             db.session.add(anchor)
-            db.session.commit()
+            if commit:
+                db.session.commit()
+            else:
+                db.session.flush()
         return anchor
     
     @staticmethod

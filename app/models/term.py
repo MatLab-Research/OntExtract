@@ -1,5 +1,5 @@
-from sqlalchemy import text, func
-from sqlalchemy.dialects.postgresql import UUID, JSON, ARRAY
+from sqlalchemy import text
+from sqlalchemy.dialects.postgresql import UUID, JSON
 from datetime import datetime
 from app import db
 import uuid
@@ -206,10 +206,16 @@ class TermVersion(db.Model):
             if hasattr(self, key):
                 setattr(self, key, value)
     
-    def add_context_anchor(self, anchor_term, similarity_score=None, rank=None):
+    def add_context_anchor(
+        self,
+        anchor_term,
+        similarity_score=None,
+        rank=None,
+        commit=True,
+    ):
         """Add a context anchor term to this version"""
         from app.models.context_anchor import ContextAnchor
-        anchor = ContextAnchor.get_or_create(anchor_term)
+        anchor = ContextAnchor.get_or_create(anchor_term, commit=commit)
         
         # Check if already exists
         existing = db.session.execute(
