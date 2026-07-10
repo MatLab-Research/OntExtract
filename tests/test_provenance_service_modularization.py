@@ -45,6 +45,15 @@ def test_provenance_orchestration_methods_have_canonical_module():
     assert ProvenanceService.track_orchestration_complete.__module__ == expected_module
 
 
+def test_provenance_tool_method_has_canonical_module():
+    from app.services.provenance_service import ProvenanceService
+
+    assert (
+        ProvenanceService.track_tool_execution.__module__
+        == "app.services.provenance.tools"
+    )
+
+
 def test_provenance_serializer_handles_nested_special_values():
     from app.services.provenance.serialization import _serialize_value
 
@@ -75,6 +84,7 @@ def test_public_provenance_singleton_retains_query_api():
     assert callable(provenance_service.track_term_update)
     assert callable(provenance_service.track_orchestration_start)
     assert callable(provenance_service.track_orchestration_complete)
+    assert callable(provenance_service.track_tool_execution)
 
 
 def test_provenance_queries_handle_empty_database(db_session):
@@ -225,3 +235,37 @@ def test_orchestration_tracking_records_complete_lifecycle(
     assert entity.wasgeneratedby == activity.activity_id
     assert ProvActivity.query.filter_by(activity_type="orchestration_run").count() == 1
     assert ProvEntity.query.filter_by(entity_type="processing_strategy").count() == 1
+
+
+def test_tool_tracking_links_result_to_document(
+    db_session, sample_document, temporal_experiment, test_user
+):
+    from app.models.prov_o_models import (
+        ProvActivity,
+        ProvEntity,
+        ProvRelationship,
+    )
+    from app.services.provenance_service import provenance_service
+
+    provenance_service.track_document_upload(sample_document, test_user)
+    activity, entity = provenance_service.track_tool_execution(
+        "extract_entities",
+        sample_document,
+        test_user,
+        temporal_experiment,
+        {"status": "completed", "metadata": {"count": 3}},
+    )
+
+    assert activity.activity_type == "tool_execution"
+    assert entity.entity_type == "tool_result"
+    assert entity.entity_value["metadata"]["count"] == 3
+    assert entity.wasderivedfrom is not None
+    relationship = ProvRelationship.query.filter_by(
+        relationship_type="used",
+        subject_id=activity.activity_id,
+        object_id=entity.wasderivedfrom,
+    ).one()
+    assert relationship.subject_type == "activity"
+    assert relationship.object_type == "entity"
+    assert ProvActivity.query.filter_by(activity_type="tool_execution").count() == 1
+    assert ProvEntity.query.filter_by(entity_type="tool_result").count() == 1
