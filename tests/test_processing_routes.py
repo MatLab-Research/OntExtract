@@ -40,8 +40,8 @@ def test_processing_routes_are_grouped_by_responsibility(app):
     expected_modules = {
         "processing.start_processing": "app.routes.processing.pipeline",
         "processing.generate_embeddings": "app.routes.processing.embeddings",
-        "processing.segment_document": "app.routes.processing.segmentation",
-        "processing.delete_document_segments": "app.routes.processing.segmentation",
+        "processing.segment_document": "app.routes.processing.segmentation.routes",
+        "processing.delete_document_segments": "app.routes.processing.segmentation.routes",
         "processing.extract_entities": "app.routes.processing.entities",
         "processing.analyze_metadata": "app.routes.processing.metadata",
         "processing.clean_text": "app.routes.processing.text_cleanup",
@@ -70,6 +70,177 @@ def test_processing_routes_are_grouped_by_responsibility(app):
     }
 
     assert actual_modules == expected_modules
+
+
+def test_segment_document_creates_processing_version_and_segments(
+    auth_client, sample_document
+):
+    from app.models.text_segment import TextSegment
+
+    response = auth_client.post(
+        f"/process/document/{sample_document.uuid}/segment",
+        json={"method": "paragraph"},
+    )
+
+    assert response.status_code == 200
+    payload = response.get_json()
+    assert payload["success"] is True
+    assert payload["segments_created"] > 0
+    assert payload["processing_version_id"] != sample_document.id
+    assert payload["redirect_url"].endswith(payload["processing_version_uuid"])
+    assert TextSegment.query.filter_by(
+        document_id=payload["processing_version_id"]
+    ).count() == payload["segments_created"]
+
+
+def test_segment_document_rejects_empty_content(
+    auth_client, db_session, sample_document
+):
+    sample_document.content = ""
+    db_session.commit()
+
+    response = auth_client.post(
+        f"/process/document/{sample_document.uuid}/segment",
+        json={"method": "paragraph"},
+    )
+
+    assert response.status_code == 400
+    assert response.get_json() == {
+        "success": False,
+        "error": "Document has no content to segment",
+    }
+
+
+def test_delete_document_segments_rejects_document_without_segments(
+    auth_client, sample_document
+):
+    response = auth_client.delete(
+        f"/process/document/{sample_document.id}/segments"
+    )
+
+    assert response.status_code == 400
+    assert response.get_json() == {
+        "success": False,
+        "error": "No segments found to delete",
+    }
+
+
+def test_delete_document_segments_removes_segments_and_records_job(
+    auth_client, db_session, sample_document
+):
+    from app.models.processing_job import ProcessingJob
+    from app.models.text_segment import TextSegment
+
+    segment = TextSegment(
+        document_id=sample_document.id,
+        content="A segment to remove.",
+        segment_number=1,
+    )
+    db_session.add(segment)
+    db_session.commit()
+
+    response = auth_client.delete(
+        f"/process/document/{sample_document.id}/segments"
+    )
+
+    assert response.status_code == 200
+    payload = response.get_json()
+    assert payload["success"] is True
+    assert payload["segments_deleted"] == 1
+    assert TextSegment.query.filter_by(document_id=sample_document.id).count() == 0
+
+    job = db_session.get(ProcessingJob, payload["job_id"])
+    assert job.status == "completed"
+    assert job.get_result_data()["segments_deleted"] == 1
+
+
+def test_langextract_unavailable_returns_fallback_without_external_call(
+    auth_client, sample_document, monkeypatch
+):
+    from app.routes.processing.segmentation import langextract
+
+    class UnavailableLangExtractService:
+        service_ready = False
+
+    monkeypatch.setattr(
+        langextract,
+        "IntegratedLangExtractService",
+        UnavailableLangExtractService,
+    )
+
+    response = auth_client.post(
+        f"/process/document/{sample_document.uuid}/segment",
+        json={"method": "langextract"},
+    )
+
+    assert response.status_code == 400
+    payload = response.get_json()
+    assert payload["success"] is False
+    assert payload["fallback_available"] is True
+    assert "GOOGLE_GEMINI_API_KEY" in payload["error"]
+
+
+def test_langextract_success_uses_integrated_service_package(
+    auth_client, sample_document, monkeypatch
+):
+    from app.models.processing_job import ProcessingJob
+    from app.routes.processing.segmentation import langextract
+
+    class SuccessfulLangExtractService:
+        service_ready = True
+
+        def analyze_and_orchestrate_document(self, **kwargs):
+            return {
+                "success": True,
+                "analysis_id": "analysis-1",
+                "provenance_tracking": {"tracked": True},
+            }
+
+        def get_segmentation_recommendations(self, content):
+            return {
+                "structural_segments": [
+                    {
+                        "start_pos": 0,
+                        "end_pos": min(25, len(content)),
+                        "type": "introduction",
+                        "element": "paragraph",
+                        "confidence": 0.9,
+                    }
+                ],
+                "semantic_segments": [],
+                "temporal_segments": [],
+                "confidence": 0.9,
+            }
+
+    monkeypatch.setattr(
+        langextract,
+        "IntegratedLangExtractService",
+        SuccessfulLangExtractService,
+    )
+    monkeypatch.setattr(
+        langextract.provenance_service,
+        "track_document_segmentation",
+        lambda *args, **kwargs: None,
+    )
+
+    response = auth_client.post(
+        f"/process/document/{sample_document.uuid}/segment",
+        json={"method": "langextract"},
+    )
+
+    assert response.status_code == 200
+    payload = response.get_json()
+    assert payload["success"] is True
+    assert payload["analysis_id"] == "analysis-1"
+    assert payload["segments_created"] == 1
+    assert payload["segmentation_summary"]["structural_segments"] == 1
+
+    job = ProcessingJob.query.filter_by(
+        document_id=payload["processing_version_id"],
+        job_type="langextract_segmentation",
+    ).one()
+    assert job.status == "completed"
+    assert job.get_parameters()["segments_created"] == 1
 
 
 def test_legacy_provenance_models_are_registered_without_route_side_effects():
