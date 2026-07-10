@@ -137,4 +137,4 @@ def run(experiment_id):
         return jsonify({'error': str(exc)}), 400
     except Exception as exc:
         logger.error(f'Error running experiment {experiment_id}: {exc}', exc_info=True)
-        return jsonify({'error': str(exc)}), 500
+        return jsonify({'error': 'Failed to run experiment'}), 500

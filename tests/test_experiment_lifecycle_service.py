@@ -251,3 +251,58 @@ def test_lifecycle_routes_return_correct_errors(
     assert missing_run.status_code == 404
     assert missing_duplicate.status_code == 404
     assert missing_delete.status_code == 404
+
+
+def test_run_route_sanitizes_unexpected_failures(
+    auth_client, monkeypatch, experiment_with_documents
+):
+    from app.routes.experiments.crud import lifecycle
+
+    monkeypatch.setattr(
+        lifecycle.ExperimentLifecycleService,
+        'run',
+        lambda self, experiment_id, actor_id: (_ for _ in ()).throw(
+            RuntimeError('secret analysis detail')
+        ),
+    )
+    response = auth_client.post(
+        f'/experiments/{experiment_with_documents.id}/run'
+    )
+    assert response.status_code == 500
+    assert response.get_json() == {'error': 'Failed to run experiment'}
+    assert 'secret' not in str(response.get_json())
+
+
+def test_experiment_detail_hides_mutation_controls_from_non_owner(
+    app, db_session, test_user, temporal_experiment
+):
+    stranger = _make_user(db_session, 'lifecycle-viewer')
+    client = app.test_client()
+    with client.session_transaction() as session:
+        session['_user_id'] = str(stranger.id)
+        session['_fresh'] = True
+
+    temporal_experiment.status = 'draft'
+    db_session.commit()
+    draft = client.get(f'/experiments/{temporal_experiment.id}')
+    assert draft.status_code == 200
+    assert b'id="delete-experiment"' not in draft.data
+    assert b'>Edit<' not in draft.data
+    assert b'id="mark-complete-experiment"' not in draft.data
+
+
+def test_completed_experiment_still_allows_authenticated_viewer_to_duplicate(
+    app, db_session, test_user, temporal_experiment
+):
+    stranger = _make_user(db_session, 'lifecycle-duplicator')
+    temporal_experiment.status = 'completed'
+    db_session.commit()
+    client = app.test_client()
+    with client.session_transaction() as session:
+        session['_user_id'] = str(stranger.id)
+        session['_fresh'] = True
+
+    response = client.get(f'/experiments/{temporal_experiment.id}')
+    assert response.status_code == 200
+    assert b'id="duplicate-experiment"' in response.data
+    assert b'id="delete-experiment"' not in response.data
