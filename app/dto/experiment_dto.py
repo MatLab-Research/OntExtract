@@ -5,7 +5,7 @@ Data Transfer Objects for experiment-related operations.
 Provides validation and serialization for experiment CRUD operations.
 """
 
-from pydantic import Field, field_validator
+from pydantic import ConfigDict, Field, field_validator
 from typing import List, Optional, Dict, Any
 from datetime import datetime
 
@@ -64,12 +64,36 @@ class UpdateExperimentDTO(BaseDTO):
     All fields are optional to allow partial updates.
     """
 
+    model_config = ConfigDict(extra='forbid')
+
     name: Optional[str] = Field(None, min_length=1, max_length=200)
     description: Optional[str] = Field(None, max_length=2000)
+    experiment_type: Optional[str] = Field(
+        None,
+        pattern="^(entity_extraction|temporal_evolution|domain_comparison)$",
+    )
     term_id: Optional[str] = Field(None, description="Term ID (UUID) for temporal evolution experiments")
     configuration: Optional[Dict[str, Any]] = None
     document_uuids: Optional[List[str]] = None
     reference_uuids: Optional[List[str]] = None
+    document_ids: Optional[List[int]] = Field(
+        None,
+        description="Deprecated document integer IDs",
+    )
+    reference_ids: Optional[List[int]] = Field(
+        None,
+        description="Deprecated reference integer IDs",
+    )
+
+    @field_validator('name')
+    @classmethod
+    def normalize_name(cls, value):
+        if value is None:
+            return value
+        value = value.strip()
+        if not value:
+            raise ValueError('Experiment name cannot be blank')
+        return value
 
 
 class ExperimentResponseDTO(ResponseDTO):

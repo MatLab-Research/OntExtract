@@ -255,6 +255,7 @@ def test_creation_failure_rolls_back_versions_provenance_and_experiment(
     from app.models.experiment_document import ExperimentDocument
     from app.models.prov_o_models import ProvActivity, ProvAgent, ProvEntity
     from app.services.base_service import ServiceError
+    from app.services.experiment_resource_service import ExperimentResourceService
     from app.services.experiment_service import ExperimentService
 
     document = _document(db_session, test_user, 'rollback-document')
@@ -273,8 +274,8 @@ def test_creation_failure_rolls_back_versions_provenance_and_experiment(
         'entities': ProvEntity.query.count(),
     }
     monkeypatch.setattr(
-        ExperimentService,
-        '_add_creation_references',
+        ExperimentResourceService,
+        'add_references',
         staticmethod(lambda experiment, references: (_ for _ in ()).throw(
             RuntimeError('forced reference failure')
         )),
