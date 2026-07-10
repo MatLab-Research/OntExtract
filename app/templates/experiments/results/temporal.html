@@ -141,10 +141,10 @@
         <div>
             <h6 class="alert-heading text-light mb-2">Extraction Methodology</h6>
             <p class="mb-2">
-                Temporal expressions are extracted using a hybrid approach combining <strong class="text-light">spaCy's Named Entity Recognition</strong> (DATE entities) with <strong class="text-light">rule-based pattern matching</strong> for years, decades, centuries, historical periods, and relative temporal markers. Where possible, expressions are normalized to ISO 8601 format or standardized date ranges.
+                Temporal expressions are shown from completed experiment-scoped processing operations. Depending on the selected workflow, extraction may use spaCy, rule-based matching, LangExtract, or orchestration tools. Where available, expressions include normalized values, positions, confidence, and the recorded extraction method.
             </p>
             <p class="mb-0 small">
-                <em>Future enhancements:</em> Subsequent versions will incorporate LLM-based validation to improve extraction precision, contextual disambiguation for ambiguous expressions, and temporal relation extraction to identify event ordering and duration relationships within the document.
+                Results from failed, pending, or other experiments' processing operations are excluded.
             </p>
         </div>
     </div>
@@ -210,6 +210,7 @@
                         {% if expr.start_position is not none %}
                         <span class="ms-2 text-muted">pos: {{ expr.start_position }}-{{ expr.end_position }}</span>
                         {% endif %}
+                        <span class="ms-2 text-muted">method: {{ expr.method }}</span>
                     </div>
                 </div>
             </div>
