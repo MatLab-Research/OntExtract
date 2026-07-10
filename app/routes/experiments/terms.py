@@ -76,7 +76,7 @@ def update_terms(experiment_id):
         return jsonify({
             'success': False,
             'error': 'Validation failed',
-            'details': exc.errors(),
+            'details': exc.errors(include_context=False),
         }), 400
     except NotFoundError as exc:
         return _api_error(exc, status=404)
@@ -126,7 +126,7 @@ def fetch_definitions(experiment_id):
         return jsonify({
             'success': False,
             'error': 'Validation failed',
-            'details': exc.errors(),
+            'details': exc.errors(include_context=False),
         }), 400
     except NotFoundError as exc:
         return _api_error(exc, status=404)

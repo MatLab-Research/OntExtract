@@ -253,6 +253,22 @@ def test_term_routes_enforce_ownership_and_validation(
     assert missing.status_code == 404
 
 
+def test_term_route_validation_details_are_json_serializable(
+    auth_client, db_session, test_user
+):
+    experiment = _domain_experiment(db_session, test_user, 'json-validation')
+    response = auth_client.post(
+        f'/experiments/{experiment.id}/fetch_definitions',
+        json={'term': '', 'domains': []},
+    )
+
+    assert response.status_code == 400
+    payload = response.get_json()
+    assert payload['error'] == 'Validation failed'
+    assert isinstance(payload['details'], list)
+    assert json.loads(json.dumps(payload['details'])) == payload['details']
+
+
 def test_term_write_routes_require_authentication(
     app, db_session, test_user
 ):
