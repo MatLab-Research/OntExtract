@@ -4,7 +4,7 @@ Terms Blueprint Package
 This package contains the terms blueprint and all its route modules.
 
 The terms blueprint is organized into focused modules:
-- crud.py: Basic CRUD operations (list, add, view, edit, delete, add version)
+- crud/: Term listing, creation, editing, deletion, and version routes
 - analysis.py: Term analysis operations (analyze, detect drift)
 - api.py: API endpoints (context anchors, search, fuzziness)
 - import_export.py: Import and export operations
