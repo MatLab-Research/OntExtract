@@ -67,3 +67,22 @@ def test_experiment_result_helpers_have_one_canonical_home():
     assert helpers._get_orchestration_results.__module__ == (
         "app.routes.experiments.results.helpers"
     )
+
+
+def test_split_route_dependencies_have_canonical_contexts():
+    from app.routes.experiments.crud import context as crud_context
+    from app.routes.experiments.orchestration import context as orchestration_context
+    from app.routes.experiments.temporal import context as temporal_context
+
+    assert crud_context.experiment_service.__class__.__module__ == (
+        "app.services.experiment_service"
+    )
+    assert orchestration_context.orchestration_service.__class__.__module__ == (
+        "app.services.orchestration_service"
+    )
+    assert temporal_context.temporal_service.__class__.__module__ == (
+        "app.services.temporal_service"
+    )
+    assert temporal_context.ontserve_client.__class__.__module__ == (
+        "app.services.ontserve_client"
+    )

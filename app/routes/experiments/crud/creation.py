@@ -7,7 +7,6 @@ from app import db
 from app.models import Document, Experiment
 from app.services.text_processing import TextProcessingService
 from app.services.experiment_domain_comparison import DomainComparisonService
-from app.services.experiment_service import get_experiment_service
 from app.dto.experiment_dto import (
     CreateExperimentDTO,
     UpdateExperimentDTO,
@@ -20,8 +19,8 @@ from pydantic import ValidationError as PydanticValidationError
 from datetime import datetime
 import json
 from typing import Optional
-import logging
 from .. import experiments_bp
+from .context import experiment_service, logger
 
 
 @experiments_bp.route('/create', methods=['POST'])

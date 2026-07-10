@@ -3,8 +3,6 @@
 from flask import render_template, request, jsonify, flash, redirect, url_for
 from flask_login import current_user
 from app.utils.auth_decorators import api_require_login_for_write
-from app.services.temporal_service import get_temporal_service
-from app.services.ontserve_client import get_ontserve_client
 from app.services.base_service import ServiceError, ValidationError, NotFoundError
 from app.dto.temporal_dto import (
     UpdateTemporalTermsDTO,
@@ -13,9 +11,9 @@ from app.dto.temporal_dto import (
 from pydantic import ValidationError as PydanticValidationError
 from app.models import Experiment, Document
 from app import db
-import logging
 import json
 from .. import experiments_bp
+from .context import logger, ontserve_client
 
 
 @experiments_bp.route('/ontology/info', methods=['GET'])
