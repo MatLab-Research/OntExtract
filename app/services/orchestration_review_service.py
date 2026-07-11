@@ -9,6 +9,7 @@ from app.models import Document, Experiment
 from app.models.experiment_orchestration_run import ExperimentOrchestrationRun
 from app.models.temporal_experiment import DocumentTemporalMetadata
 from app.services.base_service import NotFoundError, ValidationError
+from app.services.orchestration_read_service import OrchestrationReadService
 
 
 logger = logging.getLogger(__name__)
@@ -165,9 +166,7 @@ class OrchestrationApprovalService:
 
     @classmethod
     def apply_decision(cls, run_id, data, reviewer_id):
-        run = db.session.get(ExperimentOrchestrationRun, run_id)
-        if not run:
-            raise NotFoundError('Orchestration run not found')
+        _, run = OrchestrationReadService.authorized_run(run_id, reviewer_id)
         if run.status != 'reviewing':
             raise ValidationError(
                 f'Cannot approve strategy in {run.status} state'

@@ -1,12 +1,11 @@
 """Orchestration analysis startup routes."""
 
-from flask import render_template, request, jsonify
+from flask import request, jsonify
 from flask_login import current_user
 from app.utils.auth_decorators import api_require_login_for_write
-from app.services.base_service import ServiceError, NotFoundError
-import markdown
+from app.services.base_service import NotFoundError, PermissionError
+from app.services.orchestration_read_service import OrchestrationReadService
 from app.models.experiment_orchestration_run import ExperimentOrchestrationRun
-from app.models import Experiment
 from app import db
 from datetime import datetime
 from .. import experiments_bp
@@ -39,13 +38,10 @@ def start_llm_orchestration(experiment_id):
     }
     """
     try:
-        # Verify experiment exists
-        experiment = Experiment.query.get(experiment_id)
-        if not experiment:
-            return jsonify({
-                'success': False,
-                'error': 'Experiment not found'
-            }), 404
+        OrchestrationReadService.authorized_experiment(
+            experiment_id,
+            current_user.id,
+        )
 
         # Mark any existing in-progress runs for this experiment as failed
         existing_runs = ExperimentOrchestrationRun.query.filter_by(
@@ -96,9 +92,13 @@ def start_llm_orchestration(experiment_id):
             'message': 'Orchestration started with LangGraph checkpointing. State persists in PostgreSQL.'
         }), 200
 
+    except NotFoundError:
+        return jsonify({'success': False, 'error': 'Experiment not found'}), 404
+    except PermissionError:
+        return jsonify({'success': False, 'error': 'Permission denied'}), 403
     except Exception as e:
         logger.error(f"Error starting orchestration for experiment {experiment_id}: {e}", exc_info=True)
         return jsonify({
             'success': False,
-            'error': str(e)
+            'error': 'Failed to start orchestration'
         }), 500

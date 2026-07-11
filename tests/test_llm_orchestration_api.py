@@ -241,11 +241,11 @@ class TestOrchestrationStatus:
 
     def test_get_status_analyzing(
         self,
-        client,
+        auth_client,
         pending_run
     ):
         """Test status endpoint during analyzing phase."""
-        response = client.get(f'/experiments/orchestration/status/{pending_run.id}')
+        response = auth_client.get(f'/experiments/orchestration/status/{pending_run.id}')
 
         assert response.status_code == 200
         data = json.loads(response.data)
@@ -255,11 +255,11 @@ class TestOrchestrationStatus:
 
     def test_get_status_reviewing(
         self,
-        client,
+        auth_client,
         reviewing_run
     ):
         """Test status endpoint during review phase."""
-        response = client.get(f'/experiments/orchestration/status/{reviewing_run.id}')
+        response = auth_client.get(f'/experiments/orchestration/status/{reviewing_run.id}')
 
         assert response.status_code == 200
         data = json.loads(response.data)
@@ -273,11 +273,11 @@ class TestOrchestrationStatus:
 
     def test_get_status_completed(
         self,
-        client,
+        auth_client,
         completed_run
     ):
         """Test status endpoint for completed run."""
-        response = client.get(f'/experiments/orchestration/status/{completed_run.id}')
+        response = auth_client.get(f'/experiments/orchestration/status/{completed_run.id}')
 
         assert response.status_code == 200
         data = json.loads(response.data)
@@ -288,21 +288,21 @@ class TestOrchestrationStatus:
 
     def test_get_status_nonexistent_run(
         self,
-        client
+        auth_client
     ):
         """Test status endpoint for nonexistent run."""
         fake_uuid = uuid4()
-        response = client.get(f'/experiments/orchestration/status/{fake_uuid}')
+        response = auth_client.get(f'/experiments/orchestration/status/{fake_uuid}')
 
         assert response.status_code == 404
 
     def test_get_status_stage_completion_flags(
         self,
-        client,
+        auth_client,
         reviewing_run
     ):
         """Test that stage completion flags are accurate."""
-        response = client.get(f'/experiments/orchestration/status/{reviewing_run.id}')
+        response = auth_client.get(f'/experiments/orchestration/status/{reviewing_run.id}')
 
         data = json.loads(response.data)
         stages = data['stage_completed']
@@ -487,12 +487,12 @@ class TestOrchestrationResults:
 
     def test_view_results_success(
         self,
-        client,
+        auth_client,
         experiment_with_docs,
         completed_run
     ):
         """Test viewing results for completed run."""
-        response = client.get(
+        response = auth_client.get(
             f'/experiments/{experiment_with_docs.id}/orchestration/llm-results/{completed_run.id}'
         )
 
@@ -502,11 +502,11 @@ class TestOrchestrationResults:
 
     def test_view_results_nonexistent_experiment(
         self,
-        client,
+        auth_client,
         completed_run
     ):
         """Test viewing results for nonexistent experiment."""
-        response = client.get(
+        response = auth_client.get(
             f'/experiments/99999/orchestration/llm-results/{completed_run.id}'
         )
 
@@ -514,12 +514,12 @@ class TestOrchestrationResults:
 
     def test_view_results_nonexistent_run(
         self,
-        client,
+        auth_client,
         experiment_with_docs
     ):
         """Test viewing results for nonexistent run."""
         fake_uuid = uuid4()
-        response = client.get(
+        response = auth_client.get(
             f'/experiments/{experiment_with_docs.id}/orchestration/llm-results/{fake_uuid}'
         )
 
@@ -527,7 +527,7 @@ class TestOrchestrationResults:
 
     def test_view_results_wrong_experiment(
         self,
-        client,
+        auth_client,
         db_session,
         test_user,
         completed_run
@@ -542,7 +542,7 @@ class TestOrchestrationResults:
         db_session.add(other_exp)
         db_session.commit()
 
-        response = client.get(
+        response = auth_client.get(
             f'/experiments/{other_exp.id}/orchestration/llm-results/{completed_run.id}'
         )
 
@@ -550,12 +550,12 @@ class TestOrchestrationResults:
 
     def test_view_results_includes_metrics(
         self,
-        client,
+        auth_client,
         experiment_with_docs,
         completed_run
     ):
         """Test that results page includes duration and operation metrics."""
-        response = client.get(
+        response = auth_client.get(
             f'/experiments/{experiment_with_docs.id}/orchestration/llm-results/{completed_run.id}'
         )
 
@@ -572,12 +572,12 @@ class TestProvenanceDownload:
 
     def test_download_provenance_success(
         self,
-        client,
+        auth_client,
         experiment_with_docs,
         completed_run
     ):
         """Test downloading PROV-O provenance JSON."""
-        response = client.get(
+        response = auth_client.get(
             f'/experiments/{experiment_with_docs.id}/orchestration/llm-provenance/{completed_run.id}'
         )
 
@@ -592,12 +592,12 @@ class TestProvenanceDownload:
 
     def test_download_provenance_structure(
         self,
-        client,
+        auth_client,
         experiment_with_docs,
         completed_run
     ):
         """Test PROV-O structure is correct."""
-        response = client.get(
+        response = auth_client.get(
             f'/experiments/{experiment_with_docs.id}/orchestration/llm-provenance/{completed_run.id}'
         )
 
@@ -625,12 +625,12 @@ class TestProvenanceDownload:
 
     def test_download_provenance_nonexistent_run(
         self,
-        client,
+        auth_client,
         experiment_with_docs
     ):
         """Test downloading provenance for nonexistent run."""
         fake_uuid = uuid4()
-        response = client.get(
+        response = auth_client.get(
             f'/experiments/{experiment_with_docs.id}/orchestration/llm-provenance/{fake_uuid}'
         )
 
@@ -638,7 +638,7 @@ class TestProvenanceDownload:
 
     def test_download_provenance_wrong_experiment(
         self,
-        client,
+        auth_client,
         db_session,
         test_user,
         completed_run
@@ -652,7 +652,7 @@ class TestProvenanceDownload:
         db_session.add(other_exp)
         db_session.commit()
 
-        response = client.get(
+        response = auth_client.get(
             f'/experiments/{other_exp.id}/orchestration/llm-provenance/{completed_run.id}'
         )
 
@@ -660,12 +660,12 @@ class TestProvenanceDownload:
 
     def test_provenance_includes_execution_trace(
         self,
-        client,
+        auth_client,
         experiment_with_docs,
         completed_run
     ):
         """Test that provenance includes execution trace."""
-        response = client.get(
+        response = auth_client.get(
             f'/experiments/{experiment_with_docs.id}/orchestration/llm-provenance/{completed_run.id}'
         )
 
@@ -689,7 +689,6 @@ class TestFullOrchestrationWorkflow:
         mock_orchestration_delay,
         mock_execution_delay,
         auth_client,
-        client,
         experiment_with_docs,
         db_session
     ):
@@ -728,7 +727,7 @@ class TestFullOrchestrationWorkflow:
         db_session.commit()
 
         # Step 2: Poll status
-        status_response = client.get(f'/experiments/orchestration/status/{run_id}')
+        status_response = auth_client.get(f'/experiments/orchestration/status/{run_id}')
         assert status_response.status_code == 200
         status_data = json.loads(status_response.data)
         assert status_data['status'] == 'reviewing'
@@ -752,13 +751,13 @@ class TestFullOrchestrationWorkflow:
         db_session.commit()
 
         # Step 4: View results
-        results_response = client.get(
+        results_response = auth_client.get(
             f'/experiments/{experiment_with_docs.id}/orchestration/llm-results/{run_id}'
         )
         assert results_response.status_code == 200
 
         # Step 5: Download provenance
-        prov_response = client.get(
+        prov_response = auth_client.get(
             f'/experiments/{experiment_with_docs.id}/orchestration/llm-provenance/{run_id}'
         )
         assert prov_response.status_code == 200
@@ -770,9 +769,9 @@ class TestFullOrchestrationWorkflow:
 # Check Processing Status Endpoint Tests
 # ==============================================================================
 
-def test_check_status_no_processing(client, experiment_with_docs):
+def test_check_status_no_processing(auth_client, experiment_with_docs):
     """Test check-status endpoint when no documents are processed."""
-    response = client.get(f'/experiments/{experiment_with_docs.id}/orchestration/check-status')
+    response = auth_client.get(f'/experiments/{experiment_with_docs.id}/orchestration/check-status')
 
     assert response.status_code == 200
     data = json.loads(response.data)
@@ -791,7 +790,7 @@ def test_check_status_no_processing(client, experiment_with_docs):
         assert doc_status['processing_types'] == []
 
 
-def test_check_status_partial_processing(client, db_session, experiment_with_docs, test_user):
+def test_check_status_partial_processing(auth_client, db_session, experiment_with_docs, test_user):
     """Test check-status endpoint when some documents are processed."""
     from app.models import TextSegment, ProcessingJob, Document
 
@@ -828,7 +827,7 @@ def test_check_status_partial_processing(client, db_session, experiment_with_doc
     db_session.add(job2)
     db_session.commit()
 
-    response = client.get(f'/experiments/{experiment_with_docs.id}/orchestration/check-status')
+    response = auth_client.get(f'/experiments/{experiment_with_docs.id}/orchestration/check-status')
 
     assert response.status_code == 200
     data = json.loads(response.data)
@@ -852,7 +851,7 @@ def test_check_status_partial_processing(client, db_session, experiment_with_doc
     assert 'entities' in doc2_status['processing_types']
 
 
-def test_check_status_full_processing(client, db_session, experiment_with_docs, test_user):
+def test_check_status_full_processing(auth_client, db_session, experiment_with_docs, test_user):
     """Test check-status endpoint when all documents are processed."""
     from app.models import ProcessingJob, Document
 
@@ -871,7 +870,7 @@ def test_check_status_full_processing(client, db_session, experiment_with_docs, 
 
     db_session.commit()
 
-    response = client.get(f'/experiments/{experiment_with_docs.id}/orchestration/check-status')
+    response = auth_client.get(f'/experiments/{experiment_with_docs.id}/orchestration/check-status')
 
     assert response.status_code == 200
     data = json.loads(response.data)
@@ -888,16 +887,16 @@ def test_check_status_full_processing(client, db_session, experiment_with_docs, 
         assert 'entities' in doc_status['processing_types']
 
 
-def test_check_status_experiment_not_found(client):
+def test_check_status_experiment_not_found(auth_client):
     """Test check-status endpoint with non-existent experiment."""
-    response = client.get('/experiments/99999/orchestration/check-status')
+    response = auth_client.get('/experiments/99999/orchestration/check-status')
 
     assert response.status_code == 404
     data = json.loads(response.data)
     assert 'error' in data
 
 
-def test_check_status_mixed_processing_types(client, db_session, experiment_with_docs, test_user):
+def test_check_status_mixed_processing_types(auth_client, db_session, experiment_with_docs, test_user):
     """Test check-status endpoint with multiple processing types on same document."""
     from app.models import TextSegment, ProcessingJob, Document
 
@@ -935,7 +934,7 @@ def test_check_status_mixed_processing_types(client, db_session, experiment_with
 
     db_session.commit()
 
-    response = client.get(f'/experiments/{experiment_with_docs.id}/orchestration/check-status')
+    response = auth_client.get(f'/experiments/{experiment_with_docs.id}/orchestration/check-status')
 
     assert response.status_code == 200
     data = json.loads(response.data)

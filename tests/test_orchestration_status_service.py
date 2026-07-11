@@ -274,24 +274,24 @@ def test_completed_run_status_contains_duration(db_session, test_user):
 
 
 def test_orchestration_status_route_contracts(
-    client, db_session, test_user, sample_document
+    auth_client, db_session, test_user, sample_document
 ):
     experiment = _experiment(db_session, test_user, 'routes')
     association = _link(db_session, experiment, sample_document)
     _operation(db_session, association, 'segmentation')
     run = _run(db_session, experiment, test_user, 'analyzing')
 
-    check = client.get(
+    check = auth_client.get(
         f'/experiments/{experiment.id}/orchestration/check-status'
     )
-    latest = client.get(
+    latest = auth_client.get(
         f'/experiments/{experiment.id}/orchestration/latest-run'
     )
-    status = client.get(f'/experiments/orchestration/status/{run.id}')
-    missing_experiment = client.get(
+    status = auth_client.get(f'/experiments/orchestration/status/{run.id}')
+    missing_experiment = auth_client.get(
         '/experiments/999999/orchestration/check-status'
     )
-    missing_latest = client.get(
+    missing_latest = auth_client.get(
         '/experiments/999999/orchestration/latest-run'
     )
 
