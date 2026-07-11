@@ -280,7 +280,7 @@ data/
 */data/
 
 # Experiments directory (contains copyrighted academic papers - not for distribution)
-experiments/
+/experiments/
 
 # Duplicate/redundant PDFs (keep papers/ as canonical location for own papers)
 OntExtract_Short_Paper.pdf
@@ -309,3 +309,5 @@ cookies.txt
 
 # Playwright MCP screenshots
 .playwright-mcp/
+
+/.playwright-mcp

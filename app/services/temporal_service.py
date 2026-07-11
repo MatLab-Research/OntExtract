@@ -12,8 +12,16 @@ import re
 
 from app import db
 from app.models import Experiment, Document
+from app.models.experiment_document import ExperimentDocument
+from app.models.user import User
 from app.models.orchestration_logs import OrchestrationDecision
-from app.services.base_service import BaseService, ServiceError, NotFoundError, ValidationError
+from app.services.base_service import (
+    BaseService,
+    NotFoundError,
+    PermissionError,
+    ServiceError,
+    ValidationError,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -263,7 +271,8 @@ class TemporalService(BaseService):
         experiment_id: int,
         terms: List[str],
         periods: List[int],
-        temporal_data: Dict[str, Any]
+        temporal_data: Dict[str, Any],
+        actor_id: int,
     ) -> Experiment:
         """
         Update temporal terms and periods configuration
@@ -282,12 +291,13 @@ class TemporalService(BaseService):
             ServiceError: On database errors
         """
         try:
-            experiment = Experiment.query.filter_by(id=experiment_id).first()
-            if not experiment:
-                raise NotFoundError(f"Experiment {experiment_id} not found")
+            experiment = self._temporal_experiment(experiment_id, actor_id)
+            terms = self._normalize_terms(terms)
+            periods = sorted(set(periods or []))
+            temporal_data = temporal_data if isinstance(temporal_data, dict) else {}
 
             # Update configuration
-            config = json.loads(experiment.configuration) if experiment.configuration else {}
+            config = self._configuration(experiment)
             config['target_terms'] = terms
             config['time_periods'] = periods
             config['temporal_data'] = temporal_data
@@ -309,20 +319,31 @@ class TemporalService(BaseService):
 
                 # First pass: collect start boundaries
                 for year_str, meta in period_metadata.items():
+                    if not isinstance(meta, dict):
+                        continue
                     if meta.get('boundary_type') == 'start' and meta.get('period_id'):
+                        try:
+                            start_year = int(year_str)
+                        except (TypeError, ValueError):
+                            continue
                         start_boundaries[meta['period_id']] = {
                             'id': meta['period_id'],
                             'name': meta.get('period_name', ''),
                             'description': meta.get('period_description', ''),
-                            'start_year': int(year_str)
+                            'start_year': start_year
                         }
 
                 # Second pass: find end boundaries and complete the periods
                 for year_str, meta in period_metadata.items():
+                    if not isinstance(meta, dict):
+                        continue
                     if meta.get('boundary_type') == 'end' and meta.get('period_id'):
                         period_id = meta['period_id']
                         if period_id in start_boundaries:
-                            start_boundaries[period_id]['end_year'] = int(year_str)
+                            try:
+                                start_boundaries[period_id]['end_year'] = int(year_str)
+                            except (TypeError, ValueError):
+                                continue
 
                 # Add completed periods to named_periods list
                 named_periods = list(start_boundaries.values())
@@ -339,7 +360,7 @@ class TemporalService(BaseService):
 
             return experiment
 
-        except NotFoundError:
+        except (NotFoundError, PermissionError, ValidationError):
             raise
         except Exception as e:
             db.session.rollback()
@@ -361,11 +382,9 @@ class TemporalService(BaseService):
             ServiceError: On other errors
         """
         try:
-            experiment = Experiment.query.filter_by(id=experiment_id).first()
-            if not experiment:
-                raise NotFoundError(f"Experiment {experiment_id} not found")
+            experiment = self._temporal_experiment(experiment_id)
 
-            config = json.loads(experiment.configuration) if experiment.configuration else {}
+            config = self._configuration(experiment)
 
             return {
                 'terms': config.get('target_terms', []),
@@ -373,13 +392,17 @@ class TemporalService(BaseService):
                 'temporal_data': config.get('temporal_data', {})
             }
 
-        except NotFoundError:
+        except (NotFoundError, ValidationError):
             raise
         except Exception as e:
             logger.error(f"Error getting temporal configuration for experiment {experiment_id}: {e}", exc_info=True)
             raise ServiceError(f"Failed to get temporal configuration: {str(e)}")
 
-    def generate_periods_from_documents(self, experiment_id: int) -> Dict[str, Any]:
+    def generate_periods_from_documents(
+        self,
+        experiment_id: int,
+        actor_id: int,
+    ) -> Dict[str, Any]:
         """
         Generate time periods based on document publication dates
 
@@ -395,14 +418,10 @@ class TemporalService(BaseService):
             ServiceError: On other errors
         """
         try:
-            experiment = Experiment.query.filter_by(id=experiment_id).first()
-            if not experiment:
-                raise NotFoundError(f"Experiment {experiment_id} not found")
+            experiment = self._temporal_experiment(experiment_id, actor_id)
 
             # Get all documents with publication dates
-            from app.models import Document
-            from app.models.temporal_experiment import DocumentTemporalMetadata
-            documents = Document.query.filter_by(experiment_id=experiment_id).all()
+            documents = self._experiment_documents(experiment_id)
 
             if not documents:
                 raise ValidationError("No documents found in experiment")
@@ -422,7 +441,7 @@ class TemporalService(BaseService):
                     try:
                         year = doc.publication_date.year if hasattr(doc.publication_date, 'year') else None
                         date_source = 'publication_date'
-                    except:
+                    except (TypeError, ValueError, AttributeError):
                         pass
 
                 # 2. Fallback to created_at (upload date) if no publication date set
@@ -431,7 +450,7 @@ class TemporalService(BaseService):
                         year = doc.created_at.year if hasattr(doc.created_at, 'year') else None
                         using_fallback = True
                         date_source = 'upload_date'
-                    except:
+                    except (TypeError, ValueError, AttributeError):
                         pass
 
                 if year:
@@ -457,8 +476,7 @@ class TemporalService(BaseService):
             max_year = max(years)
 
             # Update experiment configuration
-            import json
-            config = json.loads(experiment.configuration) if experiment.configuration else {}
+            config = self._configuration(experiment)
             config['time_periods'] = periods
             config['start_year'] = min_year
             config['end_year'] = max_year
@@ -489,12 +507,84 @@ class TemporalService(BaseService):
                 'using_fallback': using_fallback
             }
 
-        except (NotFoundError, ValidationError):
+        except (NotFoundError, PermissionError, ValidationError):
             raise
         except Exception as e:
             db.session.rollback()
             logger.error(f"Error generating periods from documents for experiment {experiment_id}: {e}", exc_info=True)
             raise ServiceError(f"Failed to generate periods from documents: {str(e)}")
+
+    @staticmethod
+    def _configuration(experiment):
+        config = experiment.configuration or {}
+        if isinstance(config, dict):
+            return dict(config)
+        try:
+            parsed = json.loads(config)
+            return parsed if isinstance(parsed, dict) else {}
+        except (json.JSONDecodeError, TypeError):
+            return {}
+
+    @staticmethod
+    def _normalize_terms(terms):
+        normalized = []
+        seen = set()
+        for term in terms or []:
+            if not isinstance(term, str):
+                continue
+            value = term.strip()
+            key = value.casefold()
+            if value and key not in seen:
+                seen.add(key)
+                normalized.append(value)
+        return normalized
+
+    @staticmethod
+    def _temporal_experiment(experiment_id, actor_id=None):
+        experiment = db.session.get(Experiment, experiment_id)
+        if not experiment:
+            raise NotFoundError(f'Experiment {experiment_id} not found')
+        if experiment.experiment_type != 'temporal_evolution':
+            raise ValidationError(
+                'Temporal configuration is only available for temporal '
+                'evolution experiments'
+            )
+        if actor_id is not None:
+            actor = db.session.get(User, actor_id)
+            if not actor or not actor.can_edit_resource(experiment):
+                raise PermissionError('Permission denied')
+        return experiment
+
+    @staticmethod
+    def _experiment_documents(experiment_id):
+        documents = {
+            association.document_id: association.document
+            for association in ExperimentDocument.query.filter_by(
+                experiment_id=experiment_id
+            ).all()
+        }
+        documents.update({
+            document.id: document
+            for document in Document.query.filter_by(
+                experiment_id=experiment_id
+            ).all()
+        })
+        families = {}
+        for document in documents.values():
+            root_id = document.source_document_id or document.id
+            families.setdefault(root_id, []).append(document)
+        latest = [
+            max(
+                family,
+                key=lambda document: (
+                    document.version_number or 0,
+                    document.id,
+                ),
+            )
+            for family in families.values()
+        ]
+        latest.sort(key=lambda document: document.id)
+        return latest
 
     def fetch_temporal_analysis(
         self,

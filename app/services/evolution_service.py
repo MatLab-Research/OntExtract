@@ -7,12 +7,24 @@ Handles term evolution visualization, drift analysis, and temporal data.
 
 import json
 import logging
+import re
+from pathlib import Path
 from typing import List, Dict, Any, Optional, Tuple
-from datetime import datetime
+
+from sqlalchemy import func
 
 from app import db
 from app.models import Experiment
-from app.services.base_service import BaseService, ServiceError, NotFoundError, ValidationError
+from app.models.experiment_document import ExperimentDocument
+from app.models.term import Term
+from app.models.user import User
+from app.services.base_service import (
+    BaseService,
+    NotFoundError,
+    PermissionError,
+    ServiceError,
+    ValidationError,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -28,9 +40,15 @@ class EvolutionService(BaseService):
     - Generating evolution narratives
     """
 
-    def __init__(self):
+    def __init__(self, temporal_service_factory=None, data_root=None):
         """Initialize EvolutionService"""
         super().__init__(model=Experiment)
+        self.temporal_service_factory = (
+            temporal_service_factory or self._default_temporal_service
+        )
+        self.data_root = Path(data_root) if data_root else (
+            Path(__file__).resolve().parents[2] / 'data' / 'references'
+        )
 
     def get_evolution_visualization_data(
         self,
@@ -65,7 +83,7 @@ class EvolutionService(BaseService):
             target_term = self._determine_target_term(experiment, term)
 
             # Get term record from database
-            term_record = self._get_term_record(target_term)
+            term_record = self._get_term_record(experiment, target_term)
 
             # Get temporal versions
             term_versions = self._get_term_versions(term_record.id)
@@ -94,6 +112,7 @@ class EvolutionService(BaseService):
             )
 
             return {
+                'experiment': experiment,
                 'term': target_term,
                 'term_record': term_record,
                 'academic_anchors': academic_anchors,
@@ -103,7 +122,7 @@ class EvolutionService(BaseService):
                 'domains': domains
             }
 
-        except (NotFoundError, ValidationError):
+        except (NotFoundError, PermissionError, ValidationError):
             raise
         except Exception as e:
             logger.error(f"Failed to get evolution data for experiment {experiment_id}: {e}", exc_info=True)
@@ -113,7 +132,8 @@ class EvolutionService(BaseService):
         self,
         experiment_id: int,
         term: str,
-        periods: List[Any]
+        periods: List[Any],
+        actor_id: int,
     ) -> Dict[str, Any]:
         """
         Analyze the evolution of a term over time
@@ -135,24 +155,24 @@ class EvolutionService(BaseService):
         """
         try:
             experiment = self._get_experiment(experiment_id)
+            self._require_edit_permission(experiment, actor_id)
 
             # Validate inputs
+            term = term.strip() if isinstance(term, str) else ''
             if not term:
                 raise ValidationError('Term is required')
 
             if not periods:
                 raise ValidationError('At least one period is required')
 
-            # Import temporal analysis service
-            from shared_services.temporal import TemporalAnalysisService
-            from shared_services.ontology.ontology_importer import OntologyImporter
-
-            # Initialize services
-            ontology_importer = OntologyImporter()
-            temporal_service = TemporalAnalysisService(ontology_importer)
+            temporal_service = self.temporal_service_factory()
 
             # Get all documents
-            all_documents = list(experiment.documents) + list(experiment.references)
+            all_documents = self._analysis_documents(experiment)
+            if not all_documents:
+                raise ValidationError(
+                    'Experiment has no documents or references to analyze'
+                )
 
             # Extract temporal data
             temporal_data = temporal_service.extract_temporal_data(all_documents, term, periods)
@@ -183,7 +203,7 @@ class EvolutionService(BaseService):
                 'drift_metrics': drift_metrics
             }
 
-        except (NotFoundError, ValidationError):
+        except (NotFoundError, PermissionError, ValidationError):
             raise
         except Exception as e:
             logger.error(f"Failed to analyze evolution for experiment {experiment_id}: {e}", exc_info=True)
@@ -193,7 +213,7 @@ class EvolutionService(BaseService):
 
     def _get_experiment(self, experiment_id: int) -> Experiment:
         """Get experiment by ID"""
-        experiment = Experiment.query.filter_by(id=experiment_id).first()
+        experiment = db.session.get(Experiment, experiment_id)
         if not experiment:
             raise NotFoundError(f"Experiment {experiment_id} not found")
         return experiment
@@ -229,16 +249,20 @@ class EvolutionService(BaseService):
 
     def _parse_configuration(self, experiment: Experiment) -> Dict[str, Any]:
         """Parse experiment configuration JSON"""
-        if not experiment.configuration:
+        config = experiment.configuration or {}
+        if isinstance(config, dict):
+            return dict(config)
+        if not config:
             return {}
 
         try:
-            return json.loads(experiment.configuration)
+            parsed = json.loads(config)
+            return parsed if isinstance(parsed, dict) else {}
         except (json.JSONDecodeError, TypeError):
             logger.warning(f"Failed to parse configuration for experiment {experiment.id}")
             return {}
 
-    def _get_term_record(self, term: str):
+    def _get_term_record(self, experiment: Experiment, term: str):
         """
         Get term record from database
 
@@ -251,9 +275,16 @@ class EvolutionService(BaseService):
         Raises:
             NotFoundError: If term not found
         """
-        from app.models.term import Term
+        normalized = term.strip().casefold()
+        if experiment.term_id:
+            term_record = db.session.get(Term, experiment.term_id)
+            if term_record and term_record.term_text.casefold() == normalized:
+                return term_record
 
-        term_record = Term.query.filter_by(term_text=term).first()
+        term_record = Term.query.filter(
+            func.lower(Term.term_text) == normalized,
+            Term.created_by == experiment.user_id,
+        ).order_by(Term.created_at.asc()).first()
 
         if not term_record:
             raise NotFoundError(
@@ -261,6 +292,46 @@ class EvolutionService(BaseService):
             )
 
         return term_record
+
+    @staticmethod
+    def _require_edit_permission(experiment, actor_id):
+        actor = db.session.get(User, actor_id)
+        if not actor or not actor.can_edit_resource(experiment):
+            raise PermissionError('Permission denied')
+
+    @staticmethod
+    def _analysis_documents(experiment):
+        associations = ExperimentDocument.query.filter_by(
+            experiment_id=experiment.id
+        ).all()
+        families = {}
+        for association in associations:
+            document = association.document
+            root_id = document.source_document_id or document.id
+            families.setdefault(root_id, []).append(document)
+        documents = [
+            max(
+                family,
+                key=lambda item: (item.version_number or 0, item.id),
+            )
+            for family in families.values()
+        ]
+        if not associations:
+            documents.extend(list(experiment.documents))
+        seen = {document.id for document in documents}
+        for reference in experiment.references:
+            if reference.id not in seen:
+                seen.add(reference.id)
+                documents.append(reference)
+        documents.sort(key=lambda item: item.id)
+        return documents
+
+    @staticmethod
+    def _default_temporal_service():
+        from shared_services.ontology.ontology_importer import OntologyImporter
+        from shared_services.temporal import TemporalAnalysisService
+
+        return TemporalAnalysisService(OntologyImporter())
 
     def _get_term_versions(self, term_id: int) -> List:
         """
@@ -304,9 +375,13 @@ class EvolutionService(BaseService):
             academic_anchors.append({
                 'year': version.temporal_start_year,
                 'period': version.temporal_period,
-                'meaning': version.meaning_description,
-                'citation': version.source_citation,
-                'domain': version.extraction_method.replace('_analysis', '').replace(' analysis', ''),
+                'meaning': version.meaning_description or '',
+                'citation': version.source_citation or '',
+                'domain': (
+                    (version.extraction_method or 'unknown')
+                    .replace('_analysis', '')
+                    .replace(' analysis', '')
+                ),
                 'confidence': version.confidence_level,
                 'context_anchor': version.context_anchor or []
             })
@@ -326,7 +401,11 @@ class EvolutionService(BaseService):
         years = [anchor['year'] for anchor in academic_anchors if anchor.get('year')]
         temporal_span = max(years) - min(years) if years else 0
 
-        domains = list(set([anchor['domain'] for anchor in academic_anchors if anchor.get('domain')]))
+        domains = sorted({
+            anchor['domain']
+            for anchor in academic_anchors
+            if anchor.get('domain')
+        })
 
         return temporal_span, domains
 
@@ -357,45 +436,32 @@ class EvolutionService(BaseService):
 
     def _get_oed_from_database(self, term_record) -> Optional[Dict[str, Any]]:
         """Get OED data from database"""
-        from app.models.oed_models import OEDEtymology, OEDDefinition, OEDHistoricalStats, OEDQuotationSummary
+        from app.services.oed_term_api_service import OEDTermApiService
 
-        etymology = OEDEtymology.query.filter_by(term_id=term_record.id).first()
-        definitions = OEDDefinition.query.filter_by(
-            term_id=term_record.id
-        ).order_by(OEDDefinition.first_cited_year.asc()).all()
-        historical_stats = OEDHistoricalStats.query.filter_by(
-            term_id=term_record.id
-        ).order_by(OEDHistoricalStats.start_year.asc()).all()
-        quotation_summaries = OEDQuotationSummary.query.filter_by(
-            term_id=term_record.id
-        ).order_by(OEDQuotationSummary.quotation_year.asc()).all()
-
-        if etymology or definitions or historical_stats:
-            return {
-                'etymology': etymology.to_dict() if etymology else None,
-                'definitions': [d.to_dict() for d in definitions],
-                'historical_stats': [s.to_dict() for s in historical_stats],
-                'quotation_summaries': [q.to_dict() for q in quotation_summaries],
-                'date_range': {
-                    'earliest': min([d.first_cited_year for d in definitions if d.first_cited_year], default=None),
-                    'latest': max([d.last_cited_year for d in definitions if d.last_cited_year], default=None)
-                }
-            }
-
+        data = OEDTermApiService.get_persisted_data(term_record.id)
+        if (
+            data['etymology']
+            or data['definitions']
+            or data['historical_stats']
+            or data['quotation_summaries']
+        ):
+            data.pop('term_text', None)
+            return data
         return None
 
     def _get_oed_from_files(self, term: str) -> Optional[Dict[str, Any]]:
         """Get OED data from JSON files"""
+        safe_term = self._safe_term_filename(term)
         oed_patterns = [
-            f'data/references/oed_{term}_extraction_provenance.json',
-            f'data/references/{term}_oed_extraction.json'
+            self.data_root / f'oed_{safe_term}_extraction_provenance.json',
+            self.data_root / f'{safe_term}_oed_extraction.json',
         ]
 
         for pattern in oed_patterns:
             try:
-                with open(pattern, 'r') as f:
+                with pattern.open('r', encoding='utf-8') as f:
                     return json.load(f)
-            except FileNotFoundError:
+            except (FileNotFoundError, json.JSONDecodeError, OSError):
                 continue
 
         return None
@@ -436,19 +502,25 @@ class EvolutionService(BaseService):
 
     def _get_legal_data(self, term: str) -> Optional[Dict[str, Any]]:
         """Get legal reference data from files"""
+        safe_term = self._safe_term_filename(term)
         legal_patterns = [
-            f'data/references/blacks_law_{term}_extraction.json',
-            f'data/references/{term}_legal_extraction.json'
+            self.data_root / f'blacks_law_{safe_term}_extraction.json',
+            self.data_root / f'{safe_term}_legal_extraction.json',
         ]
 
         for pattern in legal_patterns:
             try:
-                with open(pattern, 'r') as f:
+                with pattern.open('r', encoding='utf-8') as f:
                     return json.load(f)
-            except FileNotFoundError:
+            except (FileNotFoundError, json.JSONDecodeError, OSError):
                 continue
 
         return None
+
+    @staticmethod
+    def _safe_term_filename(term):
+        normalized = re.sub(r'[^a-z0-9_-]+', '_', term.casefold()).strip('_')
+        return normalized or 'term'
 
     def _build_analysis_text(
         self,

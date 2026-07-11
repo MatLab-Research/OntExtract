@@ -10,7 +10,7 @@ from typing import Dict, Any, Optional
 from datetime import datetime
 import langextract as lx
 from langextract import data
-from config.llm_config import get_llm_config, LLMTaskType
+from app.llm_config import get_llm_config, LLMTaskType
 
 logger = logging.getLogger(__name__)
 

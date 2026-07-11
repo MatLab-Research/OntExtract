@@ -2045,6 +2045,7 @@ async function removeEntry(entryId) {
         console.error('Entry not found:', entryId);
         return;
     }
+    const previousTimelineEntries = [...timelineEntries];
 
     // Determine what to remove
     if (entry.type === 'boundary') {
@@ -2083,20 +2084,24 @@ async function removeEntry(entryId) {
 
         // Also remove from backend semantic events if it exists
         if (entry.backend_event_id) {
-            // Find and remove from semanticEvents array
-            semanticEvents = semanticEvents.filter(e => e.id !== entry.backend_event_id);
-
             // Call backend to remove event
             try {
-                const response = await fetch(`/experiments/${experimentId}/remove_semantic_event/${entry.backend_event_id}`, {
-                    method: 'DELETE'
+                const response = await fetch(`/experiments/${experimentId}/remove_semantic_event`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({event_id: entry.backend_event_id})
                 });
                 const data = await response.json();
-                if (!data.success) {
-                    console.error('Failed to remove event from backend:', data.error);
+                if (data.success) {
+                    semanticEvents = data.semantic_events;
+                } else {
+                    throw new Error(data.error || 'Failed to remove event');
                 }
             } catch (error) {
+                timelineEntries = previousTimelineEntries;
                 console.error('Error removing event from backend:', error);
+                alert('Error removing event: ' + error.message);
+                return;
             }
         }
     } else {
@@ -2603,13 +2608,15 @@ async function saveSemanticEvent() {
     }
 
     const eventData = {
-        id: eventId || Date.now().toString(),
         event_type: eventType,
         from_period: parseInt(fromPeriod),
         to_period: toPeriod ? parseInt(toPeriod) : null,
         description: description.trim(),
         related_document_ids: relatedDocIds
     };
+    if (eventId) {
+        eventData.id = eventId;
+    }
 
     try {
         const response = await fetch(`/experiments/${experimentId}/save_semantic_event`, {
@@ -3034,23 +3041,23 @@ async function saveSemanticEventElement(fromYear) {
         return;
     }
 
-    // Generate ID for new events
-    const eventId = editId || `event_${Date.now()}`;
-
     try {
+        const eventData = {
+            event_type: eventType,
+            from_period: fromYear,
+            to_period: toYear,
+            description: description,
+            related_document_ids: selectedDocIds
+        };
+        if (editId) {
+            eventData.id = editId;
+        }
         const response = await fetch(`/experiments/${experimentId}/save_semantic_event`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
             },
-            body: JSON.stringify({
-                id: eventId,
-                event_type: eventType,
-                from_period: fromYear,
-                to_period: toYear,
-                description: description,
-                related_document_ids: selectedDocIds
-            })
+            body: JSON.stringify(eventData)
         });
 
         const data = await response.json();

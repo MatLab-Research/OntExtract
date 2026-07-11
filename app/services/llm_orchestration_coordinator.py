@@ -12,7 +12,7 @@ from datetime import datetime
 
 # Import shared services for multi-provider LLM access
 from app.services.langextract_document_analyzer import LangExtractDocumentAnalyzer
-from config.llm_config import get_llm_config, LLMTaskType
+from app.llm_config import get_llm_config, LLMTaskType
 
 logger = logging.getLogger(__name__)
 

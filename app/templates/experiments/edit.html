@@ -18,7 +18,7 @@
                             <select class="form-select" id="focus-term">
                                 <option value="">Select a term...</option>
                                 {% for term in terms %}
-                                <option value="{{ term.id }}" {% if term.id|string in selected_term_ids or term.id in selected_term_ids %}selected{% endif %}>{{ term.term_text }}</option>
+                                <option value="{{ term.id }}" {% if term.id|string == selected_term_id %}selected{% endif %}>{{ term.term_text }}</option>
                                 {% endfor %}
                             </select>
                             <small class="text-muted">
@@ -40,7 +40,8 @@
                             <div class="col-md-6">
                                 <div class="mb-3">
                                     <label for="experiment-type" class="form-label">Experiment Type *</label>
-                                    <select class="form-select" id="experiment-type" required>
+                                    <select class="form-select" id="experiment-type" required disabled
+                                            title="Duplicate the experiment to change its type">
                                         <option value="">Select type...</option>
                                         <option value="entity_extraction" {% if experiment.experiment_type == 'entity_extraction' %}selected{% endif %}>Document Analysis</option>
                                         <option value="temporal_evolution" {% if experiment.experiment_type == 'temporal_evolution' %}selected{% endif %}>Temporal Evolution</option>
@@ -98,11 +99,11 @@
                                             {% for document in documents %}
                                             <div class="form-check document-item mb-2">
                                                 <input class="form-check-input document-checkbox" type="checkbox"
-                                                       value="{{ document.id }}" id="doc-{{ document.id }}"
+                                                       value="{{ document.uuid }}" id="doc-{{ document.id }}"
                                                        data-uuid="{{ document.uuid }}"
                                                        data-title="{{ document.get_display_name() }}"
                                                        data-words="{{ document.word_count or 0 }}"
-                                                       {% if document.id in selected_doc_ids %}checked{% endif %}>
+                                                       {% if document.uuid|string in selected_document_uuids %}checked disabled data-existing="true" title="Duplicate the experiment to remove an existing document"{% endif %}>
                                                 <label class="form-check-label" for="doc-{{ document.id }}">
                                                     {% set filename = document.get_display_name().lower() %}
                                                     {% if filename.endswith('.pdf') %}
@@ -185,8 +186,8 @@
                                         {% for reference in references %}
                                         <div class="form-check reference-item mb-2">
                                             <input class="form-check-input reference-checkbox" type="checkbox"
-                                                   value="{{ reference.id }}" id="ref-{{ reference.id }}"
-                                                   {% if reference.id in selected_ref_ids %}checked{% endif %}>
+                                                   value="{{ reference.uuid }}" id="ref-{{ reference.id }}"
+                                                   {% if reference.uuid|string in selected_reference_uuids %}checked{% endif %}>
                                             <label class="form-check-label" for="ref-{{ reference.id }}">
                                                 <strong>{{ reference.get_display_name() }}</strong>
                                                 <span class="text-muted">({{ reference.word_count or 0 }} words)</span>
@@ -228,6 +229,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const typeSelect = document.getElementById('experiment-type');
     const focusTermSection = document.getElementById('focus-term-section');
     const typeDescription = document.getElementById('type-description');
+    const existingConfiguration = {{ configuration | tojson }};
 
     // Update UI based on experiment type selection
     typeSelect.addEventListener('change', function() {
@@ -300,7 +302,7 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     document.getElementById('deselect-all-docs')?.addEventListener('click', function() {
-        document.querySelectorAll('.document-checkbox').forEach(cb => {
+        document.querySelectorAll('.document-checkbox:not([data-existing="true"])').forEach(cb => {
             cb.checked = false;
         });
     });
@@ -327,15 +329,15 @@ document.addEventListener('DOMContentLoaded', function() {
         const description = document.getElementById('experiment-description').value.trim();
 
         // Collect selected documents
-        const documentIds = [];
+        const documentUuids = [];
         document.querySelectorAll('.document-checkbox:checked').forEach(cb => {
-            documentIds.push(parseInt(cb.value));
+            documentUuids.push(cb.value);
         });
 
         // Collect selected references
-        const referenceIds = [];
+        const referenceUuids = [];
         document.querySelectorAll('.reference-checkbox:checked').forEach(cb => {
-            referenceIds.push(parseInt(cb.value));
+            referenceUuids.push(cb.value);
         });
 
         if (!name) {
@@ -343,15 +345,16 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
 
-        if (documentIds.length === 0 && referenceIds.length === 0) {
+        if (documentUuids.length === 0 && referenceUuids.length === 0) {
             alert('Please select at least one document or reference');
             return;
         }
 
         // Build configuration
-        const configuration = {};
+        const configuration = {...existingConfiguration};
+        let termId = null;
         if (type === 'temporal_evolution') {
-            const termId = document.getElementById('focus-term')?.value;
+            termId = document.getElementById('focus-term')?.value;
             if (!termId) {
                 alert('Please select a focus term for temporal evolution experiments');
                 return;
@@ -370,8 +373,9 @@ document.addEventListener('DOMContentLoaded', function() {
                     name: name,
                     description: description,
                     experiment_type: type,
-                    document_ids: documentIds,
-                    reference_ids: referenceIds,
+                    term_id: termId,
+                    document_uuids: documentUuids,
+                    reference_uuids: referenceUuids,
                     configuration: configuration
                 })
             });
@@ -535,7 +539,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 const newRefHtml = `
                     <div class="form-check reference-item mb-2">
                         <input class="form-check-input reference-checkbox" type="checkbox"
-                               value="${result.document_id}" id="ref-${result.document_id}" checked>
+                               value="${result.document_uuid}" id="ref-${result.document_id}" checked>
                         <label class="form-check-label" for="ref-${result.document_id}">
                             <strong>${title}</strong>
                             <span class="text-muted">(${wordCount} words)</span>

@@ -2,21 +2,26 @@
 Experiment Service
 
 Business logic for experiment operations.
-Handles CRUD operations, validation, and document/reference management.
+Handles experiment creation, deletion, and retrieval.
 """
 
 import json
 import logging
-from typing import List, Optional, Dict, Any
-from datetime import datetime
+from typing import List, Optional
 
 from app import db
-from app.models import Experiment, Document
+from app.models import Experiment
 from app.models.user import User
-from app.services.base_service import BaseService, ServiceError, NotFoundError, ValidationError
+from app.services.base_service import (
+    BaseService,
+    NotFoundError,
+    PermissionError,
+    ServiceError,
+    ValidationError,
+)
+from app.services.experiment_resource_service import ExperimentResourceService
 from app.dto.experiment_dto import (
     CreateExperimentDTO,
-    UpdateExperimentDTO,
     ExperimentDetailDTO,
     ExperimentListItemDTO
 )
@@ -28,11 +33,7 @@ class ExperimentService(BaseService):
     """
     Service for experiment operations
 
-    Handles all business logic related to experiments including:
-    - Creating and updating experiments
-    - Managing document and reference associations
-    - Running experiments
-    - Retrieving experiment data and status
+    Editing and lifecycle operations live in focused workflow services.
     """
 
     def __init__(self):
@@ -59,124 +60,68 @@ class ExperimentService(BaseService):
             ServiceError: If creation fails
         """
         try:
-            # Create experiment instance
-            experiment = Experiment(
-                name=data.name,
-                description=data.description or '',
-                experiment_type=data.experiment_type,
-                user_id=user_id,
-                term_id=data.term_id if data.term_id else None,
-                configuration=json.dumps(data.configuration)
+            actor = db.session.get(User, user_id)
+            if not actor:
+                raise PermissionError('Permission denied')
+            documents = ExperimentResourceService.resolve_documents(
+                data.document_uuids,
+                data.document_ids,
+                'document',
+                actor,
             )
+            references = ExperimentResourceService.resolve_documents(
+                data.reference_uuids,
+                data.reference_ids,
+                'reference',
+                actor,
+            )
+            term = ExperimentResourceService.resolve_term(data.term_id, actor)
 
-            # Add to session and flush to get ID
-            self.add(experiment)
-            self.flush()
+            with db.session.begin_nested():
+                experiment = Experiment(
+                    name=data.name,
+                    description=data.description or '',
+                    experiment_type=data.experiment_type,
+                    user_id=user_id,
+                    term_id=term.id if term else None,
+                    configuration=json.dumps(data.configuration),
+                )
+                self.add(experiment)
+                self.flush()
 
-            logger.info(f"Created experiment '{experiment.name}' (ID: {experiment.id})")
+                logger.info(
+                    "Created experiment '%s' (ID: %s)",
+                    experiment.name,
+                    experiment.id,
+                )
 
-            # Add documents to experiment (by UUID)
-            if data.document_uuids:
-                self._add_documents_by_uuid(experiment, data.document_uuids)
-
-            # Add references to experiment (by UUID)
-            if data.reference_uuids:
-                self._add_references_by_uuid(experiment, data.reference_uuids)
+                if documents:
+                    ExperimentResourceService.add_documents(
+                        experiment,
+                        documents,
+                        actor,
+                    )
+                if references:
+                    ExperimentResourceService.add_references(
+                        experiment,
+                        references,
+                    )
 
             # Commit transaction
             self.commit()
 
             logger.info(
                 f"Experiment {experiment.id} created with "
-                f"{len(data.document_uuids)} documents and {len(data.reference_uuids)} references"
+                f"{len(documents)} documents and {len(references)} references"
             )
-
-            return experiment
-
-        except Exception as e:
-            self.rollback()
-            logger.error(f"Failed to create experiment: {e}", exc_info=True)
-            raise ServiceError(f"Failed to create experiment: {str(e)}") from e
-
-    def update_experiment(
-        self,
-        experiment_id: int,
-        data: UpdateExperimentDTO,
-        user_id: Optional[int] = None
-    ) -> Experiment:
-        """
-        Update an existing experiment
-
-        Args:
-            experiment_id: ID of experiment to update
-            data: Validated update data
-            user_id: Optional user ID for permission check
-
-        Returns:
-            Updated experiment instance
-
-        Raises:
-            NotFoundError: If experiment doesn't exist
-            PermissionError: If user doesn't have permission
-            ServiceError: If update fails
-        """
-        try:
-            # Get experiment
-            experiment = self.get_experiment(experiment_id)
-
-            # Check permissions if user_id provided
-            if user_id is not None:
-                user = User.query.get(user_id)
-                if not user or not user.can_edit_resource(experiment):
-                    raise PermissionError(f"User {user_id} does not have permission to update experiment {experiment_id}")
-
-            # Cannot update running experiments
-            if experiment.status == 'running':
-                raise ValidationError("Cannot update an experiment that is currently running")
-
-            # Update fields if provided
-            if data.name is not None:
-                experiment.name = data.name
-
-            if data.description is not None:
-                experiment.description = data.description
-
-            if data.configuration is not None:
-                experiment.configuration = json.dumps(data.configuration)
-
-            # Update documents if provided
-            if data.document_ids is not None:
-                # Clear existing ExperimentDocument records (v2 table)
-                from app.models.experiment_document import ExperimentDocument
-                ExperimentDocument.query.filter_by(experiment_id=experiment.id).delete()
-                # Clear existing documents from many-to-many and add new ones
-                experiment.documents = []
-                self.flush()
-                self._add_documents_to_experiment(experiment, data.document_ids)
-
-            # Update references if provided
-            if data.reference_ids is not None:
-                # Clear existing references and add new ones
-                experiment.references = []
-                self.flush()
-                self._add_references_to_experiment(experiment, data.reference_ids)
-
-            # Update timestamp
-            experiment.updated_at = datetime.utcnow()
-
-            # Commit changes
-            self.commit()
-
-            logger.info(f"Updated experiment {experiment_id}")
 
             return experiment
 
         except (NotFoundError, PermissionError, ValidationError):
             raise
         except Exception as e:
-            self.rollback()
-            logger.error(f"Failed to update experiment {experiment_id}: {e}", exc_info=True)
-            raise ServiceError(f"Failed to update experiment: {str(e)}") from e
+            logger.error(f"Failed to create experiment: {e}", exc_info=True)
+            raise ServiceError(f"Failed to create experiment: {str(e)}") from e
 
     def delete_experiment(
         self,
@@ -443,138 +388,6 @@ class ExperimentService(BaseService):
 
         # Convert to DTOs
         return [ExperimentListItemDTO.from_model(exp) for exp in experiments]
-
-    def add_documents_to_experiment(
-        self,
-        experiment_id: int,
-        document_ids: List[int]
-    ) -> Experiment:
-        """
-        Add documents to an experiment
-
-        Args:
-            experiment_id: ID of experiment
-            document_ids: List of document IDs to add
-
-        Returns:
-            Updated experiment instance
-
-        Raises:
-            NotFoundError: If experiment doesn't exist
-            ServiceError: If operation fails
-        """
-        try:
-            experiment = self.get_experiment(experiment_id)
-            self._add_documents_to_experiment(experiment, document_ids)
-            self.commit()
-
-            logger.info(f"Added {len(document_ids)} documents to experiment {experiment_id}")
-
-            return experiment
-
-        except NotFoundError:
-            raise
-        except Exception as e:
-            self.rollback()
-            logger.error(f"Failed to add documents to experiment {experiment_id}: {e}", exc_info=True)
-            raise ServiceError(f"Failed to add documents: {str(e)}") from e
-
-    def add_references_to_experiment(
-        self,
-        experiment_id: int,
-        reference_ids: List[int]
-    ) -> Experiment:
-        """
-        Add references to an experiment
-
-        Args:
-            experiment_id: ID of experiment
-            reference_ids: List of reference IDs to add
-
-        Returns:
-            Updated experiment instance
-
-        Raises:
-            NotFoundError: If experiment doesn't exist
-            ServiceError: If operation fails
-        """
-        try:
-            experiment = self.get_experiment(experiment_id)
-            self._add_references_to_experiment(experiment, reference_ids)
-            self.commit()
-
-            logger.info(f"Added {len(reference_ids)} references to experiment {experiment_id}")
-
-            return experiment
-
-        except NotFoundError:
-            raise
-        except Exception as e:
-            self.rollback()
-            logger.error(f"Failed to add references to experiment {experiment_id}: {e}", exc_info=True)
-            raise ServiceError(f"Failed to add references: {str(e)}") from e
-
-    # Private helper methods
-
-    def _add_documents_by_uuid(
-        self,
-        experiment: Experiment,
-        document_uuids: List[str]
-    ):
-        """
-        Add documents to experiment by UUID
-
-        Creates experimental version (v2) for each document BEFORE adding to experiment.
-        Original documents (v1) stay pristine.
-
-        Args:
-            experiment: Experiment instance
-            document_uuids: List of document UUIDs
-        """
-        from app.services.inheritance_versioning_service import InheritanceVersioningService
-        from flask_login import current_user
-
-        for doc_uuid in document_uuids:
-            document = Document.query.filter_by(uuid=doc_uuid, document_type='document').first()
-            if document:
-                # Create experimental version (v2) BEFORE adding to experiment
-                exp_version, created = InheritanceVersioningService.get_or_create_experiment_version(
-                    original_document=document,
-                    experiment_id=experiment.id,
-                    user=current_user
-                )
-
-                # Add experimental version (v2) to experiment, NOT original (v1)
-                experiment.add_document(exp_version)
-
-                if created:
-                    logger.info(f"Created experimental version {exp_version.id} (v{exp_version.version_number}) "
-                               f"from document {document.uuid} for experiment {experiment.id}")
-                else:
-                    logger.debug(f"Using existing experimental version {exp_version.id} for experiment {experiment.id}")
-            else:
-                logger.warning(f"Document with UUID {doc_uuid} not found, skipping")
-
-    def _add_references_by_uuid(
-        self,
-        experiment: Experiment,
-        reference_uuids: List[str]
-    ):
-        """
-        Add references to experiment by UUID
-
-        Args:
-            experiment: Experiment instance
-            reference_uuids: List of reference UUIDs
-        """
-        for ref_uuid in reference_uuids:
-            reference = Document.query.filter_by(uuid=ref_uuid, document_type='reference').first()
-            if reference:
-                experiment.add_reference(reference, include_in_analysis=True)
-                logger.debug(f"Added reference {ref_uuid} to experiment {experiment.id}")
-            else:
-                logger.warning(f"Reference with UUID {ref_uuid} not found, skipping")
-
 
 # Singleton instance for easy access
 _experiment_service = None

@@ -6,7 +6,7 @@ Each document version inherits all processing from previous versions and adds ne
 """
 
 from app import db
-from app.models import Document, TextSegment
+from app.models import Document
 from sqlalchemy import text
 from datetime import datetime
 import json
@@ -230,7 +230,12 @@ class InheritanceVersioningService:
             return f'/input/document/{base_document_id}'
 
     @staticmethod
-    def get_or_create_experiment_version(original_document, experiment_id, user):
+    def get_or_create_experiment_version(
+        original_document,
+        experiment_id,
+        user,
+        commit=True,
+    ):
         """
         Get or create an experimental version of a document for a specific experiment.
 
@@ -242,6 +247,7 @@ class InheritanceVersioningService:
             original_document: The source document (typically the original, unprocessed version)
             experiment_id: The experiment this version belongs to
             user: The user creating the version (for PROV-O tracking)
+            commit: Commit immediately when true; otherwise join the caller's transaction
 
         Returns:
             tuple: (document, created_flag) where created_flag indicates if new version was created
@@ -357,7 +363,11 @@ class InheritanceVersioningService:
             # Note: Still uses root_document for provenance chain integrity
             from app.services.provenance_service import ProvenanceService
             ProvenanceService.track_experiment_version_creation(
-                new_version, root_document, experiment, user
+                new_version,
+                root_document,
+                experiment,
+                user,
+                commit=commit,
             )
 
             # 7. Record version change in changelog with derivation info
@@ -378,7 +388,10 @@ class InheritanceVersioningService:
                 changelog_metadata
             )
 
-            db.session.commit()
+            if commit:
+                db.session.commit()
+            else:
+                db.session.flush()
 
             source_desc = f"cleaned v{cleaned_version.version_number}" if cleaned_version else "original"
             logger.info(f"Created new experiment version {new_version_number} (ID: {new_version.id}) "
@@ -387,6 +400,7 @@ class InheritanceVersioningService:
             return new_version, True
 
         except Exception as e:
-            db.session.rollback()
+            if commit:
+                db.session.rollback()
             logger.error(f"Failed to get/create experiment version: {str(e)}")
             raise

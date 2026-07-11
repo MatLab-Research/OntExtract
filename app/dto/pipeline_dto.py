@@ -5,11 +5,10 @@ Data Transfer Objects for document processing pipeline operations.
 Provides validation and serialization for pipeline-related operations.
 """
 
-from pydantic import Field, field_validator
+from pydantic import ConfigDict, Field, field_validator, model_validator
 from typing import List, Dict, Any, Optional
-from uuid import UUID
-
 from .base import BaseDTO
+from app.services.pipeline.constants import SUPPORTED_PROCESSING_METHODS
 
 
 class StartProcessingDTO(BaseDTO):
@@ -18,6 +17,8 @@ class StartProcessingDTO(BaseDTO):
 
     Validates input for processing operation creation.
     """
+
+    model_config = ConfigDict(extra='forbid')
 
     experiment_document_id: int = Field(..., gt=0, description="Experiment document ID")
     processing_type: str = Field(..., min_length=1, max_length=50, description="Type of processing")
@@ -34,7 +35,6 @@ class StartProcessingDTO(BaseDTO):
             'temporal',
             'definitions',
             'enhanced_processing',
-            'etymology'  # Legacy
         ]
         if v not in valid_types:
             raise ValueError(f'Invalid processing type. Must be one of: {", ".join(valid_types)}')
@@ -60,6 +60,18 @@ class StartProcessingDTO(BaseDTO):
         if v not in valid_methods:
             raise ValueError(f'Invalid processing method: {v}')
         return v
+
+    @model_validator(mode='after')
+    def validate_type_method_pair(self):
+        if (
+            self.processing_method
+            not in SUPPORTED_PROCESSING_METHODS[self.processing_type]
+        ):
+            raise ValueError(
+                f'Unsupported method {self.processing_method} for '
+                f'{self.processing_type}'
+            )
+        return self
 
 
 class ProcessingStatusResponseDTO(BaseDTO):

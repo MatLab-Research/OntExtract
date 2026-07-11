@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+
+{% block title %}Entity Lineage - OntExtract{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="h3 mb-1">
+                <i class="fas fa-code-branch me-2"></i>Entity Lineage
+            </h1>
+            <p class="text-muted mb-0">W3C PROV-O derivation chain</p>
+        </div>
+        <a href="{{ url_for('provenance.timeline') }}" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left me-1"></i>Timeline
+        </a>
+    </div>
+
+    <div class="card mb-4">
+        <div class="card-header">Selected Entity</div>
+        <div class="card-body">
+            <dl class="row mb-0">
+                <dt class="col-sm-3">ID</dt>
+                <dd class="col-sm-9"><code>{{ entity.entity_id }}</code></dd>
+                <dt class="col-sm-3">Type</dt>
+                <dd class="col-sm-9">{{ entity.entity_type | replace('_', ' ') | title }}</dd>
+                <dt class="col-sm-3">Generated</dt>
+                <dd class="col-sm-9">
+                    {{ entity.generatedattime | format_datetime if entity.generatedattime else 'Unknown' }}
+                </dd>
+            </dl>
+        </div>
+    </div>
+
+    <h2 class="h5 mb-3">Derivation Chain</h2>
+    {% if lineage %}
+    <div class="list-group">
+        {% for item in lineage %}
+        <div class="list-group-item">
+            <div class="d-flex justify-content-between align-items-start">
+                <div>
+                    <strong>{{ item.entity_type | replace('_', ' ') | title }}</strong>
+                    <div><code>{{ item.entity_id }}</code></div>
+                </div>
+                {% if item.invalidatedattime %}
+                <span class="badge bg-secondary">Invalidated</span>
+                {% endif %}
+            </div>
+            {% if item.entity_value %}
+            <pre class="small bg-light text-dark border rounded p-2 mt-2 mb-0">{{ item.entity_value | tojson(indent=2) }}</pre>
+            {% endif %}
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="alert alert-info">No lineage records are available.</div>
+    {% endif %}
+</div>
+{% endblock %}

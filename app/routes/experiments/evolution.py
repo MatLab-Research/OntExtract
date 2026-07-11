@@ -14,7 +14,12 @@ from flask import render_template, request, jsonify, flash, redirect, url_for
 from flask_login import current_user
 from app.utils.auth_decorators import api_require_login_for_write
 from app.services.evolution_service import get_evolution_service
-from app.services.base_service import ServiceError, ValidationError, NotFoundError
+from app.services.base_service import (
+    NotFoundError,
+    PermissionError,
+    ServiceError,
+    ValidationError,
+)
 from app.dto.evolution_dto import AnalyzeEvolutionDTO
 from pydantic import ValidationError as PydanticValidationError
 import logging
@@ -40,13 +45,9 @@ def semantic_evolution_visual(experiment_id):
         # Get evolution data from service
         data = evolution_service.get_evolution_visualization_data(experiment_id, target_term)
 
-        # Get experiment for template context
-        from app.models import Experiment
-        experiment = Experiment.query.filter_by(id=experiment_id).first_or_404()
-
         return render_template(
             'experiments/semantic_evolution_visual.html',
-            experiment=experiment,
+            experiment=data['experiment'],
             target_term=data['term'],
             term_record=data['term_record'],
             academic_anchors=data['academic_anchors'],
@@ -93,7 +94,8 @@ def analyze_evolution(experiment_id):
         result = evolution_service.analyze_evolution(
             experiment_id,
             term=data.term,
-            periods=data.periods
+            periods=data.periods,
+            actor_id=current_user.id,
         )
 
         return jsonify({
@@ -108,8 +110,14 @@ def analyze_evolution(experiment_id):
         return jsonify({
             'success': False,
             'error': 'Validation failed',
-            'details': e.errors()
+            'details': e.errors(include_context=False)
         }), 400
+
+    except NotFoundError as e:
+        return jsonify({'success': False, 'error': str(e)}), 404
+
+    except PermissionError:
+        return jsonify({'success': False, 'error': 'Permission denied'}), 403
 
     except ValidationError as e:
         # Business validation errors
@@ -132,5 +140,5 @@ def analyze_evolution(experiment_id):
         logger.error(f"Unexpected error analyzing evolution for experiment {experiment_id}: {e}", exc_info=True)
         return jsonify({
             'success': False,
-            'error': str(e)
+            'error': 'Failed to analyze evolution'
         }), 500

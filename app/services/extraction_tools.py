@@ -26,7 +26,7 @@ ARTIFACT_TYPE_MAP = {
     "extract_entities_spacy": "extracted_entity",
     "extract_temporal": "temporal_marker",
     "extract_causal": "causal_relation",
-    "extract_definitions": "term_definition",  # Must match pipeline.py/pipeline_service.py
+    "extract_definitions": "term_definition",  # Must match pipeline extraction artifacts
     "period_aware_embedding": "embedding_vector"
 }
 

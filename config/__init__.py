@@ -56,6 +56,19 @@ class Config:
     OED_API_BASE_URL = os.environ.get('OED_API_BASE_URL', '').rstrip('/')  # optional override
     OED_API_TIMEOUT = float(os.environ.get('OED_API_TIMEOUT', '15'))
 
+    # Merriam-Webster API Configuration (use env; do not commit secrets)
+    MERRIAM_WEBSTER_DICTIONARY_API_KEY = (
+        os.environ.get('MERRIAM_WEBSTER_DICTIONARY_API_KEY')
+        or os.environ.get('MW_DICTIONARY_API_KEY')
+    )
+    MERRIAM_WEBSTER_THESAURUS_API_KEY = (
+        os.environ.get('MERRIAM_WEBSTER_THESAURUS_API_KEY')
+        or os.environ.get('MW_THESAURUS_API_KEY')
+    )
+    MERRIAM_WEBSTER_API_TIMEOUT = float(
+        os.environ.get('MERRIAM_WEBSTER_API_TIMEOUT', '10')
+    )
+
     # Reference metadata enrichment flags
     PREFILL_METADATA = os.environ.get('PREFILL_METADATA', 'True').lower() in {'true','1','yes','on','y','t'}
     PREFILL_USE_LANGEXTRACT = os.environ.get('PREFILL_USE_LANGEXTRACT', 'False').lower() in {'true','1','yes','on','y','t'}

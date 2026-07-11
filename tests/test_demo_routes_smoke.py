@@ -241,10 +241,14 @@ class TestDocumentNotFound:
 class TestProcessingRoutes:
     """Test processing-related routes."""
 
-    @pytest.mark.xfail(reason="Jobs template has url_for('processing.processing_home') bug - endpoint doesn't exist")
     def test_processing_jobs_list(self, auth_client):
         """Processing jobs list renders."""
         response = auth_client.get('/process/jobs')
+        assert response.status_code == 200
+
+    def test_processing_dashboard(self, auth_client):
+        """Processing dashboard renders with live status data."""
+        response = auth_client.get('/process/')
         assert response.status_code == 200
 
 

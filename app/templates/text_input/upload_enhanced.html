@@ -1200,6 +1200,7 @@ document.getElementById('file-form').addEventListener('submit', async function(e
         let buffer = '';
         let stepCount = 0;
         let result = null;
+        let streamError = null;
 
         while (true) {
             const {value, done} = await reader.read();
@@ -1254,7 +1255,7 @@ document.getElementById('file-form').addEventListener('submit', async function(e
                         progressBar.textContent = '100%';
                     }
                     else if (data.type === 'error') {
-                        throw new Error(data.message);
+                        streamError = data.message || 'Metadata extraction failed';
                     }
                     // Ignore heartbeat messages
                 } catch (parseError) {
@@ -1263,6 +1264,9 @@ document.getElementById('file-form').addEventListener('submit', async function(e
             }
         }
 
+        if (streamError) {
+            throw new Error(streamError);
+        }
         if (!result) {
             throw new Error('Stream ended without completion');
         }

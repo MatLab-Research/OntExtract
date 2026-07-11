@@ -76,7 +76,7 @@ def multi_doc_experiment(db_session, test_user):
 class TestProvenanceValidation:
     """Test PROV-O provenance structure and compliance."""
 
-    def test_provenance_required_fields(self, client, multi_doc_experiment, db_session, test_user):
+    def test_provenance_required_fields(self, auth_client, multi_doc_experiment, db_session, test_user):
         """Test that PROV-O provenance includes all required fields."""
         # Create completed run
         run = ExperimentOrchestrationRun(
@@ -105,7 +105,7 @@ class TestProvenanceValidation:
         db_session.commit()
 
         # Get provenance
-        response = client.get(
+        response = auth_client.get(
             f'/experiments/{multi_doc_experiment.id}/orchestration/llm-provenance/{run.id}'
         )
 
@@ -118,7 +118,7 @@ class TestProvenanceValidation:
         assert prov['@context'] == 'http://www.w3.org/ns/prov'
         assert prov['@type'] == 'prov:Bundle'
 
-    def test_provenance_entity_structure(self, client, multi_doc_experiment, db_session, test_user):
+    def test_provenance_entity_structure(self, auth_client, multi_doc_experiment, db_session, test_user):
         """Test PROV-O entity structure is correct."""
         run = ExperimentOrchestrationRun(
             experiment_id=multi_doc_experiment.id,
@@ -131,7 +131,7 @@ class TestProvenanceValidation:
         db_session.add(run)
         db_session.commit()
 
-        response = client.get(
+        response = auth_client.get(
             f'/experiments/{multi_doc_experiment.id}/orchestration/llm-provenance/{run.id}'
         )
 
@@ -158,7 +158,7 @@ class TestProvenanceValidation:
         assert '@type' in results_entity
         assert results_entity['@type'] == 'prov:Entity'
 
-    def test_provenance_activity_structure(self, client, multi_doc_experiment, db_session, test_user):
+    def test_provenance_activity_structure(self, auth_client, multi_doc_experiment, db_session, test_user):
         """Test PROV-O activity structure is correct."""
         started_at = datetime.utcnow()
         completed_at = started_at + timedelta(minutes=5)
@@ -177,7 +177,7 @@ class TestProvenanceValidation:
         db_session.add(run)
         db_session.commit()
 
-        response = client.get(
+        response = auth_client.get(
             f'/experiments/{multi_doc_experiment.id}/orchestration/llm-provenance/{run.id}'
         )
 
@@ -194,7 +194,7 @@ class TestProvenanceValidation:
         assert 'status' in run_activity
         assert 'confidence' in run_activity
 
-    def test_provenance_execution_trace(self, client, multi_doc_experiment, db_session, test_user):
+    def test_provenance_execution_trace(self, auth_client, multi_doc_experiment, db_session, test_user):
         """Test that execution trace is included in provenance."""
         execution_trace = [
             {
@@ -232,7 +232,7 @@ class TestProvenanceValidation:
         db_session.add(run)
         db_session.commit()
 
-        response = client.get(
+        response = auth_client.get(
             f'/experiments/{multi_doc_experiment.id}/orchestration/llm-provenance/{run.id}'
         )
 
@@ -480,7 +480,7 @@ class TestConcurrentRuns:
 
     def test_status_isolation_between_runs(
         self,
-        client,
+        auth_client,
         multi_doc_experiment,
         db_session,
         test_user
@@ -503,13 +503,13 @@ class TestConcurrentRuns:
         db_session.commit()
 
         # Check run1 status (reviewing includes confidence)
-        response1 = client.get(f'/experiments/orchestration/status/{run1.id}')
+        response1 = auth_client.get(f'/experiments/orchestration/status/{run1.id}')
         data1 = json.loads(response1.data)
         assert data1['status'] == 'reviewing'
         assert data1['confidence'] == 0.92
 
         # Check run2 status (completed doesn't include confidence in response)
-        response2 = client.get(f'/experiments/orchestration/status/{run2.id}')
+        response2 = auth_client.get(f'/experiments/orchestration/status/{run2.id}')
         data2 = json.loads(response2.data)
         assert data2['status'] == 'completed'
         # confidence is only included for 'reviewing' status
