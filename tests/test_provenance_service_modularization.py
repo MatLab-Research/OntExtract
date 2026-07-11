@@ -269,3 +269,49 @@ def test_tool_tracking_links_result_to_document(
     assert relationship.object_type == "entity"
     assert ProvActivity.query.filter_by(activity_type="tool_execution").count() == 1
     assert ProvEntity.query.filter_by(entity_type="tool_result").count() == 1
+
+
+def test_experiment_graph_marks_original_document_entity_as_origin(
+    db_session, sample_document, temporal_experiment, test_user
+):
+    from app.models.experiment_document import ExperimentDocument
+    from app.services.provenance_service import provenance_service
+
+    db_session.add(ExperimentDocument(
+        experiment_id=temporal_experiment.id,
+        document_id=sample_document.id,
+    ))
+    db_session.commit()
+    _, document_entity = provenance_service.track_document_upload(
+        sample_document,
+        test_user,
+        temporal_experiment,
+    )
+
+    graph = provenance_service.get_graph_data(
+        experiment_id=temporal_experiment.id,
+        user_id=test_user.id,
+    )
+    node = next(
+        item for item in graph['nodes']
+        if item['data']['id'] == str(document_entity.entity_id)
+    )
+    assert node['classes'] == 'entity origin'
+
+
+def test_main_branch_template_behaviors_are_preserved():
+    from pathlib import Path
+
+    project_root = Path(__file__).resolve().parents[1]
+    experiment_view = (
+        project_root / 'app/templates/experiments/view.html'
+    ).read_text()
+    temporal_manager = (
+        project_root / 'app/templates/experiments/temporal_term_manager.html'
+    ).read_text()
+    assert '{% if current_user.can_delete_resource(experiment) %}' in (
+        experiment_view
+    )
+    assert '<div id="terms-container" style="display: none;">' in (
+        temporal_manager
+    )

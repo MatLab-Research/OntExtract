@@ -237,10 +237,29 @@ class ProvenanceQueryMixin:
         query = db.session.query(ProvActivity)\
             .order_by(ProvActivity.startedattime.desc())
 
+        origin_entity_ids = set()
         if experiment_id:
             query = query.filter(
                 ProvActivity.activity_parameters['experiment_id'].astext == str(experiment_id)
             )
+            from app.models.experiment_document import ExperimentDocument
+
+            associations = ExperimentDocument.query.filter_by(
+                experiment_id=experiment_id
+            ).all()
+            root_document_ids = {
+                association.document.get_root_document().id
+                for association in associations
+                if association.document
+            }
+            for root_document_id in root_document_ids:
+                origin_entity = ProvEntity.query.filter(
+                    ProvEntity.entity_type == 'document',
+                    ProvEntity.entity_value['document_id'].astext
+                    == str(root_document_id),
+                ).order_by(ProvEntity.created_at.asc()).first()
+                if origin_entity:
+                    origin_entity_ids.add(str(origin_entity.entity_id))
 
         if user_id:
             user_agent = ProvAgent.query.filter_by(
@@ -470,6 +489,11 @@ class ProvenanceQueryMixin:
                         elif 'term_text' in entity.entity_value:
                             label = entity.entity_value['term_text'][:20]
 
+                    entity_classes = (
+                        'entity origin'
+                        if entity_id in origin_entity_ids
+                        else 'entity'
+                    )
                     nodes.append({
                         'data': {
                             'id': entity_id,
@@ -479,7 +503,7 @@ class ProvenanceQueryMixin:
                             'entity_type': entity.entity_type,
                             'value': entity.entity_value
                         },
-                        'classes': 'entity'
+                        'classes': entity_classes
                     })
 
                 # wasGeneratedBy edge
@@ -510,6 +534,11 @@ class ProvenanceQueryMixin:
                                 if 'title' in source_entity.entity_value:
                                     source_label = source_entity.entity_value['title'][:20] + '...' if len(str(source_entity.entity_value.get('title', ''))) > 20 else source_entity.entity_value.get('title', source_label)
 
+                            source_classes = (
+                                'entity origin'
+                                if source_id in origin_entity_ids
+                                else 'entity'
+                            )
                             nodes.append({
                                 'data': {
                                     'id': source_id,
@@ -518,7 +547,7 @@ class ProvenanceQueryMixin:
                                     'description': source_entity.entity_type,
                                     'entity_type': source_entity.entity_type
                                 },
-                                'classes': 'entity'
+                                'classes': source_classes
                             })
 
                         # wasDerivedFrom edge

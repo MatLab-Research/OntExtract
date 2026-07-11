@@ -996,8 +996,8 @@
         </div>
     </div>
 
-    <!-- Term Cards -->
-    <div id="terms-container">
+    <!-- Term Cards - Hidden until OED fetch functionality is complete -->
+    <div id="terms-container" style="display: none;">
         {% for term in terms %}
         {% set term_period_list = term_periods.get(term, time_periods) if term_periods else time_periods %}
         <div class="term-card" data-term="{{ term }}">
