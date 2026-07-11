@@ -194,7 +194,7 @@
     {% endif %}
 
     <!-- Per-Document Processing Results (Main Section - Table View) -->
-    {% if run.processing_results %}
+    {% if processing_results %}
     <div class="row mb-4">
         <div class="col-12">
             <div class="card">
@@ -214,7 +214,7 @@
                                 </tr>
                             </thead>
                             <tbody>
-                                {% for doc_id, doc_results in run.processing_results.items() %}
+                                {% for doc_id, doc_results in processing_results.items() %}
                                 {% set doc_info = document_lookup.get(doc_id, {}) %}
                                 <tr>
                                     <td>
@@ -263,7 +263,7 @@
     {% endif %}
 
     <!-- Detailed Tool Results (Collapsible) -->
-    {% if run.processing_results %}
+    {% if processing_results %}
     <div class="row mb-4">
         <div class="col-12">
             <div class="card">
@@ -278,7 +278,7 @@
                 <div class="collapse" id="detailedResults">
                     <div class="card-body">
                         <div class="accordion accordion-flush" id="toolResultsAccordion">
-                            {% for doc_id, doc_results in run.processing_results.items() %}
+                            {% for doc_id, doc_results in processing_results.items() %}
                             {% set doc_info = document_lookup.get(doc_id, {}) %}
                             <div class="accordion-item">
                                 <h2 class="accordion-header">

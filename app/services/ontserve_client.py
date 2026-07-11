@@ -252,8 +252,11 @@ class OntServeClient:
 
         except MCPClientError as e:
             logger.error(f"URI validation failed: {e}")
-            # Fallback: check if URI matches known pattern
-            return uri.startswith(self.namespace)
+            # Only accept URIs represented by the known fallback event types.
+            fallback_uris = {
+                event_type["uri"] for event_type in self._get_fallback_event_types()
+            }
+            return uri in fallback_uris
 
     def get_properties(self) -> List[Dict[str, Any]]:
         """

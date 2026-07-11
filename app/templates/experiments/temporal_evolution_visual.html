@@ -320,7 +320,8 @@
                         <div class="control-group">
                             <label>Term:</label>
                             <input type="text" class="form-control" id="searchTerm"
-                                placeholder="e.g., artificial intelligence" value="artificial intelligence">
+                                placeholder="e.g., artificial intelligence"
+                                value="{{ experiment.term.term_text if experiment and experiment.term else 'artificial intelligence' }}">
                         </div>
                     </div>
                     <div class="col-md-3">
@@ -392,25 +393,25 @@
                 <div class="row">
                     <div class="col-md-3">
                         <div class="metric-card">
-                            <div class="metric-value" id="semanticDrift">0.73</div>
+                            <div class="metric-value" id="semanticDrift">N/A</div>
                             <div class="metric-label">Semantic Drift Score</div>
                         </div>
                     </div>
                     <div class="col-md-3">
                         <div class="metric-card">
-                            <div class="metric-value" id="contextStability">42%</div>
+                            <div class="metric-value" id="contextStability">N/A</div>
                             <div class="metric-label">Context Stability</div>
                         </div>
                     </div>
                     <div class="col-md-3">
                         <div class="metric-card">
-                            <div class="metric-value" id="documentsAnalyzed">24</div>
+                            <div class="metric-value" id="documentsAnalyzed">0</div>
                             <div class="metric-label">Documents Analyzed</div>
                         </div>
                     </div>
                     <div class="col-md-3">
                         <div class="metric-card">
-                            <div class="metric-value" id="confidenceScore">89%</div>
+                            <div class="metric-value" id="confidenceScore">N/A</div>
                             <div class="metric-label">Confidence Score</div>
                         </div>
                     </div>
@@ -419,10 +420,7 @@
                 <div class="mt-3">
                     <h6>Key Findings:</h6>
                     <ul id="keyFindings">
-                        <li>Significant semantic shift detected between 2005-2010 periods</li>
-                        <li>Term usage evolved from purely academic to commercial applications</li>
-                        <li>Context stability decreased by 30% in recent decade</li>
-                        <li>New associations: "machine learning", "deep learning", "neural networks"</li>
+                        <li>Run the analysis to load stored temporal evidence.</li>
                     </ul>
                 </div>
             </div>
@@ -439,74 +437,13 @@
                 this.currentTerm = 'artificial intelligence';
                 this.timePeriods = [];
                 this.documents = {};
+                this.experimentId = {% if experiment %}{{ experiment.id }}{% else %}null{% endif %};
                 this.init();
             }
 
             init() {
-                this.generateSampleData();
-                this.renderTimeline();
                 this.setupEventHandlers();
-            }
-
-            generateSampleData() {
-                // Generate time periods from 2000 to 2024 in 5-year intervals
-                const startYear = 2000;
-                const endYear = 2024;
-                const intervalYears = 5;
-
-                this.timePeriods = [];
-                for (let year = startYear; year <= endYear; year += intervalYears) {
-                    const endPeriod = Math.min(year + intervalYears - 1, endYear);
-                    this.timePeriods.push({
-                        id: `period-${year}`,
-                        label: `${year}-${endPeriod}`,
-                        year: year,
-                        endYear: endPeriod
-                    });
-                }
-
-                // Generate sample documents for each period
-                const documentTypes = [
-                    { type: 'academic', icon: 'fa-graduation-cap', class: 'doc-type-academic' },
-                    { type: 'legal', icon: 'fa-gavel', class: 'doc-type-legal' },
-                    { type: 'technical', icon: 'fa-cogs', class: 'doc-type-technical' },
-                    { type: 'historical', icon: 'fa-book', class: 'doc-type-historical' }
-                ];
-
-                const sampleTitles = {
-                    academic: ['AI Research Paper', 'ML Theory', 'Neural Networks', 'Deep Learning', 'Computer Vision'],
-                    legal: ['AI Regulations', 'Ethics Guidelines', 'Patent Law', 'Data Protection', 'AI Rights'],
-                    technical: ['System Architecture', 'Implementation Guide', 'API Documentation', 'Performance Study', 'Technical Specs'],
-                    historical: ['Historical Context', 'Evolution of AI', 'Early Computing', 'Foundational Work', 'Timeline Analysis']
-                };
-
-                this.documents = {};
-                this.timePeriods.forEach((period, periodIndex) => {
-                    this.documents[period.id] = [];
-
-                    // Generate 3-6 documents per period
-                    const docCount = Math.floor(Math.random() * 4) + 3;
-
-                    for (let i = 0; i < docCount; i++) {
-                        const docType = documentTypes[Math.floor(Math.random() * documentTypes.length)];
-                        const titles = sampleTitles[docType.type];
-                        const title = titles[Math.floor(Math.random() * titles.length)];
-
-                        this.documents[period.id].push({
-                            id: `doc-${period.id}-${i}`,
-                            title: `${title} ${period.year + Math.floor(Math.random() * 5)}`,
-                            type: docType.type,
-                            icon: docType.icon,
-                            class: docType.class,
-                            year: period.year + Math.floor(Math.random() * 5),
-                            relevance: Math.random() * 0.5 + 0.5, // 0.5 to 1.0
-                            citations: Math.floor(Math.random() * 50) + 5
-                        });
-                    }
-
-                    // Sort documents by relevance
-                    this.documents[period.id].sort((a, b) => b.relevance - a.relevance);
-                });
+                this.runAnalysis();
             }
 
             renderTimeline() {
@@ -522,7 +459,7 @@
                 const leftMargin = 5; // 5% margin
                 const rightMargin = 5; // 5% margin
                 const availableWidth = containerWidth * (100 - leftMargin - rightMargin) / 100;
-                const periodSpacing = availableWidth / (this.timePeriods.length - 1);
+                const periodSpacing = availableWidth / Math.max(this.timePeriods.length - 1, 1);
 
                 this.timePeriods.forEach((period, index) => {
                     const leftPosition = (leftMargin / 100) * containerWidth + (index * periodSpacing);
@@ -585,7 +522,7 @@
                             <i class="fas ${doc.icon} document-icon"></i>
                             <div class="document-info">
                                 <div class="document-title">${doc.title}</div>
-                                <div class="document-meta">${doc.year} • ${doc.citations} citations</div>
+                                <div class="document-meta">${doc.year} • ${doc.citations ?? 'N/A'} citations</div>
                             </div>
                         </div>
                     `;
@@ -598,6 +535,7 @@
             }
 
             addConnectionLines() {
+                if (this.timePeriods.length < 2) return;
                 // Add SVG for connection lines
                 const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
                 svg.setAttribute('class', 'connection-line');
@@ -637,7 +575,8 @@
             }
 
             showDocumentDetails(doc) {
-                alert(`Document: ${doc.title}\nType: ${doc.type}\nYear: ${doc.year}\nCitations: ${doc.citations}\nRelevance: ${Math.round(doc.relevance * 100)}%`);
+                const relevance = doc.relevance == null ? 'N/A' : `${Math.round(doc.relevance * 100)}%`;
+                alert(`Document: ${doc.title}\nType: ${doc.type}\nYear: ${doc.year}\nCitations: ${doc.citations ?? 'N/A'}\nRelevance: ${relevance}`);
             }
 
             setupEventHandlers() {
@@ -673,21 +612,42 @@
                 console.log('Updating period length:', years);
             }
 
-            runAnalysis() {
-                // Show loading state
+            async runAnalysis() {
                 const btn = document.getElementById('analyzeBtn');
                 btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Analyzing...';
                 btn.disabled = true;
 
-                // Simulate analysis delay
-                setTimeout(() => {
-                    this.showAnalysisResults();
+                const payload = {
+                    term: document.getElementById('searchTerm').value.trim(),
+                    time_range: document.getElementById('timeRange').value,
+                    period_length: parseInt(document.getElementById('periodLength').value),
+                    experiment_id: this.experimentId
+                };
+
+                try {
+                    const response = await fetch('/temporal-visual/api/analyze', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify(payload)
+                    });
+                    const data = await response.json();
+                    if (!response.ok) {
+                        throw new Error(data.error || 'Temporal analysis failed');
+                    }
+                    this.currentTerm = data.term;
+                    this.timePeriods = data.periods;
+                    this.documents = data.documents_by_period;
+                    this.renderTimeline();
+                    this.showAnalysisResults(data.analysis_results);
+                } catch (error) {
+                    alert('Error analyzing temporal evolution: ' + error.message);
+                } finally {
                     btn.innerHTML = '<i class="fas fa-play"></i> Analyze Evolution';
                     btn.disabled = false;
-                }, 2000);
+                }
             }
 
-            showAnalysisResults() {
+            showAnalysisResults(results) {
                 const resultsDiv = document.getElementById('analysisResults');
                 resultsDiv.style.display = 'block';
 
@@ -698,11 +658,17 @@
                     resultsDiv.style.opacity = '1';
                 }, 100);
 
-                // Update metrics with random values for demo
-                document.getElementById('semanticDrift').textContent = (Math.random() * 0.5 + 0.5).toFixed(2);
-                document.getElementById('contextStability').textContent = Math.floor(Math.random() * 50 + 30) + '%';
-                document.getElementById('documentsAnalyzed').textContent = Object.values(this.documents).flat().length;
-                document.getElementById('confidenceScore').textContent = Math.floor(Math.random() * 20 + 80) + '%';
+                document.getElementById('semanticDrift').textContent = results.semantic_drift ?? 'N/A';
+                document.getElementById('contextStability').textContent = results.context_stability ?? 'N/A';
+                document.getElementById('documentsAnalyzed').textContent = results.documents_analyzed;
+                document.getElementById('confidenceScore').textContent = results.confidence_score ?? 'N/A';
+                const findings = document.getElementById('keyFindings');
+                findings.replaceChildren();
+                results.key_findings.forEach(finding => {
+                    const item = document.createElement('li');
+                    item.textContent = finding;
+                    findings.appendChild(item);
+                });
             }
         }
 

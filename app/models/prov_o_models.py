@@ -101,8 +101,13 @@ class ProvAgent(db.Model):
         return agent
     
     @classmethod
-    def get_or_create_user_agent(cls, user_id, user_metadata=None):
-        """Get or create a human user agent"""
+    def get_or_create_user_agent(
+        cls,
+        user_id,
+        user_metadata=None,
+        commit=True,
+    ):
+        """Get or create a human user agent, optionally without committing."""
         identifier = f'researcher:{user_id}'
         agent = cls.query.filter_by(foaf_name=identifier).first()
         if not agent:
@@ -112,11 +117,17 @@ class ProvAgent(db.Model):
                 agent_metadata=user_metadata or {'role': 'researcher'}
             )
             db.session.add(agent)
-            db.session.commit()
+            if commit:
+                db.session.commit()
+            else:
+                db.session.flush()
         elif agent.agent_type != 'Person':
             # Fix legacy agents that were incorrectly typed
             agent.agent_type = 'Person'
-            db.session.commit()
+            if commit:
+                db.session.commit()
+            else:
+                db.session.flush()
         return agent
 
 

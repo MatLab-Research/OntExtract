@@ -5,7 +5,7 @@ Data Transfer Objects for experiment-related operations.
 Provides validation and serialization for experiment CRUD operations.
 """
 
-from pydantic import Field, field_validator
+from pydantic import ConfigDict, Field, field_validator
 from typing import List, Optional, Dict, Any
 from datetime import datetime
 
@@ -29,16 +29,23 @@ class CreateExperimentDTO(BaseDTO):
     term_id: Optional[str] = Field(None, description="Term ID (UUID) for temporal evolution experiments")
     document_uuids: List[str] = Field(default_factory=list, description="List of document UUIDs")
     reference_uuids: List[str] = Field(default_factory=list, description="List of reference UUIDs")
+    document_ids: List[int] = Field(
+        default_factory=list,
+        description="Deprecated document integer IDs",
+    )
+    reference_ids: List[int] = Field(
+        default_factory=list,
+        description="Deprecated reference integer IDs",
+    )
     configuration: Dict[str, Any] = Field(default_factory=dict, description="Experiment configuration")
 
-    @field_validator('reference_uuids')
+    @field_validator('name')
     @classmethod
-    def validate_has_documents(cls, v, info):
-        """Ensure at least one document or reference is provided"""
-        document_uuids = info.data.get('document_uuids', [])
-        if len(document_uuids) == 0 and len(v) == 0:
-            raise ValueError('At least one document or reference must be selected')
-        return v
+    def normalize_name(cls, value):
+        value = value.strip()
+        if not value:
+            raise ValueError('Experiment name cannot be blank')
+        return value
 
     @field_validator('configuration')
     @classmethod
@@ -57,12 +64,36 @@ class UpdateExperimentDTO(BaseDTO):
     All fields are optional to allow partial updates.
     """
 
+    model_config = ConfigDict(extra='forbid')
+
     name: Optional[str] = Field(None, min_length=1, max_length=200)
     description: Optional[str] = Field(None, max_length=2000)
+    experiment_type: Optional[str] = Field(
+        None,
+        pattern="^(entity_extraction|temporal_evolution|domain_comparison)$",
+    )
     term_id: Optional[str] = Field(None, description="Term ID (UUID) for temporal evolution experiments")
     configuration: Optional[Dict[str, Any]] = None
     document_uuids: Optional[List[str]] = None
     reference_uuids: Optional[List[str]] = None
+    document_ids: Optional[List[int]] = Field(
+        None,
+        description="Deprecated document integer IDs",
+    )
+    reference_ids: Optional[List[int]] = Field(
+        None,
+        description="Deprecated reference integer IDs",
+    )
+
+    @field_validator('name')
+    @classmethod
+    def normalize_name(cls, value):
+        if value is None:
+            return value
+        value = value.strip()
+        if not value:
+            raise ValueError('Experiment name cannot be blank')
+        return value
 
 
 class ExperimentResponseDTO(ResponseDTO):

@@ -9,7 +9,7 @@ import sys
 import os
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-from app.services.integrated_langextract_service import IntegratedLangExtractService
+from app.services.integrated_langextract import IntegratedLangExtractService
 
 def test_orchestration():
     """Test that LLM orchestration is functional"""

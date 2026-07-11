@@ -390,11 +390,6 @@
             </div>
 
             <!-- Document Embeddings -->
-            {% set embeddings = document.embeddings if document.embeddings is defined else [] %}
-            {% if not embeddings %}
-            {% set embeddings_query = "SELECT * FROM document_embeddings WHERE document_id = " ~ document.id ~ " ORDER
-            BY created_at DESC" %}
-            {% endif %}
             <div class="card mb-4">
                 <div class="card-header d-flex justify-content-between align-items-center">
                     <h5 class="mb-0">

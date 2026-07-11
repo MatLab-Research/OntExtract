@@ -12,7 +12,14 @@ from datetime import datetime
 
 from app import db
 from app.models import Experiment
-from app.services.base_service import BaseService, ServiceError, NotFoundError, ValidationError
+from app.models.user import User
+from app.services.base_service import (
+    BaseService,
+    NotFoundError,
+    PermissionError,
+    ServiceError,
+    ValidationError,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -76,18 +83,23 @@ class TermService(BaseService):
                 'definitions': definitions
             }
 
-        except (NotFoundError, ValidationError):
+        except (NotFoundError, PermissionError, ValidationError):
             raise
         except Exception as e:
             logger.error(f"Failed to get term configuration for experiment {experiment_id}: {e}", exc_info=True)
             raise ServiceError(f"Failed to get term configuration: {str(e)}") from e
+
+    def get_experiment(self, experiment_id: int) -> Experiment:
+        """Return an experiment used by the term manager presentation layer."""
+        return self._get_experiment(experiment_id)
 
     def update_term_configuration(
         self,
         experiment_id: int,
         terms: List[str],
         domains: List[str],
-        definitions: Optional[Dict[str, Any]] = None
+        definitions: Optional[Dict[str, Any]] = None,
+        actor_id: Optional[int] = None,
     ) -> Experiment:
         """
         Update term configuration for an experiment
@@ -108,6 +120,7 @@ class TermService(BaseService):
         """
         try:
             experiment = self._get_experiment(experiment_id)
+            self._require_edit_permission(experiment, actor_id)
 
             # Validate experiment type
             if experiment.experiment_type != 'domain_comparison':
@@ -121,6 +134,11 @@ class TermService(BaseService):
 
             if not isinstance(domains, list):
                 raise ValidationError('Domains must be a list')
+
+            terms = self._normalize_strings(terms, 'Terms')
+            domains = self._normalize_strings(domains, 'Domains')
+            if definitions is not None and not isinstance(definitions, dict):
+                raise ValidationError('Definitions must be an object')
 
             # Parse existing configuration
             config = self._parse_configuration(experiment)
@@ -144,7 +162,7 @@ class TermService(BaseService):
 
             return experiment
 
-        except (NotFoundError, ValidationError):
+        except (NotFoundError, PermissionError, ValidationError):
             raise
         except Exception as e:
             self.rollback()
@@ -155,7 +173,8 @@ class TermService(BaseService):
         self,
         experiment_id: int,
         term: str,
-        domains: List[str]
+        domains: List[str],
+        actor_id: Optional[int] = None,
     ) -> Dict[str, Any]:
         """
         Fetch definitions for a term from references and ontologies
@@ -175,11 +194,14 @@ class TermService(BaseService):
         """
         try:
             experiment = self._get_experiment(experiment_id)
+            self._require_edit_permission(experiment, actor_id)
 
-            # Validate inputs
+            term = term.strip() if isinstance(term, str) else ''
             if not term:
                 raise ValidationError('Term is required')
-
+            if not isinstance(domains, list):
+                raise ValidationError('Domains must be a list')
+            domains = self._normalize_strings(domains, 'Domains')
             if not domains:
                 raise ValidationError('At least one domain is required')
 
@@ -215,7 +237,7 @@ class TermService(BaseService):
                 'ontology_mappings': ontology_mappings
             }
 
-        except (NotFoundError, ValidationError):
+        except (NotFoundError, PermissionError, ValidationError):
             raise
         except Exception as e:
             logger.error(f"Failed to fetch definitions for experiment {experiment_id}: {e}", exc_info=True)
@@ -256,11 +278,37 @@ class TermService(BaseService):
         if not experiment.configuration:
             return {}
 
+        if isinstance(experiment.configuration, dict):
+            return dict(experiment.configuration)
+
         try:
             return json.loads(experiment.configuration)
         except (json.JSONDecodeError, TypeError):
             logger.warning(f"Failed to parse configuration for experiment {experiment.id}")
             return {}
+
+    @staticmethod
+    def _normalize_strings(values, field_name):
+        normalized = []
+        seen = set()
+        for value in values:
+            if not isinstance(value, str):
+                raise ValidationError(f'All {field_name.lower()} must be strings')
+            value = value.strip()
+            if not value:
+                raise ValidationError(f'{field_name} cannot contain blank values')
+            if value not in seen:
+                seen.add(value)
+                normalized.append(value)
+        return normalized
+
+    @staticmethod
+    def _require_edit_permission(experiment, actor_id):
+        if actor_id is None:
+            return
+        actor = db.session.get(User, actor_id)
+        if not actor or not actor.can_edit_resource(experiment):
+            raise PermissionError('Permission denied')
 
     def _search_references_for_term(
         self,

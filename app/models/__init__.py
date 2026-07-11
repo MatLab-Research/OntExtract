@@ -26,6 +26,10 @@ from .term import Term, TermVersion, FuzzinessAdjustment
 from .context_anchor import ContextAnchor
 from .semantic_drift import SemanticDriftActivity, AnalysisAgent, ProvenanceChain
 
+# Legacy provenance tables are still used by bulk deletion and compatibility routes.
+# Register them centrally so schema creation never depends on route import side effects.
+from .provenance import ProvenanceActivity, ProvenanceEntity
+
 # Settings and prompt templates
 from .app_settings import AppSetting
 from .prompt_template import PromptTemplate
@@ -71,6 +75,8 @@ __all__ = [
     'SemanticDriftActivity',
     'AnalysisAgent',
     'ProvenanceChain',
+    'ProvenanceActivity',
+    'ProvenanceEntity',
     # Settings and templates
     'AppSetting',
     'PromptTemplate',
