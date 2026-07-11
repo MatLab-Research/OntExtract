@@ -1,5 +1,6 @@
 """Regression coverage for transactional dictionary-reference creation."""
 
+from datetime import datetime
 from types import SimpleNamespace
 
 import pytest
@@ -389,3 +390,176 @@ def test_dictionary_route_requires_authentication(app):
         'content': 'Definition.',
     })
     assert response.status_code == 401
+
+
+@pytest.mark.parametrize(
+    ('source', 'subtype', 'publisher', 'dictionary_name'),
+    [
+        (
+            'MW',
+            'dictionary_mw',
+            'Merriam-Webster, Incorporated',
+            'Merriam-Webster Dictionary',
+        ),
+        (
+            'OED',
+            'dictionary_oed',
+            'Oxford University Press',
+            'Oxford English Dictionary',
+        ),
+    ],
+)
+def test_quick_reference_preserves_raw_definition_and_source_metadata(
+    db_session,
+    test_user,
+    source,
+    subtype,
+    publisher,
+    dictionary_name,
+):
+    from app.services.dictionary_reference_creation_service import (
+        DictionaryReferenceCreationService,
+    )
+
+    now = datetime(2026, 7, 10, 15, 30, 0)
+    provenance = ProvenanceRecorder()
+    service = DictionaryReferenceCreationService(
+        provenance_service=provenance,
+        clock=lambda: now,
+    )
+    result = service.create_quick({
+        'title': '  agency\x00  ',
+        'content': '  The capacity to act.\x00  ',
+        'source': source.lower(),
+        'source_type': 'dictionary',
+        'term': ' agency ',
+        'entry_url': ' https://example.test/agency ',
+    }, test_user.id)
+
+    document = result.document
+    assert document.title == 'agency'
+    assert document.content == 'The capacity to act.'
+    assert document.reference_subtype == subtype
+    assert document.publisher == publisher
+    assert document.access_date.isoformat() == '2026-07-10'
+    assert document.created_at == now
+    assert document.source_metadata == {
+        'source_type': 'dictionary',
+        'term': 'agency',
+        'entry_url': 'https://example.test/agency',
+        'access_date': '2026-07-10',
+        'publisher': publisher,
+        'publisher_location': (
+            'Springfield, MA' if source == 'MW' else 'Oxford, UK'
+        ),
+        'dictionary_name': dictionary_name,
+        'citation': (
+            f'"agency." {dictionary_name}, {publisher}. '
+            'Accessed 10 Jul 2026.'
+        ),
+    }
+    assert document.citation == document.source_metadata['citation']
+    assert provenance.calls[0]['source'] == source
+    assert provenance.calls[0]['document'] is document
+
+
+def test_quick_reference_links_atomically_for_owner_and_admin(
+    db_session, test_user, admin_user, temporal_experiment
+):
+    from app.models.experiment import experiment_references
+
+    payload = {
+        'title': 'Linked quick reference',
+        'content': 'Definition.',
+        'source': 'MW',
+        'experiment_id': temporal_experiment.id,
+        'include_in_analysis': True,
+    }
+    owner_result = _service().create_quick(payload, test_user.id)
+    admin_result = _service().create_quick(payload, admin_user.id)
+    rows = db_session.execute(
+        experiment_references.select().where(
+            experiment_references.c.reference_id.in_([
+                owner_result.document.id,
+                admin_result.document.id,
+            ])
+        )
+    ).mappings().all()
+    assert {row['experiment_id'] for row in rows} == {temporal_experiment.id}
+    assert all(row['include_in_analysis'] is True for row in rows)
+    assert owner_result.document.user_id == test_user.id
+    assert admin_result.document.user_id == admin_user.id
+
+
+def test_quick_reference_rejects_foreign_or_missing_experiment_before_write(
+    db_session, test_user, temporal_experiment
+):
+    from app.models.document import Document
+    from app.services.base_service import NotFoundError, PermissionError
+
+    stranger = _user(db_session, 'quick-stranger')
+    baseline = Document.query.count()
+    payload = {
+        'title': 'Rejected quick reference',
+        'content': 'Definition.',
+        'source': 'OED',
+        'experiment_id': temporal_experiment.id,
+    }
+    with pytest.raises(PermissionError):
+        _service().create_quick(payload, stranger.id)
+    with pytest.raises(NotFoundError):
+        _service().create_quick(
+            {**payload, 'experiment_id': 999999},
+            test_user.id,
+        )
+    assert Document.query.count() == baseline
+
+
+@pytest.mark.parametrize(
+    ('payload', 'message'),
+    [
+        (None, 'Invalid JSON payload'),
+        ({}, 'Title and content are required'),
+        (
+            {'title': 'Title', 'content': 'Definition', 'source': 'other'},
+            'Unsupported reference source',
+        ),
+    ],
+)
+def test_quick_reference_validates_payload_before_write(
+    db_session, test_user, payload, message
+):
+    from app.models.document import Document
+    from app.services.base_service import ValidationError
+
+    baseline = Document.query.count()
+    with pytest.raises(ValidationError, match=message):
+        _service().create_quick(payload, test_user.id)
+    assert Document.query.count() == baseline
+
+
+def test_quick_reference_link_failure_rolls_back_document(
+    db_session, test_user, temporal_experiment, monkeypatch
+):
+    from app.models.document import Document
+    from app.services.base_service import ServiceError
+    from app.services.dictionary_reference_creation_service import (
+        DictionaryReferenceCreationService,
+    )
+
+    baseline = Document.query.count()
+    monkeypatch.setattr(
+        DictionaryReferenceCreationService,
+        '_link_experiment',
+        staticmethod(lambda *args: (_ for _ in ()).throw(
+            RuntimeError('forced quick link failure')
+        )),
+    )
+    with pytest.raises(ServiceError, match='Failed to save dictionary reference'):
+        _service().create_quick({
+            'title': 'Rolled back quick reference',
+            'content': 'Definition.',
+            'source': 'MW',
+            'experiment_id': temporal_experiment.id,
+        }, test_user.id)
+    assert Document.query.count() == baseline

@@ -305,3 +305,107 @@ def test_create_reference_requires_title_and_content(auth_client, payload):
         "success": False,
         "error": "Title and content are required",
     }
+
+
+def test_create_reference_returns_compatible_success_payload(
+    auth_client, db_session, test_user, monkeypatch
+):
+    from app.models.document import Document
+    from app.routes.upload import references
+
+    monkeypatch.setattr(
+        references,
+        'provenance_service',
+        SimpleNamespace(track_reference_creation=lambda **kwargs: None),
+    )
+    response = auth_client.post('/upload/create_reference', json={
+        'title': 'Quick MW reference',
+        'content': 'A concise definition.',
+        'source': 'MW',
+        'source_type': 'dictionary',
+        'term': 'agency',
+        'entry_url': 'https://www.merriam-webster.com/dictionary/agency',
+    })
+    payload = response.get_json()
+    document = db_session.get(Document, payload['document_id'])
+    assert response.status_code == 200
+    assert payload == {
+        'success': True,
+        'document_id': document.id,
+        'document_uuid': str(document.uuid),
+        'metadata_filled': True,
+    }
+    assert document.user_id == test_user.id
+    assert document.content == 'A concise definition.'
+
+
+def test_create_reference_route_maps_source_experiment_and_service_errors(
+    auth_client, db_session, monkeypatch
+):
+    from app.models.experiment import Experiment
+    from app.models.user import User
+    from app.routes.upload import references
+    from app.services.base_service import ServiceError
+
+    invalid_source = auth_client.post('/upload/create_reference', json={
+        'title': 'Invalid source',
+        'content': 'Definition.',
+        'source': 'unknown',
+    })
+    missing_experiment = auth_client.post('/upload/create_reference', json={
+        'title': 'Missing experiment',
+        'content': 'Definition.',
+        'source': 'MW',
+        'experiment_id': 999999,
+    })
+    owner = User(
+        username='quick-reference-owner',
+        email='quick-reference-owner@example.com',
+        password='password',
+        account_status='active',
+    )
+    db_session.add(owner)
+    db_session.flush()
+    experiment = Experiment(
+        name='Quick foreign experiment',
+        experiment_type='temporal_evolution',
+        user_id=owner.id,
+        status='draft',
+    )
+    db_session.add(experiment)
+    db_session.commit()
+    forbidden = auth_client.post('/upload/create_reference', json={
+        'title': 'Forbidden experiment',
+        'content': 'Definition.',
+        'source': 'OED',
+        'experiment_id': experiment.id,
+    })
+    monkeypatch.setattr(
+        references,
+        '_service',
+        lambda: SimpleNamespace(
+            create_quick=lambda *args: (_ for _ in ()).throw(
+                ServiceError('secret database failure')
+            )
+        ),
+    )
+    failure = auth_client.post('/upload/create_reference', json={
+        'title': 'Failure',
+        'content': 'Definition.',
+        'source': 'MW',
+    })
+    assert invalid_source.status_code == 400
+    assert missing_experiment.status_code == 404
+    assert forbidden.status_code == 403
+    assert failure.status_code == 500
+    assert failure.get_json()['error'] == 'Failed to create reference'
+    assert 'secret' not in str(failure.get_json())
+
+
+def test_create_reference_requires_authentication(app):
+    response = app.test_client().post('/upload/create_reference', json={
+        'title': 'Anonymous',
+        'content': 'Definition.',
+        'source': 'MW',
+    })
+    assert response.status_code == 302

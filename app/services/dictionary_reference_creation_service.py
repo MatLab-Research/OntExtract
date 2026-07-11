@@ -1,6 +1,7 @@
 """Validated dictionary and pasted-reference creation workflow."""
 
 from dataclasses import dataclass
+from datetime import datetime
 
 from app import db
 from app.models.document import Document
@@ -43,9 +44,15 @@ class DictionaryReferenceCreationService:
     )
     GENERAL_FIELDS = ('journal', 'context', 'synonyms', 'url', 'citation')
 
-    def __init__(self, provenance_service=None, workflow_logger=None):
+    def __init__(
+        self,
+        provenance_service=None,
+        workflow_logger=None,
+        clock=None,
+    ):
         self.provenance_service = provenance_service
         self.logger = workflow_logger
+        self.clock = clock or datetime.utcnow
 
     def create(self, form, actor_id):
         actor = db.session.get(User, actor_id)
@@ -83,32 +90,98 @@ class DictionaryReferenceCreationService:
             word_count=len(formatted_content.split()),
             character_count=len(formatted_content),
         )
-        try:
-            with db.session.begin_nested():
-                db.session.add(document)
-                db.session.flush()
-                if experiment:
-                    self._link_experiment(
-                        document,
-                        experiment,
-                        include_in_analysis,
-                    )
-            db.session.commit()
-        except Exception as exc:
-            if not db.session.is_active:
-                db.session.rollback()
-            raise ServiceError('Failed to save dictionary reference') from exc
+        self._persist(document, experiment, include_in_analysis)
         self._track_best_effort(document, actor, experiment, metadata)
         return DictionaryReferenceResult(document, experiment)
 
-    def _track_best_effort(self, document, actor, experiment, metadata):
+    def create_quick(self, data, actor_id):
+        if not isinstance(data, dict):
+            raise ValidationError('Invalid JSON payload')
+        actor = db.session.get(User, actor_id)
+        if not actor:
+            raise PermissionError('Permission denied')
+        title = self._text(data.get('title'), 200)
+        content = self._text(data.get('content'), 1_000_000)
+        if not title or not content:
+            raise ValidationError('Title and content are required')
+        source = self._text(data.get('source'), 20).upper()
+        if source not in {'MW', 'OED'}:
+            raise ValidationError('Unsupported reference source')
+        experiment = self._experiment(data.get('experiment_id'), actor)
+        now = self.clock()
+        term = self._text(data.get('term'), 200)
+        entry_url = self._text(data.get('entry_url'), 500)
+        source_type = self._text(
+            data.get('source_type') or 'dictionary',
+            30,
+        )
+        publisher, location, dictionary_name = self._source_details(source)
+        citation = (
+            f'"{term or title}." {dictionary_name}, {publisher}. '
+            f'Accessed {now.strftime("%d %b %Y")}.'
+        )
+        metadata = {
+            'source_type': source_type,
+            'term': term,
+            'entry_url': entry_url,
+            'access_date': now.strftime('%Y-%m-%d'),
+            'publisher': publisher,
+            'publisher_location': location,
+            'dictionary_name': dictionary_name,
+            'citation': citation,
+        }
+        metadata = {key: value for key, value in metadata.items() if value}
+        document = Document(
+            title=title,
+            content=content,
+            content_preview=content[:500] + ('...' if len(content) > 500 else ''),
+            document_type='reference',
+            reference_subtype=(
+                'dictionary_mw' if source == 'MW' else 'dictionary_oed'
+            ),
+            publisher=publisher,
+            citation=citation,
+            source_metadata=metadata,
+            access_date=now.date(),
+            user_id=actor.id,
+            content_type='text',
+            status='completed',
+            word_count=len(content.split()),
+            character_count=len(content),
+            created_at=now,
+        )
+        self._persist(
+            document,
+            experiment,
+            self._boolean(data.get('include_in_analysis')),
+        )
+        self._track_best_effort(
+            document,
+            actor,
+            experiment,
+            metadata,
+            source=source,
+        )
+        return DictionaryReferenceResult(document, experiment)
+
+    def _track_best_effort(
+        self,
+        document,
+        actor,
+        experiment,
+        metadata,
+        source=None,
+    ):
         if not self.provenance_service:
             return
         try:
             self.provenance_service.track_reference_creation(
                 document=document,
                 user=actor,
-                source=self._source(document.reference_subtype, metadata),
+                source=(
+                    source
+                    or self._source(document.reference_subtype, metadata)
+                ),
                 experiment=experiment,
                 source_metadata=metadata,
             )
@@ -120,6 +193,24 @@ class DictionaryReferenceCreationService:
                     'Failed to track dictionary reference provenance: %s',
                     exc,
                 )
+
+    @staticmethod
+    def _persist(document, experiment, include_in_analysis):
+        try:
+            with db.session.begin_nested():
+                db.session.add(document)
+                db.session.flush()
+                if experiment:
+                    DictionaryReferenceCreationService._link_experiment(
+                        document,
+                        experiment,
+                        include_in_analysis,
+                    )
+            db.session.commit()
+        except Exception as exc:
+            if not db.session.is_active:
+                db.session.rollback()
+            raise ServiceError('Failed to save dictionary reference') from exc
 
     @staticmethod
     def _link_experiment(document, experiment, include_in_analysis):
@@ -175,6 +266,20 @@ class DictionaryReferenceCreationService:
         if subtype in {'dictionary_mw', 'thesaurus_mw'}:
             return 'MW'
         return metadata.get('journal') or 'manual'
+
+    @staticmethod
+    def _source_details(source):
+        if source == 'MW':
+            return (
+                'Merriam-Webster, Incorporated',
+                'Springfield, MA',
+                'Merriam-Webster Dictionary',
+            )
+        return (
+            'Oxford University Press',
+            'Oxford, UK',
+            'Oxford English Dictionary',
+        )
 
     @classmethod
     def _required(cls, value, message, limit):
