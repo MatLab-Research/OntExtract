@@ -3,8 +3,7 @@
 from flask import current_app, jsonify, request
 from flask_login import current_user
 
-from app import db
-from app.services.base_service import NotFoundError, ValidationError
+from app.services.base_service import NotFoundError, PermissionError, ValidationError
 from app.services.document_embedding_workflow import DocumentEmbeddingWorkflow
 from app.utils.auth_decorators import api_require_login_for_write
 
@@ -20,18 +19,22 @@ def generate_embeddings(document_uuid):
         document = workflow.get_document(document_uuid)
         result = workflow.generate(
             document,
-            request.get_json(silent=True),
+            request.get_json(silent=True) or {},
             current_user,
         )
         return jsonify(result)
     except NotFoundError as exc:
         return jsonify({'success': False, 'error': str(exc)}), 404
+    except PermissionError:
+        return jsonify({'success': False, 'error': 'Permission denied'}), 403
     except ValidationError as exc:
         return jsonify({'success': False, 'error': str(exc)}), 400
     except Exception as exc:
-        db.session.rollback()
         current_app.logger.error(
             f'Embedding generation failed: {exc}',
             exc_info=True,
         )
-        return jsonify({'success': False, 'error': str(exc)}), 500
+        return jsonify({
+            'success': False,
+            'error': 'Embedding generation failed',
+        }), 500

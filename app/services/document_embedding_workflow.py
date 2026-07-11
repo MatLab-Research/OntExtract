@@ -7,8 +7,9 @@ from uuid import UUID
 
 from app import db
 from app.models.document import Document
+from app.models.experiment import Experiment
 from app.models.processing_job import ProcessingJob
-from app.services.base_service import NotFoundError, ValidationError
+from app.services.base_service import NotFoundError, PermissionError, ValidationError
 from app.services.inheritance_versioning_service import InheritanceVersioningService
 
 
@@ -55,7 +56,11 @@ class DocumentEmbeddingWorkflow:
         return document
 
     def generate(self, original_document, data, user):
-        data = data or {}
+        if not isinstance(data, dict):
+            raise ValidationError('Invalid embedding request')
+        root_document = original_document.get_root_document()
+        if not user or not user.can_edit_resource(root_document):
+            raise PermissionError('Permission denied')
         method = data.get('method', 'local')
         if method not in self.AVAILABLE_METHODS:
             raise ValidationError(
@@ -68,6 +73,16 @@ class DocumentEmbeddingWorkflow:
             )
 
         experiment_id = data.get('experiment_id')
+        if experiment_id not in (None, ''):
+            try:
+                experiment_id = int(experiment_id)
+            except (TypeError, ValueError) as exc:
+                raise NotFoundError('Experiment not found') from exc
+            experiment = db.session.get(Experiment, experiment_id)
+            if not experiment:
+                raise NotFoundError('Experiment not found')
+            if not user.can_edit_resource(experiment):
+                raise PermissionError('Permission denied')
         processing_metadata = self._processing_metadata(method, experiment_id, data)
         processing_version = self._processing_version(
             original_document,
@@ -134,6 +149,15 @@ class DocumentEmbeddingWorkflow:
                 f'(version {processing_version.version_number} with inherited '
                 'processing)'
             ),
+            'embedding_info': {
+                'type': (
+                    'chunked' if result['chunk_count'] > 1 else 'single'
+                ),
+                'chunks': result['chunk_count'],
+                'chunk_size': self.MAX_CHUNK_LENGTH,
+                'model': result['model_used'],
+                'dimension': result['embedding_dimensions'],
+            },
             'redirect_url': f'/input/document/{processing_version.id}',
         }
 

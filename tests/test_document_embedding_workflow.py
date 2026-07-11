@@ -220,3 +220,225 @@ def test_embedding_route_maps_validation_and_not_found(auth_client):
 
     assert invalid_method.status_code == 404
     assert missing.status_code == 404
+
+
+def test_embedding_workflow_requires_document_and_experiment_permissions(
+    db_session, sample_document, test_user, admin_user, temporal_experiment
+):
+    import pytest
+
+    from app.services.base_service import PermissionError
+
+    stranger = type(test_user)(
+        username='embedding-stranger',
+        email='embedding-stranger@example.com',
+        password='password',
+        account_status='active',
+    )
+    db_session.add(stranger)
+    db_session.commit()
+    calls = []
+    workflow = _workflow(calls)
+    with pytest.raises(PermissionError):
+        workflow.generate(sample_document, {'method': 'local'}, stranger)
+    with pytest.raises(PermissionError):
+        workflow.generate(
+            sample_document,
+            {'method': 'local', 'experiment_id': temporal_experiment.id},
+            stranger,
+        )
+    result = workflow.generate(sample_document, {'method': 'local'}, admin_user)
+    assert result['success'] is True
+
+
+def test_embedding_workflow_rejects_missing_or_invalid_experiment_before_writes(
+    db_session, sample_document, test_user
+):
+    import pytest
+
+    from app.models.document import Document
+    from app.models.processing_job import ProcessingJob
+    from app.services.base_service import NotFoundError
+
+    baseline_documents = Document.query.count()
+    baseline_jobs = ProcessingJob.query.count()
+    for experiment_id in ('not-an-id', 999999):
+        with pytest.raises(NotFoundError, match='Experiment not found'):
+            _workflow([]).generate(
+                sample_document,
+                {'method': 'local', 'experiment_id': experiment_id},
+                test_user,
+            )
+    assert Document.query.count() == baseline_documents
+    assert ProcessingJob.query.count() == baseline_jobs
+
+
+def test_embedding_result_includes_compatibility_summary(
+    sample_document, test_user
+):
+    result = _workflow([]).generate(
+        sample_document,
+        {'method': 'local'},
+        test_user,
+    )
+    assert result['embedding_info'] == {
+        'type': 'single',
+        'chunks': 1,
+        'chunk_size': 8000,
+        'model': 'fake:model',
+        'dimension': 3,
+    }
+
+
+def test_embedding_routes_require_owner_or_admin(
+    app, db_session, sample_document
+):
+    from app.models.user import User
+
+    stranger = User(
+        username='embedding-route-stranger',
+        email='embedding-route-stranger@example.com',
+        password='password',
+        account_status='active',
+    )
+    db_session.add(stranger)
+    db_session.commit()
+    client = app.test_client()
+    with client.session_transaction() as session:
+        session['_user_id'] = str(stranger.id)
+        session['_fresh'] = True
+    canonical = client.post(
+        f'/process/document/{sample_document.uuid}/embeddings',
+        json={'method': 'local'},
+    )
+    legacy = client.post(
+        f'/input/documents/{sample_document.id}/apply_embeddings'
+    )
+    assert canonical.status_code == 403
+    assert legacy.status_code == 403
+
+
+def test_legacy_embedding_route_delegates_and_preserves_response(
+    auth_client, test_user, sample_document, monkeypatch
+):
+    from app.routes.text_input import processing
+
+    calls = []
+
+    class Workflow:
+        def __init__(self, workflow_logger):
+            self.logger = workflow_logger
+
+        @staticmethod
+        def get_document(document_id):
+            calls.append(('lookup', document_id))
+            return sample_document
+
+        @staticmethod
+        def generate(document, data, user):
+            calls.append(('generate', document.id, data, user.id))
+            return {
+                'embedding_info': {
+                    'type': 'single',
+                    'chunks': 1,
+                    'chunk_size': 8000,
+                    'model': 'fake:model',
+                    'dimension': 3,
+                }
+            }
+
+    monkeypatch.setattr(processing, 'DocumentEmbeddingWorkflow', Workflow)
+    response = auth_client.post(
+        f'/input/documents/{sample_document.id}/apply_embeddings'
+    )
+    assert response.status_code == 200
+    assert response.get_json() == {
+        'success': True,
+        'message': 'Embeddings applied successfully',
+        'embedding_info': {
+            'type': 'single',
+            'chunks': 1,
+            'chunk_size': 8000,
+            'model': 'fake:model',
+            'dimension': 3,
+        },
+    }
+    assert calls == [
+        ('lookup', sample_document.id),
+        ('generate', sample_document.id, {'method': 'local'}, test_user.id),
+    ]
+
+
+def test_canonical_embedding_route_defaults_missing_json_to_local(
+    auth_client, test_user, sample_document, monkeypatch
+):
+    from app.routes.processing import embeddings
+
+    calls = []
+
+    class Workflow:
+        def __init__(self, workflow_logger):
+            pass
+
+        @staticmethod
+        def get_document(identifier):
+            return sample_document
+
+        @staticmethod
+        def generate(document, data, user):
+            calls.append((document.id, data, user.id))
+            return {'success': True, 'method': data.get('method', 'local')}
+
+    monkeypatch.setattr(embeddings, 'DocumentEmbeddingWorkflow', Workflow)
+    response = auth_client.post(
+        f'/process/document/{sample_document.uuid}/embeddings'
+    )
+    assert response.status_code == 200
+    assert response.get_json()['method'] == 'local'
+    assert calls == [(sample_document.id, {}, test_user.id)]
+
+
+def test_embedding_routes_hide_provider_errors(
+    auth_client, sample_document, monkeypatch
+):
+    from app.routes.processing import embeddings
+    from app.routes.text_input import processing
+
+    class Failure:
+        def __init__(self, workflow_logger):
+            pass
+
+        @staticmethod
+        def get_document(identifier):
+            return sample_document
+
+        @staticmethod
+        def generate(*args):
+            raise RuntimeError('secret provider details')
+
+    monkeypatch.setattr(embeddings, 'DocumentEmbeddingWorkflow', Failure)
+    monkeypatch.setattr(processing, 'DocumentEmbeddingWorkflow', Failure)
+    canonical = auth_client.post(
+        f'/process/document/{sample_document.uuid}/embeddings',
+        json={'method': 'local'},
+    )
+    legacy = auth_client.post(
+        f'/input/documents/{sample_document.id}/apply_embeddings'
+    )
+    assert canonical.status_code == 500
+    assert canonical.get_json()['error'] == 'Embedding generation failed'
+    assert legacy.status_code == 500
+    assert legacy.get_json()['error'] == 'Failed to generate embeddings'
+    assert 'secret' not in str(canonical.get_json())
+    assert 'secret' not in str(legacy.get_json())
+
+
+def test_embedding_routes_require_authentication(app, sample_document):
+    client = app.test_client()
+    assert client.post(
+        f'/process/document/{sample_document.uuid}/embeddings',
+        json={'method': 'local'},
+    ).status_code == 401
+    assert client.post(
+        f'/input/documents/{sample_document.id}/apply_embeddings'
+    ).status_code == 302
