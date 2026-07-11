@@ -3,9 +3,15 @@
 import logging
 from typing import Any, Dict
 
-from app.models import Document, Experiment, ExperimentDocument, ExperimentOrchestrationRun
+from app.models import Document, ExperimentDocument, ExperimentOrchestrationRun
 from app.models.experiment_processing import ExperimentDocumentProcessing, DocumentProcessingIndex
-from app.services.base_service import NotFoundError, ServiceError, ValidationError
+from app.services.base_service import (
+    NotFoundError,
+    PermissionError,
+    ServiceError,
+    ValidationError,
+)
+from app.services.pipeline_access_service import PipelineAccessService
 
 from .constants import LLM_TOOL_TO_OPERATION_MAP
 
@@ -13,7 +19,11 @@ logger = logging.getLogger(__name__)
 
 
 class PipelineOverviewMixin:
-    def get_pipeline_overview(self, experiment_id: int) -> Dict[str, Any]:
+    def get_pipeline_overview(
+        self,
+        experiment_id: int,
+        actor_id: int,
+    ) -> Dict[str, Any]:
         """
         Get pipeline overview data
 
@@ -28,9 +38,7 @@ class PipelineOverviewMixin:
             ServiceError: On other errors
         """
         try:
-            experiment = Experiment.query.filter_by(id=experiment_id).first()
-            if not experiment:
-                raise NotFoundError(f"Experiment {experiment_id} not found")
+            experiment = PipelineAccessService.experiment(experiment_id, actor_id)
 
             # Get most recent orchestration run for this experiment
             orchestration_run = ExperimentOrchestrationRun.query.filter_by(
@@ -219,13 +227,18 @@ class PipelineOverviewMixin:
                 'orchestration_run': orchestration_run  # Include for attribution/display
             }
 
-        except NotFoundError:
+        except (NotFoundError, PermissionError):
             raise
         except Exception as e:
             logger.error(f"Error getting pipeline overview for experiment {experiment_id}: {e}", exc_info=True)
             raise ServiceError(f"Failed to get pipeline overview: {str(e)}")
 
-    def get_process_document_data(self, experiment_id: int, document_id: int) -> Dict[str, Any]:
+    def get_process_document_data(
+        self,
+        experiment_id: int,
+        document_id: int,
+        actor_id: int,
+    ) -> Dict[str, Any]:
         """
         Get data for processing a specific document
 
@@ -242,17 +255,12 @@ class PipelineOverviewMixin:
             ServiceError: On other errors
         """
         try:
-            experiment = Experiment.query.filter_by(id=experiment_id).first()
-            if not experiment:
-                raise NotFoundError(f"Experiment {experiment_id} not found")
-
-            # Get the experiment-document association
-            exp_doc = ExperimentDocument.query.filter_by(
-                experiment_id=experiment_id,
-                document_id=document_id
-            ).first()
-            if not exp_doc:
-                raise NotFoundError(f"Document {document_id} not found in experiment {experiment_id}")
+            experiment = PipelineAccessService.experiment(experiment_id, actor_id)
+            exp_doc = PipelineAccessService.document_in_experiment(
+                experiment_id,
+                document_id,
+                actor_id,
+            )
 
             document = exp_doc.document
 
@@ -391,7 +399,7 @@ class PipelineOverviewMixin:
                 'has_cleanup': has_cleanup
             }
 
-        except (NotFoundError, ValidationError):
+        except (NotFoundError, PermissionError, ValidationError):
             raise
         except Exception as e:
             logger.error(f"Error getting document processing data: {e}", exc_info=True)

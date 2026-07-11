@@ -3,9 +3,15 @@
 import logging
 
 from flask import abort, flash, redirect, render_template, url_for
+from flask_login import current_user, login_required
 
-from app.models import Document
-from app.services.base_service import NotFoundError, ServiceError, ValidationError
+from app.services.base_service import (
+    NotFoundError,
+    PermissionError,
+    ServiceError,
+    ValidationError,
+)
+from app.services.pipeline_access_service import PipelineAccessService
 
 from .. import experiments_bp
 from . import pipeline_service
@@ -15,10 +21,14 @@ logger = logging.getLogger(__name__)
 
 
 @experiments_bp.route('/<int:experiment_id>/document_pipeline')
+@login_required
 def document_pipeline(experiment_id):
     """Render the experiment document-processing overview."""
     try:
-        data = pipeline_service.get_pipeline_overview(experiment_id)
+        data = pipeline_service.get_pipeline_overview(
+            experiment_id,
+            current_user.id,
+        )
         return render_template(
             'experiments/document_pipeline.html',
             experiment=data['experiment'],
@@ -31,6 +41,8 @@ def document_pipeline(experiment_id):
     except NotFoundError as exc:
         logger.warning(f"Experiment {experiment_id} not found: {exc}")
         abort(404)
+    except PermissionError:
+        abort(403)
     except ServiceError as exc:
         logger.error(
             f"Service error getting pipeline overview: {exc}",
@@ -40,13 +52,19 @@ def document_pipeline(experiment_id):
 
 
 @experiments_bp.route('/<int:experiment_id>/process_document/<uuid:document_uuid>')
+@login_required
 def process_document(experiment_id, document_uuid):
     """Render processing controls for one experiment document."""
-    document = Document.query.filter_by(uuid=document_uuid).first_or_404()
     try:
+        document = PipelineAccessService.document_uuid_in_experiment(
+            experiment_id,
+            document_uuid,
+            current_user.id,
+        )
         data = pipeline_service.get_process_document_data(
             experiment_id,
             document.id,
+            current_user.id,
         )
         operations = data['processing_operations']
         serialized_operations = [
@@ -96,6 +114,8 @@ def process_document(experiment_id, document_uuid):
             f"Document {document.id} not found in experiment {experiment_id}: {exc}"
         )
         abort(404)
+    except PermissionError:
+        abort(403)
     except ServiceError as exc:
         logger.error(
             f"Service error getting process document data: {exc}",

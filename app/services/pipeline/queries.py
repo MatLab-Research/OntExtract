@@ -4,15 +4,15 @@ import logging
 from typing import Any, Dict
 from uuid import UUID
 
-from app.models import ExperimentDocument
 from app.models.experiment_processing import ExperimentDocumentProcessing, ProcessingArtifact
-from app.services.base_service import NotFoundError, ServiceError
+from app.services.base_service import NotFoundError, PermissionError, ServiceError
+from app.services.pipeline_access_service import PipelineAccessService
 
 logger = logging.getLogger(__name__)
 
 
 class PipelineQueryMixin:
-    def get_processing_status(self, exp_doc_id: int) -> Dict[str, Any]:
+    def get_processing_status(self, exp_doc_id: int, actor_id: int) -> Dict[str, Any]:
         """
         Get processing status for an experiment document
 
@@ -27,9 +27,7 @@ class PipelineQueryMixin:
             ServiceError: On other errors
         """
         try:
-            exp_doc = ExperimentDocument.query.filter_by(id=exp_doc_id).first()
-            if not exp_doc:
-                raise NotFoundError(f"Experiment document {exp_doc_id} not found")
+            PipelineAccessService.experiment_document(exp_doc_id, actor_id)
 
             # Get all processing operations
             processing_operations = ExperimentDocumentProcessing.query.filter_by(
@@ -41,13 +39,17 @@ class PipelineQueryMixin:
                 'processing_operations': [op.to_dict() for op in processing_operations]
             }
 
-        except NotFoundError:
+        except (NotFoundError, PermissionError):
             raise
         except Exception as e:
             logger.error(f"Error getting processing status: {e}", exc_info=True)
             raise ServiceError(f"Failed to get processing status: {str(e)}")
 
-    def get_processing_artifacts(self, processing_id: UUID) -> Dict[str, Any]:
+    def get_processing_artifacts(
+        self,
+        processing_id: UUID,
+        actor_id: int,
+    ) -> Dict[str, Any]:
         """
         Get artifacts for a specific processing operation
 
@@ -62,9 +64,10 @@ class PipelineQueryMixin:
             ServiceError: On other errors
         """
         try:
-            processing_op = ExperimentDocumentProcessing.query.filter_by(id=processing_id).first()
-            if not processing_op:
-                raise NotFoundError(f"Processing operation {processing_id} not found")
+            processing_op = PipelineAccessService.processing(
+                processing_id,
+                actor_id,
+            )
 
             # Get all artifacts
             artifacts = ProcessingArtifact.query.filter_by(
@@ -78,7 +81,7 @@ class PipelineQueryMixin:
                 'artifacts': [artifact.to_dict() for artifact in artifacts]
             }
 
-        except NotFoundError:
+        except (NotFoundError, PermissionError):
             raise
         except Exception as e:
             logger.error(f"Error getting processing artifacts: {e}", exc_info=True)

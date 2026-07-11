@@ -61,15 +61,15 @@ def test_pipeline_routes_are_grouped_by_http_responsibility(app):
     } == expected_modules
 
 
-def test_document_pipeline_page_renders(client, experiment_with_documents):
-    response = client.get(
+def test_document_pipeline_page_renders(auth_client, experiment_with_documents):
+    response = auth_client.get(
         f"/experiments/{experiment_with_documents.id}/document_pipeline"
     )
 
     assert response.status_code == 200
 
 
-def test_process_document_page_renders(client, experiment_with_documents):
+def test_process_document_page_renders(auth_client, experiment_with_documents):
     from app.models.experiment_document import ExperimentDocument
 
     experiment_document = ExperimentDocument.query.filter_by(
@@ -77,21 +77,21 @@ def test_process_document_page_renders(client, experiment_with_documents):
     ).first()
     document = experiment_document.document
 
-    response = client.get(
+    response = auth_client.get(
         f"/experiments/{experiment_with_documents.id}/process_document/{document.uuid}"
     )
 
     assert response.status_code == 200
 
 
-def test_experiment_processing_status_api(client, experiment_with_processing):
+def test_experiment_processing_status_api(auth_client, experiment_with_processing):
     from app.models.experiment_document import ExperimentDocument
 
     experiment_document = ExperimentDocument.query.filter_by(
         experiment_id=experiment_with_processing.id
     ).first()
 
-    response = client.get(
+    response = auth_client.get(
         "/experiments/api/experiment-document/"
         f"{experiment_document.id}/processing-status"
     )
@@ -100,7 +100,7 @@ def test_experiment_processing_status_api(client, experiment_with_processing):
     assert response.get_json()["experiment_document_id"] == experiment_document.id
 
 
-def test_processing_artifacts_api(client, experiment_with_processing):
+def test_processing_artifacts_api(auth_client, experiment_with_processing):
     from app.models.experiment_document import ExperimentDocument
     from app.models.experiment_processing import ExperimentDocumentProcessing
 
@@ -111,7 +111,7 @@ def test_processing_artifacts_api(client, experiment_with_processing):
         experiment_document_id=experiment_document.id
     ).first()
 
-    response = client.get(
+    response = auth_client.get(
         f"/experiments/api/processing/{processing.id}/artifacts"
     )
 

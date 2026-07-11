@@ -5,15 +5,26 @@ import logging
 from typing import Any, Dict
 
 from app import db
-from app.models import ExperimentDocument
 from app.models.experiment_processing import ExperimentDocumentProcessing, DocumentProcessingIndex
-from app.services.base_service import NotFoundError, ServiceError, ValidationError
+from app.services.base_service import (
+    NotFoundError,
+    PermissionError,
+    ServiceError,
+    ValidationError,
+)
+from app.services.pipeline_access_service import PipelineAccessService
+from .constants import SUPPORTED_PROCESSING_METHODS
 
 logger = logging.getLogger(__name__)
 
 
 class PipelineExecutionMixin:
-    def apply_embeddings(self, experiment_id: int, document_id: int) -> Dict[str, Any]:
+    def apply_embeddings(
+        self,
+        experiment_id: int,
+        document_id: int,
+        user_id: int,
+    ) -> Dict[str, Any]:
         """
         Apply embeddings to a document for a specific experiment
 
@@ -31,12 +42,11 @@ class PipelineExecutionMixin:
         """
         try:
             # Get the experiment-document association
-            exp_doc = ExperimentDocument.query.filter_by(
-                experiment_id=experiment_id,
-                document_id=document_id
-            ).first()
-            if not exp_doc:
-                raise NotFoundError(f"Document {document_id} not found in experiment {experiment_id}")
+            exp_doc = PipelineAccessService.document_in_experiment(
+                experiment_id,
+                document_id,
+                user_id,
+            )
 
             document = exp_doc.document
 
@@ -98,7 +108,7 @@ class PipelineExecutionMixin:
                 'processing_progress': exp_doc.processing_progress
             }
 
-        except (NotFoundError, ValidationError):
+        except (NotFoundError, PermissionError, ValidationError):
             raise
         except Exception as e:
             db.session.rollback()
@@ -131,9 +141,18 @@ class PipelineExecutionMixin:
         """
         try:
             # Get the experiment document
-            exp_doc = ExperimentDocument.query.filter_by(id=experiment_document_id).first()
-            if not exp_doc:
-                raise NotFoundError(f"Experiment document {experiment_document_id} not found")
+            exp_doc = PipelineAccessService.experiment_document(
+                experiment_document_id,
+                user_id,
+            )
+            if (
+                processing_type not in SUPPORTED_PROCESSING_METHODS
+                or processing_method
+                not in SUPPORTED_PROCESSING_METHODS[processing_type]
+            ):
+                raise ValidationError(
+                    f'Unsupported method {processing_method} for {processing_type}'
+                )
 
             # Check if processing already exists
             existing_processing = ExperimentDocumentProcessing.query.filter_by(
@@ -227,7 +246,7 @@ class PipelineExecutionMixin:
                     'error': error_message
                 }
 
-        except (NotFoundError, ValidationError):
+        except (NotFoundError, PermissionError, ValidationError):
             raise
         except Exception as e:
             db.session.rollback()

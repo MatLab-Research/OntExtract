@@ -9,3 +9,14 @@ LLM_TOOL_TO_OPERATION_MAP = {
     "segment_paragraph": {"type": "segmentation", "method": "paragraph"},
     "segment_sentence": {"type": "segmentation", "method": "sentence"},
 }
+
+SUPPORTED_PROCESSING_METHODS = {
+    'embeddings': {
+        'local', 'openai', 'sentence_transformers', 'gemini', 'period_aware',
+    },
+    'segmentation': {'paragraph', 'sentence', 'semantic'},
+    'entities': {'spacy', 'nltk', 'llm'},
+    'temporal': {'spacy'},
+    'definitions': {'pattern'},
+    'enhanced_processing': {'enhanced'},
+}
